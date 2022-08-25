@@ -1,7 +1,7 @@
 [tool.poetry]
-name = "api"
-version = "0.1.0"
-description = ""
+name = "basedosdados-api"
+version = "0.0.1"
+description = "Base dos Dados API"
 authors = ["Guilherme Peres <contact@gperes.dev>"]
 
 [tool.poetry.dependencies]
@@ -12,8 +12,13 @@ hvac = "^0.11.2"
 pandas-gbq = "^0.17.8"
 python = "3.10"
 uvicorn = "^0.18.2"
+SQLAlchemy = "^1.4.40"
 
 [tool.poetry.dev-dependencies]
+pre-commit = "^2.20.0"
+black = "^22.6.0"
+pytest-cov = "^3.0.0"
+flake8 = "^5.0.4"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
