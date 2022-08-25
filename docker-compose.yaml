@@ -1,0 +1,51 @@
+services:
+  bdd_db:
+    image: postgres:14
+    container_name: bdd_db
+    env_file:
+      - .env
+    ports:
+      - ${POSTGRES_PORT}:${POSTGRES_PORT}
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  bdd_pg_admin:
+    image: dpage/pgadmin4
+    container_name: bdd_pg_admin
+    env_file:
+      - .env
+    ports:
+      - ${PGADMIN_LISTEN_PORT}:${PGADMIN_LISTEN_PORT}
+    depends_on:
+      - bdd_db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${PGADMIN_LISTEN_PORT}"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+
+  bdd_app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: bdd_app
+    env_file:
+      - .env
+    ports:
+      - ${API_PORT}:${API_PORT}
+    depends_on:
+      - bdd_db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${API_PORT}/docs"]
+      interval: 1m30s
+      timeout: 30s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
