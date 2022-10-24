@@ -1,0 +1,10 @@
+apiVersion: v2
+name: basedosdados-api
+description: Deploys the basedosdados API.
+
+type: application
+
+version: 0.0.1 # This is the version of the chart
+
+# This should match the API version we're using
+appVersion: "0.0.1"

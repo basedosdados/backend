@@ -1,0 +1,77 @@
+# API configuration
+api:
+  # Deployment name
+  name: "basedosdados-api"
+
+  # Deployment image
+  image:
+    name: "ghcr.io/basedosdados/api"
+    tag: "stable" # We use the stable tag for the API as a default
+    pullPolicy: "Always"
+
+  # Number of replicas
+  replicas: 1
+
+  # Specifying resources is recommended for production deployments
+  resources: {}
+  #   limits:
+  #     cpu: 100m
+  #     memory: 128Mi
+  #   requests:
+  #     cpu: 100m
+  #     memory: 128Mi
+
+  # Additional environment variables to be passed to the API
+  env: []
+    # - name: "SOME_ENV"
+    #   value: "some_value"
+
+  # Liveness and readiness probes
+  livenessProbe: {}
+    # httpGet:
+    #   path: /health
+    #   port: http
+    # initialDelaySeconds: 30
+    # periodSeconds: 10
+  readinessProbe: {}
+    # httpGet:
+    #   path: /health
+    #   port: http
+    # initialDelaySeconds: 30
+    # periodSeconds: 10
+
+# Database configuration
+database:
+  # Hostname of the database
+  host: "basedosdados-postgres"
+
+  # Port of the database
+  port: 5432
+
+  # Database name
+  name: "basedosdados"
+
+  # Username
+  user: "basedosdados"
+
+  # Secret containing the password (it must have a key called `password` containing the password)
+  passwordSecret: "basedosdados-postgres-password"
+
+# Ingress configuration
+ingress:
+  # Enable ingress
+  enabled: false
+
+  # Host to be used in the ingress
+  host: "basedosdados-api.example.com"
+
+  # Ingress annotations
+  annotations: {}
+    # kubernetes.io/ingress.class: nginx
+    # kubernetes.io/tls-acme: "true"
+
+  # TLS configuration
+  tls: []
+    # - secretName: basedosdados-api-tls
+    #   hosts:
+    #     - basedosdados-api.local
