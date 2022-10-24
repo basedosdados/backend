@@ -9,7 +9,7 @@ on:
       - "charts/**/*"
 
 jobs:
-  release:
+  release-helm-chart:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
