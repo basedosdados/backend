@@ -32,7 +32,7 @@ jobs:
 
       - name: Build and push PR image
         uses: docker/build-push-action@v2
-        if: github.event_name == 'pull_request' # If it's a PR, build and push with the PR number
+        if: github.event_name == 'pull_request' && github.event.review.state == 'approved' # If it's an approved PR, build and push with the PR number
         with:
           context: .
           file: ./Dockerfile
