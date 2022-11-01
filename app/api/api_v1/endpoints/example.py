@@ -2,11 +2,14 @@
 """
 Example endpoints
 """
-# from typing import Any, List, Optional
-# from fastapi import APIRouter, Depends, HTTPException
-# from sqlalchemy.orm import Session
-# from app import crud, models, schemas
+from fastapi import APIRouter
 
-# from app.api import deps
+router = APIRouter()
 
-# router = APIRouter()
+
+@router.get("/")
+def example():
+    """
+    Example endpoint
+    """
+    return {"message": "Hello World"}
