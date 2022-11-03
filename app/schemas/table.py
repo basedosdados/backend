@@ -31,3 +31,8 @@ class Table(BaseModel):
         if v in [table.name for table in values["dataset"].tables]:
             raise ValidationError("Table name must be unique within dataset")
         return v
+
+
+class TableInDB(Table):
+    class Config:
+        orm_mode = True

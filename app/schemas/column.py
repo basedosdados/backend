@@ -23,3 +23,8 @@ class Column(BaseModel):
         if v in [column.name for column in values["table"].columns]:
             raise ValidationError("Column name must be unique within table")
         return v
+
+
+class ColumnInDB(Column):
+    class Config:
+        orm_mode = True

@@ -16,3 +16,8 @@ class Dataset(BaseModel):
         if v in [dataset.name for dataset in values["project"].datasets]:
             raise ValidationError("Dataset name must be unique within project")
         return v
+
+
+class DatasetInDB(Dataset):
+    class Config:
+        orm_mode = True
