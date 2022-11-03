@@ -8,7 +8,7 @@ from app.schemas.dataset import Dataset
 from app.schemas.tag import Tag
 
 
-class Table(BaseModel):
+class TableBase(BaseModel):
     id: int
     name: str
     short_description: str
@@ -33,6 +33,22 @@ class Table(BaseModel):
         return v
 
 
-class TableInDB(Table):
+class TableCreate(TableBase):
+    pass
+
+
+class TableUpdate(TableBase):
+    pass
+
+
+class TableInDBBase(TableBase):
     class Config:
         orm_mode = True
+
+
+class Table(TableInDBBase):
+    pass
+
+
+class TableInDB(TableInDBBase):
+    pass

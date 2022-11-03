@@ -4,7 +4,7 @@ from pydantic import BaseModel, ValidationError, validator
 from app.schemas.project import Project
 
 
-class Dataset(BaseModel):
+class DatasetBase(BaseModel):
     id: int
     name: str
     title_prefix: str
@@ -18,6 +18,22 @@ class Dataset(BaseModel):
         return v
 
 
-class DatasetInDB(Dataset):
+class DatasetCreate(DatasetBase):
+    pass
+
+
+class DatasetUpdate(DatasetBase):
+    pass
+
+
+class DatasetInDBBase(DatasetBase):
     class Config:
         orm_mode = True
+
+
+class Dataset(DatasetInDBBase):
+    pass
+
+
+class DatasetInDB(DatasetInDBBase):
+    pass

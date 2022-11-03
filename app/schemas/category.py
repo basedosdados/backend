@@ -2,12 +2,28 @@
 from pydantic import BaseModel
 
 
-class Category(BaseModel):
+class CategoryBase(BaseModel):
     id: int
     name: str
     path: str
 
 
-class CategoryInDB(Category):
+class CategoryCreate(CategoryBase):
+    pass
+
+
+class CategoryUpdate(CategoryBase):
+    pass
+
+
+class CategoryInDBBase(CategoryBase):
     class Config:
         orm_mode = True
+
+
+class Category(CategoryInDBBase):
+    pass
+
+
+class CategoryInDB(CategoryInDBBase):
+    pass

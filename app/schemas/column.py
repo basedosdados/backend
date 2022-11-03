@@ -4,7 +4,7 @@ from pydantic import BaseModel, ValidationError, validator
 from app.schemas.table import Table
 
 
-class Column(BaseModel):
+class ColumnBase(BaseModel):
     id: int
     original_name: str
     name: str
@@ -25,6 +25,22 @@ class Column(BaseModel):
         return v
 
 
-class ColumnInDB(Column):
+class ColumnCreate(ColumnBase):
+    pass
+
+
+class ColumnUpdate(ColumnBase):
+    pass
+
+
+class ColumnInDBBase(ColumnBase):
     class Config:
         orm_mode = True
+
+
+class Column(ColumnInDBBase):
+    pass
+
+
+class ColumnInDB(ColumnInDBBase):
+    pass
