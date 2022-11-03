@@ -15,7 +15,8 @@ uvicorn = "^0.18.2"
 SQLAlchemy = "^1.4.40"
 pydantic = {extras = ["email"], version = "^1.10.2"}
 alembic = "^1.8.1"
-psycopg2-binary = "^2.9.5"
+sqlmodel = "^0.0.8"
+asyncpg = "^0.27.0"
 
 [tool.poetry.dev-dependencies]
 pre-commit = "^2.20.0"
