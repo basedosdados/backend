@@ -36,7 +36,7 @@ async def create_category(
     Create new category.
     """
     category = Category(**category_in.dict())
-    session.add(category)
+    await session.add(category)
     await session.commit()
     await session.refresh(category)
     return category
@@ -79,7 +79,7 @@ async def update_category(
     category_data = category_in.dict(exclude_unset=True)
     for field in category_data:
         setattr(category, field, category_data[field])
-    session.add(category)
+    await session.add(category)
     await session.commit()
     await session.refresh(category)
     return category
@@ -100,5 +100,5 @@ async def delete_category(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Category not found"
         )
-    session.delete(category)
+    await session.delete(category)
     await session.commit()
