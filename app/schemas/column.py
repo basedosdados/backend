@@ -6,6 +6,7 @@ from app.schemas.table import Table
 
 class Column(BaseModel):
     id: int
+    original_name: str
     name: str
     data_type: str
     description: str
