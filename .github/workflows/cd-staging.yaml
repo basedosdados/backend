@@ -90,13 +90,5 @@ jobs:
           verbose: true
 
       - name: Deploy using Helm
-        uses: deliverybot/helm@master
-        with:
-          release: staging-backend
-          namespace: staging-backend-dados-rio
-          chart: ./charts/basedosdados-api
-          value-files: >-
-            [
-              "values.yaml"
-            ]
-          token: ${{ github.token }}
+        run: |
+          helm upgrade --install staging-backend charts/basedosdados-api/. -n staging-backend-dados-rio -f values.yaml --wait
