@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
-from rest_framework import routers
+from basedosdados_api.custom.routers import IndexRouter
+from basedosdados_api.api.v1.urls import router as v1_router
 
-from basedosdados_api.api import views
+router = IndexRouter(
+    routers={"v1": v1_router},
+    name="V1",
+    swagger_operation_summary="Acessa a versão 1 da API do Base dos Dados",
+)
 
-router = routers.DefaultRouter()
-router.register(r"categories", views.CategoryViewSet, basename="category")
+urlpatterns = router.to_urlpatterns()

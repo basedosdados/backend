@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 from rest_framework import viewsets
 
-from basedosdados_api.api.models import Category
-from basedosdados_api.api.serializers import CategorySerializer
+from basedosdados_api.api.v1.models import Category
+from basedosdados_api.api.v1.serializers import CategorySerializer
 
 
 class CategoryViewSet(viewsets.ModelViewSet):

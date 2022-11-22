@@ -22,12 +22,12 @@ from rest_framework_simplejwt.views import (
     TokenVerifyView,
 )
 
-from basedosdados_api.api.urls import router
+from basedosdados_api.api.urls import urlpatterns as api_urlpatterns
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     re_path(r"^healthcheck/", include("health_check.urls")),
-    path("api/", include(router.urls)),
+    path("api/", include(api_urlpatterns)),
     path("api/account/", include("basedosdados_api.account.urls")),
     path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
