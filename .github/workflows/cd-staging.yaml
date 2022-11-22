@@ -90,7 +90,7 @@ jobs:
           verbose: true
 
       - name: Deploy using Helm
-        uses: deliverybot/helm@v1.5.0
+        uses: deliverybot/helm@master
         with:
           release: staging-backend
           namespace: staging-backend-dados-rio
