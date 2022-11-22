@@ -21,24 +21,21 @@ api:
   #     cpu: 100m
   #     memory: 128Mi
 
-  # Additional environment variables to be passed to the API
+  # Additional environment variables to be passed to the API. One must provide all of
+  # the environment variables below, either directly or through a secret:
+  # - EMAIL_HOST_USER: email address to be used to send emails
+  # - EMAIL_HOST_PASSWORD: password for the email address
+  # - DJANGO_SECRET_KEY: the Django secret key
   env: []
     # - name: "SOME_ENV"
     #   value: "some_value"
 
-  # Liveness and readiness probes
-  livenessProbe: {}
-    # httpGet:
-    #   path: /health
-    #   port: http
-    # initialDelaySeconds: 30
-    # periodSeconds: 10
-  readinessProbe: {}
-    # httpGet:
-    #   path: /health
-    #   port: http
-    # initialDelaySeconds: 30
-    # periodSeconds: 10
+  envFrom: []
+    # - secretRef:
+    #     name: some-secret
+
+  # Django settings module
+  settingsModule: "basedosdados_api.settings.prod"
 
 # Database configuration
 database:
