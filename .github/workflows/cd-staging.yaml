@@ -42,9 +42,43 @@ jobs:
       - name: Write values.yaml file
         run: |
           cat << EOF > values.yaml
-          image:
-            repository: ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}
-            tag: pr-${{ github.event.number }}
+          api:
+            name: "basedosdados-api"
+            image:
+              name: "ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}""
+              tag: "staging"
+              pullPolicy: "Always"
+            replicas: 1
+            resources:
+              limits:
+                cpu: 100m
+                memory: 128Mi
+              requests:
+                cpu: 100m
+                memory: 128Mi
+            env: []
+            envFrom:
+              - secretRef:
+                  name: staging-backend-dados-rio-secrets
+            settingsModule: "basedosdados_api.settings.prod"
+          database:
+            host: "cloud-sql-proxy"
+            port: 5432
+            name: "staging-backend"
+            user: "staging-backend"
+            passwordSecret: "staging-database-password"
+          ingress:
+            enabled: true
+            host: "staging.backend.dados.rio"
+            annotations:
+              kubernetes.io/ingress.class: nginx
+              nginx.ingress.kubernetes.io/rewrite-target: /
+              cert-manager.io/issuer: "letsencrypt-production"
+              nginx.ingress.kubernetes.io/ssl-redirect: "true"
+            tls:
+              - hosts:
+                  - staging.backend.dados.rio
+                secretName: staging-backend-dados-rio-tls
           EOF
 
       - name: Wait for Docker image release
