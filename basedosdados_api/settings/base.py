@@ -50,6 +50,8 @@ INSTALLED_APPS = [
     "rest_framework",
     "rest_framework_simplejwt",
     "rest_framework_simplejwt.token_blacklist",
+    "basedosdados_api.account",
+    "basedosdados_api.api",
 ]
 
 MIDDLEWARE = [
