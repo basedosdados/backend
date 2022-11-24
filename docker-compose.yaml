@@ -4,10 +4,10 @@ services:
   database:
     image: postgres:14
     container_name: database
-    environment:
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_USER: postgres
-      POSTGRES_DB: postgres
+    env_file:
+      - .env
+    ports:
+      - 5432:5432
     volumes:
       - vol_database:/var/lib/postgresql/data
     healthcheck:
@@ -19,10 +19,12 @@ services:
     restart: unless-stopped
 
   api:
-    image: ghcr.io/basedosdados/backend:stable
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: basedosdados_api
     env_file:
-      - .env.docker
+      - .env
     ports:
       - 8080:80
     depends_on:
