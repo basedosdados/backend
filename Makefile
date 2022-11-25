@@ -67,6 +67,11 @@ run_docker:
 # `make stop_docker`: stops the server using docker-compose
 .PHONY: stop_docker
 stop_docker:
+	@docker compose -f docker-compose.yaml -f docker-compose.dev.yaml stop
+
+# `make clean_docker`: removes the server using docker-compose
+.PHONY: clean_docker
+clean_docker:
 	@docker compose -f docker-compose.yaml -f docker-compose.dev.yaml down
 
 # `make shell_docker`: runs a shell in the server using docker-compose
