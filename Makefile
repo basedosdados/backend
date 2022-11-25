@@ -69,10 +69,10 @@ run_docker:
 stop_docker:
 	@docker compose -f docker-compose.yaml -f docker-compose.dev.yaml stop
 
-# `make clean_docker`: removes the server using docker-compose
+# `make clean_docker`: removes the server using docker-compose and delete all volumes
 .PHONY: clean_docker
 clean_docker:
-	@docker compose -f docker-compose.yaml -f docker-compose.dev.yaml down
+	@docker compose -f docker-compose.yaml -f docker-compose.dev.yaml down --volumes
 
 # `make shell_docker`: runs a shell in the server using docker-compose
 .PHONY: shell_docker
