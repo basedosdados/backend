@@ -44,3 +44,8 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 DEFAULT_FROM_EMAIL = nonull_getenv("EMAIL_HOST_USER")
 SERVER_EMAIL = nonull_getenv("EMAIL_HOST_USER")
+
+# Set logging path for production
+LOGGING["handlers"]["logfile"][  # noqa
+    "filename"
+] = "/var/log/django/basedosdados_api.log"
