@@ -37,15 +37,30 @@ lint:
 migrations:
 	$(PYTHON) manage.py makemigrations
 
+# `make migrations_docker`: checks for model changes and generates migrations using docker-compose
+.PHONY: migrations_docker
+migrations_docker:
+	docker-compose exec api python manage.py makemigrations
+
 # `make migrate`: applies migrations
 .PHONY: migrate
 migrate:
 	$(PYTHON) manage.py migrate
 
+# `make migrate_docker`: applies migrations using docker-compose
+.PHONY: migrate_docker
+migrate_docker:
+	docker-compose exec api python manage.py migrate
+
 # `make superuser`: creates a superuser
 .PHONY: superuser
 superuser:
 	$(PYTHON) manage.py createsuperuser
+
+# `make superuser_docker`: creates a superuser using docker-compose
+.PHONY: superuser_docker
+superuser_docker:
+	docker-compose exec api python manage.py createsuperuser
 
 # `make run_local`: runs the server using manage.py
 .PHONY: run_local
@@ -62,29 +77,29 @@ run_local:
 # `make run_docker`: runs the server using docker-compose
 .PHONY: run_docker
 run_docker:
-	@docker compose -f docker-compose.yaml -f docker-compose.dev.yaml up --build --detach
+	docker-compose up --build --force-recreate --detach
 
 # `make stop_docker`: stops the server using docker-compose
 .PHONY: stop_docker
 stop_docker:
-	@docker compose -f docker-compose.yaml -f docker-compose.dev.yaml stop
+	docker-compose stop
 
 # `make clean_docker`: removes the server using docker-compose and delete all volumes
 .PHONY: clean_docker
 clean_docker:
-	@docker compose -f docker-compose.yaml -f docker-compose.dev.yaml down --volumes
+	docker-compose down --volumes
 
 # `make shell_docker`: runs a shell in the server using docker-compose
 .PHONY: shell_docker
 shell_docker:
-	@docker compose -f docker-compose.yaml -f docker-compose.dev.yaml exec api bash
+	docker-compose exec api bash
 
 # `make logs_docker`: shows the logs of the server using docker-compose
 .PHONY: logs_docker
 logs_docker:
-	@docker compose -f docker-compose.yaml -f docker-compose.dev.yaml logs --tail=500 -f
+	docker-compose logs --tail=500 -f
 
 # `make status_docker`: shows the status of the server using docker-compose
 .PHONY: status_docker
 status_docker:
-	@docker compose -f docker-compose.yaml -f docker-compose.dev.yaml ps
+	docker-compose ps
