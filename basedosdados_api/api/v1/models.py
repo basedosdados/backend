@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from typing import Iterable, Optional
+from uuid import uuid4
 
 from django.db import models
 
@@ -7,10 +8,10 @@ from basedosdados_api.api.v1.utils import check_snake_case
 
 
 class Organization(models.Model):
-    id = models.UUIDField(primary_key=True)
+    id = models.UUIDField(primary_key=True, default=uuid4)
 
     def __str__(self):
-        return self.id
+        return str(self.id)
 
     class Meta:
         db_table = "organization"
@@ -20,13 +21,13 @@ class Organization(models.Model):
 
 
 class Dataset(models.Model):
-    id = models.UUIDField(primary_key=True)
+    id = models.UUIDField(primary_key=True, default=uuid4)
     organization = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="datasets"
     )
 
     def __str__(self):
-        return self.id
+        return str(self.id)
 
     class Meta:
         db_table = "dataset"
@@ -36,13 +37,13 @@ class Dataset(models.Model):
 
 
 class Table(models.Model):
-    id = models.UUIDField(primary_key=True)
+    id = models.UUIDField(primary_key=True, default=uuid4)
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="tables"
     )
 
     def __str__(self):
-        return self.id
+        return str(self.id)
 
     class Meta:
         db_table = "table"
@@ -52,11 +53,11 @@ class Table(models.Model):
 
 
 class Column(models.Model):
-    id = models.UUIDField(primary_key=True)
+    id = models.UUIDField(primary_key=True, default=uuid4)
     table = models.ForeignKey("Table", on_delete=models.CASCADE, related_name="columns")
 
     def __str__(self):
-        return self.id
+        return str(self.id)
 
     class Meta:
         db_table = "column"
@@ -74,7 +75,7 @@ class CloudTable(models.Model):
     gcp_table_id = models.CharField(max_length=255)
 
     def __str__(self):
-        return self.id
+        return f"{self.gcp_project_id}.{self.gcp_dataset_id}.{self.gcp_table_id}"
 
     def clean(self) -> None:
         if not check_snake_case(self.gcp_project_id):
@@ -99,4 +100,4 @@ class CloudTable(models.Model):
         db_table = "cloud_table"
         verbose_name = "Cloud Table"
         verbose_name_plural = "Cloud Tables"
-        ordering = ["id"]
+        ordering = ["table"]
