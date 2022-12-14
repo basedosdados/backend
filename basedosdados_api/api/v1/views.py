@@ -99,15 +99,15 @@ class CloudTableReadOnlyViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         queryset = CloudTable.objects.all()
-        # table = self.request.query_params.get("table", None)
-        # dataset = self.request.query_params.get("dataset", None)
-        # organization = self.request.query_params.get("organization", None)
-        # if table is not None:
-        #     queryset = queryset.filter(table__id=table)
-        # if dataset is not None:
-        #     queryset = queryset.filter(table__dataset__id=dataset)
-        # if organization is not None:
-        #     queryset = queryset.filter(table__dataset__organization__id=organization)
+        table = self.request.query_params.get("table", None)
+        dataset = self.request.query_params.get("dataset", None)
+        organization = self.request.query_params.get("organization", None)
+        if table is not None:
+            queryset = queryset.filter(table__id=table)
+        if dataset is not None:
+            queryset = queryset.filter(table__dataset__id=dataset)
+        if organization is not None:
+            queryset = queryset.filter(table__dataset__organization__id=organization)
         return queryset
 
 
