@@ -10,6 +10,9 @@ private_router.register(
 )
 private_router.register(r"datasets", views.DatasetViewSet, basename="dataset-private")
 private_router.register(r"tables", views.TableViewSet, basename="table-private")
+private_router.register(
+    r"bigquerytypes", views.BigQueryTypesViewSet, basename="bigquerytypes-private"
+)
 private_router.register(r"columns", views.ColumnViewSet, basename="column-private")
 private_router.register(
     r"cloudtables", views.CloudTableViewSet, basename="cloudtable-private"
@@ -23,6 +26,11 @@ public_router.register(
     r"datasets", views.DatasetReadOnlyViewSet, basename="dataset-public"
 )
 public_router.register(r"tables", views.TableReadOnlyViewSet, basename="table-public")
+public_router.register(
+    r"bigquerytypes",
+    views.BigQueryTypesReadOnlyViewSet,
+    basename="bigquerytypes-public",
+)
 public_router.register(
     r"columns", views.ColumnReadOnlyViewSet, basename="column-public"
 )
