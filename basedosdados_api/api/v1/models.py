@@ -127,7 +127,9 @@ class Column(models.Model):
 
 class CloudTable(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    tables = models.ManyToManyField("Table", related_name="cloud_tables")
+    table = models.ForeignKey(
+        "Table", on_delete=models.CASCADE, related_name="cloud_tables"
+    )
     gcp_project_id = models.CharField(max_length=255)
     gcp_dataset_id = models.CharField(max_length=255)
     gcp_table_id = models.CharField(max_length=255)

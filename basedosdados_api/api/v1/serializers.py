@@ -131,16 +131,16 @@ class ColumnSerializer(ColumnPublicSerializer):
 
 
 class CloudTablePublicSerializer(serializers.HyperlinkedModelSerializer):
-    tables = serializers.HyperlinkedRelatedField(
-        view_name="table-public-detail", queryset=Table.objects.all(), many=True
+    table = serializers.HyperlinkedRelatedField(
+        view_name="table-public-detail", queryset=Table.objects.all()
     )
 
     class Meta:
         model = CloudTable
-        fields = ["tables", "gcp_project_id", "gcp_dataset_id", "gcp_table_id"]
+        fields = ["table", "gcp_project_id", "gcp_dataset_id", "gcp_table_id"]
 
 
 class CloudTableSerializer(CloudTablePublicSerializer):
-    tables = serializers.HyperlinkedRelatedField(
-        view_name="table-private-detail", queryset=Table.objects.all(), many=True
+    table = serializers.HyperlinkedRelatedField(
+        view_name="table-private-detail", queryset=Table.objects.all()
     )
