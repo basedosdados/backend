@@ -9,23 +9,33 @@ from basedosdados_api.api.v1.models import (
     CloudTable,
 )
 from basedosdados_api.api.v1.serializers import (
+    OrganizationPublicSerializer,
     OrganizationSerializer,
+    DatasetPublicSerializer,
     DatasetSerializer,
+    TablePublicSerializer,
     TableSerializer,
+    ColumnPublicSerializer,
     ColumnSerializer,
+    CloudTablePublicSerializer,
     CloudTableSerializer,
 )
 
 
-class OrganizationViewSet(viewsets.ModelViewSet):
+class OrganizationReadOnlyViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Organization.objects.all()
+    serializer_class = OrganizationPublicSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+
+class OrganizationViewSet(viewsets.ModelViewSet, OrganizationReadOnlyViewSet):
     serializer_class = OrganizationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
 
-class DatasetViewSet(viewsets.ModelViewSet):
-    serializer_class = DatasetSerializer
-    permission_classes = [permissions.IsAuthenticated]
+class DatasetReadOnlyViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = DatasetPublicSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
         queryset = Dataset.objects.all()
@@ -35,9 +45,14 @@ class DatasetViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-class TableViewSet(viewsets.ModelViewSet):
-    serializer_class = TableSerializer
+class DatasetViewSet(viewsets.ModelViewSet, DatasetReadOnlyViewSet):
+    serializer_class = DatasetSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+
+class TableReadOnlyViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = TablePublicSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
         queryset = Table.objects.all()
@@ -50,9 +65,14 @@ class TableViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-class ColumnViewSet(viewsets.ModelViewSet):
-    serializer_class = ColumnSerializer
+class TableViewSet(viewsets.ModelViewSet, TableReadOnlyViewSet):
+    serializer_class = TableSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+
+class ColumnReadOnlyViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = ColumnPublicSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
         queryset = Column.objects.all()
@@ -68,9 +88,14 @@ class ColumnViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-class CloudTableViewSet(viewsets.ModelViewSet):
-    serializer_class = CloudTableSerializer
+class ColumnViewSet(viewsets.ModelViewSet, ColumnReadOnlyViewSet):
+    serializer_class = ColumnSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+
+class CloudTableReadOnlyViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = CloudTablePublicSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
         queryset = CloudTable.objects.all()
@@ -84,3 +109,8 @@ class CloudTableViewSet(viewsets.ModelViewSet):
         # if organization is not None:
         #     queryset = queryset.filter(table__dataset__organization__id=organization)
         return queryset
+
+
+class CloudTableViewSet(viewsets.ModelViewSet, CloudTableReadOnlyViewSet):
+    serializer_class = CloudTableSerializer
+    permission_classes = [permissions.IsAuthenticated]

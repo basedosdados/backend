@@ -10,16 +10,20 @@ from basedosdados_api.api.v1.models import (
 )
 
 
-class OrganizationSerializer(serializers.HyperlinkedModelSerializer):
+class OrganizationPublicSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Organization
         fields = ["id"]
 
 
-class DatasetSerializer(serializers.HyperlinkedModelSerializer):
+class OrganizationSerializer(OrganizationPublicSerializer):
+    pass
+
+
+class DatasetPublicSerializer(serializers.HyperlinkedModelSerializer):
 
     organization = serializers.HyperlinkedRelatedField(
-        view_name="organization-detail", queryset=Organization.objects.all()
+        view_name="organization-public-detail", queryset=Organization.objects.all()
     )
 
     class Meta:
@@ -27,10 +31,16 @@ class DatasetSerializer(serializers.HyperlinkedModelSerializer):
         fields = ["id", "organization"]
 
 
-class TableSerializer(serializers.HyperlinkedModelSerializer):
+class DatasetSerializer(DatasetPublicSerializer):
+    organization = serializers.HyperlinkedRelatedField(
+        view_name="organization-private-detail", queryset=Organization.objects.all()
+    )
+
+
+class TablePublicSerializer(serializers.HyperlinkedModelSerializer):
 
     dataset = serializers.HyperlinkedRelatedField(
-        view_name="dataset-detail", queryset=Dataset.objects.all()
+        view_name="dataset-public-detail", queryset=Dataset.objects.all()
     )
 
     class Meta:
@@ -38,10 +48,16 @@ class TableSerializer(serializers.HyperlinkedModelSerializer):
         fields = ["id", "dataset"]
 
 
-class ColumnSerializer(serializers.HyperlinkedModelSerializer):
+class TableSerializer(TablePublicSerializer):
+    dataset = serializers.HyperlinkedRelatedField(
+        view_name="dataset-private-detail", queryset=Dataset.objects.all()
+    )
+
+
+class ColumnPublicSerializer(serializers.HyperlinkedModelSerializer):
 
     table = serializers.HyperlinkedRelatedField(
-        view_name="table-detail", queryset=Table.objects.all()
+        view_name="table-public-detail", queryset=Table.objects.all()
     )
 
     class Meta:
@@ -49,11 +65,23 @@ class ColumnSerializer(serializers.HyperlinkedModelSerializer):
         fields = ["id", "table"]
 
 
-class CloudTableSerializer(serializers.HyperlinkedModelSerializer):
+class ColumnSerializer(ColumnPublicSerializer):
     table = serializers.HyperlinkedRelatedField(
-        view_name="table-detail", queryset=Table.objects.all()
+        view_name="table-private-detail", queryset=Table.objects.all()
+    )
+
+
+class CloudTablePublicSerializer(serializers.HyperlinkedModelSerializer):
+    table = serializers.HyperlinkedRelatedField(
+        view_name="table-public-detail", queryset=Table.objects.all()
     )
 
     class Meta:
         model = CloudTable
         fields = ["table", "gcp_project_id", "gcp_dataset_id", "gcp_table_id"]
+
+
+class CloudTableSerializer(CloudTablePublicSerializer):
+    table = serializers.HyperlinkedRelatedField(
+        view_name="table-private-detail", queryset=Table.objects.all()
+    )
