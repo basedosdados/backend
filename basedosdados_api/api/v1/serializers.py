@@ -11,78 +11,6 @@ from basedosdados_api.api.v1.models import (
 )
 
 
-class OrganizationPublicSerializer(serializers.HyperlinkedModelSerializer):
-    class Meta:
-        model = Organization
-        fields = ["id", "slug", "name_en", "name_pt", "website"]
-
-
-class OrganizationSerializer(OrganizationPublicSerializer):
-    pass
-
-
-class DatasetPublicSerializer(serializers.HyperlinkedModelSerializer):
-
-    organization = serializers.HyperlinkedRelatedField(
-        view_name="organization-public-detail", queryset=Organization.objects.all()
-    )
-
-    class Meta:
-        model = Dataset
-        fields = ["id", "organization", "slug", "name_en", "name_pt"]
-
-
-class DatasetSerializer(DatasetPublicSerializer):
-    organization = serializers.HyperlinkedRelatedField(
-        view_name="organization-private-detail", queryset=Organization.objects.all()
-    )
-
-
-class TablePublicSerializer(serializers.HyperlinkedModelSerializer):
-
-    dataset = serializers.HyperlinkedRelatedField(
-        view_name="dataset-public-detail", queryset=Dataset.objects.all()
-    )
-    cloud_tables = serializers.HyperlinkedRelatedField(
-        view_name="cloudtable-public-detail",
-        queryset=CloudTable.objects.all(),
-        many=True,
-    )
-
-    class Meta:
-        model = Table
-        fields = [
-            "id",
-            "dataset",
-            "cloud_tables",
-            "slug",
-            "name_en",
-            "name_pt",
-            "description",
-            "is_directory",
-            "data_cleaned_description",
-            "data_cleaned_code_url",
-            "raw_data_url",
-            "auxiliary_files_url",
-            "architecture_url",
-            "source_bucket_name",
-            "uncompressed_file_size",
-            "compressed_file_size",
-            "number_of_rows",
-        ]
-
-
-class TableSerializer(TablePublicSerializer):
-    dataset = serializers.HyperlinkedRelatedField(
-        view_name="dataset-private-detail", queryset=Dataset.objects.all()
-    )
-    cloud_tables = serializers.HyperlinkedRelatedField(
-        view_name="cloudtable-private-detail",
-        queryset=CloudTable.objects.all(),
-        many=True,
-    )
-
-
 class BigQueryTypesPublicSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = BigQueryTypes
@@ -103,9 +31,7 @@ class ColumnPublicSerializer(serializers.HyperlinkedModelSerializer):
         queryset=CloudTable.objects.all(),
         many=True,
     )
-    bigquery_type = serializers.HyperlinkedRelatedField(
-        view_name="bigquerytypes-public-detail", queryset=BigQueryTypes.objects.all()
-    )
+    bigquery_type = BigQueryTypesPublicSerializer()
 
     class Meta:
         model = Column
@@ -136,18 +62,146 @@ class ColumnSerializer(ColumnPublicSerializer):
         queryset=CloudTable.objects.all(),
         many=True,
     )
-    bigquery_type = serializers.HyperlinkedRelatedField(
-        view_name="bigquerytypes-private-detail", queryset=BigQueryTypes.objects.all()
+    bigquery_type = BigQueryTypesSerializer()
+
+
+class ColumnNestedPublicSerializer(ColumnPublicSerializer):
+    class Meta:
+        model = Column
+        fields = [
+            "id",
+            "bigquery_type",
+            "slug",
+            "name_en",
+            "name_pt",
+            "is_in_staging",
+            "is_partition",
+            "description",
+            "coverage_by_dictionary",
+            "measurement_unit",
+            "has_sensitive_data",
+            "observations",
+        ]
+
+
+class ColumnNestedSerializer(ColumnSerializer):
+    class Meta:
+        model = Column
+        fields = [
+            "id",
+            "bigquery_type",
+            "slug",
+            "name_en",
+            "name_pt",
+            "is_in_staging",
+            "is_partition",
+            "description",
+            "coverage_by_dictionary",
+            "measurement_unit",
+            "has_sensitive_data",
+            "observations",
+        ]
+
+
+class TablePublicSerializer(serializers.HyperlinkedModelSerializer):
+
+    dataset = serializers.HyperlinkedRelatedField(
+        view_name="dataset-public-detail", queryset=Dataset.objects.all()
     )
+    cloud_tables = serializers.HyperlinkedRelatedField(
+        view_name="cloudtable-public-detail",
+        queryset=CloudTable.objects.all(),
+        many=True,
+    )
+    columns = ColumnNestedPublicSerializer(many=True)
+
+    class Meta:
+        model = Table
+        fields = [
+            "id",
+            "dataset",
+            "cloud_tables",
+            "columns",
+            "slug",
+            "name_en",
+            "name_pt",
+            "description",
+            "is_directory",
+            "data_cleaned_description",
+            "data_cleaned_code_url",
+            "raw_data_url",
+            "auxiliary_files_url",
+            "architecture_url",
+            "source_bucket_name",
+            "uncompressed_file_size",
+            "compressed_file_size",
+            "number_of_rows",
+        ]
+
+
+class TableSerializer(TablePublicSerializer):
+    dataset = serializers.HyperlinkedRelatedField(
+        view_name="dataset-private-detail", queryset=Dataset.objects.all()
+    )
+    cloud_tables = serializers.HyperlinkedRelatedField(
+        view_name="cloudtable-private-detail",
+        queryset=CloudTable.objects.all(),
+        many=True,
+    )
+    columns = ColumnNestedSerializer(many=True)
+
+
+class TableNestedPublicSerializer(TablePublicSerializer):
+    class Meta:
+        model = Table
+        fields = [
+            "id",
+            "cloud_tables",
+            "slug",
+            "name_en",
+            "name_pt",
+            "description",
+            "is_directory",
+            "data_cleaned_description",
+            "data_cleaned_code_url",
+            "raw_data_url",
+            "auxiliary_files_url",
+            "architecture_url",
+            "source_bucket_name",
+            "uncompressed_file_size",
+            "compressed_file_size",
+            "number_of_rows",
+        ]
+
+
+class TableNestedSerializer(TableSerializer):
+    class Meta:
+        model = Table
+        fields = [
+            "id",
+            "cloud_tables",
+            "slug",
+            "name_en",
+            "name_pt",
+            "description",
+            "is_directory",
+            "data_cleaned_description",
+            "data_cleaned_code_url",
+            "raw_data_url",
+            "auxiliary_files_url",
+            "architecture_url",
+            "source_bucket_name",
+            "uncompressed_file_size",
+            "compressed_file_size",
+            "number_of_rows",
+        ]
 
 
 class CloudTablePublicSerializer(serializers.HyperlinkedModelSerializer):
     table = serializers.HyperlinkedRelatedField(
         view_name="table-public-detail", queryset=Table.objects.all()
     )
-    columns = serializers.HyperlinkedRelatedField(
-        view_name="column-public-detail", queryset=Column.objects.all(), many=True
-    )
+    columns = ColumnNestedPublicSerializer(many=True)
 
     class Meta:
         model = CloudTable
@@ -164,6 +218,48 @@ class CloudTableSerializer(CloudTablePublicSerializer):
     table = serializers.HyperlinkedRelatedField(
         view_name="table-private-detail", queryset=Table.objects.all()
     )
-    columns = serializers.HyperlinkedRelatedField(
-        view_name="column-private-detail", queryset=Column.objects.all(), many=True
+    columns = ColumnNestedSerializer(many=True)
+
+
+class DatasetPublicSerializer(serializers.HyperlinkedModelSerializer):
+
+    organization = serializers.HyperlinkedRelatedField(
+        view_name="organization-public-detail", queryset=Organization.objects.all()
     )
+    tables = TableNestedPublicSerializer(many=True)
+
+    class Meta:
+        model = Dataset
+        fields = ["id", "organization", "tables", "slug", "name_en", "name_pt"]
+
+
+class DatasetSerializer(DatasetPublicSerializer):
+    organization = serializers.HyperlinkedRelatedField(
+        view_name="organization-private-detail", queryset=Organization.objects.all()
+    )
+    tables = TableNestedSerializer(many=True)
+
+
+class DatasetNestedPublicSerializer(DatasetPublicSerializer):
+    class Meta:
+        model = Dataset
+        fields = ["id", "slug", "name_en", "name_pt"]
+
+
+class DatasetNestedSerializer(DatasetSerializer):
+    class Meta:
+        model = Dataset
+        fields = ["id", "slug", "name_en", "name_pt"]
+
+
+class OrganizationPublicSerializer(serializers.HyperlinkedModelSerializer):
+
+    datasets = DatasetNestedPublicSerializer(many=True)
+
+    class Meta:
+        model = Organization
+        fields = ["id", "datasets", "slug", "name_en", "name_pt", "website"]
+
+
+class OrganizationSerializer(OrganizationPublicSerializer):
+    datasets = DatasetNestedSerializer(many=True)
