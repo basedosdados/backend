@@ -148,6 +148,11 @@ class CloudTable(models.Model):
             raise ValueError("gcp_dataset_id must be in snake_case.")
         if not check_snake_case(self.gcp_table_id):
             raise ValueError("gcp_table_id must be in snake_case.")
+        for column in self.columns.all():
+            if column.table != self.table:
+                raise ValueError(
+                    f"Column {column} does not belong to table {self.table}."
+                )
         return super().clean()
 
     def save(
