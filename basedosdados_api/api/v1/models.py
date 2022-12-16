@@ -133,6 +133,7 @@ class CloudTable(models.Model):
     table = models.ForeignKey(
         "Table", on_delete=models.CASCADE, related_name="cloud_tables"
     )
+    columns = models.ManyToManyField("Column", related_name="cloud_tables")
     gcp_project_id = models.CharField(max_length=255)
     gcp_dataset_id = models.CharField(max_length=255)
     gcp_table_id = models.CharField(max_length=255)

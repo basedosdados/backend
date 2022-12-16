@@ -98,6 +98,11 @@ class ColumnPublicSerializer(serializers.HyperlinkedModelSerializer):
     table = serializers.HyperlinkedRelatedField(
         view_name="table-public-detail", queryset=Table.objects.all()
     )
+    cloud_tables = serializers.HyperlinkedRelatedField(
+        view_name="cloudtable-public-detail",
+        queryset=CloudTable.objects.all(),
+        many=True,
+    )
     bigquery_type = serializers.HyperlinkedRelatedField(
         view_name="bigquerytypes-public-detail", queryset=BigQueryTypes.objects.all()
     )
@@ -107,6 +112,7 @@ class ColumnPublicSerializer(serializers.HyperlinkedModelSerializer):
         fields = [
             "id",
             "table",
+            "cloud_tables",
             "bigquery_type",
             "slug",
             "name_en",
@@ -125,6 +131,11 @@ class ColumnSerializer(ColumnPublicSerializer):
     table = serializers.HyperlinkedRelatedField(
         view_name="table-private-detail", queryset=Table.objects.all()
     )
+    cloud_tables = serializers.HyperlinkedRelatedField(
+        view_name="cloudtable-private-detail",
+        queryset=CloudTable.objects.all(),
+        many=True,
+    )
     bigquery_type = serializers.HyperlinkedRelatedField(
         view_name="bigquerytypes-private-detail", queryset=BigQueryTypes.objects.all()
     )
@@ -134,13 +145,25 @@ class CloudTablePublicSerializer(serializers.HyperlinkedModelSerializer):
     table = serializers.HyperlinkedRelatedField(
         view_name="table-public-detail", queryset=Table.objects.all()
     )
+    columns = serializers.HyperlinkedRelatedField(
+        view_name="column-public-detail", queryset=Column.objects.all(), many=True
+    )
 
     class Meta:
         model = CloudTable
-        fields = ["table", "gcp_project_id", "gcp_dataset_id", "gcp_table_id"]
+        fields = [
+            "table",
+            "columns",
+            "gcp_project_id",
+            "gcp_dataset_id",
+            "gcp_table_id",
+        ]
 
 
 class CloudTableSerializer(CloudTablePublicSerializer):
     table = serializers.HyperlinkedRelatedField(
         view_name="table-private-detail", queryset=Table.objects.all()
+    )
+    columns = serializers.HyperlinkedRelatedField(
+        view_name="column-private-detail", queryset=Column.objects.all(), many=True
     )
