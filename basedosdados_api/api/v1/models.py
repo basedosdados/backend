@@ -4,7 +4,10 @@ from uuid import uuid4
 
 from django.db import models
 
-from basedosdados_api.api.v1.utils import check_snake_case
+from basedosdados_api.api.v1.utils import (
+    check_kebab_case,
+    check_snake_case,
+)
 
 
 class Organization(models.Model):
@@ -138,8 +141,8 @@ class CloudTable(models.Model):
         return f"{self.gcp_project_id}.{self.gcp_dataset_id}.{self.gcp_table_id}"
 
     def clean(self) -> None:
-        if not check_snake_case(self.gcp_project_id):
-            raise ValueError("gcp_project_id must be in snake_case.")
+        if not check_kebab_case(self.gcp_project_id):
+            raise ValueError("gcp_project_id must be in kebab-case.")
         if not check_snake_case(self.gcp_dataset_id):
             raise ValueError("gcp_dataset_id must be in snake_case.")
         if not check_snake_case(self.gcp_table_id):
