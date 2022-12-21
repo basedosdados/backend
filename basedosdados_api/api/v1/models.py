@@ -4,7 +4,10 @@ from uuid import uuid4
 
 from django.db import models
 
-from basedosdados_api.api.v1.utils import check_snake_case
+from basedosdados_api.api.v1.utils import (
+    check_kebab_case,
+    check_snake_case,
+)
 
 
 class Organization(models.Model):
@@ -130,6 +133,7 @@ class CloudTable(models.Model):
     table = models.ForeignKey(
         "Table", on_delete=models.CASCADE, related_name="cloud_tables"
     )
+    columns = models.ManyToManyField("Column", related_name="cloud_tables")
     gcp_project_id = models.CharField(max_length=255)
     gcp_dataset_id = models.CharField(max_length=255)
     gcp_table_id = models.CharField(max_length=255)
@@ -138,12 +142,17 @@ class CloudTable(models.Model):
         return f"{self.gcp_project_id}.{self.gcp_dataset_id}.{self.gcp_table_id}"
 
     def clean(self) -> None:
-        if not check_snake_case(self.gcp_project_id):
-            raise ValueError("gcp_project_id must be in snake_case.")
+        if not check_kebab_case(self.gcp_project_id):
+            raise ValueError("gcp_project_id must be in kebab-case.")
         if not check_snake_case(self.gcp_dataset_id):
             raise ValueError("gcp_dataset_id must be in snake_case.")
         if not check_snake_case(self.gcp_table_id):
             raise ValueError("gcp_table_id must be in snake_case.")
+        for column in self.columns.all():
+            if column.table != self.table:
+                raise ValueError(
+                    f"Column {column} does not belong to table {self.table}."
+                )
         return super().clean()
 
     def save(
@@ -161,3 +170,57 @@ class CloudTable(models.Model):
         verbose_name = "Cloud Table"
         verbose_name_plural = "Cloud Tables"
         ordering = ["id"]
+
+
+class RawDataSource(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    dataset = models.ForeignKey(
+        "Dataset", on_delete=models.CASCADE, related_name="raw_data_sources"
+    )
+    # update_frequency = models.ForeignKey(...)
+    # license = models.ForeignKey(...)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    slug = models.SlugField(unique=True)
+    name_en = models.CharField(max_length=255)
+    name_pt = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    raw_data_url = models.URLField(blank=True, null=True)
+    auxiliary_files_url = models.URLField(blank=True, null=True)
+    architecture_url = models.URLField(blank=True, null=True)
+
+    def __str__(self):
+        return str(self.slug)
+
+    class Meta:
+        db_table = "raw_data_source"
+        verbose_name = "Raw Data Source"
+        verbose_name_plural = "Raw Data Sources"
+        ordering = ["slug"]
+
+
+class InformationRequest(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    dataset = models.ForeignKey(
+        "Dataset", on_delete=models.CASCADE, related_name="information_requests"
+    )
+    # update_frequency = models.ForeignKey(...)
+    # license = models.ForeignKey(...)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    slug = models.SlugField(unique=True)
+    name_en = models.CharField(max_length=255)
+    name_pt = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    raw_data_url = models.URLField(blank=True, null=True)
+    auxiliary_files_url = models.URLField(blank=True, null=True)
+    architecture_url = models.URLField(blank=True, null=True)
+
+    def __str__(self):
+        return str(self.slug)
+
+    class Meta:
+        db_table = "information_request"
+        verbose_name = "Information Request"
+        verbose_name_plural = "Information Requests"
+        ordering = ["slug"]

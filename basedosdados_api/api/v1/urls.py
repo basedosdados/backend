@@ -11,6 +11,14 @@ private_router.register(
 private_router.register(r"datasets", views.DatasetViewSet, basename="dataset-private")
 private_router.register(r"tables", views.TableViewSet, basename="table-private")
 private_router.register(
+    r"informationrequests",
+    views.InformationRequestViewSet,
+    basename="informationrequest-private",
+)
+private_router.register(
+    r"rawdatasources", views.RawDataSourceViewSet, basename="rawdatasource-private"
+)
+private_router.register(
     r"bigquerytypes", views.BigQueryTypesViewSet, basename="bigquerytypes-private"
 )
 private_router.register(r"columns", views.ColumnViewSet, basename="column-private")
@@ -26,6 +34,16 @@ public_router.register(
     r"datasets", views.DatasetReadOnlyViewSet, basename="dataset-public"
 )
 public_router.register(r"tables", views.TableReadOnlyViewSet, basename="table-public")
+public_router.register(
+    r"informationrequests",
+    views.InformationRequestReadOnlyViewSet,
+    basename="informationrequest-public",
+)
+public_router.register(
+    r"rawdatasources",
+    views.RawDataSourceReadOnlyViewSet,
+    basename="rawdatasource-public",
+)
 public_router.register(
     r"bigquerytypes",
     views.BigQueryTypesReadOnlyViewSet,

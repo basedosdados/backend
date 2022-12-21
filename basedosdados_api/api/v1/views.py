@@ -5,6 +5,8 @@ from basedosdados_api.api.v1.models import (
     Organization,
     Dataset,
     Table,
+    InformationRequest,
+    RawDataSource,
     BigQueryTypes,
     Column,
     CloudTable,
@@ -16,6 +18,10 @@ from basedosdados_api.api.v1.serializers import (
     DatasetSerializer,
     TablePublicSerializer,
     TableSerializer,
+    InformationRequestPublicSerializer,
+    InformationRequestSerializer,
+    RawDataSourcePublicSerializer,
+    RawDataSourceSerializer,
     BigQueryTypesPublicSerializer,
     BigQueryTypesSerializer,
     ColumnPublicSerializer,
@@ -70,6 +76,30 @@ class TableReadOnlyViewSet(viewsets.ReadOnlyModelViewSet):
 
 class TableViewSet(viewsets.ModelViewSet, TableReadOnlyViewSet):
     serializer_class = TableSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class InformationRequestReadOnlyViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = InformationRequest.objects.all()
+    serializer_class = InformationRequestPublicSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+
+class InformationRequestViewSet(
+    viewsets.ModelViewSet, InformationRequestReadOnlyViewSet
+):
+    serializer_class = InformationRequestSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+
+class RawDataSourceReadOnlyViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = RawDataSource.objects.all()
+    serializer_class = RawDataSourcePublicSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+
+class RawDataSourceViewSet(viewsets.ModelViewSet, RawDataSourceReadOnlyViewSet):
+    serializer_class = RawDataSourceSerializer
     permission_classes = [permissions.IsAuthenticated]
 
 
