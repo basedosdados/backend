@@ -170,3 +170,57 @@ class CloudTable(models.Model):
         verbose_name = "Cloud Table"
         verbose_name_plural = "Cloud Tables"
         ordering = ["id"]
+
+
+class RawDataSource(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    dataset = models.ForeignKey(
+        "Dataset", on_delete=models.CASCADE, related_name="raw_data_sources"
+    )
+    # update_frequency = models.ForeignKey(...)
+    # license = models.ForeignKey(...)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    slug = models.SlugField(unique=True)
+    name_en = models.CharField(max_length=255)
+    name_pt = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    raw_data_url = models.URLField(blank=True, null=True)
+    auxiliary_files_url = models.URLField(blank=True, null=True)
+    architecture_url = models.URLField(blank=True, null=True)
+
+    def __str__(self):
+        return str(self.slug)
+
+    class Meta:
+        db_table = "raw_data_source"
+        verbose_name = "Raw Data Source"
+        verbose_name_plural = "Raw Data Sources"
+        ordering = ["slug"]
+
+
+class InformationRequest(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    dataset = models.ForeignKey(
+        "Dataset", on_delete=models.CASCADE, related_name="information_requests"
+    )
+    # update_frequency = models.ForeignKey(...)
+    # license = models.ForeignKey(...)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    slug = models.SlugField(unique=True)
+    name_en = models.CharField(max_length=255)
+    name_pt = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    raw_data_url = models.URLField(blank=True, null=True)
+    auxiliary_files_url = models.URLField(blank=True, null=True)
+    architecture_url = models.URLField(blank=True, null=True)
+
+    def __str__(self):
+        return str(self.slug)
+
+    class Meta:
+        db_table = "information_request"
+        verbose_name = "Information Request"
+        verbose_name_plural = "Information Requests"
+        ordering = ["slug"]

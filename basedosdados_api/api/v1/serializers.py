@@ -5,6 +5,8 @@ from basedosdados_api.api.v1.models import (
     Organization,
     Dataset,
     Table,
+    InformationRequest,
+    RawDataSource,
     BigQueryTypes,
     Column,
     CloudTable,
@@ -197,6 +199,118 @@ class TableNestedSerializer(TableSerializer):
         ]
 
 
+class RawDataSourcePublicSerializer(serializers.HyperlinkedModelSerializer):
+    dataset = serializers.HyperlinkedRelatedField(
+        view_name="dataset-public-detail", queryset=Dataset.objects.all()
+    )
+
+    class Meta:
+        model = RawDataSource
+        fields = [
+            "id",
+            "dataset",
+            "slug",
+            "name_en",
+            "name_pt",
+            "description",
+            "raw_data_url",
+            "auxiliary_files_url",
+            "architecture_url",
+        ]
+
+
+class RawDataSourceSerializer(RawDataSourcePublicSerializer):
+    dataset = serializers.HyperlinkedRelatedField(
+        view_name="dataset-private-detail", queryset=Dataset.objects.all()
+    )
+
+
+class RawDataSourceNestedPublicSerializer(RawDataSourcePublicSerializer):
+    class Meta:
+        model = RawDataSource
+        fields = [
+            "id",
+            "slug",
+            "name_en",
+            "name_pt",
+            "description",
+            "raw_data_url",
+            "auxiliary_files_url",
+            "architecture_url",
+        ]
+
+
+class RawDataSourceNestedSerializer(RawDataSourceSerializer):
+    class Meta:
+        model = RawDataSource
+        fields = [
+            "id",
+            "slug",
+            "name_en",
+            "name_pt",
+            "description",
+            "raw_data_url",
+            "auxiliary_files_url",
+            "architecture_url",
+        ]
+
+
+class InformationRequestPublicSerializer(serializers.HyperlinkedModelSerializer):
+    dataset = serializers.HyperlinkedRelatedField(
+        view_name="dataset-public-detail", queryset=Dataset.objects.all()
+    )
+
+    class Meta:
+        model = InformationRequest
+        fields = [
+            "id",
+            "dataset",
+            "slug",
+            "name_en",
+            "name_pt",
+            "description",
+            "raw_data_url",
+            "auxiliary_files_url",
+            "architecture_url",
+        ]
+
+
+class InformationRequestSerializer(InformationRequestPublicSerializer):
+    dataset = serializers.HyperlinkedRelatedField(
+        view_name="dataset-private-detail", queryset=Dataset.objects.all()
+    )
+
+
+class InformationRequestNestedPublicSerializer(InformationRequestPublicSerializer):
+    class Meta:
+        model = InformationRequest
+        fields = [
+            "id",
+            "slug",
+            "name_en",
+            "name_pt",
+            "description",
+            "raw_data_url",
+            "auxiliary_files_url",
+            "architecture_url",
+        ]
+
+
+class InformationRequestNestedSerializer(InformationRequestSerializer):
+    class Meta:
+        model = InformationRequest
+        fields = [
+            "id",
+            "slug",
+            "name_en",
+            "name_pt",
+            "description",
+            "raw_data_url",
+            "auxiliary_files_url",
+            "architecture_url",
+        ]
+
+
 class CloudTablePublicSerializer(serializers.HyperlinkedModelSerializer):
     table = serializers.HyperlinkedRelatedField(
         view_name="table-public-detail", queryset=Table.objects.all()
@@ -227,10 +341,21 @@ class DatasetPublicSerializer(serializers.HyperlinkedModelSerializer):
         view_name="organization-public-detail", queryset=Organization.objects.all()
     )
     tables = TableNestedPublicSerializer(many=True)
+    raw_data_sources = RawDataSourceNestedPublicSerializer(many=True)
+    information_requests = InformationRequestNestedPublicSerializer(many=True)
 
     class Meta:
         model = Dataset
-        fields = ["id", "organization", "tables", "slug", "name_en", "name_pt"]
+        fields = [
+            "id",
+            "organization",
+            "tables",
+            "raw_data_sources",
+            "information_requests",
+            "slug",
+            "name_en",
+            "name_pt",
+        ]
 
 
 class DatasetSerializer(DatasetPublicSerializer):
@@ -238,6 +363,8 @@ class DatasetSerializer(DatasetPublicSerializer):
         view_name="organization-private-detail", queryset=Organization.objects.all()
     )
     tables = TableNestedSerializer(many=True)
+    raw_data_sources = RawDataSourceNestedSerializer(many=True)
+    information_requests = InformationRequestNestedSerializer(many=True)
 
 
 class DatasetNestedPublicSerializer(DatasetPublicSerializer):
