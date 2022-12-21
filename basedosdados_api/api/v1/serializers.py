@@ -320,6 +320,7 @@ class CloudTablePublicSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = CloudTable
         fields = [
+            "id",
             "table",
             "columns",
             "gcp_project_id",
