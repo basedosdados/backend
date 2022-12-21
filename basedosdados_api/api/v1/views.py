@@ -80,9 +80,18 @@ class TableViewSet(viewsets.ModelViewSet, TableReadOnlyViewSet):
 
 
 class InformationRequestReadOnlyViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = InformationRequest.objects.all()
     serializer_class = InformationRequestPublicSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        queryset = InformationRequest.objects.all()
+        dataset = self.request.query_params.get("dataset", None)
+        organization = self.request.query_params.get("organization", None)
+        if dataset is not None:
+            queryset = queryset.filter(dataset__id=dataset)
+        if organization is not None:
+            queryset = queryset.filter(dataset__organization__id=organization)
+        return queryset
 
 
 class InformationRequestViewSet(
@@ -93,9 +102,18 @@ class InformationRequestViewSet(
 
 
 class RawDataSourceReadOnlyViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = RawDataSource.objects.all()
     serializer_class = RawDataSourcePublicSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        queryset = RawDataSource.objects.all()
+        dataset = self.request.query_params.get("dataset", None)
+        organization = self.request.query_params.get("organization", None)
+        if dataset is not None:
+            queryset = queryset.filter(dataset__id=dataset)
+        if organization is not None:
+            queryset = queryset.filter(dataset__organization__id=organization)
+        return queryset
 
 
 class RawDataSourceViewSet(viewsets.ModelViewSet, RawDataSourceReadOnlyViewSet):
@@ -121,10 +139,15 @@ class ColumnReadOnlyViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         queryset = Column.objects.all()
         table = self.request.query_params.get("table", None)
+        cloud_table = self.request.query_params.get("cloud_table", None)
         dataset = self.request.query_params.get("dataset", None)
         organization = self.request.query_params.get("organization", None)
         if table is not None:
             queryset = queryset.filter(table__id=table)
+        if cloud_table is not None:
+            # Column has a many-to-many relationship with CloudTable
+            # related_name is set to "cloud_tables"
+            queryset = queryset.filter(cloud_tables__id=cloud_table)
         if dataset is not None:
             queryset = queryset.filter(table__dataset__id=dataset)
         if organization is not None:
