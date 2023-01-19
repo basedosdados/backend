@@ -32,6 +32,7 @@ class ColumnPublicSerializer(serializers.HyperlinkedModelSerializer):
         view_name="cloudtable-public-detail",
         queryset=CloudTable.objects.all(),
         many=True,
+        read_only=True,
     )
     bigquery_type = BigQueryTypesPublicSerializer()
 
@@ -63,6 +64,7 @@ class ColumnSerializer(ColumnPublicSerializer):
         view_name="cloudtable-private-detail",
         queryset=CloudTable.objects.all(),
         many=True,
+        read_only=True,
     )
     bigquery_type = BigQueryTypesSerializer()
 
@@ -114,8 +116,9 @@ class TablePublicSerializer(serializers.HyperlinkedModelSerializer):
         view_name="cloudtable-public-detail",
         queryset=CloudTable.objects.all(),
         many=True,
+        read_only=True,
     )
-    columns = ColumnNestedPublicSerializer(many=True)
+    columns = ColumnNestedPublicSerializer(many=True, read_only=True)
 
     class Meta:
         model = Table
@@ -149,8 +152,9 @@ class TableSerializer(TablePublicSerializer):
         view_name="cloudtable-private-detail",
         queryset=CloudTable.objects.all(),
         many=True,
+        read_only=True,
     )
-    columns = ColumnNestedSerializer(many=True)
+    columns = ColumnNestedSerializer(many=True, read_only=True)
 
 
 class TableNestedPublicSerializer(TablePublicSerializer):
@@ -315,7 +319,7 @@ class CloudTablePublicSerializer(serializers.HyperlinkedModelSerializer):
     table = serializers.HyperlinkedRelatedField(
         view_name="table-public-detail", queryset=Table.objects.all()
     )
-    columns = ColumnNestedPublicSerializer(many=True)
+    columns = ColumnNestedPublicSerializer(many=True, read_only=True)
 
     class Meta:
         model = CloudTable
@@ -333,7 +337,7 @@ class CloudTableSerializer(CloudTablePublicSerializer):
     table = serializers.HyperlinkedRelatedField(
         view_name="table-private-detail", queryset=Table.objects.all()
     )
-    columns = ColumnNestedSerializer(many=True)
+    columns = ColumnNestedSerializer(many=True, read_only=True)
 
 
 class DatasetPublicSerializer(serializers.HyperlinkedModelSerializer):
@@ -341,9 +345,11 @@ class DatasetPublicSerializer(serializers.HyperlinkedModelSerializer):
     organization = serializers.HyperlinkedRelatedField(
         view_name="organization-public-detail", queryset=Organization.objects.all()
     )
-    tables = TableNestedPublicSerializer(many=True)
-    raw_data_sources = RawDataSourceNestedPublicSerializer(many=True)
-    information_requests = InformationRequestNestedPublicSerializer(many=True)
+    tables = TableNestedPublicSerializer(many=True, read_only=True)
+    raw_data_sources = RawDataSourceNestedPublicSerializer(many=True, read_only=True)
+    information_requests = InformationRequestNestedPublicSerializer(
+        many=True, read_only=True
+    )
 
     class Meta:
         model = Dataset
@@ -363,9 +369,9 @@ class DatasetSerializer(DatasetPublicSerializer):
     organization = serializers.HyperlinkedRelatedField(
         view_name="organization-private-detail", queryset=Organization.objects.all()
     )
-    tables = TableNestedSerializer(many=True)
-    raw_data_sources = RawDataSourceNestedSerializer(many=True)
-    information_requests = InformationRequestNestedSerializer(many=True)
+    tables = TableNestedSerializer(many=True, read_only=True)
+    raw_data_sources = RawDataSourceNestedSerializer(many=True, read_only=True)
+    information_requests = InformationRequestNestedSerializer(many=True, read_only=True)
 
 
 class DatasetNestedPublicSerializer(DatasetPublicSerializer):
@@ -382,7 +388,7 @@ class DatasetNestedSerializer(DatasetSerializer):
 
 class OrganizationPublicSerializer(serializers.HyperlinkedModelSerializer):
 
-    datasets = DatasetNestedPublicSerializer(many=True)
+    datasets = DatasetNestedPublicSerializer(many=True, read_only=True)
 
     class Meta:
         model = Organization
@@ -390,4 +396,4 @@ class OrganizationPublicSerializer(serializers.HyperlinkedModelSerializer):
 
 
 class OrganizationSerializer(OrganizationPublicSerializer):
-    datasets = DatasetNestedSerializer(many=True)
+    datasets = DatasetNestedSerializer(many=True, read_only=True)
