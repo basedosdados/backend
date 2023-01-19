@@ -10,14 +10,36 @@ from basedosdados_api.api.v1.utils import (
 )
 
 
+class Area(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    slug = models.SlugField(unique=True)
+    name_en = models.CharField(max_length=255)
+    name_pt = models.CharField(max_length=255)
+
+    def __str__(self):
+        return str(self.slug)
+
+    class Meta:
+        db_table = "area"
+        verbose_name = "Area"
+        verbose_name_plural = "Areas"
+        ordering = ["slug"]
+
+
 class Organization(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
+    # Foreign
     # spatial_coverage_area = models.ForeignKey(...)
+    area = models.ForeignKey(
+        "Area", on_delete=models.CASCADE, related_name="organizations"
+    )
+    # Mandatory
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     slug = models.SlugField(unique=True)
     name_en = models.CharField(max_length=255)
     name_pt = models.CharField(max_length=255)
+    # Optional
     website = models.URLField(blank=True, null=True)
 
     def __str__(self):
