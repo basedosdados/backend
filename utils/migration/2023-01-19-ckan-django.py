@@ -1,4 +1,9 @@
 import requests
+import json
+
+j = json.load(open("./credentials.json"))
+USERNAME = j["username"]
+PASSWORD = j["password"]
 
 
 def get_token():
@@ -57,6 +62,7 @@ if __name__ == "__main__":
 
     packages = get_bd_packages()
     print(packages[0])
+
     # m = Migration()
     # orgs = m.get("organizations/")
     # for org in orgs:
