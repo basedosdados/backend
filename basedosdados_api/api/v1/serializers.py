@@ -32,7 +32,6 @@ class ColumnPublicSerializer(serializers.HyperlinkedModelSerializer):
         view_name="cloudtable-public-detail",
         queryset=CloudTable.objects.all(),
         many=True,
-        read_only=True,
     )
     bigquery_type = BigQueryTypesPublicSerializer()
 
@@ -64,7 +63,6 @@ class ColumnSerializer(ColumnPublicSerializer):
         view_name="cloudtable-private-detail",
         queryset=CloudTable.objects.all(),
         many=True,
-        read_only=True,
     )
     bigquery_type = BigQueryTypesSerializer()
 
@@ -116,7 +114,6 @@ class TablePublicSerializer(serializers.HyperlinkedModelSerializer):
         view_name="cloudtable-public-detail",
         queryset=CloudTable.objects.all(),
         many=True,
-        read_only=True,
     )
     columns = ColumnNestedPublicSerializer(many=True, read_only=True)
 
@@ -152,7 +149,6 @@ class TableSerializer(TablePublicSerializer):
         view_name="cloudtable-private-detail",
         queryset=CloudTable.objects.all(),
         many=True,
-        read_only=True,
     )
     columns = ColumnNestedSerializer(many=True, read_only=True)
 
