@@ -2,6 +2,23 @@
 from rest_framework import serializers
 
 from basedosdados_api.api.v1.models import (
+    Area,
+    Coverage,
+    License,
+    Key,
+    AnalysisType,
+    Tag,
+    Theme,
+    Entity,
+    TimeUnit,
+    UpdateFrequency,
+    # DirectoryPrimaryKey,
+    # Dictionary,
+    # Availability,
+    # Language,
+    # Status,
+    # ObservationLevel,
+    # EntityColumn,
     Organization,
     Dataset,
     Table,
@@ -384,12 +401,162 @@ class DatasetNestedSerializer(DatasetSerializer):
 
 class OrganizationPublicSerializer(serializers.HyperlinkedModelSerializer):
 
+    area = serializers.HyperlinkedRelatedField(
+        view_name="area-public-detail", queryset=Area.objects.all()
+    )
     datasets = DatasetNestedPublicSerializer(many=True, read_only=True)
 
     class Meta:
         model = Organization
-        fields = ["id", "datasets", "slug", "name_en", "name_pt", "website"]
+        fields = ["id", "area", "datasets", "slug", "name_en", "name_pt", "website"]
 
 
 class OrganizationSerializer(OrganizationPublicSerializer):
+    area = serializers.HyperlinkedRelatedField(
+        view_name="area-private-detail", queryset=Area.objects.all()
+    )
     datasets = DatasetNestedSerializer(many=True, read_only=True)
+
+
+class OrganizationNestedPublicSerializer(OrganizationPublicSerializer):
+    class Meta:
+        model = Organization
+        fields = ["id", "slug", "name_en", "name_pt", "website"]
+
+
+class OrganizationNestedSerializer(OrganizationSerializer):
+    class Meta:
+        model = Organization
+        fields = ["id", "slug", "name_en", "name_pt", "website"]
+
+
+class CoveragePublicSerializer(serializers.HyperlinkedModelSerializer):
+
+    area = serializers.HyperlinkedRelatedField(
+        view_name="area-public-detail", queryset=Area.objects.all()
+    )
+    keys = serializers.HyperlinkedRelatedField(
+        view_name="key-public-detail", queryset=Key.objects.all(), many=True
+    )
+
+    class Meta:
+        model = Coverage
+        fields = ["id", "area", "temporal_coverage"]
+
+
+class CoverageSerializer(CoveragePublicSerializer):
+    area = serializers.HyperlinkedRelatedField(
+        view_name="area-private-detail", queryset=Area.objects.all()
+    )
+    keys = serializers.HyperlinkedRelatedField(
+        view_name="key-private-detail", queryset=Key.objects.all(), many=True
+    )
+
+
+class AnalysisTypePublicSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = AnalysisType
+        fields = ["id", "name_en", "name_pt", "tag_en", "tag_pt"]
+
+
+class AnalysisTypeSerializer(AnalysisTypePublicSerializer):
+    pass
+
+
+class TagPublicSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Tag
+        fields = ["id", "slug", "name_en", "name_pt"]
+
+
+class TagSerializer(TagPublicSerializer):
+    pass
+
+
+class KeyPublicSerializer(serializers.HyperlinkedModelSerializer):
+
+    coverages = CoveragePublicSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Key
+        fields = ["id", "coverages", "name", "value"]
+
+
+class KeySerializer(KeyPublicSerializer):
+    coverages = CoverageSerializer(many=True, read_only=True)
+
+
+class LicensePublicSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = License
+        fields = ["id", "slug", "name_en", "name_pt", "url"]
+
+
+class LicenseSerializer(LicensePublicSerializer):
+    pass
+
+
+class AreaPublicSerializer(serializers.HyperlinkedModelSerializer):
+
+    organizations = OrganizationNestedPublicSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Area
+        fields = [
+            "id",
+            "organizations",
+            "slug",
+            "name_en",
+            "name_pt",
+            "area_ip_address_required",
+        ]
+
+
+class AreaSerializer(AreaPublicSerializer):
+    organizations = OrganizationNestedSerializer(many=True, read_only=True)
+
+
+class ThemePublicSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Theme
+        fields = ["id", "slug", "name_en", "name_pt" "logo_url"]
+
+
+class ThemeSerializer(ThemePublicSerializer):
+    pass
+
+
+class EntityPublicSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Entity
+        fields = ["id", "slug", "name_en", "name_pt"]
+
+
+class EntitySerializer(EntityPublicSerializer):
+    pass
+
+
+class TimeUnitPublicSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = TimeUnit
+        fields = ["id", "slug", "name_en", "name_pt"]
+
+
+class TimeUnitSerializer(TimeUnitPublicSerializer):
+    pass
+
+
+class UpdateFrequencyPublicSerializer(serializers.HyperlinkedModelSerializer):
+    time_unit = serializers.HyperlinkedRelatedField(
+        view_name="timeunit-public-detail", queryset=TimeUnit.objects.all()
+    )
+
+    class Meta:
+        model = UpdateFrequency
+        fields = ["id", "time_unit", "number"]
+
+
+class UpdateFrequencySerializer(UpdateFrequencyPublicSerializer):
+    time_unit = serializers.HyperlinkedRelatedField(
+        view_name="timeunit-private-detail", queryset=TimeUnit.objects.all()
+    )

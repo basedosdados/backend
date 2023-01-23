@@ -139,7 +139,6 @@ class Entity(models.Model):
 class Organization(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     # Foreign
-    # spatial_coverage_area = models.ForeignKey(...)
     area = models.ForeignKey(
         "Area", on_delete=models.CASCADE, related_name="organizations"
     )
@@ -167,7 +166,6 @@ class Dataset(models.Model):
     organization = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="datasets"
     )
-    # license = models.ForeignKey(...)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     slug = models.SlugField(unique=True)
