@@ -5,16 +5,19 @@ https://github.com/timothyjlaurent/auto-graphene-django
 """
 
 # TODO:
-# - Add filtering by foreign key fields
-# - Add filtering by many-to-many fields
-# - Add mutations
+# - Query: Add filtering by foreign key fields
+# - Query: Add filtering by many-to-many fields
+# - Mutation: Remove mandatory "ID" field from "...MutationPayload"
+# - Mutation: Add support for many-to-many fields
 
 from django.apps import apps
 from django.contrib.postgres.fields import ArrayField, JSONField
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.db import models
-from graphene import relay, ObjectType, UUID
+from django.forms import ModelForm
+from graphene import relay, ObjectType, Schema, UUID
 from graphene_django import DjangoObjectType
+from graphene_django.forms.mutation import DjangoModelFormMutation
 from graphene_django.filter import DjangoFilterConnectionField
 
 
@@ -35,7 +38,7 @@ def id_resolver(self, *_):
     return self.id
 
 
-def generate_filter_fields(model):
+def generate_filter_fields(model: models.Model):
     exempted_field_types = (
         ArrayField,
         GenericForeignKey,
@@ -68,7 +71,7 @@ def generate_filter_fields(model):
     return filter_fields
 
 
-def create_model_object_meta(model):
+def create_model_object_meta(model: models.Model):
     return type(
         "Meta",
         (object,),
@@ -79,6 +82,64 @@ def create_model_object_meta(model):
             # filter_order_by=True,
         ),
     )
+
+
+def generate_model_object_type(model: models.Model):
+    meta = type(
+        "Meta",
+        (object,),
+        dict(
+            model=(model),
+        ),
+    )
+    return type(
+        f"{model.__name__}Type",
+        (DjangoObjectType,),
+        dict(
+            Meta=meta,
+            _id=UUID(name="_id"),
+            resolve__id=id_resolver,
+        ),
+    )
+
+
+def generate_form_fields(model: models.Model):
+    whitelist_field_types = (
+        models.DateTimeField,
+        models.SlugField,
+        models.CharField,
+        models.URLField,
+        models.ForeignKey,
+        models.TextField,
+        models.BooleanField,
+        models.BigIntegerField,
+    )
+    blacklist_field_names = (
+        "_field_status",
+        "id",
+        "created_at",
+        "updated_at",
+    )
+    fields = []
+    for field in model._meta.get_fields():
+        if (
+            isinstance(field, whitelist_field_types)
+            and field.name not in blacklist_field_names
+        ):
+            fields.append(field.name)
+    return fields
+
+
+def generate_form(model: models.Model):
+    meta = type(
+        "Meta",
+        (object,),
+        dict(
+            model=(model),
+            fields=(generate_form_fields(model)),
+        ),
+    )
+    return type(f"{model.__name__}Form", (ModelForm,), dict(Meta=meta))
 
 
 def build_query_objs(application_name: str):
@@ -103,6 +164,44 @@ def build_query_objs(application_name: str):
     return queries
 
 
+def build_mutation_objs(application_name: str):
+    mutations = {}
+    models = apps.get_app_config(application_name).get_models()
+
+    for model in models:
+        model_name = model.__name__
+
+        mutation = type(
+            f"{model_name}Mutation",
+            (DjangoModelFormMutation,),
+            {
+                model_name.lower(): PlainTextNode.Field(
+                    generate_model_object_type(model)
+                ),
+                "Meta": type(
+                    "Meta",
+                    (object,),
+                    dict(
+                        form_class=(generate_form(model)),
+                    ),
+                ),
+            },
+        )
+        mutations.update({f"{model_name}Mutation": mutation.Field()})
+    return mutations
+
+
 def build_query_schema(application_name: str):
     query = type("Query", (ObjectType,), build_query_objs(application_name))
     return query
+
+
+def build_mutation_schema(application_name: str):
+    mutation = type("Mutation", (ObjectType,), build_mutation_objs(application_name))
+    return mutation
+
+
+def build_schema(application_name: str):
+    query = build_query_schema(application_name)
+    mutation = build_mutation_schema(application_name)
+    return Schema(query=query, mutation=mutation)
