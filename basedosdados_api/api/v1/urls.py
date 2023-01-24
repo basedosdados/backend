@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from django.urls import path
+from graphene_django.views import GraphQLView
 from rest_framework import routers
 
 from basedosdados_api.custom.routers import IndexRouter
@@ -62,4 +64,6 @@ router = IndexRouter(
     swagger_operation_summary="Versão 1 da API do Base dos Dados",
 )
 
-urlpatterns = router.to_urlpatterns()
+urlpatterns = router.to_urlpatterns() + [
+    path("graphql", GraphQLView.as_view(graphiql=True)),
+]

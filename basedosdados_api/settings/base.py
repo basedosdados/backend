@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "corsheaders",
     "drf_yasg",
+    "graphene_django",
     "health_check",
     "health_check.db",
     "health_check.cache",
@@ -191,4 +192,9 @@ SWAGGER_SETTINGS = {
     "SECURITY_DEFINITIONS": {
         "Bearer": {"type": "apiKey", "name": "Authorization", "in": "header"}
     }
+}
+
+# Graphene configurations
+GRAPHENE = {
+    "SCHEMA": "basedosdados_api.api.v1.schema.schema",
 }
