@@ -5,6 +5,8 @@ metadata:
   labels:
     app.kubernetes.io/component: basedosdados-api
     app.kubernetes.io/name: {{ .Values.api.name }}
+  annotations:
+    rollme: {{ randAlphaNum 5 | quote }}
 spec:
   replicas: {{ .Values.api.replicas }}
   selector:
@@ -16,6 +18,8 @@ spec:
       labels:
         app.kubernetes.io/component: basedosdados-api
         app.kubernetes.io/name: {{ .Values.api.name }}
+      annotations:
+        rollme: {{ randAlphaNum 5 | quote }}
     spec:
       containers:
         - name: basedosdados-api
@@ -26,31 +30,41 @@ spec:
               containerPort: 80
               protocol: TCP
           env:
-            - name: DATABASE_HOST
+            - name: DB_HOST
               value: {{ .Values.database.host | quote }}
-            - name: DATABASE_PORT
+            - name: DB_PORT
               value: {{ .Values.database.port | quote }}
-            - name: DATABASE_NAME
+            - name: DB_NAME
               value: {{ .Values.database.name | quote }}
-            - name: DATABASE_USER
+            - name: DB_USER
               value: {{ .Values.database.user | quote }}
-            - name: DATABASE_PASSWORD
+            - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.database.passwordSecret | quote }}
                   key: password
+            - name: DJANGO_SETTINGS_MODULE
+              value: {{ .Values.api.settingsModule | quote }}
             {{- with .Values.api.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
+          {{- with .Values.api.envFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with .Values.api.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.api.livenessProbe }}
           livenessProbe:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          {{- with .Values.api.readinessProbe }}
+            httpGet:
+              path: /healthcheck/
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 90
           readinessProbe:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+            httpGet:
+              path: /healthcheck/
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 90

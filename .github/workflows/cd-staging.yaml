@@ -1,0 +1,94 @@
+name: Deployment - Staging
+
+on:
+  push:
+    branches:
+      - staging
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Import secrets from Vault
+        id: import_secrets
+        uses: hashicorp/vault-action@v2.4.1
+        with:
+          url: https://vault.dados.rio
+          token: ${{ secrets.VAULT_TOKEN }}
+          secrets: |
+            secret/data/github_actions_deployment_secrets  GCP_PROJECT_ID   | GCP_PROJECT_ID ;
+            secret/data/github_actions_deployment_secrets  GCP_SA_KEY       | GCP_SA_KEY ;
+            secret/data/github_actions_deployment_secrets  GH_PAT           | GH_PAT ;
+            secret/data/github_actions_deployment_secrets  GKE_CLUSTER      | GKE_CLUSTER ;
+            secret/data/github_actions_deployment_secrets  GKE_ZONE         | GKE_ZONE ;
+
+      - name: Setup Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v0.2.1
+        with:
+          service_account_key: ${{ steps.import_secrets.outputs.GCP_SA_KEY }}
+          project_id: ${{ steps.import_secrets.outputs.GCP_PROJECT_ID }}
+          export_default_credentials: true
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v0.2.1
+        with:
+          cluster_name: ${{ steps.import_secrets.outputs.GKE_CLUSTER }}
+          location: ${{ steps.import_secrets.outputs.GKE_ZONE }}
+          credentials: ${{ steps.import_secrets.outputs.GCP_SA_KEY }}
+
+      - name: Write values.yaml file
+        run: |
+          cat << EOF > values.yaml
+          api:
+            name: "basedosdados-api"
+            image:
+              name: "ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}"
+              tag: "staging"
+              pullPolicy: "Always"
+            replicas: 1
+            resources:
+              limits:
+                cpu: 500m
+                memory: 512Mi
+              requests:
+                cpu: 250m
+                memory: 512Mi
+            env: []
+            envFrom:
+              - secretRef:
+                  name: staging-backend-dados-rio-secrets
+            settingsModule: "basedosdados_api.settings.prod"
+          database:
+            host: "cloud-sql-proxy"
+            port: 5432
+            name: "staging-backend"
+            user: "staging-backend"
+            passwordSecret: "staging-database-password"
+          ingress:
+            enabled: true
+            host: "staging.backend.dados.rio"
+            annotations:
+              kubernetes.io/ingress.class: nginx
+              nginx.ingress.kubernetes.io/rewrite-target: /
+              cert-manager.io/issuer: "letsencrypt-production"
+              nginx.ingress.kubernetes.io/ssl-redirect: "true"
+            tls:
+              - hosts:
+                  - staging.backend.dados.rio
+                secretName: staging-backend-dados-rio-tls
+          EOF
+
+      - name: Wait for Docker image release
+        uses: lewagon/wait-on-check-action@v1.1.2
+        with:
+          ref: ${{ github.ref }}
+          check-name: 'Docker - Release image'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          verbose: true
+
+      - name: Deploy using Helm
+        run: |
+          helm upgrade --install staging-backend charts/basedosdados-api/. -n staging-backend-dados-rio -f values.yaml --wait
