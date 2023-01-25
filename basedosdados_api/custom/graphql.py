@@ -5,15 +5,14 @@ https://github.com/timothyjlaurent/auto-graphene-django
 """
 
 # TODO:
-# - Mutation: Remove mandatory "ID" field from "...MutationPayload"
 # - Mutation: Add support for many-to-many fields
 
 from typing import Iterable, Optional
 
 from django.apps import apps
 from django.db import models
-from django.forms import ModelForm
-from graphene import relay, ObjectType, Schema, UUID
+from django.forms import ModelForm, modelform_factory
+from graphene import Boolean, List, Mutation, ObjectType, relay, Schema, String, UUID
 from graphene_django import DjangoObjectType
 from graphene_django.forms.mutation import DjangoModelFormMutation
 from graphene_django.filter import DjangoFilterConnectionField
@@ -30,6 +29,52 @@ class PlainTextNode(relay.Node):
     @staticmethod
     def from_global_id(global_id):
         return global_id.split(":")
+
+
+def create_mutation_factory(model: models.Model):
+    return type(
+        f"Create{model.__name__}",
+        (DjangoModelFormMutation,),
+        {
+            "Meta": type(
+                "Meta",
+                (object,),
+                dict(
+                    form_class=(generate_form(model)),
+                    input_field_name="input",
+                    return_field_name=model.__name__.lower(),
+                ),
+            ),
+        },
+    )
+
+
+def delete_mutation_factory(model: models.Model):
+    def mutate(cls, root, info, id):
+        print(f"Mutating {model.__name__} with id {id}")
+        try:
+            obj = model.objects.get(pk=id)
+        except model.DoesNotExist:
+            return cls(ok=False, errors=["Object does not exist."])
+        obj.delete()
+        return cls(ok=True, errors=[])
+
+    return type(
+        f"Delete{model.__name__}",
+        (Mutation,),
+        {
+            "Arguments": type(
+                "Arguments",
+                (object,),
+                dict(
+                    id=UUID(required=True),
+                ),
+            ),
+            "ok": Boolean(),
+            "errors": List(String),
+            "mutate": classmethod(mutate),
+        },
+    )
 
 
 def id_resolver(self, *_):
@@ -106,7 +151,6 @@ def create_model_object_meta(model: models.Model):
             model=(model),
             interfaces=((PlainTextNode,)),
             filter_fields=(generate_filter_fields(model)),
-            # filter_order_by=True,
         ),
     )
 
@@ -158,15 +202,7 @@ def generate_form_fields(model: models.Model):
 
 
 def generate_form(model: models.Model):
-    meta = type(
-        "Meta",
-        (object,),
-        dict(
-            model=(model),
-            fields=(generate_form_fields(model)),
-        ),
-    )
-    return type(f"{model.__name__}Form", (ModelForm,), dict(Meta=meta))
+    return modelform_factory(model, form=ModelForm, fields=generate_form_fields(model))
 
 
 def build_query_objs(application_name: str):
@@ -197,24 +233,12 @@ def build_mutation_objs(application_name: str):
 
     for model in models:
         model_name = model.__name__
-
-        mutation = type(
-            f"{model_name}Mutation",
-            (DjangoModelFormMutation,),
-            {
-                model_name.lower(): PlainTextNode.Field(
-                    generate_model_object_type(model)
-                ),
-                "Meta": type(
-                    "Meta",
-                    (object,),
-                    dict(
-                        form_class=(generate_form(model)),
-                    ),
-                ),
-            },
+        mutations.update(
+            {f"Create{model_name}": create_mutation_factory(model).Field()}
         )
-        mutations.update({f"{model_name}Mutation": mutation.Field()})
+        mutations.update(
+            {f"Delete{model_name}": delete_mutation_factory(model).Field()}
+        )
     return mutations
 
 
