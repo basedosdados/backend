@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from django.urls import path
+from django.views.decorators.csrf import csrf_exempt
 from graphene_django.views import GraphQLView
 from rest_framework import routers
 
@@ -65,5 +66,5 @@ router = IndexRouter(
 )
 
 urlpatterns = router.to_urlpatterns() + [
-    path("graphql", GraphQLView.as_view(graphiql=True)),
+    path("graphql", csrf_exempt(GraphQLView.as_view(graphiql=True))),
 ]
