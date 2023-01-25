@@ -19,51 +19,79 @@ def get_token():
 def get_bd_packages():
     url = "https://basedosdados.org"
     api_url = f"{url}/api/3/action/package_search?q=&rows=2000"
-    packages = requests.get(api_url, verify=False).json()["result"]["results"]
-    return packages
+    return requests.get(api_url, verify=False).json()["result"]["results"]
 
 
 class Migration:
     def __init__(self):
-        self.base_url = "https://staging.backend.dados.rio/api/v1/private/"
-        self.token = get_token()
+        self.base_url = "https://staging.backend.dados.rio/api/v1/graphql"
+        # self.token = get_token()
 
-    def get(self, endpoint):
+    def get(self, query):
         r = requests.get(
-            url=self.base_url + endpoint,
-            headers={"Authorization": f"Bearer {self.token}"},
+            url=self.base_url,
+            json={"query": query},
         )
-        return r.json()["results"]
 
-    def post(self, endpoint, parameters):
+        return json.dumps(r.json(), indent=2)
+
+    def mutation(self, mutation):
         r = requests.post(
-            url=self.base_url + endpoint,
-            headers={"Authorization": f"Bearer {self.token}"},
-            json=parameters,
+            url=self.base_url,
+            # headers={"Authorization": f"Bearer {self.token}"},
+            json={"query": mutation},
         )
-        if r.status_code == 400:
-            print(r.content)
-        r.raise_for_status()
-        return r.json()
 
-    def put(self, endpoint, parameters):
-        r = requests.put(
-            url=self.base_url + endpoint,
-            headers={"Authorization": f"Bearer {self.token}"},
-            json=parameters,
-        )
         if r.status_code == 400:
             print(r.content)
+
         r.raise_for_status()
-        return r.json()
+
+        return json.dumps(r.json(), indent=2)
+
+    # def put(self, endpoint, parameters):
+    #     r = requests.put(
+    #         url=self.base_url + endpoint,
+    #         headers={"Authorization": f"Bearer {self.token}"},
+    #         json=parameters,
+    #     )
+    #     if r.status_code == 400:
+    #         print(r.content)
+    #     r.raise_for_status()
+    #     return r.json()
 
 
 if __name__ == "__main__":
 
-    packages = get_bd_packages()
-    print(packages[0])
+    # packages = get_bd_packages()
+    # print(packages[0])
 
-    # m = Migration()
+    m = Migration()
+
+    query = """
+        {
+            allOrganization(slug_Istartswith: "data") {
+                edges {
+                node {
+                    _id
+                    slug
+                    datasets(slug: "dados_mestres") {
+                    edges {
+                        node {
+                        _id
+                        slug
+                        }
+                    }
+                    }
+                }
+                }
+            }
+        }
+    """
+    r = m.get(query)
+
+    print(r)
+
     # orgs = m.get("organizations/")
     # for org in orgs:
     #     dataset = org["datasets"][0]
