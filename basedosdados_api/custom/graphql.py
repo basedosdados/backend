@@ -5,12 +5,12 @@ https://github.com/timothyjlaurent/auto-graphene-django
 """
 
 # TODO:
-# - Query: Add filtering by many-to-many fields
 # - Mutation: Remove mandatory "ID" field from "...MutationPayload"
 # - Mutation: Add support for many-to-many fields
 
+from typing import Iterable, Optional
+
 from django.apps import apps
-from django.contrib.postgres.fields import ArrayField, JSONField
 from django.db import models
 from django.forms import ModelForm
 from graphene import relay, ObjectType, Schema, UUID
@@ -37,11 +37,7 @@ def id_resolver(self, *_):
 
 
 def generate_filter_fields(model: models.Model):
-    exempted_field_types = (
-        ArrayField,
-        JSONField,
-        models.ManyToOneRel,
-    )
+    exempted_field_types = ()
     exempted_field_names = ("_field_status",)
     string_field_types = (models.CharField, models.TextField)
     comparable_field_types = (
@@ -53,9 +49,20 @@ def generate_filter_fields(model: models.Model):
         models.TimeField,
         models.DurationField,
     )
-    foreign_key_field_types = (models.ForeignKey,)
+    foreign_key_field_types = (
+        models.ForeignKey,
+        models.OneToOneField,
+        models.ManyToManyField,
+        models.ManyToManyRel,
+        models.ManyToOneRel,
+    )
 
-    def _get_filter_fields(model: models.Model):
+    def _get_filter_fields(
+        model: models.Model, used_models: Optional[Iterable[models.Model]] = None
+    ):
+        if used_models is None:
+            used_models = []
+        used_models.append(model)
         filter_fields = {}
         model_fields = model._meta.get_fields()
         for field in model_fields:
@@ -66,7 +73,12 @@ def generate_filter_fields(model: models.Model):
                 continue
             if isinstance(field, foreign_key_field_types):
                 related_model: models.Model = field.related_model
-                related_model_filter_fields = _get_filter_fields(related_model)
+                if related_model in used_models:
+                    continue
+                related_model_filter_fields, related_used_models = _get_filter_fields(
+                    related_model, used_models=used_models
+                )
+                used_models += related_used_models
                 for (
                     related_model_field_name,
                     related_model_field_filter,
@@ -80,9 +92,10 @@ def generate_filter_fields(model: models.Model):
                 filter_fields[field.name] += ["icontains", "istartswith", "iendswith"]
             elif isinstance(field, comparable_field_types):
                 filter_fields[field.name] += ["lt", "lte", "gt", "gte"]
-        return filter_fields
+        return filter_fields, used_models
 
-    return _get_filter_fields(model)
+    filter_fields, _ = _get_filter_fields(model)
+    return filter_fields
 
 
 def create_model_object_meta(model: models.Model):
