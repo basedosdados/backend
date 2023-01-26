@@ -1,5 +1,6 @@
 import requests
 import json
+import re
 
 j = json.load(open("./credentials.json"))
 USERNAME = j["username"]
@@ -51,6 +52,7 @@ class Migration:
         }
 
     def create_update(self, classe, parameters):
+        _classe = re.findall("[A-Z][^A-Z]*", "CreateDataset")[-1].lower()
         query = f"""
             mutation($input:{classe}Input!){{
                 {classe}(input: $input){{
@@ -59,7 +61,7 @@ class Migration:
                     messages
                 }},
                 clientMutationId,
-                dataset {{
+                {_classe} {{
                     id,
                     slug,
                 }}
@@ -113,7 +115,7 @@ if __name__ == "__main__":
     m = Migration(TOKEN)
     for dataset in [p]:
         print("CreateDataset")
-
+        
         package_to_dataset = {
             "organization": m.get_id(
                 classe="allOrganization", parameters={"$slug: String": "basedosdados"}
@@ -130,6 +132,7 @@ if __name__ == "__main__":
             "namePt": dataset["title"],
         }
         r = m.create_update(classe="CreateUpdateDataset", parameters=package_to_dataset)
+        print(json.dumps(r, indent=2))
 
         # for resource in dataset['resources']:
         #     resource_type = resource['resource_type']
