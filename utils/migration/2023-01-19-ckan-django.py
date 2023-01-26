@@ -52,7 +52,7 @@ class Migration:
         }
 
     def create_update(self, classe, parameters):
-        _classe = re.findall("[A-Z][^A-Z]*", "CreateDataset")[-1].lower()
+        _classe = re.findall("[A-Z][^A-Z]*", classe)[-1].lower()
         query = f"""
             mutation($input:{classe}Input!){{
                 {classe}(input: $input){{
@@ -115,7 +115,7 @@ if __name__ == "__main__":
     m = Migration(TOKEN)
     for dataset in [p]:
         print("CreateDataset")
-        
+
         package_to_dataset = {
             "organization": m.get_id(
                 classe="allOrganization", parameters={"$slug: String": "basedosdados"}
