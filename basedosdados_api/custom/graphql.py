@@ -5,6 +5,7 @@ https://github.com/timothyjlaurent/auto-graphene-django
 """
 
 # TODO:
+# - Mutation: Add support to update
 # - Mutation: Add support for many-to-many fields
 
 from typing import Iterable, Optional
@@ -123,7 +124,6 @@ def generate_filter_fields(model: models.Model):
                 related_model_filter_fields, related_used_models = _get_filter_fields(
                     related_model, used_models=used_models
                 )
-                used_models += related_used_models
                 for (
                     related_model_field_name,
                     related_model_field_filter,
