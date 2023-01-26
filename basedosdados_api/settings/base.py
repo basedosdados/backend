@@ -197,4 +197,13 @@ SWAGGER_SETTINGS = {
 # Graphene configurations
 GRAPHENE = {
     "SCHEMA": "basedosdados_api.api.v1.schema.schema",
+    "MIDDLEWARE": [
+        "graphql_jwt.middleware.JSONWebTokenMiddleware",
+    ],
 }
+
+# Authentication backends
+AUTHENTICATION_BACKENDS = [
+    "graphql_jwt.backends.JSONWebTokenBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]

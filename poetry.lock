@@ -237,6 +237,24 @@ files = [
 Django = ">=3.2"
 
 [[package]]
+name = "django-graphql-jwt"
+version = "0.3.4"
+description = "JSON Web Token for Django GraphQL."
+category = "main"
+optional = false
+python-versions = ">=3.6,<4.0"
+files = [
+    {file = "django-graphql-jwt-0.3.4.tar.gz", hash = "sha256:654808417a1fa97e4d489766b61046fa8006f58dfad1c44cc3a37a9e4929203b"},
+    {file = "django_graphql_jwt-0.3.4-py3-none-any.whl", hash = "sha256:fb20194bda649b2b1b49049ef84d0e957851df485fba7f1901aace54ca328063"},
+]
+
+[package.dependencies]
+Django = ">=2.0"
+graphene = ">=2.1.5"
+graphene-django = ">=2.0.0"
+PyJWT = ">=2,<3"
+
+[[package]]
 name = "django-health-check"
 version = "3.17.0"
 description = "Run checks on services like databases, queue servers, celery processes, etc."
@@ -1111,4 +1129,4 @@ testing = ["coverage (>=6.2)", "coverage-enable-subprocess (>=1)", "flaky (>=3.7
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "72c787f577d8a37902870afc6ef8dcf31b7bf882a4bcd2ea6016b6ccca4d08f2"
+content-hash = "cf430dddb2dbc98221c4b6edc04b2ed225d33f5180dbda7084026f19543ea477"

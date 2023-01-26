@@ -13,6 +13,8 @@ from graphene import Boolean, List, Mutation, ObjectType, relay, Schema, String,
 from graphene_django import DjangoObjectType
 from graphene_django.forms.mutation import DjangoModelFormMutation
 from graphene_django.filter import DjangoFilterConnectionField
+import graphql_jwt
+from graphql_jwt.decorators import login_required
 
 
 class PlainTextNode(relay.Node):
@@ -42,6 +44,13 @@ def create_mutation_factory(model: models.Model):
                     return_field_name=model.__name__.lower(),
                 ),
             ),
+            "mutate_and_get_payload": classmethod(
+                login_required(
+                    lambda cls, root, info, **input: super(
+                        cls, cls
+                    ).mutate_and_get_payload(root, info, **input)
+                )
+            ),
         },
     )
 
@@ -68,7 +77,7 @@ def delete_mutation_factory(model: models.Model):
             ),
             "ok": Boolean(),
             "errors": List(String),
-            "mutate": classmethod(mutate),
+            "mutate": classmethod(login_required(mutate)),
         },
     )
 
@@ -243,12 +252,23 @@ def build_query_schema(application_name: str):
     return query
 
 
-def build_mutation_schema(application_name: str):
-    mutation = type("Mutation", (ObjectType,), build_mutation_objs(application_name))
+def build_mutation_schema(application_name: str, add_jwt_mutations: bool = True):
+    base_mutations = build_mutation_objs(application_name)
+    if add_jwt_mutations:
+        base_mutations.update(
+            {
+                "token_auth": graphql_jwt.ObtainJSONWebToken.Field(),
+                "verify_token": graphql_jwt.Verify.Field(),
+                "refresh_token": graphql_jwt.Refresh.Field(),
+            }
+        )
+    mutation = type("Mutation", (ObjectType,), base_mutations)
     return mutation
 
 
-def build_schema(application_name: str):
+def build_schema(application_name: str, add_jwt_mutations: bool = True):
     query = build_query_schema(application_name)
-    mutation = build_mutation_schema(application_name)
+    mutation = build_mutation_schema(
+        application_name, add_jwt_mutations=add_jwt_mutations
+    )
     return Schema(query=query, mutation=mutation)
