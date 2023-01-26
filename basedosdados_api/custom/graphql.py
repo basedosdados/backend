@@ -4,9 +4,6 @@ Utilities for building auto-generated GraphQL schemas. Primarily based on
 https://github.com/timothyjlaurent/auto-graphene-django
 """
 
-# TODO:
-# - Mutation: Add support for many-to-many fields
-
 from typing import Iterable, Optional
 
 from django.apps import apps
@@ -183,6 +180,7 @@ def generate_form_fields(model: models.Model):
         models.TextField,
         models.BooleanField,
         models.BigIntegerField,
+        models.ManyToManyField,
     )
     blacklist_field_names = (
         "_field_status",
