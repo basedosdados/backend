@@ -48,7 +48,6 @@ def create_mutation_factory(model: models.Model):
 
 def delete_mutation_factory(model: models.Model):
     def mutate(cls, root, info, id):
-        print(f"Mutating {model.__name__} with id {id}")
         try:
             obj = model.objects.get(pk=id)
         except model.DoesNotExist:
