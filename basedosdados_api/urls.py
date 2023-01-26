@@ -17,51 +17,28 @@ Including another URLconf
 from django.contrib import admin
 from django.http import HttpResponseRedirect
 from django.urls import include, path, re_path
-from drf_yasg import openapi
-from drf_yasg.views import get_schema_view
-from rest_framework import permissions
-from rest_framework_simplejwt.views import (
-    TokenObtainPairView,
-    TokenRefreshView,
-    TokenVerifyView,
-)
-
-from basedosdados_api.api.urls import urlpatterns as api_urlpatterns
+from django.views.decorators.csrf import csrf_exempt
+from graphene_django.views import GraphQLView
 
 
 def home_redirect(request):
-    return HttpResponseRedirect("/docs/")
+    return HttpResponseRedirect("/api")
 
 
-schema_view = get_schema_view(
-    openapi.Info(
-        title="Base dos Dados API",
-        default_version="v1",
-        description="API de gerenciamento de metadados da Base dos Dados",
-        terms_of_service="",
-        contact=openapi.Contact(email="contato@basedosdados.org"),
-        license=openapi.License(name="GPLv3"),
-    ),
-    public=True,
-    permission_classes=(permissions.AllowAny,),
-)
+def redirect_to_v1(request):
+    return HttpResponseRedirect("/api/v1/")
+
+
+def redirect_to_v1_graphql(request):
+    return HttpResponseRedirect("/api/v1/graphql")
+
 
 urlpatterns = [
     path("", home_redirect),
     path("admin/", admin.site.urls),
     re_path(r"^healthcheck/", include("health_check.urls")),
-    path("api/", include(api_urlpatterns)),
+    path("api/", redirect_to_v1),
+    path("api/v1/", redirect_to_v1_graphql),
+    path("api/v1/graphql", csrf_exempt(GraphQLView.as_view(graphiql=True))),
     path("api/account/", include("basedosdados_api.account.urls")),
-    path("api/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
-    path("api/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
-    path("api/token/verify/", TokenVerifyView.as_view(), name="token_verify"),
-    path(
-        "docs/",
-        schema_view.with_ui("swagger", cache_timeout=0),
-    ),
-    re_path(
-        r"^docs(?P<format>\.json|\.yaml)$",
-        schema_view.without_ui(cache_timeout=0),
-        name="schema-json",
-    ),
 ]

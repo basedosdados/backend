@@ -4,9 +4,6 @@ Utilities for building auto-generated GraphQL schemas. Primarily based on
 https://github.com/timothyjlaurent/auto-graphene-django
 """
 
-# TODO:
-# - Mutation: Add support for many-to-many fields
-
 from typing import Iterable, Optional
 
 from django.apps import apps
@@ -16,6 +13,8 @@ from graphene import Boolean, List, Mutation, ObjectType, relay, Schema, String,
 from graphene_django import DjangoObjectType
 from graphene_django.forms.mutation import DjangoModelFormMutation
 from graphene_django.filter import DjangoFilterConnectionField
+import graphql_jwt
+from graphql_jwt.decorators import login_required
 
 
 class PlainTextNode(relay.Node):
@@ -33,7 +32,7 @@ class PlainTextNode(relay.Node):
 
 def create_mutation_factory(model: models.Model):
     return type(
-        f"Create{model.__name__}",
+        f"CreateUpdate{model.__name__}",
         (DjangoModelFormMutation,),
         {
             "Meta": type(
@@ -45,13 +44,19 @@ def create_mutation_factory(model: models.Model):
                     return_field_name=model.__name__.lower(),
                 ),
             ),
+            "mutate_and_get_payload": classmethod(
+                login_required(
+                    lambda cls, root, info, **input: super(
+                        cls, cls
+                    ).mutate_and_get_payload(root, info, **input)
+                )
+            ),
         },
     )
 
 
 def delete_mutation_factory(model: models.Model):
     def mutate(cls, root, info, id):
-        print(f"Mutating {model.__name__} with id {id}")
         try:
             obj = model.objects.get(pk=id)
         except model.DoesNotExist:
@@ -72,7 +77,7 @@ def delete_mutation_factory(model: models.Model):
             ),
             "ok": Boolean(),
             "errors": List(String),
-            "mutate": classmethod(mutate),
+            "mutate": classmethod(login_required(mutate)),
         },
     )
 
@@ -123,7 +128,6 @@ def generate_filter_fields(model: models.Model):
                 related_model_filter_fields, related_used_models = _get_filter_fields(
                     related_model, used_models=used_models
                 )
-                used_models += related_used_models
                 for (
                     related_model_field_name,
                     related_model_field_filter,
@@ -184,6 +188,7 @@ def generate_form_fields(model: models.Model):
         models.TextField,
         models.BooleanField,
         models.BigIntegerField,
+        models.ManyToManyField,
     )
     blacklist_field_names = (
         "_field_status",
@@ -234,7 +239,7 @@ def build_mutation_objs(application_name: str):
     for model in models:
         model_name = model.__name__
         mutations.update(
-            {f"Create{model_name}": create_mutation_factory(model).Field()}
+            {f"CreateUpdate{model_name}": create_mutation_factory(model).Field()}
         )
         mutations.update(
             {f"Delete{model_name}": delete_mutation_factory(model).Field()}
@@ -247,12 +252,23 @@ def build_query_schema(application_name: str):
     return query
 
 
-def build_mutation_schema(application_name: str):
-    mutation = type("Mutation", (ObjectType,), build_mutation_objs(application_name))
+def build_mutation_schema(application_name: str, add_jwt_mutations: bool = True):
+    base_mutations = build_mutation_objs(application_name)
+    if add_jwt_mutations:
+        base_mutations.update(
+            {
+                "token_auth": graphql_jwt.ObtainJSONWebToken.Field(),
+                "verify_token": graphql_jwt.Verify.Field(),
+                "refresh_token": graphql_jwt.Refresh.Field(),
+            }
+        )
+    mutation = type("Mutation", (ObjectType,), base_mutations)
     return mutation
 
 
-def build_schema(application_name: str):
+def build_schema(application_name: str, add_jwt_mutations: bool = True):
     query = build_query_schema(application_name)
-    mutation = build_mutation_schema(application_name)
+    mutation = build_mutation_schema(
+        application_name, add_jwt_mutations=add_jwt_mutations
+    )
     return Schema(query=query, mutation=mutation)
