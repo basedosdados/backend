@@ -5,7 +5,6 @@ https://github.com/timothyjlaurent/auto-graphene-django
 """
 
 # TODO:
-# - Mutation: Add support to update
 # - Mutation: Add support for many-to-many fields
 
 from typing import Iterable, Optional
@@ -34,7 +33,7 @@ class PlainTextNode(relay.Node):
 
 def create_mutation_factory(model: models.Model):
     return type(
-        f"Create{model.__name__}",
+        f"CreateUpdate{model.__name__}",
         (DjangoModelFormMutation,),
         {
             "Meta": type(
@@ -234,7 +233,7 @@ def build_mutation_objs(application_name: str):
     for model in models:
         model_name = model.__name__
         mutations.update(
-            {f"Create{model_name}": create_mutation_factory(model).Field()}
+            {f"CreateUpdate{model_name}": create_mutation_factory(model).Field()}
         )
         mutations.update(
             {f"Delete{model_name}": delete_mutation_factory(model).Field()}
