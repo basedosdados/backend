@@ -6,14 +6,28 @@ USERNAME = j["username"]
 PASSWORD = j["password"]
 
 
-def get_token():
+def get_token(username, password):
     r = requests.post(
-        "https://staging.backend.dados.rio/api/token/",
-        json={"username": USERNAME, "password": PASSWORD},
+        "https://staging.backend.dados.rio/api/v1/graphql",
         headers={"Content-Type": "application/json"},
+        json={
+            "query": """
+                mutation tokenAuth($username: String!, $password: String!) {
+                    tokenAuth(
+                        username: $username,
+                        password: $password,
+                    ) {
+                        payload,
+                        refreshExpiresIn,
+                        token
+                    }
+                }
+            """,
+            "variables": {"username": username, "password": password},
+        },
     )
     r.raise_for_status()
-    return r.json()["access"]
+    return r.json()["data"]["tokenAuth"]["token"]
 
 
 def get_bd_packages():
@@ -22,83 +36,120 @@ def get_bd_packages():
     return requests.get(api_url, verify=False).json()["result"]["results"]
 
 
+def get_package_model():
+    url = "https://basedosdados.org/api/3/action/package_show?name_or_id=br-sgp-informacao"
+    return requests.get(url, verify=False).json()["result"]
+
+
 class Migration:
-    def __init__(self):
+    def __init__(self, token):
         self.base_url = "https://staging.backend.dados.rio/api/v1/graphql"
-        # self.token = get_token()
+        self.header = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {token}",
+        }
 
-    def get(self, query):
-        r = requests.get(
-            url=self.base_url,
-            json={"query": query},
+    def get_organization_id(self, slug):
+        query = """
+        
+        query($slug: String) {
+            allOrganization(slug:$slug){
+            edges{
+                node{
+                id,
+                }
+            }
+            }
+        }
+        """
+        variables = {"slug": slug}
+        return (
+            requests.get(
+                url=self.base_url,
+                json={"query": query, "variables": variables},
+                headers=self.header,
+            )
+            .json()["data"]["allOrganization"]["edges"][0]["node"]["id"]
+            .split(":")[1]
         )
 
-        return json.dumps(r.json(), indent=2)
-
-    def mutation(self, mutation):
-        r = requests.post(
-            url=self.base_url,
-            # headers={"Authorization": f"Bearer {self.token}"},
-            json={"query": mutation},
+    def get_dataset_id(self, dataset_slug, org_slug):
+        query = """
+        
+        query($slug: String,$organization_Slug:String) {
+            allDataset(
+                slug:$slug, 
+                organization_Slug:$organization_Slug
+            ){
+            edges{
+                node{
+                id,
+                }
+            }
+            }
+        }
+        """
+        variables = {"slug": dataset_slug, "organization_Slug": org_slug}
+        return (
+            requests.get(
+                url=self.base_url,
+                json={"query": query, "variables": variables},
+                headers=self.header,
+            )
+            .json()["data"]["allDataset"]["edges"][0]["node"]["id"]
+            .split(":")[1]
         )
 
-        if r.status_code == 400:
-            print(r.content)
+    def create_update_dataset(self, parameters):
+        query = """
+            mutation($input:CreateUpdateDatasetInput!){
+                CreateUpdateDataset(input: $input){
+                errors {
+                    field,
+                    messages
+                },
+                clientMutationId,
+                dataset {
+                    id,
+                    slug,
+                    nameEn,
+                    namePt,
+                }
+            }
+            }
+        """
 
-        r.raise_for_status()
-
-        return json.dumps(r.json(), indent=2)
-
-    # def put(self, endpoint, parameters):
-    #     r = requests.put(
-    #         url=self.base_url + endpoint,
-    #         headers={"Authorization": f"Bearer {self.token}"},
-    #         json=parameters,
-    #     )
-    #     if r.status_code == 400:
-    #         print(r.content)
-    #     r.raise_for_status()
-    #     return r.json()
+        return requests.post(
+            self.base_url,
+            json={"query": query, "variables": {"input": parameters}},
+            headers=self.header,
+        ).json()
 
 
 if __name__ == "__main__":
+    TOKEN = get_token(USERNAME, PASSWORD)
+    packages = get_bd_packages()
+    p = get_package_model()
+    m = Migration(TOKEN)
+    for dataset in [p]:
+        print("CreateDataset")
 
-    # packages = get_bd_packages()
-    # print(packages[0])
-
-    m = Migration()
-
-    query = """
-        {
-            allOrganization(slug_Istartswith: "data") {
-                edges {
-                node {
-                    _id
-                    slug
-                    datasets(slug: "dados_mestres") {
-                    edges {
-                        node {
-                        _id
-                        slug
-                        }
-                    }
-                    }
-                }
-                }
-            }
+        package_to_dataset = {
+            "organization": m.get_organization_id("basedosdados"),
+            "id": m.get_dataset_id(dataset["name"], "basedosdados"),
+            "slug": dataset["name"],
+            "nameEn": "teste2",
+            "namePt": dataset["title"],
         }
-    """
-    r = m.get(query)
+        r = m.create_update_dataset(package_to_dataset)
 
-    print(r)
-
-    # orgs = m.get("organizations/")
-    # for org in orgs:
-    #     dataset = org["datasets"][0]
-    #     print(dataset)
-    #     dataset["slug"] = "teste"
-
-    #     print(dataset)
-    # id = dataset["id"]
-    # r = m.put(f"datasets/{id}", dataset)
-    # print(r)
+        # for resource in dataset['resources']:
+        #     resource_type = resource['resource_type']
+        #     if resource_type == 'bdm_table':
+        #         print('  CreateTable | CreateCloudTable')
+        #         if 'columns' in resource:
+        #             print('    CreateColumn')
+        #     if resource_type == 'external_link':
+        #         print('  CreateRawDataSource')
+        #     if resource_type == 'information_request':
+        #         print('  CreateInformationRequest')

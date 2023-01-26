@@ -1,0 +1,20 @@
+## create organization
+mutation{
+}
+
+
+ mutation {
+   CreateOrganization(input:{
+     slug:"basedosdados",
+     nameEn:"Data Bases",
+     namePt:"Base dos Dados"
+   }){
+   errors {
+       field,
+       messages
+   },
+     clientMutationId
+ 	}
+ }
+
+
