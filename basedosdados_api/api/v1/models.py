@@ -13,9 +13,6 @@ from basedosdados_api.api.v1.utils import (
 class Area(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
-    name_en = models.CharField(max_length=255)
-    name_pt = models.CharField(max_length=255)
-    area_ip_address_required = models.BooleanField(default=False)
 
     def __str__(self):
         return str(self.slug)
@@ -120,22 +117,6 @@ class Theme(models.Model):
         ordering = ["slug"]
 
 
-class Entity(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid4)
-    slug = models.SlugField(unique=True)
-    name_en = models.CharField(max_length=255)
-    name_pt = models.CharField(max_length=255)
-
-    def __str__(self):
-        return str(self.slug)
-
-    class Meta:
-        db_table = "entity"
-        verbose_name = "Entity"
-        verbose_name_plural = "Entities"
-        ordering = ["slug"]
-
-
 class Organization(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     # Foreign
@@ -148,8 +129,13 @@ class Organization(models.Model):
     slug = models.SlugField(unique=True)
     name_en = models.CharField(max_length=255)
     name_pt = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
     # Optional
     website = models.URLField(blank=True, null=True)
+    twitter = models.URLField(blank=True, null=True)
+    facebook = models.URLField(blank=True, null=True)
+    linkedin = models.URLField(blank=True, null=True)
+    instagram = models.URLField(blank=True, null=True)
 
     def __str__(self):
         return str(self.slug)
@@ -163,14 +149,24 @@ class Organization(models.Model):
 
 class Dataset(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
+    # Foreign
     organization = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="datasets"
     )
+    themes = models.ForeignKey( #TODO @Gabriel aqui themes e tags são pra ser multiple. Não sabia fazer.
+        "Theme", on_delete=models.CASCADE, related_name="datasets"
+    )
+    tags = models.ForeignKey(
+        "Tag", on_delete=models.CASCADE, related_name="datasets"
+    )
+    # Mandatory
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     slug = models.SlugField(unique=True)
     name_en = models.CharField(max_length=255)
     name_pt = models.CharField(max_length=255)
+    # Optional
+    description = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return str(self.slug)
@@ -217,31 +213,36 @@ class UpdateFrequency(models.Model):
 
 class Table(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
+    # Foreign
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="tables"
     )
+    coverages = models.ManyToManyField("Coverage", related_name="tables")
     license = models.ForeignKey(
         "License", on_delete=models.CASCADE, related_name="tables"
     )
     update_frequency = models.ForeignKey(
         "UpdateFrequency", on_delete=models.CASCADE, related_name="tables"
     )
+    # Mandatory
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     slug = models.SlugField(unique=True)
     name_en = models.CharField(max_length=255)
     name_pt = models.CharField(max_length=255)
+    # Optional
     description = models.TextField(blank=True, null=True)
     is_directory = models.BooleanField(default=False, blank=True, null=True)
-    data_cleaned_description = models.TextField(blank=True, null=True)
-    data_cleaned_code_url = models.URLField(blank=True, null=True)
+    data_cleaning_description = models.TextField(blank=True, null=True)
+    data_cleaning_code_url = models.URLField(blank=True, null=True)
     raw_data_url = models.URLField(blank=True, null=True)
     auxiliary_files_url = models.URLField(blank=True, null=True)
     architecture_url = models.URLField(blank=True, null=True)
     source_bucket_name = models.CharField(max_length=255, blank=True, null=True)
     uncompressed_file_size = models.BigIntegerField(blank=True, null=True)
     compressed_file_size = models.BigIntegerField(blank=True, null=True)
-    number_of_rows = models.BigIntegerField(blank=True, null=True)
+    number_rows = models.BigIntegerField(blank=True, null=True)
+    number_columns = models.BigIntegerField(blank=True, null=True)
 
     def __str__(self):
         return str(self.slug)
@@ -283,10 +284,12 @@ class DirectoryPrimaryKey(models.Model):
 
 class Column(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
+    # Foreign
     table = models.ForeignKey("Table", on_delete=models.CASCADE, related_name="columns")
     bigquery_type = models.ForeignKey(
         "BigQueryTypes", on_delete=models.CASCADE, related_name="columns"
     )
+    coverages = models.ManyToManyField("Coverage", related_name="columns")
     directory_primary_key = models.ForeignKey(
         "DirectoryPrimaryKey",
         on_delete=models.CASCADE,
@@ -294,15 +297,14 @@ class Column(models.Model):
         blank=True,
         null=True,
     )
-    slug = models.SlugField(unique=True)
     name_en = models.CharField(max_length=255)
     name_pt = models.CharField(max_length=255)
     is_in_staging = models.BooleanField(default=True)
     is_partition = models.BooleanField(default=False)
     description = models.TextField(blank=True, null=True)
-    coverage_by_dictionary = models.BooleanField(default=False, blank=True, null=True)
+    covered_by_dictionary = models.BooleanField(default=False, blank=True, null=True)
     measurement_unit = models.CharField(max_length=255, blank=True, null=True)
-    has_sensitive_data = models.BooleanField(default=False, blank=True, null=True)
+    contains_sensitive_data = models.BooleanField(default=False, blank=True, null=True)
     observations = models.TextField(blank=True, null=True)
 
     def __str__(self):
@@ -385,9 +387,11 @@ class Language(models.Model):
 
 class RawDataSource(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
+    # Foreign
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="raw_data_sources"
     )
+    coverages = models.ManyToManyField("Coverage", related_name="raw_data_sources")
     availability = models.ForeignKey(
         "Availability", on_delete=models.CASCADE, related_name="raw_data_sources"
     )
@@ -400,11 +404,14 @@ class RawDataSource(models.Model):
     update_frequency = models.ForeignKey(
         "UpdateFrequency", on_delete=models.CASCADE, related_name="raw_data_sources"
     )
+    area_ip_address_required = models.BooleanField(default=False) #TODO @Gabriel aqui é pra ser um m:1 para Area.
+    # Mandatory
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     slug = models.SlugField(unique=True)
     name_en = models.CharField(max_length=255)
     name_pt = models.CharField(max_length=255)
+    # Optional
     description = models.TextField(blank=True, null=True)
     raw_data_url = models.URLField(blank=True, null=True)
     auxiliary_files_url = models.URLField(blank=True, null=True)
@@ -441,6 +448,7 @@ class InformationRequest(models.Model):
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="information_requests"
     )
+    coverages = models.ManyToManyField("Coverage", related_name="information_requests")
     status = models.ForeignKey(
         "Status", on_delete=models.CASCADE, related_name="information_requests"
     )
@@ -464,6 +472,22 @@ class InformationRequest(models.Model):
         db_table = "information_request"
         verbose_name = "Information Request"
         verbose_name_plural = "Information Requests"
+        ordering = ["slug"]
+
+
+class Entity(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    slug = models.SlugField(unique=True)
+    name_en = models.CharField(max_length=255)
+    name_pt = models.CharField(max_length=255)
+
+    def __str__(self):
+        return str(self.slug)
+
+    class Meta:
+        db_table = "entity"
+        verbose_name = "Entity"
+        verbose_name_plural = "Entities"
         ordering = ["slug"]
 
 
