@@ -153,12 +153,8 @@ class Dataset(models.Model):
     organization = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="datasets"
     )
-    themes = models.ForeignKey( #TODO @Gabriel aqui themes e tags são pra ser multiple. Não sabia fazer.
-        "Theme", on_delete=models.CASCADE, related_name="datasets"
-    )
-    tags = models.ForeignKey(
-        "Tag", on_delete=models.CASCADE, related_name="datasets"
-    )
+    themes = models.ManyToManyField("Theme", related_name="datasets")
+    tags = models.ManyToManyField("Tag", related_name="datasets")
     # Mandatory
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -284,6 +280,7 @@ class DirectoryPrimaryKey(models.Model):
 
 class Column(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
+    slug = models.SlugField(unique=True)
     # Foreign
     table = models.ForeignKey("Table", on_delete=models.CASCADE, related_name="columns")
     bigquery_type = models.ForeignKey(
@@ -404,7 +401,9 @@ class RawDataSource(models.Model):
     update_frequency = models.ForeignKey(
         "UpdateFrequency", on_delete=models.CASCADE, related_name="raw_data_sources"
     )
-    area_ip_address_required = models.BooleanField(default=False) #TODO @Gabriel aqui é pra ser um m:1 para Area.
+    area_ip_address_required = models.BooleanField(
+        default=False
+    )  # TODO @Gabriel aqui é pra ser um m:1 para Area.
     # Mandatory
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
