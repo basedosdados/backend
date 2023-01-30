@@ -198,7 +198,7 @@ class UpdateFrequency(models.Model):
     number = models.IntegerField()
 
     def __str__(self):
-        return str(self.number + " " + self.time_unit)
+        return str(self.number) + " " + str(self.time_unit)
 
     class Meta:
         db_table = "update_frequency"
@@ -374,12 +374,30 @@ class Availability(models.Model):
     name_en = models.CharField(max_length=255)
     name_pt = models.CharField(max_length=255)
 
+    def __str__(self):
+        return str(self.slug)
+
+    class Meta:
+        db_table = "availability"
+        verbose_name = "Availability"
+        verbose_name_plural = "Availabilities"
+        ordering = ["slug"]
+
 
 class Language(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name_en = models.CharField(max_length=255)
     name_pt = models.CharField(max_length=255)
+
+    def __str__(self):
+        return str(self.slug)
+
+    class Meta:
+        db_table = "language"
+        verbose_name = "Language"
+        verbose_name_plural = "Languages"
+        ordering = ["slug"]
 
 
 class RawDataSource(models.Model):
@@ -503,6 +521,9 @@ class ObservationLevel(models.Model):
         "InformationRequest", related_name="entity_columns"
     )
 
+    def __str__(self):
+        return str(self.entity)
+
 
 class EntityColumn(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -515,3 +536,6 @@ class EntityColumn(models.Model):
     observation_level = models.ForeignKey(
         "ObservationLevel", on_delete=models.CASCADE, related_name="entity_columns"
     )
+
+    def __str__(self):
+        return str(self.entity)
