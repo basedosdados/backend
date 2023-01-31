@@ -2,6 +2,7 @@
 from typing import Iterable, Optional
 from uuid import uuid4
 
+from django.core.exceptions import ValidationError
 from django.db import models
 
 from basedosdados_api.api.v1.utils import (
@@ -339,14 +340,14 @@ class CloudTable(models.Model):
 
     def clean(self) -> None:
         if not check_kebab_case(self.gcp_project_id):
-            raise ValueError("gcp_project_id must be in kebab-case.")
+            raise ValidationError({"gcp_project_id": "gcp_project_id must be in kebab-case."})
         if not check_snake_case(self.gcp_dataset_id):
-            raise ValueError("gcp_dataset_id must be in snake_case.")
+            raise ValidationError({"gcp_dataset_id": "gcp_dataset_id must be in snake_case."})
         if not check_snake_case(self.gcp_table_id):
-            raise ValueError("gcp_table_id must be in snake_case.")
+            raise ValidationError({"gcp_table_id": "gcp_table_id must be in snake_case."})
         for column in self.columns.all():
             if column.table != self.table:
-                raise ValueError(
+                raise ValidationError(
                     f"Column {column} does not belong to table {self.table}."
                 )
         return super().clean()
@@ -358,7 +359,10 @@ class CloudTable(models.Model):
         using: Optional[str] = None,
         update_fields: Optional[Iterable[str]] = None,
     ) -> None:
-        self.clean()
+        try:
+            self.clean()
+        except ValidationError as e:
+            pass
         return super().save(force_insert, force_update, using, update_fields)
 
     class Meta:
