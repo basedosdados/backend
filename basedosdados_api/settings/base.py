@@ -35,6 +35,7 @@ CORS_ORIGIN_ALLOW_ALL = True
 # Application definition
 
 INSTALLED_APPS = [
+    "modeltranslation",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -199,3 +200,9 @@ GRAPHQL_JWT = {
     "JWT_REFRESH_EXPIRATION_DELTA": timedelta(days=1),
     "JWT_VERIFY_EXPIRATION": True,
 }
+
+# Translations
+LANGUAGES = (
+    ("pt", lambda x: "Português"),
+    ("en", lambda x: "English"),
+)

@@ -91,6 +91,7 @@ def generate_filter_fields(model: models.Model):
     exempted_field_names = ("_field_status",)
     string_field_types = (models.CharField, models.TextField)
     comparable_field_types = (
+        models.BigIntegerField,
         models.IntegerField,
         models.FloatField,
         models.DecimalField,
@@ -102,6 +103,7 @@ def generate_filter_fields(model: models.Model):
     foreign_key_field_types = (
         models.ForeignKey,
         models.OneToOneField,
+        models.OneToOneRel,
         models.ManyToManyField,
         models.ManyToManyRel,
         models.ManyToOneRel,
@@ -188,6 +190,8 @@ def generate_form_fields(model: models.Model):
         models.TextField,
         models.BooleanField,
         models.BigIntegerField,
+        models.IntegerField,
+        models.OneToOneField,
         models.ManyToManyField,
     )
     blacklist_field_names = (

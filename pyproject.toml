@@ -18,6 +18,7 @@ django-health-check = "^3.17.0"
 graphene-django = "^3.0.0"
 django-filter = "^22.1"
 django-graphql-jwt = "^0.3.4"
+django-modeltranslation = "^0.18.8"
 
 [tool.poetry.dev-dependencies]
 black = "^22.3.0"
