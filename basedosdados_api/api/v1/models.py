@@ -281,7 +281,6 @@ class DirectoryPrimaryKey(models.Model):
 
 class Column(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    slug = models.SlugField(unique=True)
     # Foreign
     table = models.ForeignKey("Table", on_delete=models.CASCADE, related_name="columns")
     bigquery_type = models.ForeignKey(
@@ -340,11 +339,17 @@ class CloudTable(models.Model):
 
     def clean(self) -> None:
         if not check_kebab_case(self.gcp_project_id):
-            raise ValidationError({"gcp_project_id": "gcp_project_id must be in kebab-case."})
+            raise ValidationError(
+                {"gcp_project_id": "gcp_project_id must be in kebab-case."}
+            )
         if not check_snake_case(self.gcp_dataset_id):
-            raise ValidationError({"gcp_dataset_id": "gcp_dataset_id must be in snake_case."})
+            raise ValidationError(
+                {"gcp_dataset_id": "gcp_dataset_id must be in snake_case."}
+            )
         if not check_snake_case(self.gcp_table_id):
-            raise ValidationError({"gcp_table_id": "gcp_table_id must be in snake_case."})
+            raise ValidationError(
+                {"gcp_table_id": "gcp_table_id must be in snake_case."}
+            )
         for column in self.columns.all():
             if column.table != self.table:
                 raise ValidationError(
@@ -361,7 +366,7 @@ class CloudTable(models.Model):
     ) -> None:
         try:
             self.clean()
-        except ValidationError as e:
+        except ValidationError:
             pass
         return super().save(force_insert, force_update, using, update_fields)
 
@@ -423,9 +428,9 @@ class RawDataSource(models.Model):
     update_frequency = models.ForeignKey(
         "UpdateFrequency", on_delete=models.CASCADE, related_name="raw_data_sources"
     )
-    area_ip_address_required = models.BooleanField(
-        default=False
-    )  # TODO @Gabriel aqui é pra ser um m:1 para Area.
+    area_ip_address_required = models.ManyToManyField(
+        "Area", related_name="raw_data_sources", blank=True
+    )
     # Mandatory
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -481,7 +486,9 @@ class InformationRequest(models.Model):
     slug = models.SlugField(unique=True)
     name_en = models.CharField(max_length=255)
     name_pt = models.CharField(max_length=255)
+    started_at = models.DateTimeField(blank=True, null=True)
     description = models.TextField(blank=True, null=True)
+    observations = models.TextField(blank=True, null=True)
     raw_data_url = models.URLField(blank=True, null=True)
     auxiliary_files_url = models.URLField(blank=True, null=True)
     architecture_url = models.URLField(blank=True, null=True)
