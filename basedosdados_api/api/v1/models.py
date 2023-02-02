@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from typing import Iterable, Optional
 from uuid import uuid4
 
 from django.core.exceptions import ValidationError
@@ -346,19 +345,6 @@ class CloudTable(models.Model):
                     f"Column {column} does not belong to table {self.table}."
                 )
         return super().clean()
-
-    def save(
-        self,
-        force_insert: bool = False,
-        force_update: bool = False,
-        using: Optional[str] = None,
-        update_fields: Optional[Iterable[str]] = None,
-    ) -> None:
-        try:
-            self.clean()
-        except ValidationError:
-            pass
-        return super().save(force_insert, force_update, using, update_fields)
 
     class Meta:
         db_table = "cloud_table"
