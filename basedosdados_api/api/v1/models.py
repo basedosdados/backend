@@ -43,8 +43,7 @@ class Coverage(models.Model):
 class License(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
-    name_en = models.CharField(max_length=255)
-    name_pt = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
     url = models.URLField()
 
     def __str__(self):
@@ -66,10 +65,8 @@ class Key(models.Model):
 
 class AnalysisType(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    name_en = models.CharField(max_length=255)
-    name_pt = models.CharField(max_length=255)
-    tag_en = models.CharField(max_length=255)
-    tag_pt = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
+    tag = models.CharField(max_length=255)
 
     def __str__(self):
         return str(self.name_pt)
@@ -84,8 +81,7 @@ class AnalysisType(models.Model):
 class Tag(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
-    name_en = models.CharField(max_length=255)
-    name_pt = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -102,8 +98,7 @@ class Tag(models.Model):
 class Theme(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
-    name_en = models.CharField(max_length=255)
-    name_pt = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
     logo_url = models.URLField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -128,8 +123,7 @@ class Organization(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     slug = models.SlugField(unique=True)
-    name_en = models.CharField(max_length=255)
-    name_pt = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     # Optional
     website = models.URLField(blank=True, null=True)
@@ -160,8 +154,7 @@ class Dataset(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     slug = models.SlugField(unique=True)
-    name_en = models.CharField(max_length=255)
-    name_pt = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
     # Optional
     description = models.TextField(blank=True, null=True)
 
@@ -178,8 +171,7 @@ class Dataset(models.Model):
 class TimeUnit(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
-    name_en = models.CharField(max_length=255)
-    name_pt = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
 
     def __str__(self):
         return str(self.slug)
@@ -225,8 +217,7 @@ class Table(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     slug = models.SlugField(unique=True)
-    name_en = models.CharField(max_length=255)
-    name_pt = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
     # Optional
     description = models.TextField(blank=True, null=True)
     is_directory = models.BooleanField(default=False, blank=True, null=True)
@@ -294,8 +285,7 @@ class Column(models.Model):
         blank=True,
         null=True,
     )
-    name_en = models.CharField(max_length=255)
-    name_pt = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
     is_in_staging = models.BooleanField(default=True)
     is_partition = models.BooleanField(default=False)
     description = models.TextField(blank=True, null=True)
@@ -311,7 +301,7 @@ class Column(models.Model):
         db_table = "column"
         verbose_name = "Column"
         verbose_name_plural = "Columns"
-        ordering = ["slug"]
+        ordering = ["name_pt"]
 
 
 class Dictionary(models.Model):
@@ -380,8 +370,7 @@ class CloudTable(models.Model):
 class Availability(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
-    name_en = models.CharField(max_length=255)
-    name_pt = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
 
     def __str__(self):
         return str(self.slug)
@@ -396,8 +385,7 @@ class Availability(models.Model):
 class Language(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
-    name_en = models.CharField(max_length=255)
-    name_pt = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
 
     def __str__(self):
         return str(self.slug)
@@ -435,8 +423,7 @@ class RawDataSource(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     slug = models.SlugField(unique=True)
-    name_en = models.CharField(max_length=255)
-    name_pt = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
     # Optional
     description = models.TextField(blank=True, null=True)
     raw_data_url = models.URLField(blank=True, null=True)
@@ -456,8 +443,7 @@ class RawDataSource(models.Model):
 class Status(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
-    name_en = models.CharField(max_length=255)
-    name_pt = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
 
     def __str__(self) -> str:
         return str(self.slug)
@@ -484,8 +470,7 @@ class InformationRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     slug = models.SlugField(unique=True)
-    name_en = models.CharField(max_length=255)
-    name_pt = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
     started_at = models.DateTimeField(blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     observations = models.TextField(blank=True, null=True)
@@ -506,8 +491,7 @@ class InformationRequest(models.Model):
 class Entity(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
-    name_en = models.CharField(max_length=255)
-    name_pt = models.CharField(max_length=255)
+    name = models.CharField(max_length=255)
 
     def __str__(self):
         return str(self.slug)

@@ -214,6 +214,22 @@ docs = ["sphinx"]
 test = ["celery", "pytest", "pytest-cov", "pytest-django", "redis"]
 
 [[package]]
+name = "django-modeltranslation"
+version = "0.18.8"
+description = "Translates Django models using a registration approach."
+category = "main"
+optional = false
+python-versions = "*"
+files = [
+    {file = "django-modeltranslation-0.18.8.tar.gz", hash = "sha256:ea6b458eb3ca55d6c4d992857e9cf46efbd6f892f2d3d623c76f1eb6e6f1bc7a"},
+    {file = "django_modeltranslation-0.18.8-py3-none-any.whl", hash = "sha256:91d9a319c37e796f49c8caba7d6a3a2ae96ca00ebbce7b1441ac0cbbdd026ef0"},
+]
+
+[package.dependencies]
+Django = ">=3.2"
+typing-extensions = "*"
+
+[[package]]
 name = "djangorestframework"
 version = "3.14.0"
 description = "Web APIs for Django, made easy."
@@ -736,6 +752,18 @@ files = [
 ]
 
 [[package]]
+name = "typing-extensions"
+version = "4.4.0"
+description = "Backported and Experimental Type Hints for Python 3.7+"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "typing_extensions-4.4.0-py3-none-any.whl", hash = "sha256:16fa4864408f655d35ec496218b85f79b3437c829e93320c7c9215ccfd92489e"},
+    {file = "typing_extensions-4.4.0.tar.gz", hash = "sha256:1511434bb92bf8dd198c12b1cc812e800d4181cfcb867674e0f8279cc93087aa"},
+]
+
+[[package]]
 name = "tzdata"
 version = "2022.6"
 description = "Provider of IANA time zone data"
@@ -771,4 +799,4 @@ testing = ["coverage (>=6.2)", "coverage-enable-subprocess (>=1)", "flaky (>=3.7
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "d33511557f8451a613afd3e32e57d4c2ea303160bed184845e4f7d75ebef1a3c"
+content-hash = "f080994a586b559842871c2b47cdc89d5cb964a0242a8569c18ec8c7be6eda6e"
