@@ -294,7 +294,7 @@ class Column(models.Model):
     observations = models.TextField(blank=True, null=True)
 
     def __str__(self):
-        return str(self.slug)
+        return str(self.name)
 
     class Meta:
         db_table = "column"
@@ -327,23 +327,19 @@ class CloudTable(models.Model):
         return f"{self.gcp_project_id}.{self.gcp_dataset_id}.{self.gcp_table_id}"
 
     def clean(self) -> None:
-        if not check_kebab_case(self.gcp_project_id):
-            raise ValidationError(
-                {"gcp_project_id": "gcp_project_id must be in kebab-case."}
-            )
-        if not check_snake_case(self.gcp_dataset_id):
-            raise ValidationError(
-                {"gcp_dataset_id": "gcp_dataset_id must be in snake_case."}
-            )
-        if not check_snake_case(self.gcp_table_id):
-            raise ValidationError(
-                {"gcp_table_id": "gcp_table_id must be in snake_case."}
-            )
+        errors = {}
+        if self.gcp_project_id and not check_kebab_case(self.gcp_project_id):
+            errors["gcp_project_id"] = "gcp_project_id must be in kebab-case."
+        if self.gcp_project_id and not check_snake_case(self.gcp_dataset_id):
+            errors["gcp_dataset_id"] = "gcp_dataset_id must be in snake_case."
+        if self.gcp_table_id and not check_snake_case(self.gcp_table_id):
+            errors["gcp_table_id"] = "gcp_table_id must be in snake_case."
         for column in self.columns.all():
             if column.table != self.table:
-                raise ValidationError(
-                    f"Column {column} does not belong to table {self.table}."
-                )
+                errors["columns"] = f"Column {column} does not belong to table {self.table}."
+        if errors:
+            raise ValidationError(errors)
+
         return super().clean()
 
     class Meta:
