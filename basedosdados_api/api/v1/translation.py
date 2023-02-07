@@ -32,11 +32,11 @@ class AvailabilityTranslationOptions(TranslationOptions):
 
 
 class ColumnTranslationOptions(TranslationOptions):
-    fields = ("name",)
+    fields = ("name", "description", "observations")
 
 
 class DatasetTranslationOptions(TranslationOptions):
-    fields = ("name",)
+    fields = ("name", "description")
 
 
 class EntityTranslationOptions(TranslationOptions):
@@ -44,7 +44,7 @@ class EntityTranslationOptions(TranslationOptions):
 
 
 class InformationRequestTranslationOptions(TranslationOptions):
-    fields = ("name",)
+    fields = ("observations",)
 
 
 class LanguageTranslationOptions(TranslationOptions):
@@ -56,11 +56,14 @@ class LicenseTranslationOptions(TranslationOptions):
 
 
 class OrganizationTranslationOptions(TranslationOptions):
-    fields = ("name",)
+    fields = ("name", "description")
 
 
 class RawDataSourceTranslationOptions(TranslationOptions):
-    fields = ("name",)
+    fields = (
+        "name",
+        "description",
+    )
 
 
 class StatusTranslationOptions(TranslationOptions):
@@ -68,7 +71,10 @@ class StatusTranslationOptions(TranslationOptions):
 
 
 class TableTranslationOptions(TranslationOptions):
-    fields = ("name",)
+    fields = (
+        "name",
+        "description",
+    )
 
 
 class TagTranslationOptions(TranslationOptions):

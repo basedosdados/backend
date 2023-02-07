@@ -61,6 +61,29 @@ class Key(models.Model):
     name = models.CharField(max_length=255)
     value = models.CharField(max_length=255)
 
+    def __str__(self):
+        return str(self.name)
+
+    class Meta:
+        db_table = "key"
+        verbose_name = "Key"
+        verbose_name_plural = "Keys"
+        ordering = ["name"]
+
+
+class Pipeline(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    github_url = models.URLField()
+
+    def __str__(self):
+        return str(self.github_url)
+
+    class Meta:
+        db_table = "pipeline"
+        verbose_name = "Pipeline"
+        verbose_name_plural = "Pipelines"
+        ordering = ["github_url"]
+
 
 class AnalysisType(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -74,7 +97,7 @@ class AnalysisType(models.Model):
         db_table = "analysis_type"
         verbose_name = "Analysis Type"
         verbose_name_plural = "Analysis Types"
-        ordering = ["name_pt"]
+        ordering = ["name"]
 
 
 class Tag(models.Model):
@@ -114,17 +137,14 @@ class Theme(models.Model):
 
 class Organization(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    # Foreign
     area = models.ForeignKey(
         "Area", on_delete=models.CASCADE, related_name="organizations"
     )
-    # Mandatory
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    # Optional
     website = models.URLField(blank=True, null=True)
     twitter = models.URLField(blank=True, null=True)
     facebook = models.URLField(blank=True, null=True)
@@ -143,18 +163,15 @@ class Organization(models.Model):
 
 class Dataset(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    # Foreign
     organization = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="datasets"
     )
     themes = models.ManyToManyField("Theme", related_name="datasets")
     tags = models.ManyToManyField("Tag", related_name="datasets")
-    # Mandatory
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
-    # Optional
     description = models.TextField(blank=True, null=True)
 
     def __str__(self):
@@ -201,7 +218,6 @@ class UpdateFrequency(models.Model):
 
 class Table(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    # Foreign
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="tables"
     )
@@ -209,15 +225,19 @@ class Table(models.Model):
     license = models.ForeignKey(
         "License", on_delete=models.CASCADE, related_name="tables"
     )
+    partner_organization = models.ForeignKey(
+        "Organization", on_delete=models.CASCADE, related_name="partner_tables"
+    )
     update_frequency = models.ForeignKey(
         "UpdateFrequency", on_delete=models.CASCADE, related_name="tables"
     )
-    # Mandatory
+    pipeline = models.ForeignKey(
+        "Pipeline", on_delete=models.CASCADE, related_name="tables"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
-    # Optional
     description = models.TextField(blank=True, null=True)
     is_directory = models.BooleanField(default=False, blank=True, null=True)
     data_cleaning_description = models.TextField(blank=True, null=True)
@@ -271,7 +291,6 @@ class DirectoryPrimaryKey(models.Model):
 
 class Column(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    # Foreign
     table = models.ForeignKey("Table", on_delete=models.CASCADE, related_name="columns")
     bigquery_type = models.ForeignKey(
         "BigQueryTypes", on_delete=models.CASCADE, related_name="columns"
@@ -290,7 +309,7 @@ class Column(models.Model):
     description = models.TextField(blank=True, null=True)
     covered_by_dictionary = models.BooleanField(default=False, blank=True, null=True)
     measurement_unit = models.CharField(max_length=255, blank=True, null=True)
-    contains_sensitive_data = models.BooleanField(default=False, blank=True, null=True)
+    has_sensitive_data = models.BooleanField(default=False, blank=True, null=True)
     observations = models.TextField(blank=True, null=True)
 
     def __str__(self):
@@ -300,7 +319,7 @@ class Column(models.Model):
         db_table = "column"
         verbose_name = "Column"
         verbose_name_plural = "Columns"
-        ordering = ["name_pt"]
+        ordering = ["name"]
 
 
 class Dictionary(models.Model):
@@ -308,7 +327,7 @@ class Dictionary(models.Model):
     column = models.OneToOneField(
         "Column", on_delete=models.CASCADE, related_name="dictionary"
     )
-    keys = models.ForeignKey(
+    key = models.ForeignKey(
         "Key", on_delete=models.CASCADE, related_name="dictionaries"
     )
 
@@ -336,7 +355,9 @@ class CloudTable(models.Model):
             errors["gcp_table_id"] = "gcp_table_id must be in snake_case."
         for column in self.columns.all():
             if column.table != self.table:
-                errors["columns"] = f"Column {column} does not belong to table {self.table}."
+                errors[
+                    "columns"
+                ] = f"Column {column} does not belong to table {self.table}."
         if errors:
             raise ValidationError(errors)
 
@@ -381,7 +402,6 @@ class Language(models.Model):
 
 class RawDataSource(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    # Foreign
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="raw_data_sources"
     )
@@ -401,16 +421,15 @@ class RawDataSource(models.Model):
     area_ip_address_required = models.ManyToManyField(
         "Area", related_name="raw_data_sources", blank=True
     )
-    # Mandatory
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
-    # Optional
     description = models.TextField(blank=True, null=True)
-    raw_data_url = models.URLField(blank=True, null=True)
-    auxiliary_files_url = models.URLField(blank=True, null=True)
-    architecture_url = models.URLField(blank=True, null=True)
+    has_structure_data = models.BooleanField(default=False)
+    has_api = models.BooleanField(default=False)
+    is_free = models.BooleanField(default=False)
+    required_registration = models.BooleanField(default=False)
 
     def __str__(self):
         return str(self.slug)
@@ -451,14 +470,12 @@ class InformationRequest(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    slug = models.SlugField(unique=True)
-    name = models.CharField(max_length=255)
+    origin = models.CharField(max_length=255, blank=True, null=True)
+    slug = models.SlugField(unique=True, blank=True, null=True)
+    url = models.URLField(blank=True, null=True)
     started_at = models.DateTimeField(blank=True, null=True)
-    description = models.TextField(blank=True, null=True)
+    data_url = models.URLField(blank=True, null=True)
     observations = models.TextField(blank=True, null=True)
-    raw_data_url = models.URLField(blank=True, null=True)
-    auxiliary_files_url = models.URLField(blank=True, null=True)
-    architecture_url = models.URLField(blank=True, null=True)
 
     def __str__(self):
         return str(self.slug)
