@@ -16,7 +16,6 @@ from .models import (
     Table,
     Tag,
     Theme,
-    TimeUnit,
 )
 
 
@@ -85,10 +84,6 @@ class ThemeTranslationOptions(TranslationOptions):
     fields = ("name",)
 
 
-class TimeUnitTranslationOptions(TranslationOptions):
-    fields = ("name",)
-
-
 translator.register(AnalysisType, AnalysisTypeTranslationOptions)
 translator.register(Availability, AvailabilityTranslationOptions)
 translator.register(Column, ColumnTranslationOptions)
@@ -103,4 +98,3 @@ translator.register(Status, StatusTranslationOptions)
 translator.register(Table, TableTranslationOptions)
 translator.register(Tag, TagTranslationOptions)
 translator.register(Theme, ThemeTranslationOptions)
-translator.register(TimeUnit, TimeUnitTranslationOptions)

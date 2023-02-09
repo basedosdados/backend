@@ -16,15 +16,15 @@ from basedosdados_api.api.v1.models import (
     Coverage,
     Status,
     UpdateFrequency,
-    TimeUnit,
     Availability,
     License,
     Language,
     ObservationLevel,
     Entity,
-    EntityColumn,
     Dictionary,
-    DirectoryPrimaryKey,
+    Pipeline,
+    AnalysisType,
+    TemporalCoverage,
 )
 
 admin.site.register(Organization)
@@ -41,12 +41,12 @@ admin.site.register(Tag)
 admin.site.register(Coverage)
 admin.site.register(Status)
 admin.site.register(UpdateFrequency)
-admin.site.register(TimeUnit)
 admin.site.register(Availability)
 admin.site.register(License)
 admin.site.register(Language)
 admin.site.register(ObservationLevel)
 admin.site.register(Entity)
-admin.site.register(EntityColumn)
 admin.site.register(Dictionary)
-admin.site.register(DirectoryPrimaryKey)
+admin.site.register(Pipeline)
+admin.site.register(AnalysisType)
+admin.site.register(TemporalCoverage)

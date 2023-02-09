@@ -8,6 +8,7 @@ from basedosdados_api.api.v1.utils import (
     check_kebab_case,
     check_snake_case,
 )
+from django.contrib.auth.models import User
 
 
 class Area(models.Model):
@@ -27,7 +28,9 @@ class Area(models.Model):
 class Coverage(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     area = models.ForeignKey("Area", on_delete=models.CASCADE, related_name="coverages")
-    temporal_coverage = models.CharField(max_length=255)
+    temporal_coverages = models.ManyToManyField(
+        "TemporalCoverage", related_name="coverages"
+    )
 
     def __str__(self):
         return str(self.temporal_coverage)
@@ -36,7 +39,7 @@ class Coverage(models.Model):
         db_table = "coverage"
         verbose_name = "Coverage"
         verbose_name_plural = "Coverages"
-        ordering = ["temporal_coverage"]
+        ordering = ["id"]
 
 
 class License(models.Model):
@@ -65,7 +68,7 @@ class Key(models.Model):
         return str(self.name)
 
     class Meta:
-        db_table = "key"
+        db_table = "keys"
         verbose_name = "Key"
         verbose_name_plural = "Keys"
         ordering = ["name"]
@@ -184,30 +187,15 @@ class Dataset(models.Model):
         ordering = ["slug"]
 
 
-class TimeUnit(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid4)
-    slug = models.SlugField(unique=True)
-    name = models.CharField(max_length=255)
-
-    def __str__(self):
-        return str(self.slug)
-
-    class Meta:
-        db_table = "time_unit"
-        verbose_name = "Time Unit"
-        verbose_name_plural = "Time Units"
-        ordering = ["slug"]
-
-
 class UpdateFrequency(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    time_unit = models.ForeignKey(
-        "TimeUnit", on_delete=models.CASCADE, related_name="update_frequencies"
+    entity = models.ForeignKey(
+        "Entity", on_delete=models.CASCADE, related_name="update_frequencies"
     )
     number = models.IntegerField()
 
     def __str__(self):
-        return str(self.number) + " " + str(self.time_unit)
+        return str(self.number)
 
     class Meta:
         db_table = "update_frequency"
@@ -250,6 +238,9 @@ class Table(models.Model):
     compressed_file_size = models.BigIntegerField(blank=True, null=True)
     number_rows = models.BigIntegerField(blank=True, null=True)
     number_columns = models.BigIntegerField(blank=True, null=True)
+    observation_level = models.ManyToManyField(
+        "ObservationLevel", related_name="tables", blank=True
+    )
 
     def __str__(self):
         return str(self.slug)
@@ -275,20 +266,6 @@ class BigQueryTypes(models.Model):
         ordering = ["name"]
 
 
-class DirectoryPrimaryKey(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid4)
-    slug = models.SlugField(unique=True)
-
-    def __str__(self):
-        return str(self.slug)
-
-    class Meta:
-        db_table = "directory_primary_key"
-        verbose_name = "Directory Primary Key"
-        verbose_name_plural = "Directory Primary Keys"
-        ordering = ["slug"]
-
-
 class Column(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     table = models.ForeignKey("Table", on_delete=models.CASCADE, related_name="columns")
@@ -297,8 +274,8 @@ class Column(models.Model):
     )
     coverages = models.ManyToManyField("Coverage", related_name="columns")
     directory_primary_key = models.ForeignKey(
-        "DirectoryPrimaryKey",
-        on_delete=models.CASCADE,
+        "Column",
+        on_delete=models.PROTECT,
         related_name="columns",
         blank=True,
         null=True,
@@ -309,7 +286,7 @@ class Column(models.Model):
     description = models.TextField(blank=True, null=True)
     covered_by_dictionary = models.BooleanField(default=False, blank=True, null=True)
     measurement_unit = models.CharField(max_length=255, blank=True, null=True)
-    has_sensitive_data = models.BooleanField(default=False, blank=True, null=True)
+    contains_sensitive_data = models.BooleanField(default=False, blank=True, null=True)
     observations = models.TextField(blank=True, null=True)
 
     def __str__(self):
@@ -327,7 +304,7 @@ class Dictionary(models.Model):
     column = models.OneToOneField(
         "Column", on_delete=models.CASCADE, related_name="dictionary"
     )
-    key = models.ForeignKey(
+    keys = models.ForeignKey(
         "Key", on_delete=models.CASCADE, related_name="dictionaries"
     )
 
@@ -430,6 +407,9 @@ class RawDataSource(models.Model):
     has_api = models.BooleanField(default=False)
     is_free = models.BooleanField(default=False)
     required_registration = models.BooleanField(default=False)
+    observation_level = models.ManyToManyField(
+        "ObservationLevel", related_name="raw_data_sources", blank=True
+    )
 
     def __str__(self):
         return str(self.slug)
@@ -476,6 +456,12 @@ class InformationRequest(models.Model):
     started_at = models.DateTimeField(blank=True, null=True)
     data_url = models.URLField(blank=True, null=True)
     observations = models.TextField(blank=True, null=True)
+    observation_level = models.ManyToManyField(
+        "ObservationLevel", related_name="information_requests", blank=True
+    )
+    started_by = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="information_requests"
+    )
 
     def __str__(self):
         return str(self.slug)
@@ -507,29 +493,25 @@ class ObservationLevel(models.Model):
     entity = models.ForeignKey(
         "Entity", on_delete=models.CASCADE, related_name="observation_levels"
     )
-    tables = models.ManyToManyField("Table", related_name="entity_columns")
-    raw_data_sources = models.ManyToManyField(
-        "RawDataSource", related_name="entity_columns"
-    )
-    information_requests = models.ManyToManyField(
-        "InformationRequest", related_name="entity_columns"
+    columns = models.ManyToManyField(
+        "Column", related_name="observation_levels", blank=True
     )
 
     def __str__(self):
         return str(self.entity)
 
 
-class EntityColumn(models.Model):
+class TemporalCoverage(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    entity = models.ForeignKey(
-        "Entity", on_delete=models.CASCADE, related_name="entity_columns"
-    )
-    column = models.ForeignKey(
-        "Column", on_delete=models.CASCADE, related_name="entity_columns"
-    )
-    observation_level = models.ForeignKey(
-        "ObservationLevel", on_delete=models.CASCADE, related_name="entity_columns"
-    )
+    slug = models.SlugField(unique=True)
+    start_datetime = models.DateTimeField(blank=True, null=True)
+    end_datetime = models.DateTimeField(blank=True, null=True)
 
     def __str__(self):
-        return str(self.entity)
+        return str(self.slug)
+
+    class Meta:
+        db_table = "temporal_coverage"
+        verbose_name = "Temporal Coverage"
+        verbose_name_plural = "Temporal Coverages"
+        ordering = ["slug"]
