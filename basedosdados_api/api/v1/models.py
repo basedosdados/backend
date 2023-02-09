@@ -403,8 +403,8 @@ class RawDataSource(models.Model):
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    has_structure_data = models.BooleanField(default=False)
-    has_api = models.BooleanField(default=False)
+    contains_structure_data = models.BooleanField(default=False)
+    contains_api = models.BooleanField(default=False)
     is_free = models.BooleanField(default=False)
     required_registration = models.BooleanField(default=False)
     observation_level = models.ManyToManyField(
