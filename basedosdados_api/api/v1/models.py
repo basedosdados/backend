@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
 from uuid import uuid4
 
+import calendar
+import math
+from datetime import datetime
 from django.core.exceptions import ValidationError
 from django.db import models
-
+from django.contrib.auth.models import User
 from basedosdados_api.api.v1.utils import (
     check_kebab_case,
     check_snake_case,
 )
-from django.contrib.auth.models import User
 
 
 class Area(models.Model):
@@ -33,7 +35,7 @@ class Coverage(models.Model):
     )
 
     def __str__(self):
-        return str(self.temporal_coverage)
+        return str(self.temporal_coverages)
 
     class Meta:
         db_table = "coverage"
@@ -94,7 +96,7 @@ class AnalysisType(models.Model):
     tag = models.CharField(max_length=255)
 
     def __str__(self):
-        return str(self.name_pt)
+        return str(self.name)
 
     class Meta:
         db_table = "analysis_type"
@@ -504,11 +506,86 @@ class ObservationLevel(models.Model):
 class TemporalCoverage(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
-    start_datetime = models.DateTimeField(blank=True, null=True)
-    end_datetime = models.DateTimeField(blank=True, null=True)
+    start_year = models.IntegerField()
+    start_quarter = models.IntegerField(blank=True, null=True)
+    start_month = models.IntegerField(blank=True, null=True)
+    start_day = models.IntegerField(blank=True, null=True)
+    start_hour = models.IntegerField(blank=True, null=True)
+    start_minute = models.IntegerField(blank=True, null=True)
+    start_second = models.IntegerField(blank=True, null=True)
+    end_year = models.IntegerField()
+    end_quarter = models.IntegerField(blank=True, null=True)
+    end_month = models.IntegerField(blank=True, null=True)
+    end_day = models.IntegerField(blank=True, null=True)
+    end_hour = models.IntegerField(blank=True, null=True)
+    end_minute = models.IntegerField(blank=True, null=True)
+    end_second = models.IntegerField(blank=True, null=True)
 
     def __str__(self):
         return str(self.slug)
+
+    def clean(self) -> None:
+        if self.start_year > self.end_year:
+            raise ValidationError("Start year cannot be greater than end year")
+
+        start_datetime = datetime(
+            self.start_year,
+            self.start_month or 1,
+            self.start_day or 1,
+            self.start_hour or 0,
+            self.start_minute or 0,
+            self.start_second or 0,
+        )
+        end_datetime = datetime(
+            self.end_year,
+            self.end_month or 1,
+            self.end_day or 1,
+            self.end_hour or 0,
+            self.end_minute or 0,
+            self.end_second or 0,
+        )
+
+        if start_datetime > end_datetime:
+            raise ValidationError("Start datetime cannot be greater than end datetime")
+
+        if self.start_day:
+            max_day = calendar.monthrange(self.start_year, self.start_month)[1]
+            if self.start_day > max_day:
+                raise ValidationError(
+                    f"The month {self.start_month} does not have {self.start_day} days"
+                )
+
+        if self.end_day:
+            max_day = calendar.monthrange(self.end_year, self.end_month)[1]
+            if self.end_day > max_day:
+                raise ValidationError(
+                    f"The month {self.end_month} does not have {self.end_day} days"
+                )
+
+        if self.start_quarter:
+            if self.start_quarter > 4:
+                raise ValidationError("Quarter cannot be greater than 4")
+
+        if self.end_quarter:
+            if self.end_quarter > 4:
+                raise ValidationError("Quarter cannot be greater than 4")
+
+        if self.start_month:
+            if self.start_month > 12:
+                raise ValidationError("Month cannot be greater than 12")
+
+        if self.end_month:
+            if self.end_month > 12:
+                raise ValidationError("Month cannot be greater than 12")
+
+    def save(self, *args, **kwargs) -> None:
+        if not self.start_quarter:
+            self.start_quarter = math.ceil(self.start_month / 3)
+        if not self.end_quarter:
+            self.end_quarter = math.ceil(self.end_month / 3)
+
+        self.full_clean()
+        super().save(*args, *kwargs)
 
     class Meta:
         db_table = "temporal_coverage"
