@@ -507,6 +507,7 @@ class TemporalCoverage(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     start_year = models.IntegerField()
+    start_semester = models.IntegerField(blank=True, null=True)
     start_quarter = models.IntegerField(blank=True, null=True)
     start_month = models.IntegerField(blank=True, null=True)
     start_day = models.IntegerField(blank=True, null=True)
@@ -514,6 +515,7 @@ class TemporalCoverage(models.Model):
     start_minute = models.IntegerField(blank=True, null=True)
     start_second = models.IntegerField(blank=True, null=True)
     end_year = models.IntegerField()
+    end_semester = models.IntegerField(blank=True, null=True)
     end_quarter = models.IntegerField(blank=True, null=True)
     end_month = models.IntegerField(blank=True, null=True)
     end_day = models.IntegerField(blank=True, null=True)
@@ -562,6 +564,14 @@ class TemporalCoverage(models.Model):
                     f"The month {self.end_month} does not have {self.end_day} days"
                 )
 
+        if self.start_semester:
+            if self.start_semester > 2:
+                raise ValidationError("Semester cannot be greater than 2")
+
+        if self.end_semester:
+            if self.end_semester > 2:
+                raise ValidationError("Semester cannot be greater than 2")
+
         if self.start_quarter:
             if self.start_quarter > 4:
                 raise ValidationError("Quarter cannot be greater than 4")
@@ -579,10 +589,6 @@ class TemporalCoverage(models.Model):
                 raise ValidationError("Month cannot be greater than 12")
 
     def save(self, *args, **kwargs) -> None:
-        if not self.start_quarter:
-            self.start_quarter = math.ceil(self.start_month / 3)
-        if not self.end_quarter:
-            self.end_quarter = math.ceil(self.end_month / 3)
 
         self.full_clean()
         super().save(*args, *kwargs)
