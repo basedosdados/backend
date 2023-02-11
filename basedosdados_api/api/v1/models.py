@@ -2,7 +2,6 @@
 from uuid import uuid4
 
 import calendar
-import math
 from datetime import datetime
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -527,6 +526,9 @@ class TemporalCoverage(models.Model):
         return str(self.slug)
 
     def clean(self) -> None:
+        if self.start_year or self.end_year is None:
+            raise ValidationError("Start year and end year are required")
+
         if self.start_year > self.end_year:
             raise ValidationError("Start year cannot be greater than end year")
 
@@ -548,20 +550,20 @@ class TemporalCoverage(models.Model):
         )
 
         if start_datetime > end_datetime:
-            raise ValidationError("Start datetime cannot be greater than end datetime")
+            raise ValidationError("Start year cannot be greater than end year")
 
         if self.start_day:
             max_day = calendar.monthrange(self.start_year, self.start_month)[1]
             if self.start_day > max_day:
                 raise ValidationError(
-                    f"The month {self.start_month} does not have {self.start_day} days"
+                    f"{self.start_month} does not have {self.start_day} days in {self.start_year}"
                 )
 
         if self.end_day:
             max_day = calendar.monthrange(self.end_year, self.end_month)[1]
             if self.end_day > max_day:
                 raise ValidationError(
-                    f"The month {self.end_month} does not have {self.end_day} days"
+                    f"{self.end_month} does not have {self.end_day} days in {self.end_year}"
                 )
 
         if self.start_semester:
@@ -588,10 +590,7 @@ class TemporalCoverage(models.Model):
             if self.end_month > 12:
                 raise ValidationError("Month cannot be greater than 12")
 
-    def save(self, *args, **kwargs) -> None:
-
-        self.full_clean()
-        super().save(*args, *kwargs)
+        return super().clean()
 
     class Meta:
         db_table = "temporal_coverage"
