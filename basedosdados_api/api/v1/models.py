@@ -1,9 +1,11 @@
 # -*- coding: utf-8 -*-
 from uuid import uuid4
 
+import calendar
+from datetime import datetime
 from django.core.exceptions import ValidationError
 from django.db import models
-
+from django.contrib.auth.models import User
 from basedosdados_api.api.v1.utils import (
     check_kebab_case,
     check_snake_case,
@@ -27,16 +29,18 @@ class Area(models.Model):
 class Coverage(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     area = models.ForeignKey("Area", on_delete=models.CASCADE, related_name="coverages")
-    temporal_coverage = models.CharField(max_length=255)
+    temporal_coverages = models.ManyToManyField(
+        "TemporalCoverage", related_name="coverages"
+    )
 
     def __str__(self):
-        return str(self.temporal_coverage)
+        return str(self.temporal_coverages)
 
     class Meta:
         db_table = "coverage"
         verbose_name = "Coverage"
         verbose_name_plural = "Coverages"
-        ordering = ["temporal_coverage"]
+        ordering = ["id"]
 
 
 class License(models.Model):
@@ -61,6 +65,29 @@ class Key(models.Model):
     name = models.CharField(max_length=255)
     value = models.CharField(max_length=255)
 
+    def __str__(self):
+        return str(self.name)
+
+    class Meta:
+        db_table = "keys"
+        verbose_name = "Key"
+        verbose_name_plural = "Keys"
+        ordering = ["name"]
+
+
+class Pipeline(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    github_url = models.URLField()
+
+    def __str__(self):
+        return str(self.github_url)
+
+    class Meta:
+        db_table = "pipeline"
+        verbose_name = "Pipeline"
+        verbose_name_plural = "Pipelines"
+        ordering = ["github_url"]
+
 
 class AnalysisType(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -68,13 +95,13 @@ class AnalysisType(models.Model):
     tag = models.CharField(max_length=255)
 
     def __str__(self):
-        return str(self.name_pt)
+        return str(self.name)
 
     class Meta:
         db_table = "analysis_type"
         verbose_name = "Analysis Type"
         verbose_name_plural = "Analysis Types"
-        ordering = ["name_pt"]
+        ordering = ["name"]
 
 
 class Tag(models.Model):
@@ -114,17 +141,14 @@ class Theme(models.Model):
 
 class Organization(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    # Foreign
     area = models.ForeignKey(
         "Area", on_delete=models.CASCADE, related_name="organizations"
     )
-    # Mandatory
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    # Optional
     website = models.URLField(blank=True, null=True)
     twitter = models.URLField(blank=True, null=True)
     facebook = models.URLField(blank=True, null=True)
@@ -143,18 +167,15 @@ class Organization(models.Model):
 
 class Dataset(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    # Foreign
     organization = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="datasets"
     )
     themes = models.ManyToManyField("Theme", related_name="datasets")
     tags = models.ManyToManyField("Tag", related_name="datasets")
-    # Mandatory
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
-    # Optional
     description = models.TextField(blank=True, null=True)
 
     def __str__(self):
@@ -167,30 +188,15 @@ class Dataset(models.Model):
         ordering = ["slug"]
 
 
-class TimeUnit(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid4)
-    slug = models.SlugField(unique=True)
-    name = models.CharField(max_length=255)
-
-    def __str__(self):
-        return str(self.slug)
-
-    class Meta:
-        db_table = "time_unit"
-        verbose_name = "Time Unit"
-        verbose_name_plural = "Time Units"
-        ordering = ["slug"]
-
-
 class UpdateFrequency(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    time_unit = models.ForeignKey(
-        "TimeUnit", on_delete=models.CASCADE, related_name="update_frequencies"
+    entity = models.ForeignKey(
+        "Entity", on_delete=models.CASCADE, related_name="update_frequencies"
     )
     number = models.IntegerField()
 
     def __str__(self):
-        return str(self.number) + " " + str(self.time_unit)
+        return str(self.number)
 
     class Meta:
         db_table = "update_frequency"
@@ -201,7 +207,6 @@ class UpdateFrequency(models.Model):
 
 class Table(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    # Foreign
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="tables"
     )
@@ -209,15 +214,19 @@ class Table(models.Model):
     license = models.ForeignKey(
         "License", on_delete=models.CASCADE, related_name="tables"
     )
+    partner_organization = models.ForeignKey(
+        "Organization", on_delete=models.CASCADE, related_name="partner_tables"
+    )
     update_frequency = models.ForeignKey(
         "UpdateFrequency", on_delete=models.CASCADE, related_name="tables"
     )
-    # Mandatory
+    pipeline = models.ForeignKey(
+        "Pipeline", on_delete=models.CASCADE, related_name="tables"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
-    # Optional
     description = models.TextField(blank=True, null=True)
     is_directory = models.BooleanField(default=False, blank=True, null=True)
     data_cleaning_description = models.TextField(blank=True, null=True)
@@ -230,6 +239,9 @@ class Table(models.Model):
     compressed_file_size = models.BigIntegerField(blank=True, null=True)
     number_rows = models.BigIntegerField(blank=True, null=True)
     number_columns = models.BigIntegerField(blank=True, null=True)
+    observation_level = models.ManyToManyField(
+        "ObservationLevel", related_name="tables", blank=True
+    )
 
     def __str__(self):
         return str(self.slug)
@@ -255,31 +267,16 @@ class BigQueryTypes(models.Model):
         ordering = ["name"]
 
 
-class DirectoryPrimaryKey(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid4)
-    slug = models.SlugField(unique=True)
-
-    def __str__(self):
-        return str(self.slug)
-
-    class Meta:
-        db_table = "directory_primary_key"
-        verbose_name = "Directory Primary Key"
-        verbose_name_plural = "Directory Primary Keys"
-        ordering = ["slug"]
-
-
 class Column(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    # Foreign
     table = models.ForeignKey("Table", on_delete=models.CASCADE, related_name="columns")
     bigquery_type = models.ForeignKey(
         "BigQueryTypes", on_delete=models.CASCADE, related_name="columns"
     )
     coverages = models.ManyToManyField("Coverage", related_name="columns")
     directory_primary_key = models.ForeignKey(
-        "DirectoryPrimaryKey",
-        on_delete=models.CASCADE,
+        "Column",
+        on_delete=models.PROTECT,
         related_name="columns",
         blank=True,
         null=True,
@@ -300,7 +297,7 @@ class Column(models.Model):
         db_table = "column"
         verbose_name = "Column"
         verbose_name_plural = "Columns"
-        ordering = ["name_pt"]
+        ordering = ["name"]
 
 
 class Dictionary(models.Model):
@@ -336,7 +333,9 @@ class CloudTable(models.Model):
             errors["gcp_table_id"] = "gcp_table_id must be in snake_case."
         for column in self.columns.all():
             if column.table != self.table:
-                errors["columns"] = f"Column {column} does not belong to table {self.table}."
+                errors[
+                    "columns"
+                ] = f"Column {column} does not belong to table {self.table}."
         if errors:
             raise ValidationError(errors)
 
@@ -381,7 +380,6 @@ class Language(models.Model):
 
 class RawDataSource(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    # Foreign
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="raw_data_sources"
     )
@@ -401,16 +399,18 @@ class RawDataSource(models.Model):
     area_ip_address_required = models.ManyToManyField(
         "Area", related_name="raw_data_sources", blank=True
     )
-    # Mandatory
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
-    # Optional
     description = models.TextField(blank=True, null=True)
-    raw_data_url = models.URLField(blank=True, null=True)
-    auxiliary_files_url = models.URLField(blank=True, null=True)
-    architecture_url = models.URLField(blank=True, null=True)
+    contains_structure_data = models.BooleanField(default=False)
+    contains_api = models.BooleanField(default=False)
+    is_free = models.BooleanField(default=False)
+    required_registration = models.BooleanField(default=False)
+    observation_level = models.ManyToManyField(
+        "ObservationLevel", related_name="raw_data_sources", blank=True
+    )
 
     def __str__(self):
         return str(self.slug)
@@ -451,14 +451,18 @@ class InformationRequest(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    slug = models.SlugField(unique=True)
-    name = models.CharField(max_length=255)
+    origin = models.CharField(max_length=255, blank=True, null=True)
+    slug = models.SlugField(unique=True, blank=True, null=True)
+    url = models.URLField(blank=True, null=True)
     started_at = models.DateTimeField(blank=True, null=True)
-    description = models.TextField(blank=True, null=True)
+    data_url = models.URLField(blank=True, null=True)
     observations = models.TextField(blank=True, null=True)
-    raw_data_url = models.URLField(blank=True, null=True)
-    auxiliary_files_url = models.URLField(blank=True, null=True)
-    architecture_url = models.URLField(blank=True, null=True)
+    observation_level = models.ManyToManyField(
+        "ObservationLevel", related_name="information_requests", blank=True
+    )
+    started_by = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="information_requests"
+    )
 
     def __str__(self):
         return str(self.slug)
@@ -490,29 +494,106 @@ class ObservationLevel(models.Model):
     entity = models.ForeignKey(
         "Entity", on_delete=models.CASCADE, related_name="observation_levels"
     )
-    tables = models.ManyToManyField("Table", related_name="entity_columns")
-    raw_data_sources = models.ManyToManyField(
-        "RawDataSource", related_name="entity_columns"
-    )
-    information_requests = models.ManyToManyField(
-        "InformationRequest", related_name="entity_columns"
+    columns = models.ManyToManyField(
+        "Column", related_name="observation_levels", blank=True
     )
 
     def __str__(self):
         return str(self.entity)
 
 
-class EntityColumn(models.Model):
+class TemporalCoverage(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    entity = models.ForeignKey(
-        "Entity", on_delete=models.CASCADE, related_name="entity_columns"
-    )
-    column = models.ForeignKey(
-        "Column", on_delete=models.CASCADE, related_name="entity_columns"
-    )
-    observation_level = models.ForeignKey(
-        "ObservationLevel", on_delete=models.CASCADE, related_name="entity_columns"
-    )
+    slug = models.SlugField(unique=True)
+    start_year = models.IntegerField()
+    start_semester = models.IntegerField(blank=True, null=True)
+    start_quarter = models.IntegerField(blank=True, null=True)
+    start_month = models.IntegerField(blank=True, null=True)
+    start_day = models.IntegerField(blank=True, null=True)
+    start_hour = models.IntegerField(blank=True, null=True)
+    start_minute = models.IntegerField(blank=True, null=True)
+    start_second = models.IntegerField(blank=True, null=True)
+    end_year = models.IntegerField()
+    end_semester = models.IntegerField(blank=True, null=True)
+    end_quarter = models.IntegerField(blank=True, null=True)
+    end_month = models.IntegerField(blank=True, null=True)
+    end_day = models.IntegerField(blank=True, null=True)
+    end_hour = models.IntegerField(blank=True, null=True)
+    end_minute = models.IntegerField(blank=True, null=True)
+    end_second = models.IntegerField(blank=True, null=True)
 
     def __str__(self):
-        return str(self.entity)
+        return str(self.slug)
+
+    def clean(self) -> None:
+        if self.start_year is None or self.end_year is None:
+            raise ValidationError("Start year and end year are required")
+
+        if self.start_year > self.end_year:
+            raise ValidationError("Start year cannot be greater than end year")
+
+        start_datetime = datetime(
+            self.start_year,
+            self.start_month or 1,
+            self.start_day or 1,
+            self.start_hour or 0,
+            self.start_minute or 0,
+            self.start_second or 0,
+        )
+        end_datetime = datetime(
+            self.end_year,
+            self.end_month or 1,
+            self.end_day or 1,
+            self.end_hour or 0,
+            self.end_minute or 0,
+            self.end_second or 0,
+        )
+
+        if start_datetime > end_datetime:
+            raise ValidationError("Start year cannot be greater than end year")
+
+        if self.start_day:
+            max_day = calendar.monthrange(self.start_year, self.start_month)[1]
+            if self.start_day > max_day:
+                raise ValidationError(
+                    f"{self.start_month} does not have {self.start_day} days in {self.start_year}"
+                )
+
+        if self.end_day:
+            max_day = calendar.monthrange(self.end_year, self.end_month)[1]
+            if self.end_day > max_day:
+                raise ValidationError(
+                    f"{self.end_month} does not have {self.end_day} days in {self.end_year}"
+                )
+
+        if self.start_semester:
+            if self.start_semester > 2:
+                raise ValidationError("Semester cannot be greater than 2")
+
+        if self.end_semester:
+            if self.end_semester > 2:
+                raise ValidationError("Semester cannot be greater than 2")
+
+        if self.start_quarter:
+            if self.start_quarter > 4:
+                raise ValidationError("Quarter cannot be greater than 4")
+
+        if self.end_quarter:
+            if self.end_quarter > 4:
+                raise ValidationError("Quarter cannot be greater than 4")
+
+        if self.start_month:
+            if self.start_month > 12:
+                raise ValidationError("Month cannot be greater than 12")
+
+        if self.end_month:
+            if self.end_month > 12:
+                raise ValidationError("Month cannot be greater than 12")
+
+        return super().clean()
+
+    class Meta:
+        db_table = "temporal_coverage"
+        verbose_name = "Temporal Coverage"
+        verbose_name_plural = "Temporal Coverages"
+        ordering = ["slug"]

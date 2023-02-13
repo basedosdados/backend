@@ -19,6 +19,7 @@ graphene-django = "^3.0.0"
 django-filter = "^22.1"
 django-graphql-jwt = "^0.3.4"
 django-modeltranslation = "^0.18.8"
+pylint = "^2.16.1"
 
 [tool.poetry.dev-dependencies]
 black = "^22.3.0"

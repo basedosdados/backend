@@ -22,17 +22,17 @@ class RegistrationToken(models.Model):
 
 
 class Profile(models.Model):
-    # Foreign
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     organizations = models.ManyToManyField(
         Organization, related_name="users", blank=True
     )
-    # Mandatory
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     name = models.CharField(max_length=255)
-    # Optional
     birth_date = models.DateField(null=True, blank=True)
     picture_url = models.URLField(null=True, blank=True)
     twitter = models.CharField(max_length=255, null=True, blank=True)
     linkedin = models.CharField(max_length=255, null=True, blank=True)
+    github = models.CharField(max_length=255, null=True, blank=True)
+    website = models.URLField(null=True, blank=True)
+    email = models.EmailField(null=True, blank=True)
