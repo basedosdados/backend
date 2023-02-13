@@ -526,7 +526,7 @@ class TemporalCoverage(models.Model):
         return str(self.slug)
 
     def clean(self) -> None:
-        if self.start_year or self.end_year is None:
+        if self.start_year is None or self.end_year is None:
             raise ValidationError("Start year and end year are required")
 
         if self.start_year > self.end_year:
