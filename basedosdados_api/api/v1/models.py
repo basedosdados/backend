@@ -527,14 +527,9 @@ class TemporalCoverage(models.Model):
 
     def clean(self) -> None:
         errors = {}
-        # This validation is not necessary, as Django handles it
-        # if self.start_year is None or self.end_year is None:
-        #     errors[""] = ["Start year and end year are required"]
-        #     raise ValidationError("Start year and end year are required")
 
         if (self.start_year and self.end_year) and self.start_year > self.end_year:
             errors["start_year"] = ["Start year cannot be greater than end year"]
-            # raise ValidationError("Start year cannot be greater than end year")
 
         try:
             start_datetime = datetime(
@@ -555,7 +550,6 @@ class TemporalCoverage(models.Model):
             )
             if start_datetime > end_datetime:
                 errors["start_year"] = ["Start datetime cannot be greater than end datetime"]
-                # raise ValidationError("Start year cannot be greater than end year")
 
         except TypeError:
             errors["start_year"] = ["Start year or end year are invalid"]
@@ -566,9 +560,6 @@ class TemporalCoverage(models.Model):
                 errors["start_day"] = [
                     f"{self.start_month} does not have {self.start_day} days in {self.start_year}"
                 ]
-                # raise ValidationError(
-                #     f"{self.start_month} does not have {self.start_day} days in {self.start_year}"
-                # )
 
         if self.end_day:
             max_day = calendar.monthrange(self.end_year, self.end_month)[1]
@@ -576,39 +567,30 @@ class TemporalCoverage(models.Model):
                 errors["end_day"] = [
                     f"{self.end_month} does not have {self.end_day} days in {self.end_year}"
                 ]
-                # raise ValidationError(
-                #     f"{self.end_month} does not have {self.end_day} days in {self.end_year}"
-                # )
 
         if self.start_semester:
             if self.start_semester > 2:
                 errors["start_semester"] = ["Semester cannot be greater than 2"]
-                # raise ValidationError("Semester cannot be greater than 2")
 
         if self.end_semester:
             if self.end_semester > 2:
                 errors["end_semester"] = ["Semester cannot be greater than 2"]
-                # raise ValidationError("Semester cannot be greater than 2")
 
         if self.start_quarter:
             if self.start_quarter > 4:
                 errors["start_quarter"] = ["Quarter cannot be greater than 4"]
-                # raise ValidationError("Quarter cannot be greater than 4")
 
         if self.end_quarter:
             if self.end_quarter > 4:
                 errors["end_quarter"] = ["Quarter cannot be greater than 4"]
-                # raise ValidationError("Quarter cannot be greater than 4")
 
         if self.start_month:
             if self.start_month > 12:
                 errors["start_month"] = ["Month cannot be greater than 12"]
-                # raise ValidationError("Month cannot be greater than 12")
 
         if self.end_month:
             if self.end_month > 12:
                 errors["end_month"] = ["Month cannot be greater than 12"]
-                # raise ValidationError("Month cannot be greater than 12")
 
         if errors:
             raise ValidationError(errors)
