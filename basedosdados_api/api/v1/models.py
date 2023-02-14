@@ -526,69 +526,74 @@ class TemporalCoverage(models.Model):
         return str(self.slug)
 
     def clean(self) -> None:
-        if self.start_year is None or self.end_year is None:
-            raise ValidationError("Start year and end year are required")
+        errors = {}
 
-        if self.start_year > self.end_year:
-            raise ValidationError("Start year cannot be greater than end year")
+        if (self.start_year and self.end_year) and self.start_year > self.end_year:
+            errors["start_year"] = ["Start year cannot be greater than end year"]
 
-        start_datetime = datetime(
-            self.start_year,
-            self.start_month or 1,
-            self.start_day or 1,
-            self.start_hour or 0,
-            self.start_minute or 0,
-            self.start_second or 0,
-        )
-        end_datetime = datetime(
-            self.end_year,
-            self.end_month or 1,
-            self.end_day or 1,
-            self.end_hour or 0,
-            self.end_minute or 0,
-            self.end_second or 0,
-        )
+        try:
+            start_datetime = datetime(
+                self.start_year,
+                self.start_month or 1,
+                self.start_day or 1,
+                self.start_hour or 0,
+                self.start_minute or 0,
+                self.start_second or 0,
+            )
+            end_datetime = datetime(
+                self.end_year,
+                self.end_month or 1,
+                self.end_day or 1,
+                self.end_hour or 0,
+                self.end_minute or 0,
+                self.end_second or 0,
+            )
+            if start_datetime > end_datetime:
+                errors["start_year"] = ["Start datetime cannot be greater than end datetime"]
 
-        if start_datetime > end_datetime:
-            raise ValidationError("Start year cannot be greater than end year")
+        except TypeError:
+            errors["start_year"] = ["Start year or end year are invalid"]
 
         if self.start_day:
             max_day = calendar.monthrange(self.start_year, self.start_month)[1]
             if self.start_day > max_day:
-                raise ValidationError(
+                errors["start_day"] = [
                     f"{self.start_month} does not have {self.start_day} days in {self.start_year}"
-                )
+                ]
 
         if self.end_day:
             max_day = calendar.monthrange(self.end_year, self.end_month)[1]
             if self.end_day > max_day:
-                raise ValidationError(
+                errors["end_day"] = [
                     f"{self.end_month} does not have {self.end_day} days in {self.end_year}"
-                )
+                ]
 
         if self.start_semester:
             if self.start_semester > 2:
-                raise ValidationError("Semester cannot be greater than 2")
+                errors["start_semester"] = ["Semester cannot be greater than 2"]
 
         if self.end_semester:
             if self.end_semester > 2:
-                raise ValidationError("Semester cannot be greater than 2")
+                errors["end_semester"] = ["Semester cannot be greater than 2"]
 
         if self.start_quarter:
             if self.start_quarter > 4:
-                raise ValidationError("Quarter cannot be greater than 4")
+                errors["start_quarter"] = ["Quarter cannot be greater than 4"]
 
         if self.end_quarter:
             if self.end_quarter > 4:
-                raise ValidationError("Quarter cannot be greater than 4")
+                errors["end_quarter"] = ["Quarter cannot be greater than 4"]
 
         if self.start_month:
             if self.start_month > 12:
-                raise ValidationError("Month cannot be greater than 12")
+                errors["start_month"] = ["Month cannot be greater than 12"]
 
         if self.end_month:
             if self.end_month > 12:
-                raise ValidationError("Month cannot be greater than 12")
+                errors["end_month"] = ["Month cannot be greater than 12"]
+
+        if errors:
+            raise ValidationError(errors)
 
         return super().clean()
 

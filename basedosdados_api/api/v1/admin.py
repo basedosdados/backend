@@ -27,9 +27,18 @@ from basedosdados_api.api.v1.models import (
     TemporalCoverage,
 )
 
+
+class DatasetAdmin(admin.ModelAdmin):
+    readonly_fields = ["id", "created_at", "updated_at"]
+
+
+class TableAdmin(admin.ModelAdmin):
+    readonly_fields = ["id", "created_at", "updated_at"]
+
+
 admin.site.register(Organization)
-admin.site.register(Dataset)
-admin.site.register(Table)
+admin.site.register(Dataset, DatasetAdmin)
+admin.site.register(Table, TableAdmin)
 admin.site.register(InformationRequest)
 admin.site.register(RawDataSource)
 admin.site.register(BigQueryTypes)
