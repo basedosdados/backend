@@ -563,7 +563,7 @@ class TemporalCoverage(models.Model):
         if self.start_day:
             max_day = calendar.monthrange(self.start_year, self.start_month)[1]
             if self.start_day > max_day:
-                errors[""] = [
+                errors["start_day"] = [
                     f"{self.start_month} does not have {self.start_day} days in {self.start_year}"
                 ]
                 # raise ValidationError(
@@ -573,7 +573,7 @@ class TemporalCoverage(models.Model):
         if self.end_day:
             max_day = calendar.monthrange(self.end_year, self.end_month)[1]
             if self.end_day > max_day:
-                errors[""] = [
+                errors["end_day"] = [
                     f"{self.end_month} does not have {self.end_day} days in {self.end_year}"
                 ]
                 # raise ValidationError(
