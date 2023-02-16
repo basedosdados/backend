@@ -248,7 +248,6 @@ if __name__ == "__main__":
             r, dataset_id = m.create_update(
                 classe="CreateUpdateDataset", parameters=package_to_dataset
             )
-
         print(dataset_id)
     # for resource in dataset['resources']:
     #     resource_type = resource['resource_type']
