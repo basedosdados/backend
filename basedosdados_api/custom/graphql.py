@@ -3,11 +3,13 @@
 Utilities for building auto-generated GraphQL schemas. Primarily based on
 https://github.com/timothyjlaurent/auto-graphene-django
 """
-
+from copy import deepcopy
 from typing import Iterable, Optional
 
 from django.apps import apps
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.forms.fields import FileField
 from django.forms import ModelForm, modelform_factory
 from graphene import Boolean, List, Mutation, ObjectType, relay, Schema, String, UUID
 from graphene_django import DjangoObjectType
@@ -28,6 +30,45 @@ class PlainTextNode(relay.Node):
     @staticmethod
     def from_global_id(global_id):
         return global_id.split(":")
+
+
+class CustomModelForm(ModelForm):
+    def __init__(self, *args, **kwargs) -> None:
+        data = args[0] if args else kwargs.get("data")
+        # Store raw data so we can verify whether the user has filled None or hasn't filled anything
+        self.__raw_data = deepcopy(data)
+        super().__init__(*args, **kwargs)
+        # Store which fields are required so we can validate them later
+        self.__required_fields = set()
+        for field_name, field in self.fields.items():
+            if field.required:
+                self.__required_fields.add(field_name)
+            field.required = False
+
+    def _clean_fields(self):
+        id_provided: bool = self.__raw_data.get("id") is not None
+        for name, bf in self._bound_items():
+            field = bf.field
+            value = bf.initial
+            if name in self.__raw_data:
+                value = self.__raw_data[name]
+            if value is None and name in self.__required_fields and not id_provided:
+                self.add_error(
+                    name,
+                    ValidationError(field.error_messages["required"], code="required"),
+                )
+                continue
+            try:
+                if isinstance(field, FileField):
+                    value = field.clean(value, bf.initial)
+                else:
+                    value = field.clean(value)
+                self.cleaned_data[name] = value
+                if hasattr(self, "clean_%s" % name):
+                    value = getattr(self, "clean_%s" % name)()
+                    self.cleaned_data[name] = value
+            except ValidationError as e:
+                self.add_error(name, e)
 
 
 def create_mutation_factory(model: models.Model):
@@ -211,7 +252,9 @@ def generate_form_fields(model: models.Model):
 
 
 def generate_form(model: models.Model):
-    return modelform_factory(model, form=ModelForm, fields=generate_form_fields(model))
+    return modelform_factory(
+        model, form=CustomModelForm, fields=generate_form_fields(model)
+    )
 
 
 def build_query_objs(application_name: str):
