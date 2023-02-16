@@ -48,7 +48,7 @@ def create_tags(m, ckan_tags):  # sourcery skip: instance-method-first-arg-name
     if ckan_tags != []:
         for tag in ckan_tags:
             tag_id = m.get_id(
-                classe="CreateUpdateTag",
+                classe="allTag",
                 parameters={"$slug: String": tag.get("name")},
             )
             if tag_id is None:
@@ -177,18 +177,25 @@ class Migration:
 
     def delete(self, classe, id):
         query = f"""
-            mutation {{
+            mutation{{
                 Delete{classe}(id: "{id}") {{
                     ok,
                     errors
+                }}
             }}
         """
+
         r = requests.post(
             self.base_url,
             json={"query": query},
             headers=self.header,
         ).json()
-        
+
+        if r["data"][f"Delete{classe}"]["ok"] == True:
+            print(f"deleted dataset {id} ")
+        else:
+            print("delete errors", r["data"][f"Delete{classe}"]["errors"])
+
         return r
 
 
@@ -197,51 +204,52 @@ if __name__ == "__main__":
     # packages = get_bd_packages()
     package = get_package_model()
     m = Migration(TOKEN)
-    r = m.delete(classe="Dataset", id="77239376-6662-4d64-8950-2f57f1225e53")
-    print(r)
-    # for p in [package]:
-    #     ## create tags
-    #     tags_ids = create_tags(m, p.get("tags"))
-    #     themes_ids = create_themes(m, p.get("groups"))
+    # r = m.delete(classe="Dataset", id="77239376-6662-4d64-8950-2f57f1225e53")
 
-    #     # ## check if organization exists
-    #     org_slug = p.get("organization").get("name").replace("-", "_")
-    #     org_id = m.get_id(
-    #         classe="allOrganization",
-    #         parameters={"$slug: String": org_slug},
-    #     )
-    #     if org_id is None:
-    #         package_to_org = {
-    #             "area": m.get_id(
-    #                 classe="allArea", parameters={"$slug: String": "Desconhecida"}
-    #             ),
-    #             "slug": org_slug,
-    #             "name": p.get("organization").get("title"),
-    #             "description": p.get("organization").get("description"),
-    #         }
-    #         r, created_org_id = m.create_update(
-    #             classe="CreateUpdateOrganization", parameters=package_to_org
-    #         )
+    for p in [package]:
+        ## create tags
+        tags_ids = create_tags(m, p.get("tags"))
+        themes_ids = create_themes(m, p.get("groups"))
 
-    #     dataset_id = m.get_id(
-    #         classe="allDataset", parameters={"$slug: String": p["name"]}
-    #     )
+        # ## check if organization exists
+        org_slug = p.get("organization").get("name").replace("-", "_")
+        org_id = m.get_id(
+            classe="allOrganization",
+            parameters={"$slug: String": org_slug},
+        )
+        if org_id is None:
+            package_to_org = {
+                "area": m.get_id(
+                    classe="allArea", parameters={"$slug: String": "Desconhecida"}
+                ),
+                "slug": org_slug,
+                "name": p.get("organization").get("title"),
+                "description": p.get("organization").get("description"),
+            }
+            r, created_org_id = m.create_update(
+                classe="CreateUpdateOrganization", parameters=package_to_org
+            )
 
-    #     if dataset_id is None:
-    #         package_to_dataset = {
-    #             "organization": org_id if org_id is not None else created_org_id,
-    #             "slug": p["name"].replace("-", "_"),
-    #             "name": p["title"],
-    #             "description": p["notes"],
-    #             "tags": tags_ids,
-    #             "themes": themes_ids,
-    #         }
+        dataset_id = m.get_id(
+            classe="allDataset",
+            parameters={"$slug: String": p["name"].replace("-", "_")},
+        )
 
-    #         r, dataset_id = m.create_update(
-    #             classe="CreateUpdateDataset", parameters=package_to_dataset
-    #         )
+        if dataset_id is None:
+            package_to_dataset = {
+                "organization": org_id if org_id is not None else created_org_id,
+                "slug": p["name"].replace("-", "_"),
+                "name": p["title"],
+                "description": p["notes"],
+                "tags": tags_ids,
+                "themes": themes_ids,
+            }
 
-    #     print(dataset_id)
+            r, dataset_id = m.create_update(
+                classe="CreateUpdateDataset", parameters=package_to_dataset
+            )
+
+        print(dataset_id)
     # for resource in dataset['resources']:
     #     resource_type = resource['resource_type']
     #     if resource_type == 'bdm_table':
