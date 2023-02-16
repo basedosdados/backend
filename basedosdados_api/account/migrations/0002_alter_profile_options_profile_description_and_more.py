@@ -33,13 +33,6 @@ class Migration(migrations.Migration):
             name="description_pt",
             field=models.TextField(blank=True, null=True),
         ),
-        migrations.AddField(
-            model_name="profile",
-            name="picture",
-            field=models.ImageField(
-                blank=True, null=True, upload_to="profile_pictures"
-            ),
-        ),
         migrations.AlterModelTable(
             name="profile",
             table="profile",
