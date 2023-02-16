@@ -43,57 +43,6 @@ def get_package_model():
     return requests.get(url, verify=False).json()["result"]
 
 
-def create_tags(m, ckan_tags):  # sourcery skip: instance-method-first-arg-name
-    tags_ids = []
-    if ckan_tags != []:
-        for tag in ckan_tags:
-            tag_id = m.get_id(
-                classe="allTag",
-                parameters={"$slug: String": tag.get("name")},
-            )
-            if tag_id is None:
-                r, created_tag_id = m.create_update(
-                    classe="CreateUpdateTag",
-                    parameters={
-                        "slug": tag.get("name"),
-                        "name": tag.get("display_name"),
-                    },
-                )
-                if created_tag_id is None:
-                    print(r)
-                else:
-                    tags_ids.append(created_tag_id)
-            else:
-                tags_ids.append(tag_id)
-    return tags_ids
-
-
-def create_themes(m, ckan):
-    ids = []
-    if ckan != []:
-        for obj in ckan:
-            obj_id = m.get_id(
-                classe="allTheme",
-                parameters={"$slug: String": obj.get("name")},
-            )
-            if obj_id is None:
-                r, created_id = m.create_update(
-                    classe="CreateUpdateTheme",
-                    parameters={
-                        "slug": obj.get("name"),
-                        "name": obj.get("title"),
-                        "logoUrl": obj.get("image_display_url"),
-                    },
-                )
-                if created_id is None:
-                    print(r)
-                else:
-                    ids.append(created_id)
-            else:
-                ids.append(obj_id)
-    return ids
-
-
 class Migration:
     def __init__(self, token):
         self.base_url = "https://staging.backend.dados.rio/api/v1/graphql"
@@ -102,78 +51,94 @@ class Migration:
             "Authorization": f"Bearer {token}",
         }
 
-    def create_update(self, classe, parameters):
-        # sourcery skip: avoid-builtin-shadow
-
-        _classe = re.findall("[A-Z][^A-Z]*", classe)[-1].lower()
-        query = f"""
-            mutation($input:{classe}Input!){{
-                {classe}(input: $input){{
-                errors {{
-                    field,
-                    messages
-                }},
-                clientMutationId,
-                {_classe} {{
-                    id,
-                    slug,
-                }}
-            }}
-            }}
-        """
-        r = requests.post(
-            self.base_url,
-            json={"query": query, "variables": {"input": parameters}},
-            headers=self.header,
-        ).json()
-
-        if r["data"][classe]["errors"] != []:
-            print(f"not found {classe}", parameters)
-            id = None
-        else:
-            id = r["data"][classe][_classe]["id"]
-            print(f"created {id}")
-            id = id.split(":")[1]
-
-        return r, id
-
-    def get_id(self, classe, parameters):  # sourcery skip: avoid-builtin-shadow
-        _filter = ", ".join(list(parameters.keys()))
+    def get_id(
+        self, query_class, query_parameters
+    ):  # sourcery skip: avoid-builtin-shadow
+        _filter = ", ".join(list(query_parameters.keys()))
         keys = [
             parameter.replace("$", "").split(":")[0]
-            for parameter in list(parameters.keys())
+            for parameter in list(query_parameters.keys())
         ]
-        values = list(parameters.values())
+        values = list(query_parameters.values())
         _input = ", ".join([f"{key}:${key}" for key in keys])
 
         query = f"""
-            query({_filter}) {{
-                {classe}({_input}){{
-                edges{{
-                    node{{
-                    slug,
-                    id,
+                query({_filter}) {{
+                    {query_class}({_input}){{
+                    edges{{
+                        node{{
+                        slug,
+                        id,
+                        }}
+                    }}
                     }}
                 }}
-                }}
-            }}
-        """
+            """
 
-        response = requests.get(
+        r = requests.get(
             url=self.base_url,
             json={"query": query, "variables": dict(zip(keys, values))},
             headers=self.header,
-        ).json()["data"][classe]["edges"]
+        ).json()
 
-        if response == []:
-            id = None
-            print(f"not found {classe}", dict(zip(keys, values)))
+        if "data" in r:
+
+            if r["data"][query_class]["edges"] == []:
+                id = None
+                print(f"not found {query_class}", dict(zip(keys, values)))
+            else:
+                id = r["data"][query_class]["edges"][0]["node"]["id"]
+                print(f"found {id}")
+                id = id.split(":")[1]
+            return r, id
         else:
-            id = response[0]["node"]["id"]
-            print(f"found {id}")
-            id = id.split(":")[1]
+            print("Error:", json.dumps(r, indent=4))
+            raise Exception("Error")
 
-        return id
+    def create_update(
+        self, mutation_class, mutation_parameters, query_class, query_parameters
+    ):
+        r, id = self.get_id(query_class=query_class, query_parameters=query_parameters)
+        if id is None:
+            _classe = mutation_class.replace("CreateUpdate", "").lower()
+            query = f"""
+                mutation($input:{mutation_class}Input!){{
+                    {mutation_class}(input: $input){{
+                    errors {{
+                        field,
+                        messages
+                    }},
+                    clientMutationId,
+                    {_classe} {{
+                        id,
+                        slug,
+                    }}
+                }}
+                }}
+            """
+            r = requests.post(
+                self.base_url,
+                json={"query": query, "variables": {"input": mutation_parameters}},
+                headers=self.header,
+            ).json()
+
+            if "data" in r:
+                print("HEREEEEEEEEEEEE")
+                if r["data"][mutation_class]["errors"] != []:
+                    print(f"not found {mutation_class}", mutation_parameters)
+                    id = None
+                else:
+                    id = r["data"][mutation_class][_classe]["id"]
+                    print(f"created {id}")
+                    id = id.split(":")[1]
+                return r, id
+            else:
+                print("\n", "query\n", query, "\n")
+                print("input\n", json.dumps(mutation_parameters, indent=4), "\n")
+                print("error\n", json.dumps(r, indent=4), "\n")
+                raise Exception("Error")
+        else:
+            return r, id
 
     def delete(self, classe, id):
         query = f"""
@@ -198,6 +163,66 @@ class Migration:
 
         return r
 
+    def create_themes(self, objs):
+        ids = []
+        for obj in objs:
+            r, id = self.create_update(
+                mutation_class="CreateUpdateTheme",
+                mutation_parameters={
+                    "slug": obj.get("name"),
+                    "name": obj.get("title"),
+                    "logoUrl": obj.get("image_display_url"),
+                },
+                query_class="allTheme",
+                query_parameters={"$slug: String": obj.get("name")},
+            )
+            ids.append(id)
+        return ids
+
+    def create_themes(self, objs):
+        ids = []
+        for obj in objs:
+            r, id = self.create_update(
+                mutation_class="CreateUpdateTheme",
+                mutation_parameters={
+                    "slug": obj.get("name"),
+                    "name": obj.get("title"),
+                    "logoUrl": obj.get("image_display_url"),
+                },
+                query_class="allTheme",
+                query_parameters={"$slug: String": obj.get("name")},
+            )
+            ids.append(id)
+        return ids
+
+    def create_tags(self, objs):
+        ids = []
+        for obj in objs:
+            r, id = self.create_update(
+                mutation_class="CreateUpdateTag",
+                mutation_parameters={
+                    "slug": obj.get("name"),
+                    "name": obj.get("display_name"),
+                },
+                query_class="allTag",
+                query_parameters={"$slug: String": obj.get("name")},
+            )
+            ids.append(id)
+        return ids
+
+    def create_availability(self, obj):
+        r, id = self.create_update(
+            mutation_class="CreateUpdateAvailability",
+            mutation_parameters={
+                "slug": obj.get("availability"),
+                "name": obj.get("availability").capitalize(),
+            },
+            query_class="allAvailability",
+            query_parameters={"$slug: String": obj.get("availability")},
+        )
+
+        return id
+
 
 if __name__ == "__main__":
     TOKEN = get_token(USERNAME, PASSWORD)
@@ -208,54 +233,98 @@ if __name__ == "__main__":
 
     for p in [package]:
         ## create tags
-        tags_ids = create_tags(m, p.get("tags"))
-        themes_ids = create_themes(m, p.get("groups"))
+        # tags_ids = m.create_tags(objs=p.get("tags"))
+        # themes_ids = m.create_themes(objs=p.get("groups"))
 
-        # ## check if organization exists
-        org_slug = p.get("organization").get("name").replace("-", "_")
-        org_id = m.get_id(
-            classe="allOrganization",
-            parameters={"$slug: String": org_slug},
-        )
-        if org_id is None:
-            package_to_org = {
-                "area": m.get_id(
-                    classe="allArea", parameters={"$slug: String": "Desconhecida"}
-                ),
-                "slug": org_slug,
-                "name": p.get("organization").get("title"),
-                "description": p.get("organization").get("description"),
-            }
-            r, created_org_id = m.create_update(
-                classe="CreateUpdateOrganization", parameters=package_to_org
-            )
+        # ## create organization
+        # org_slug = p.get("organization").get("name").replace("-", "_")
+        # package_to_org = {
+        #     "area": m.get_id(
+        #         query_class="allArea",
+        #         query_parameters={"$slug: String": "desconhecida"},
+        #     ),
+        #     "slug": org_slug,
+        #     "name": p.get("organization").get("title"),
+        #     "description": p.get("organization").get("description"),
+        # }
+        # r, org_id = m.create_update(
+        #     query_class="allOrganization",
+        #     query_parameters={"$slug: String": org_slug},
+        #     mutation_class="CreateUpdateOrganization",
+        #     mutation_parameters=package_to_org,
+        # )
 
-        dataset_id = m.get_id(
-            classe="allDataset",
-            parameters={"$slug: String": p["name"].replace("-", "_")},
-        )
+        # ## create dataset
+        # package_to_dataset = {
+        #     "organization": org_id,
+        #     "slug": p["name"].replace("-", "_"),
+        #     "name": p["title"],
+        #     "description": p["notes"],
+        #     "tags": tags_ids,
+        #     "themes": themes_ids,
+        # }
+        # r, dataset_id = m.create_update(
+        #     query_class="allDataset",
+        #     query_parameters={"$slug: String": p["name"].replace("-", "_")},
+        #     mutation_class="CreateUpdateDataset",
+        #     mutation_parameters=package_to_dataset,
+        # )
+        # print(dataset_id)
 
-        if dataset_id is None:
-            package_to_dataset = {
-                "organization": org_id if org_id is not None else created_org_id,
-                "slug": p["name"].replace("-", "_"),
-                "name": p["title"],
-                "description": p["notes"],
-                "tags": tags_ids,
-                "themes": themes_ids,
-            }
+        for resource in p["resources"]:
+            resource_type = resource["resource_type"]
 
-            r, dataset_id = m.create_update(
-                classe="CreateUpdateDataset", parameters=package_to_dataset
-            )
-        print(dataset_id)
-    # for resource in dataset['resources']:
-    #     resource_type = resource['resource_type']
-    #     if resource_type == 'bdm_table':
-    #         print('  CreateTable | CreateCloudTable')
-    #         if 'columns' in resource:
-    #             print('    CreateColumn')
-    #     if resource_type == 'external_link':
-    #         print('  CreateRawDataSource')
-    #     if resource_type == 'information_request':
-    #         print('  CreateInformationRequest')
+            if resource_type == "bdm_table":
+                print("  CreateTable | CreateCloudTable")
+                if "columns" in resource:
+                    print("    CreateColumn")
+
+            elif resource_type == "external_link":
+                raw_source_slug = (
+                    resource["name"]
+                    .replace("(", "")
+                    .replace(")", "")
+                    .replace("-", "_")
+                    .replace(" ", "_")
+                    .lower()
+                )
+
+                print("  CreateRawDataSource")
+                resource_to_raw_data_source = {
+                    "dataset": "6fe0809e-ca4c-48fe-9a54-9bca74846add",
+                    "coverages": "",
+                    "availability": m.create_availability(resource),
+                    # "languages": "",
+                    # "license": "",
+                    # "updateFrequency": "",
+                    "areaIpAddressRequired": m.create_update(
+                        query_class="allArea",
+                        query_parameters={"$slug: String": "desconhecida"},
+                        mutation_class="CreateUpdateArea",
+                        mutation_parameters={"slug": "desconhecida"},
+                    )[1],
+                    # "createdAt": "",
+                    # "updatedAt": "",
+                    "slug": raw_source_slug,
+                    "name": resource["name"],
+                    "description": ""
+                    if resource["description"] is None
+                    else resource["description"],
+                    # "containsStructureData": "",
+                    # "containsApi": "",
+                    # "isFree": "",
+                    # "requiredRegistration": "",
+                    # "observationLevel": "",
+                }
+
+                r, raw_source_id = m.create_update(
+                    mutation_class="CreateUpdateRawDataSource",
+                    mutation_parameters=resource_to_raw_data_source,
+                    query_class="allRawdatasource",
+                    query_parameters={"$slug: String": raw_source_slug},
+                )
+
+                print(r)
+
+            elif resource_type == "information_request":
+                print("  CreateInformationRequest")
