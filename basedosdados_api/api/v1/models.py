@@ -28,11 +28,37 @@ class Area(models.Model):
 
 class Coverage(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    table = models.ForeignKey("Table", blank=True, null=True, on_delete=models.CASCADE, related_name="coverages")
-    raw_data_source = models.ForeignKey("RawDataSource", blank=True, null=True, on_delete=models.CASCADE, related_name="coverages")
-    information_request = models.ForeignKey("InformationRequest", blank=True, null=True, on_delete=models.CASCADE, related_name="coverages")
-    column = models.ForeignKey("Column", blank=True, null=True, on_delete=models.CASCADE, related_name="coverages")
-    key = models.ForeignKey("Key", blank=True, null=True, on_delete=models.CASCADE, related_name="coverages")
+    table = models.ForeignKey(
+        "Table",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="coverages",
+    )
+    raw_data_source = models.ForeignKey(
+        "RawDataSource",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="coverages",
+    )
+    information_request = models.ForeignKey(
+        "InformationRequest",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="coverages",
+    )
+    column = models.ForeignKey(
+        "Column",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="coverages",
+    )
+    key = models.ForeignKey(
+        "Key", blank=True, null=True, on_delete=models.CASCADE, related_name="coverages"
+    )
     area = models.ForeignKey("Area", on_delete=models.CASCADE, related_name="coverages")
 
     class Meta:
@@ -40,6 +66,28 @@ class Coverage(models.Model):
         verbose_name = "Coverage"
         verbose_name_plural = "Coverages"
         ordering = ["id"]
+
+    def __str__(self):
+        return str(self.id)
+
+    def clean(self) -> None:
+        # Assert that only one of "table", "raw_data_source", "information_request", "column" or
+        # "key" is set
+        count = 0
+        if self.table:
+            count += 1
+        if self.raw_data_source:
+            count += 1
+        if self.information_request:
+            count += 1
+        if self.column:
+            count += 1
+        if self.key:
+            count += 1
+        if count != 1:
+            raise ValidationError(
+                "One and only one of 'table', 'raw_data_source', 'information_request', 'column' or 'key' must be set."  # noqa
+            )
 
 
 class License(models.Model):
@@ -499,7 +547,9 @@ class ObservationLevel(models.Model):
 class TemporalCoverage(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
-    coverage = models.ForeignKey("Coverage", on_delete=models.CASCADE, related_name="temporal_coverages")
+    coverage = models.ForeignKey(
+        "Coverage", on_delete=models.CASCADE, related_name="temporal_coverages"
+    )
     start_year = models.IntegerField(blank=True, null=True)
     start_semester = models.IntegerField(blank=True, null=True)
     start_quarter = models.IntegerField(blank=True, null=True)
@@ -545,7 +595,9 @@ class TemporalCoverage(models.Model):
                 self.end_second or 0,
             )
             if start_datetime > end_datetime:
-                errors["start_year"] = ["Start datetime cannot be greater than end datetime"]
+                errors["start_year"] = [
+                    "Start datetime cannot be greater than end datetime"
+                ]
 
         except TypeError:
             errors["start_year"] = ["Start year or end year are invalid"]
