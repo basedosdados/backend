@@ -5,12 +5,12 @@ import re
 j = json.load(open("./credentials.json"))
 USERNAME = j["username"]
 PASSWORD = j["password"]
-TOKEN = j["token"]
 
 
 def get_token(username, password):
     r = requests.post(
-        "https://staging.backend.dados.rio/api/v1/graphql",
+        "http://localhost:8000/api/v1/graphql",
+        # "https://staging.backend.dados.rio/api/v1/graphql",
         headers={"Content-Type": "application/json"},
         json={
             "query": """
@@ -45,7 +45,8 @@ def get_package_model():
 
 class Migration:
     def __init__(self, token):
-        self.base_url = "https://staging.backend.dados.rio/api/v1/graphql"
+        self.base_url = "http://localhost:8000/api/v1/graphql"
+        # "https://staging.backend.dados.rio/api/v1/graphql"
         self.header = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {token}",
@@ -62,20 +63,18 @@ class Migration:
         values = list(query_parameters.values())
         _input = ", ".join([f"{key}:${key}" for key in keys])
 
-        query = f"""
-                query({_filter}) {{
-                    {query_class}({_input}){{
-                    edges{{
-                        node{{
-                        slug,
-                        id,
+        query = f"""query({_filter}) {{
+                        {query_class}({_input}){{
+                        edges{{
+                            node{{
+                            slug,
+                            id,
+                            }}
                         }}
-                    }}
-                    }}
-                }}
-            """
+                        }}
+                    }}"""
 
-        r = requests.get(
+        r = requests.post(
             url=self.base_url,
             json={"query": query, "variables": dict(zip(keys, values))},
             headers=self.header,
@@ -223,53 +222,76 @@ class Migration:
 
         return id
 
+    def test(self):
+        query = """
+            query($slug: String) {
+                    allTag(slug:$slug){
+                        edges{
+                        node{
+                            id,
+                            slug,
+                        }
+                        }
+                    }
+                    }
+        """
+        r = requests.get(
+            url=self.base_url,
+            json={"query": query, "variables": {"slug": "corrupcao"}},
+            # headers=self.header,
+        )
+        print(r)
+
 
 if __name__ == "__main__":
     TOKEN = get_token(USERNAME, PASSWORD)
     # packages = get_bd_packages()
     package = get_package_model()
     m = Migration(TOKEN)
+
     # r = m.delete(classe="Dataset", id="77239376-6662-4d64-8950-2f57f1225e53")
 
     for p in [package]:
-        ## create tags
-        # tags_ids = m.create_tags(objs=p.get("tags"))
-        # themes_ids = m.create_themes(objs=p.get("groups"))
+        # create tags
+        tags_ids = m.create_tags(objs=p.get("tags"))
+        themes_ids = m.create_themes(objs=p.get("groups"))
 
-        # ## create organization
-        # org_slug = p.get("organization").get("name").replace("-", "_")
-        # package_to_org = {
-        #     "area": m.get_id(
-        #         query_class="allArea",
-        #         query_parameters={"$slug: String": "desconhecida"},
-        #     ),
-        #     "slug": org_slug,
-        #     "name": p.get("organization").get("title"),
-        #     "description": p.get("organization").get("description"),
-        # }
-        # r, org_id = m.create_update(
-        #     query_class="allOrganization",
-        #     query_parameters={"$slug: String": org_slug},
-        #     mutation_class="CreateUpdateOrganization",
-        #     mutation_parameters=package_to_org,
-        # )
+        ## create organization
+        org_slug = p.get("organization").get("name").replace("-", "_")
+        package_to_org = {
+            "area": m.create_update(
+                query_class="allArea",
+                query_parameters={"$slug: String": "desconhecida"},
+                mutation_class="CreateUpdateArea",
+                mutation_parameters={"slug": "desconhecida"},
+            )[1],
+            "slug": org_slug,
+            "name": p.get("organization").get("title"),
+            "description": p.get("organization").get("description"),
+        }
+        r, org_id = m.create_update(
+            query_class="allOrganization",
+            query_parameters={"$slug: String": org_slug},
+            mutation_class="CreateUpdateOrganization",
+            mutation_parameters=package_to_org,
+        )
 
-        # ## create dataset
-        # package_to_dataset = {
-        #     "organization": org_id,
-        #     "slug": p["name"].replace("-", "_"),
-        #     "name": p["title"],
-        #     "description": p["notes"],
-        #     "tags": tags_ids,
-        #     "themes": themes_ids,
-        # }
-        # r, dataset_id = m.create_update(
-        #     query_class="allDataset",
-        #     query_parameters={"$slug: String": p["name"].replace("-", "_")},
-        #     mutation_class="CreateUpdateDataset",
-        #     mutation_parameters=package_to_dataset,
-        # )
-        # print(dataset_id)
+        ## create dataset
+        package_to_dataset = {
+            "organization": org_id,
+            "slug": p["name"].replace("-", "_"),
+            "name": p["title"],
+            "description": p["notes"],
+            "tags": tags_ids,
+            "themes": themes_ids,
+        }
+        r, dataset_id = m.create_update(
+            query_class="allDataset",
+            query_parameters={"$slug: String": p["name"].replace("-", "_")},
+            mutation_class="CreateUpdateDataset",
+            mutation_parameters=package_to_dataset,
+        )
+        print(dataset_id)
 
         for resource in p["resources"]:
             resource_type = resource["resource_type"]
@@ -291,7 +313,7 @@ if __name__ == "__main__":
 
                 print("  CreateRawDataSource")
                 resource_to_raw_data_source = {
-                    "dataset": "6fe0809e-ca4c-48fe-9a54-9bca74846add",
+                    "dataset": dataset_id,
                     "coverages": "",
                     "availability": m.create_availability(resource),
                     # "languages": "",
@@ -307,7 +329,7 @@ if __name__ == "__main__":
                     # "updatedAt": "",
                     "slug": raw_source_slug,
                     "name": resource["name"],
-                    "description": ""
+                    "description": "TO DO"
                     if resource["description"] is None
                     else resource["description"],
                     # "containsStructureData": "",
