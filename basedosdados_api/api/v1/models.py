@@ -225,7 +225,7 @@ class Table(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    url = models.URLField(blank=True, null=True)
+    slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     is_directory = models.BooleanField(default=False, blank=True, null=True)
@@ -243,11 +243,14 @@ class Table(models.Model):
         "ObservationLevel", related_name="tables", blank=True
     )
 
+    def __str__(self):
+        return str(self.slug)
+
     class Meta:
         db_table = "table"
         verbose_name = "Table"
         verbose_name_plural = "Tables"
-        ordering = ["url"]
+        ordering = ["slug"]
 
 
 class BigQueryTypes(models.Model):
@@ -398,7 +401,7 @@ class RawDataSource(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    slug = models.SlugField(unique=True)
+    url = models.URLField(blank=True, null=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     contains_structure_data = models.BooleanField(default=False)
@@ -409,14 +412,11 @@ class RawDataSource(models.Model):
         "ObservationLevel", related_name="raw_data_sources", blank=True
     )
 
-    def __str__(self):
-        return str(self.slug)
-
     class Meta:
         db_table = "raw_data_source"
         verbose_name = "Raw Data Source"
         verbose_name_plural = "Raw Data Sources"
-        ordering = ["slug"]
+        ordering = ["url"]
 
 
 class Status(models.Model):
