@@ -225,7 +225,7 @@ class Table(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    slug = models.SlugField(unique=True)
+    url = models.URLField(blank=True, null=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     is_directory = models.BooleanField(default=False, blank=True, null=True)
@@ -243,14 +243,11 @@ class Table(models.Model):
         "ObservationLevel", related_name="tables", blank=True
     )
 
-    def __str__(self):
-        return str(self.slug)
-
     class Meta:
         db_table = "table"
         verbose_name = "Table"
         verbose_name_plural = "Tables"
-        ordering = ["slug"]
+        ordering = ["url"]
 
 
 class BigQueryTypes(models.Model):
@@ -549,7 +546,9 @@ class TemporalCoverage(models.Model):
                 self.end_second or 0,
             )
             if start_datetime > end_datetime:
-                errors["start_year"] = ["Start datetime cannot be greater than end datetime"]
+                errors["start_year"] = [
+                    "Start datetime cannot be greater than end datetime"
+                ]
 
         except TypeError:
             errors["start_year"] = ["Start year or end year are invalid"]
