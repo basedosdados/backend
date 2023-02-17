@@ -28,19 +28,66 @@ class Area(models.Model):
 
 class Coverage(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    area = models.ForeignKey("Area", on_delete=models.CASCADE, related_name="coverages")
-    temporal_coverages = models.ManyToManyField(
-        "TemporalCoverage", related_name="coverages"
+    table = models.ForeignKey(
+        "Table",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="coverages",
     )
-
-    def __str__(self):
-        return str(self.temporal_coverages)
+    raw_data_source = models.ForeignKey(
+        "RawDataSource",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="coverages",
+    )
+    information_request = models.ForeignKey(
+        "InformationRequest",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="coverages",
+    )
+    column = models.ForeignKey(
+        "Column",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="coverages",
+    )
+    key = models.ForeignKey(
+        "Key", blank=True, null=True, on_delete=models.CASCADE, related_name="coverages"
+    )
+    area = models.ForeignKey("Area", on_delete=models.CASCADE, related_name="coverages")
 
     class Meta:
         db_table = "coverage"
         verbose_name = "Coverage"
         verbose_name_plural = "Coverages"
         ordering = ["id"]
+
+    def __str__(self):
+        return str(self.id)
+
+    def clean(self) -> None:
+        # Assert that only one of "table", "raw_data_source", "information_request", "column" or
+        # "key" is set
+        count = 0
+        if self.table:
+            count += 1
+        if self.raw_data_source:
+            count += 1
+        if self.information_request:
+            count += 1
+        if self.column:
+            count += 1
+        if self.key:
+            count += 1
+        if count != 1:
+            raise ValidationError(
+                "One and only one of 'table', 'raw_data_source', 'information_request', 'column' or 'key' must be set."  # noqa
+            )
 
 
 class License(models.Model):
@@ -61,7 +108,6 @@ class License(models.Model):
 
 class Key(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    coverages = models.ManyToManyField("Coverage", related_name="keys")
     name = models.CharField(max_length=255)
     value = models.CharField(max_length=255)
 
@@ -210,7 +256,6 @@ class Table(models.Model):
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="tables"
     )
-    coverages = models.ManyToManyField("Coverage", related_name="tables")
     license = models.ForeignKey(
         "License", on_delete=models.CASCADE, related_name="tables"
     )
@@ -273,7 +318,6 @@ class Column(models.Model):
     bigquery_type = models.ForeignKey(
         "BigQueryTypes", on_delete=models.CASCADE, related_name="columns"
     )
-    coverages = models.ManyToManyField("Coverage", related_name="columns")
     directory_primary_key = models.ForeignKey(
         "Column",
         on_delete=models.PROTECT,
@@ -383,7 +427,6 @@ class RawDataSource(models.Model):
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="raw_data_sources"
     )
-    coverages = models.ManyToManyField("Coverage", related_name="raw_data_sources")
     availability = models.ForeignKey(
         "Availability", on_delete=models.CASCADE, related_name="raw_data_sources"
     )
@@ -439,7 +482,6 @@ class InformationRequest(models.Model):
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="information_requests"
     )
-    coverages = models.ManyToManyField("Coverage", related_name="information_requests")
     status = models.ForeignKey(
         "Status", on_delete=models.CASCADE, related_name="information_requests"
     )
@@ -502,7 +544,10 @@ class ObservationLevel(models.Model):
 class TemporalCoverage(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
-    start_year = models.IntegerField()
+    coverage = models.ForeignKey(
+        "Coverage", on_delete=models.CASCADE, related_name="temporal_coverages"
+    )
+    start_year = models.IntegerField(blank=True, null=True)
     start_semester = models.IntegerField(blank=True, null=True)
     start_quarter = models.IntegerField(blank=True, null=True)
     start_month = models.IntegerField(blank=True, null=True)
@@ -510,7 +555,7 @@ class TemporalCoverage(models.Model):
     start_hour = models.IntegerField(blank=True, null=True)
     start_minute = models.IntegerField(blank=True, null=True)
     start_second = models.IntegerField(blank=True, null=True)
-    end_year = models.IntegerField()
+    end_year = models.IntegerField(blank=True, null=True)
     end_semester = models.IntegerField(blank=True, null=True)
     end_quarter = models.IntegerField(blank=True, null=True)
     end_month = models.IntegerField(blank=True, null=True)
@@ -518,6 +563,7 @@ class TemporalCoverage(models.Model):
     end_hour = models.IntegerField(blank=True, null=True)
     end_minute = models.IntegerField(blank=True, null=True)
     end_second = models.IntegerField(blank=True, null=True)
+    interval = models.IntegerField(blank=True, null=True)
 
     def __str__(self):
         return str(self.slug)
