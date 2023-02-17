@@ -9,7 +9,7 @@ PASSWORD = j["password"]
 
 def get_token(username, password):
     r = requests.post(
-        "http://localhost:8000/api/v1/graphql",
+        "http://localhost:8080/api/v1/graphql",
         # "https://staging.backend.dados.rio/api/v1/graphql",
         headers={"Content-Type": "application/json"},
         json={
@@ -45,7 +45,7 @@ def get_package_model():
 
 class Migration:
     def __init__(self, token):
-        self.base_url = "http://localhost:8000/api/v1/graphql"
+        self.base_url = "http://localhost:8080/api/v1/graphql"
         # "https://staging.backend.dados.rio/api/v1/graphql"
         self.header = {
             "Content-Type": "application/json",
@@ -67,7 +67,6 @@ class Migration:
                         {query_class}({_input}){{
                         edges{{
                             node{{
-                            slug,
                             id,
                             }}
                         }}
@@ -110,7 +109,6 @@ class Migration:
                     clientMutationId,
                     {_classe} {{
                         id,
-                        slug,
                     }}
                 }}
                 }}
@@ -302,14 +300,6 @@ if __name__ == "__main__":
                     print("    CreateColumn")
 
             elif resource_type == "external_link":
-                raw_source_slug = (
-                    resource["name"]
-                    .replace("(", "")
-                    .replace(")", "")
-                    .replace("-", "_")
-                    .replace(" ", "_")
-                    .lower()
-                )
 
                 print("  CreateRawDataSource")
                 resource_to_raw_data_source = {
@@ -327,7 +317,7 @@ if __name__ == "__main__":
                     )[1],
                     # "createdAt": "",
                     # "updatedAt": "",
-                    "slug": raw_source_slug,
+                    "url": resource["url"],
                     "name": resource["name"],
                     "description": "TO DO"
                     if resource["description"] is None
@@ -343,7 +333,7 @@ if __name__ == "__main__":
                     mutation_class="CreateUpdateRawDataSource",
                     mutation_parameters=resource_to_raw_data_source,
                     query_class="allRawdatasource",
-                    query_parameters={"$slug: String": raw_source_slug},
+                    query_parameters={"$url: String": resource["url"]},
                 )
 
                 print(r)
