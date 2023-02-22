@@ -96,6 +96,7 @@ class Coverage(models.Model):
 
         if self.key:
             return "key"
+
     coverage_type.short_description = "Coverage Type"
 
     def clean(self) -> None:
@@ -479,8 +480,8 @@ class RawDataSource(models.Model):
     contains_api = models.BooleanField(default=False)
     is_free = models.BooleanField(default=False)
     required_registration = models.BooleanField(default=False)
-    observation_level = models.ManyToManyField(
-        "ObservationLevel", related_name="raw_data_sources", blank=True
+    entities = models.ManyToManyField(
+        "Entity", related_name="raw_data_sources", blank=True
     )
 
     class Meta:
@@ -524,8 +525,8 @@ class InformationRequest(models.Model):
     started_at = models.DateTimeField(blank=True, null=True)
     data_url = models.URLField(blank=True, null=True)
     observations = models.TextField(blank=True, null=True)
-    observation_level = models.ManyToManyField(
-        "ObservationLevel", related_name="information_requests", blank=True
+    entities = models.ManyToManyField(
+        "Entity", related_name="information_requests", blank=True
     )
     started_by = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="information_requests"

@@ -1,10 +1,29 @@
 import pytest
 import uuid
 
+from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 
-from basedosdados_api.api.v1.models import AnalysisType, Table, Dataset, Organization, Area, License, Theme, Tag, \
-    UpdateFrequency, Entity, Pipeline, ObservationLevel, Column, BigQueryTypes
+from basedosdados_api.api.v1.models import (
+    AnalysisType,
+    Table,
+    Dataset,
+    Organization,
+    Area,
+    License,
+    Theme,
+    Tag,
+    UpdateFrequency,
+    Entity,
+    Pipeline,
+    ObservationLevel,
+    Column,
+    BigQueryTypes,
+    RawDataSource,
+    Availability,
+    InformationRequest,
+    Status,
+)
 
 
 @pytest.fixture(name="area_br")
@@ -20,9 +39,7 @@ def fixture_area_br():
 
 @pytest.fixture(name="organizacao_bd")
 @pytest.mark.django_db
-def fixture_organizacao_bd(
-    area_br
-):
+def fixture_organizacao_bd(area_br):
     """Fixture for Organization."""
     return Organization.objects.create(
         area=area_br,
@@ -32,9 +49,7 @@ def fixture_organizacao_bd(
 
 @pytest.fixture(name="organizacao_parceira")
 @pytest.mark.django_db
-def fixture_organizacao_parceira(
-    area_br
-):
+def fixture_organizacao_parceira(area_br):
     """Fixture for Organization."""
     return Organization.objects.create(
         area=area_br,
@@ -107,10 +122,18 @@ def fixture_entity_anual():
     )
 
 
+@pytest.fixture(name="entity_escola")
+@pytest.mark.django_db
+def fixture_entity_escola():
+    """Fixture for Entity."""
+    return Entity.objects.create(
+        slug="escola",
+        name="Escola",
+    )
+
+
 @pytest.fixture(name="frequencia_anual")
-def fixture_frequencia_anual(
-    entity_anual
-):
+def fixture_frequencia_anual(entity_anual):
     """Fixture for UpdateFrequency."""
     return UpdateFrequency.objects.create(
         entity=entity_anual,
@@ -142,18 +165,35 @@ def fixture_observation_level_anual(
 @pytest.mark.django_db
 def fixture_bigquery_type_string():
     """Fixture for BigQueryTypes."""
-    return BigQueryTypes.objects.create(
-        name="STRING"
-    )
+    return BigQueryTypes.objects.create(name="STRING")
 
 
 @pytest.fixture(name="bigquery_type_int64")
 @pytest.mark.django_db
 def fixture_bigquery_type_int64():
     """Fixture for BigQueryTypes."""
-    return BigQueryTypes.objects.create(
-        name="INT64"
+    return BigQueryTypes.objects.create(name="INT64")
+
+
+@pytest.fixture(name="disponibilidade_online")
+@pytest.mark.django_db
+def fixture_disponibilidade_online():
+    """Fixture for Availability."""
+    return Availability.objects.create(
+        name="Online",
+        slug="online",
     )
+
+
+@pytest.fixture(name="status_em_processamento")
+@pytest.mark.django_db
+def fixture_status_em_processamento():
+    """Fixture for Status."""
+    return Status.objects.create(
+        name="Em processamento",
+        slug="em_processamento",
+    )
+
 
 ############################################################################################################
 # Dataset fixtures
@@ -163,9 +203,7 @@ def fixture_bigquery_type_int64():
 @pytest.fixture(name="dataset_dados_mestres")
 @pytest.mark.django_db
 def fixture_dataset_dados_mestres(
-    organizacao_bd,
-    tema_saude, tema_educacao,
-    tag_aborto, tag_covid
+    organizacao_bd, tema_saude, tema_educacao, tag_aborto, tag_covid
 ):
     """Test for Dataset."""
     return Dataset.objects.create(
@@ -174,6 +212,7 @@ def fixture_dataset_dados_mestres(
         name="Dados Mestres",
         description="Descrição dos dados mestres",
     )
+
 
 ############################################################################################################
 # Table fixtures
@@ -188,7 +227,7 @@ def fixture_tabela_bairros(
     organizacao_parceira,
     frequencia_anual,
     pipeline,
-    observation_level_anual
+    observation_level_anual,
 ):
     """Fixture for Table."""
     return Table.objects.create(
@@ -222,7 +261,7 @@ def fixture_tabela_diretorios_brasil_uf(
     organizacao_parceira,
     frequencia_anual,
     pipeline,
-    observation_level_anual
+    observation_level_anual,
 ):
     """Fixture for Table."""
     return Table.objects.create(
@@ -246,6 +285,7 @@ def fixture_tabela_diretorios_brasil_uf(
         number_rows=100,
         number_columns=10,
     )
+
 
 ############################################################################################################
 # Column fixtures
@@ -272,9 +312,7 @@ def fixture_coluna_state_id_diretorio(
 @pytest.fixture(name="coluna_state_id_bairros")
 @pytest.mark.django_db
 def fixture_coluna_state_id_bairros(
-    tabela_bairros,
-    bigquery_type_string,
-    coluna_state_id_diretorio
+    tabela_bairros, bigquery_type_string, coluna_state_id_diretorio
 ):
     """Fixture for state_id column. This is a directory."""
     return Column.objects.create(
@@ -319,4 +357,64 @@ def fixture_coluna_populacao_bairros(
         bigquery_type=bigquery_type_int64,
         is_in_staging=True,
         is_partition=False,
+    )
+
+
+############################################################################################################
+# RawData fixtures
+############################################################################################################
+
+
+@pytest.fixture(name="raw_data_source")
+@pytest.mark.django_db
+def fixture_raw_data_source(
+    dataset_dados_mestres,
+    disponibilidade_online,
+    licenca_mit,
+    frequencia_anual,
+):
+    """Fixture for RawData."""
+    return RawDataSource.objects.create(
+        dataset=dataset_dados_mestres,
+        availability=disponibilidade_online,
+        license=licenca_mit,
+        update_frequency=frequencia_anual,
+        name="Fonte de dados",
+    )
+
+
+############################################################################################################
+# Information Request fixtures
+############################################################################################################
+
+
+@pytest.fixture(name="usuario_inicio")
+@pytest.mark.django_db
+def fixture_usuario_inicio():
+    """Fixture for User."""
+    return User.objects.create(
+        username="usuario_inicio",
+        email="usuario@usuario.com",
+        first_name="Usuario",
+        last_name="Inicio",
+    )
+
+
+@pytest.fixture(name="pedido_informacao")
+@pytest.mark.django_db
+def fixture_pedido_informacao(
+    dataset_dados_mestres,
+    tabela_bairros,
+    coluna_nome_bairros,
+    coluna_populacao_bairros,
+    status_em_processamento,
+    frequencia_anual,
+    usuario_inicio,
+):
+    """Fixture for InformationRequest."""
+    return InformationRequest.objects.create(
+        dataset=dataset_dados_mestres,
+        status=status_em_processamento,
+        update_frequency=frequencia_anual,
+        started_by=usuario_inicio,
     )

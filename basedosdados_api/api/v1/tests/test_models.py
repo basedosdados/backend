@@ -2,7 +2,14 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 
-from basedosdados_api.api.v1.models import Dataset, Area, Table, Column
+from basedosdados_api.api.v1.models import (
+    Dataset,
+    Area,
+    Table,
+    Column,
+    RawDataSource,
+    InformationRequest,
+)
 
 
 @pytest.mark.django_db
@@ -24,9 +31,7 @@ def test_invalid_organization(organizacao_bd):
 
 @pytest.mark.django_db
 def test_create_dataset(
-    dataset_dados_mestres,
-    tema_saude, tema_educacao,
-    tag_aborto, tag_covid
+    dataset_dados_mestres, tema_saude, tema_educacao, tag_aborto, tag_covid
 ):
     """Test for Dataset."""
     dataset_dados_mestres.save()
@@ -36,10 +41,7 @@ def test_create_dataset(
 
 
 @pytest.mark.django_db
-def test_create_table(
-    tabela_bairros,
-    observation_level_anual
-):
+def test_create_table(tabela_bairros, observation_level_anual):
     """Test for Table."""
     tabela_bairros.save()
     tabela_bairros.observation_level.add(observation_level_anual)
@@ -60,3 +62,30 @@ def test_columns_create(
 
     tabela_bairros = Table.objects.get(slug="bairros")
     assert len(tabela_bairros.columns.all()) == 3
+
+
+@pytest.mark.django_db
+def test_create_rawdatasource(
+    raw_data_source,
+    entity_escola,
+    entity_anual
+):
+    """Test for RawDataSource."""
+    raw_data_source.save()
+    raw_data_source.entities.add(entity_escola, entity_anual)
+    assert raw_data_source.entities.count() == 2
+    assert RawDataSource.objects.exists()
+
+
+@pytest.mark.django_db
+def test_create_information_request(
+    pedido_informacao,
+    entity_escola,
+    entity_anual
+):
+    """Test for InformationRequest."""
+    pedido_informacao.save()
+    pedido_informacao.entities.add(entity_escola, entity_anual)
+
+    assert pedido_informacao.entities.count() == 2
+    assert InformationRequest.objects.exists()
