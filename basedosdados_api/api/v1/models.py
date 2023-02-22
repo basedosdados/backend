@@ -68,7 +68,35 @@ class Coverage(models.Model):
         ordering = ["id"]
 
     def __str__(self):
+        if self.coverage_type() == "table":
+            return f"Table: {self.table} - {self.area}"
+        if self.coverage_type() == "raw_data_source":
+            return f"Raw data source: {self.raw_data_source} - {self.area}"
+        if self.coverage_type() == "information_request":
+            return f"Information request: {self.information_request} - {self.area}"
+        if self.coverage_type() == "column":
+            return f"Column: {self.column} - {self.area}"
+        if self.coverage_type() == "key":
+            return f"Key: {self.key} - {self.area}"
+
         return str(self.id)
+
+    def coverage_type(self):
+        if self.table:
+            return "table"
+
+        if self.raw_data_source:
+            return "raw_data_source"
+
+        if self.information_request:
+            return "information_request"
+
+        if self.column:
+            return "column"
+
+        if self.key:
+            return "key"
+    coverage_type.short_description = "Coverage Type"
 
     def clean(self) -> None:
         # Assert that only one of "table", "raw_data_source", "information_request", "column" or
@@ -242,7 +270,7 @@ class UpdateFrequency(models.Model):
     number = models.IntegerField()
 
     def __str__(self):
-        return str(self.number)
+        return f"{str(self.number)} {str(self.entity)}"
 
     class Meta:
         db_table = "update_frequency"
@@ -289,7 +317,7 @@ class Table(models.Model):
     )
 
     def __str__(self):
-        return str(self.slug)
+        return f"{str(self.dataset.slug)}.{str(self.slug)}"
 
     class Meta:
         db_table = "table"
@@ -335,7 +363,7 @@ class Column(models.Model):
     observations = models.TextField(blank=True, null=True)
 
     def __str__(self):
-        return str(self.name)
+        return f"{str(self.table.dataset.slug)}.{self.table.slug}.{str(self.name)}"
 
     class Meta:
         db_table = "column"
