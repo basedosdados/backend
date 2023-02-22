@@ -133,7 +133,7 @@ jobs:
         run: |
           cat << EOF > values.yaml
           api:
-            name: "basedosdados-api"
+            name: "api-staging"
             image: "ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}"
             tag: "staging"
             pullPolicy: "Always"
@@ -180,4 +180,4 @@ jobs:
 
       - name: Deploy using Helm
         run: |
-          helm upgrade --install staging-api charts/basedosdados-api/. -n website -f values.yaml --wait
+          helm upgrade --install api-staging charts/basedosdados-api/. -n website -f values.yaml --wait
