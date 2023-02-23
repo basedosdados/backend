@@ -674,4 +674,4 @@ class DateTimeRange(models.Model):
         db_table = "datetime_range"
         verbose_name = "DateTime Range"
         verbose_name_plural = "DateTime Ranges"
-        ordering = ["slug"]
+        ordering = ["id"]
