@@ -36,6 +36,15 @@ class TableAdmin(admin.ModelAdmin):
     readonly_fields = ["id", "created_at", "updated_at"]
 
 
+class CoverageAdmin(admin.ModelAdmin):
+    readonly_fields = ["id"]
+    list_display = ["area", "coverage_type", "table"]
+
+
+class TemporalCoverageAdmin(admin.ModelAdmin):
+    readonly_fields = ["id"]
+
+
 admin.site.register(Organization)
 admin.site.register(Dataset, DatasetAdmin)
 admin.site.register(Table, TableAdmin)
@@ -47,7 +56,7 @@ admin.site.register(CloudTable)
 admin.site.register(Area)
 admin.site.register(Theme)
 admin.site.register(Tag)
-admin.site.register(Coverage)
+admin.site.register(Coverage, CoverageAdmin)
 admin.site.register(Status)
 admin.site.register(UpdateFrequency)
 admin.site.register(Availability)
@@ -58,4 +67,4 @@ admin.site.register(Entity)
 admin.site.register(Dictionary)
 admin.site.register(Pipeline)
 admin.site.register(AnalysisType)
-admin.site.register(TemporalCoverage)
+admin.site.register(TemporalCoverage, TemporalCoverageAdmin)
