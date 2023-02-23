@@ -1,12 +1,14 @@
+# -*- coding: utf-8 -*-
 import pytest
 from django.core.exceptions import ValidationError
-from django.core.validators import RegexValidator
+
+# from django.core.validators import RegexValidator
 
 from basedosdados_api.api.v1.models import (
     Dataset,
     Area,
     Table,
-    Column,
+    # Column,
     RawDataSource,
     InformationRequest,
 )
@@ -65,11 +67,7 @@ def test_columns_create(
 
 
 @pytest.mark.django_db
-def test_create_rawdatasource(
-    raw_data_source,
-    entity_escola,
-    entity_anual
-):
+def test_create_rawdatasource(raw_data_source, entity_escola, entity_anual):
     """Test for RawDataSource."""
     raw_data_source.save()
     raw_data_source.entities.add(entity_escola, entity_anual)
@@ -78,11 +76,7 @@ def test_create_rawdatasource(
 
 
 @pytest.mark.django_db
-def test_create_information_request(
-    pedido_informacao,
-    entity_escola,
-    entity_anual
-):
+def test_create_information_request(pedido_informacao, entity_escola, entity_anual):
     """Test for InformationRequest."""
     pedido_informacao.save()
     pedido_informacao.entities.add(entity_escola, entity_anual)
