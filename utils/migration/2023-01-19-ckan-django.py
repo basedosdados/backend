@@ -326,85 +326,94 @@ if __name__ == "__main__":
                     "dataset": dataset_id,
                 }
 
-                r, raw_source_id = m.create_update(
+                r, table_id = m.create_update(
                     mutation_class="CreateUpdateTable",
                     mutation_parameters=resource_to_table,
                     query_class="allTable",
                     query_parameters={"$slug: String": resource["table_id"]},
                 )
+                
+                
+                
+                
+                
+                
+                
+                
+                
                 if "columns" in resource:
                     print("    CreateColumn")
 
-            elif resource_type == "external_link":
+            # elif resource_type == "external_link":
 
-                print("  CreateRawDataSource")
-                resource_to_raw_data_source = {
-                    "dataset": dataset_id,
-                    # "coverages": "",
-                    "availability": m.create_availability(resource),
-                    # "languages": "",
-                    "license": m.create_license(),
-                    "updateFrequency": update_frequency_id,
-                    "areaIpAddressRequired": m.create_update(
-                        query_class="allArea",
-                        query_parameters={"$slug: String": "desconhecida"},
-                        mutation_class="CreateUpdateArea",
-                        mutation_parameters={"slug": "desconhecida"},
-                    )[1],
-                    # "createdAt": "",
-                    # "updatedAt": "",
-                    "url": resource["url"],
-                    "name": resource["name"],
-                    "description": "TO DO"
-                    if resource["description"] is None
-                    else resource["description"],
-                    # "containsStructureData": "",
-                    # "containsApi": "",
-                    # "isFree": "",
-                    # "requiredRegistration": "",
-                    # "observationLevel": "",
-                }
+            #     print("  CreateRawDataSource")
+            #     resource_to_raw_data_source = {
+            #         "dataset": dataset_id,
+            #         # "coverages": "",
+            #         "availability": m.create_availability(resource),
+            #         # "languages": "",
+            #         "license": m.create_license(),
+            #         "updateFrequency": update_frequency_id,
+            #         "areaIpAddressRequired": m.create_update(
+            #             query_class="allArea",
+            #             query_parameters={"$slug: String": "desconhecida"},
+            #             mutation_class="CreateUpdateArea",
+            #             mutation_parameters={"slug": "desconhecida"},
+            #         )[1],
+            #         # "createdAt": "",
+            #         # "updatedAt": "",
+            #         "url": resource["url"],
+            #         "name": resource["name"],
+            #         "description": "TO DO"
+            #         if resource["description"] is None
+            #         else resource["description"],
+            #         # "containsStructureData": "",
+            #         # "containsApi": "",
+            #         # "isFree": "",
+            #         # "requiredRegistration": "",
+            #         # "observationLevel": "",
+            #     }
 
-                r, raw_source_id = m.create_update(
-                    mutation_class="CreateUpdateRawDataSource",
-                    mutation_parameters=resource_to_raw_data_source,
-                    query_class="allRawdatasource",
-                    query_parameters={"$url: String": resource["url"]},
-                )
+            #     r, raw_source_id = m.create_update(
+            #         mutation_class="CreateUpdateRawDataSource",
+            #         mutation_parameters=resource_to_raw_data_source,
+            #         query_class="allRawdatasource",
+            #         query_parameters={"$url: String": resource["url"]},
+            #     )
 
-                print(r)
+            #     print(r)
 
-            elif resource_type == "information_request":
-                print("  CreateInformationRequest")
+            # elif resource_type == "information_request":
+            #     print("  CreateInformationRequest")
 
-                resource_to_information_request = {
-                    "dataset": dataset_id,
-                    "status": m.create_update(
-                        query_class="allStatus",
-                        query_parameters={"$slug: String": resource["state"]},
-                        mutation_class="CreateUpdateStatus",
-                        mutation_parameters={
-                            "slug": resource["state"],
-                            "name": resource["state"],
-                        },
-                    )[1],
-                    "updateFrequency": update_frequency_id,
-                    "origin": resource["origin"],
-                    "slug": resource["name"],
-                    "url": resource["url"],
-                    "startedAt": datetime.strptime(
-                        resource["opening_date"], "%d/%m/%Y"
-                    ).strftime("%Y-%m-%d")
-                    + "T00:00:00",
-                    "dataUrl": resource["data_url"],
-                    "observations": resource["department"],
-                    "startedBy": 1,
-                    # "observationLevel": "",
-                }
-                r, raw_source_id = m.create_update(
-                    mutation_class="CreateUpdateInformationRequest",
-                    mutation_parameters=resource_to_information_request,
-                    query_class="allInformationrequest",
-                    query_parameters={"$url: String": resource["url"]},
-                )
-                print(r)
+            #     resource_to_information_request = {
+            #         "dataset": dataset_id,
+            #         "status": m.create_update(
+            #             query_class="allStatus",
+            #             query_parameters={"$slug: String": resource["state"]},
+            #             mutation_class="CreateUpdateStatus",
+            #             mutation_parameters={
+            #                 "slug": resource["state"],
+            #                 "name": resource["state"],
+            #             },
+            #         )[1],
+            #         "updateFrequency": update_frequency_id,
+            #         "origin": resource["origin"],
+            #         "slug": resource["name"],
+            #         "url": resource["url"],
+            #         "startedAt": datetime.strptime(
+            #             resource["opening_date"], "%d/%m/%Y"
+            #         ).strftime("%Y-%m-%d")
+            #         + "T00:00:00",
+            #         "dataUrl": resource["data_url"],
+            #         "observations": resource["department"],
+            #         "startedBy": 1,
+            #         # "observationLevel": "",
+            #     }
+            #     r, raw_source_id = m.create_update(
+            #         mutation_class="CreateUpdateInformationRequest",
+            #         mutation_parameters=resource_to_information_request,
+            #         query_class="allInformationrequest",
+            #         query_parameters={"$url: String": resource["url"]},
+            #     )
+            #     print(r)
