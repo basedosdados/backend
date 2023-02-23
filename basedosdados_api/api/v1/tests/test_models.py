@@ -13,13 +13,46 @@ from basedosdados_api.api.v1.models import (
 
 
 @pytest.mark.django_db
-def test_invalid_area_brasil():
+def test_invalid_area_slug_brasil():
     """Test for Area with dot names, which are invalid in slug."""
     area = Area(
         slug="sa.br",
     )
     with pytest.raises(ValidationError):
         area.full_clean()
+
+
+@pytest.mark.django_db
+def test_invalid_area_key():
+    """Test for Area with dot names, which are invalid in slug."""
+    area = Area(
+        key="SA.br",
+    )
+    with pytest.raises(ValidationError):
+        area.full_clean()
+
+
+@pytest.mark.django_db
+def test_area_key_not_in_bd_dict():
+    """Test for Area with dot names, which are invalid in slug."""
+    area = Area(
+        slug="brasil",
+        key="na.br",
+    )
+    with pytest.raises(ValidationError):
+        area.full_clean()
+
+
+@pytest.mark.django_db
+def test_valid_area_key():
+    """Test for Area with dot names, which are invalid in slug."""
+    area = Area(
+        slug="brasil",
+        key="sa.br",
+    )
+    area.full_clean()
+    area.save()
+    assert Area.objects.exists()
 
 
 @pytest.mark.django_db

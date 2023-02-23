@@ -10,11 +10,18 @@ from basedosdados_api.api.v1.utils import (
     check_kebab_case,
     check_snake_case,
 )
+from basedosdados_api.api.v1.validators import validate_area_key, validate_is_valid_area_key
 
 
 class Area(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
+    key = models.CharField(
+        max_length=255,
+        null=True,
+        blank=False,
+        validators=[validate_area_key, validate_is_valid_area_key],
+    )
 
     def __str__(self):
         return str(self.slug)
