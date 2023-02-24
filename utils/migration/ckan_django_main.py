@@ -1,6 +1,5 @@
 ### TODO fazer coverage para os trez tipos de recurso utilizando parse_temporal_coverage
 ### TODO filtrar pelo id do modelo pai
-### TODO usar dataframe para controle dos packages, coluna migrate 'e alterada para 1 quando o package 'e migrado
 
 import json
 from datetime import datetime
@@ -12,11 +11,14 @@ from ckan_django_utils import (
     parse_temporal_coverage,
 )
 
+from pathlib import Path
+import pandas as pd
 
 j = json.load(open("./credentials.json"))
 USERNAME = j["username"]
 PASSWORD = j["password"]
 
+migration_control = 1
 
 if __name__ == "__main__":
     TOKEN = get_token(USERNAME, PASSWORD)
@@ -24,19 +26,18 @@ if __name__ == "__main__":
     # id = "br-me-clima-organizacional"
     # packages = [get_package_model(id=id)]
 
-    packages = get_bd_packages()
+    df = get_bd_packages()
 
     m = Migration(TOKEN)
     entity_id = m.create_entity()
     update_frequency_id = m.create_update_frequency()
     # r = m.delete(classe="Dataset", id="77239376-6662-4d64-8950-2f57f1225e53")
-    for p in packages:
+    for p, package_id in zip(df["packages"].tolist(), df["package_id"].tolist()):
         # create tags
         tags_ids = m.create_tags(objs=p.get("tags"))
         themes_ids = m.create_themes(objs=p.get("groups"))
 
         ## create organization
-
         print("\nCreate Organization")
         org_slug = p.get("organization").get("name").replace("-", "_")
         package_to_org = {
@@ -225,4 +226,15 @@ if __name__ == "__main__":
                 )
                 print(r)
 
-        # df.loc[0,'migrate'] = 1
+        if migration_control:
+            path = Path("./utils/migration/data")
+            path.mkdir(parents=True, exist_ok=True)
+
+            file_path_migrated = path / "packages_migrated.csv"
+            df_migrated = pd.DataFrame(data={"package_id": [package_id]})
+            df_migrated.to_csv(
+                file_path_migrated,
+                index=False,
+                mode="a",
+                header=not file_path_migrated.exists(),
+            )

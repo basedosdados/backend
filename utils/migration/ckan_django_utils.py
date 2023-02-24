@@ -8,6 +8,9 @@ import json
 import re
 import requests
 
+from pathlib import Path
+import pandas as pd
+
 
 def get_token(username, password):
     r = requests.post(
@@ -34,16 +37,39 @@ def get_token(username, password):
     return r.json()["data"]["tokenAuth"]["token"]
 
 
-def get_bd_packages():
+def request_bd_package(file_path):
     url = "https://basedosdados.org"
     api_url = f"{url}/api/3/action/package_search?q=&rows=2000"
-    return requests.get(api_url, verify=False).json()["result"]["results"]
+    packages = requests.get(api_url, verify=False).json()["result"]["results"]
+    df = pd.DataFrame(data={"packages": packages})
+    df["package_id"] = df["packages"].apply(lambda x: x["id"])
+    df.to_json(file_path)
+    return df
+
+
+def get_bd_packages():
+    path = Path("./utils/migration/data")
+    path.mkdir(parents=True, exist_ok=True)
+    file_path = path / "packages.json"
+    file_path_migrated = path / "packages_migrated.csv"
+
+    if not file_path.exists():
+        return request_bd_package(file_path)
+    df = pd.read_json(file_path)
+
+    if file_path_migrated.exists():
+        df_migrated = pd.read_csv(file_path_migrated)
+        return df[~df["package_id"].isin(df_migrated["package_id"].tolist())]
+    else:
+        return df
 
 
 def get_package_model(id):
     url = f"https://basedosdados.org/api/3/action/package_show?name_or_id={id}"
-
-    return requests.get(url, verify=False).json()["result"]
+    packages = requests.get(url, verify=False).json()["result"]
+    df = pd.DataFrame(data={"packages": packages})
+    df["package_id"] = df["packages"].apply(lambda x: x["id"])
+    return df
 
 
 def pprint(msg):
