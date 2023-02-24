@@ -41,4 +41,5 @@ urlpatterns = [
     path("api/v1/", redirect_to_v1_graphql),
     path("api/v1/graphql", csrf_exempt(GraphQLView.as_view(graphiql=True))),
     path("api/account/", include("basedosdados_api.account.urls")),
+    path("schemas/", include("basedosdados_api.schemas.urls")),
 ]
