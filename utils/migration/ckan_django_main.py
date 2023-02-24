@@ -1,5 +1,5 @@
-### TODO fazer coverage para os trez tipos de recurso utilizando parse_temporal_coverage
-### TODO filtrar pelo id do modelo pai
+### TODO checar filtragem de todos os campos
+### TODO rever observational_level, pede lista de id de colunas que atualmente n esta recebendo
 
 import json
 from datetime import datetime
@@ -22,11 +22,11 @@ migration_control = 1
 
 if __name__ == "__main__":
     TOKEN = get_token(USERNAME, PASSWORD)
-    # id = 'br-sgp-informacao'
+    id = "br-sgp-informacao"
     # id = "br-me-clima-organizacional"
-    # packages = [get_package_model(id=id)]
+    df = get_package_model(name_or_id=id)
 
-    df = get_bd_packages()
+    # df = get_bd_packages()
 
     m = Migration(TOKEN)
     entity_id = m.create_entity()
@@ -39,24 +39,7 @@ if __name__ == "__main__":
 
         ## create organization
         print("\nCreate Organization")
-        org_slug = p.get("organization").get("name").replace("-", "_")
-        package_to_org = {
-            "area": m.create_update(
-                query_class="allArea",
-                query_parameters={"$slug: String": "desconhecida"},
-                mutation_class="CreateUpdateArea",
-                mutation_parameters={"slug": "desconhecida"},
-            )[1],
-            "slug": org_slug,
-            "name": p.get("organization").get("title"),
-            "description": p.get("organization").get("description"),
-        }
-        r, org_id = m.create_update(
-            query_class="allOrganization",
-            query_parameters={"$slug: String": org_slug},
-            mutation_class="CreateUpdateOrganization",
-            mutation_parameters=package_to_org,
-        )
+        org_id = m.create_org(p.get("organization"))
 
         ## create dataset
         print("\nCreate Dataset")
@@ -88,7 +71,7 @@ if __name__ == "__main__":
                 resource_to_table = {
                     "dataset": dataset_id,
                     "license": m.create_license(),
-                    "partnerOrganization": m.create_part_org(
+                    "partnerOrganization": m.create_org(
                         resource["partner_organization"]
                     ),
                     "updateFrequency": update_frequency_id,
@@ -96,9 +79,11 @@ if __name__ == "__main__":
                     "name": resource["name"],
                     "pipeline": m.create_update(
                         query_class="allPipeline",
-                        query_parameters={"$githubUrl: String": "todo.com"},
+                        query_parameters={
+                            "$githubUrl: String": "http://desconhecida.com"
+                        },
                         mutation_class="CreateUpdatePipeline",
-                        mutation_parameters={"githubUrl": "todo.com"},
+                        mutation_parameters={"githubUrl": "desconhecida.com"},
                     )[1],
                     "description": resource["description"],
                     "isDirectory": False,
@@ -126,12 +111,12 @@ if __name__ == "__main__":
                         "$name: String": resource["name"],
                     },
                 )
+
+                m.create_coverage(resource=resource, coverage={"table": table_id})
+
                 if "columns" in resource:
                     print("\nCreate Column")
-                    columns_ids = m.create_columns(
-                        objs=resource.get("columns"), table_id=table_id
-                    )
-
+                    columns_ids = m.create_columns(resource=resource, table_id=table_id)
                     resource_to_cloud_table = {
                         "table": table_id,
                         "gcpProjectId": resource["source_bucket_name"],
@@ -160,12 +145,7 @@ if __name__ == "__main__":
                     # "languages": "",
                     "license": m.create_license(),
                     "updateFrequency": update_frequency_id,
-                    "areaIpAddressRequired": m.create_update(
-                        query_class="allArea",
-                        query_parameters={"$slug: String": "desconhecida"},
-                        mutation_class="CreateUpdateArea",
-                        mutation_parameters={"slug": "desconhecida"},
-                    )[1],
+                    "areaIpAddressRequired": m.create_area(area="desconhecida"),
                     # "createdAt": "",
                     # "updatedAt": "",
                     "url": resource["url"],
@@ -177,7 +157,7 @@ if __name__ == "__main__":
                     # "containsApi": "",
                     # "isFree": "",
                     # "requiredRegistration": "",
-                    # "observationLevel": "",
+                    # "entities": "",
                 }
 
                 r, raw_source_id = m.create_update(
@@ -186,8 +166,9 @@ if __name__ == "__main__":
                     query_class="allRawdatasource",
                     query_parameters={"$url: String": resource["url"]},
                 )
-
-                print(r)
+                m.create_coverage(
+                    resource=resource, coverage={"rawDataSource": raw_source_id}
+                )
 
             elif resource_type == "information_request":
                 print("\nCreate InformationRequest")
@@ -216,15 +197,17 @@ if __name__ == "__main__":
                     "dataUrl": resource["data_url"],
                     "observations": resource["department"],
                     "startedBy": 1,
-                    # "observationLevel": "",
+                    # "entities": "",
                 }
-                r, raw_source_id = m.create_update(
+                r, info_id = m.create_update(
                     mutation_class="CreateUpdateInformationRequest",
                     mutation_parameters=resource_to_information_request,
                     query_class="allInformationrequest",
                     query_parameters={"$url: String": resource["url"]},
                 )
-                print(r)
+                m.create_coverage(
+                    resource=resource, coverage={"informationRequest": info_id}
+                )
 
         if migration_control:
             path = Path("./utils/migration/data")

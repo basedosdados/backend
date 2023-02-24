@@ -10,7 +10,10 @@ from basedosdados_api.api.v1.utils import (
     check_kebab_case,
     check_snake_case,
 )
-from basedosdados_api.api.v1.validators import validate_area_key, validate_is_valid_area_key
+from basedosdados_api.api.v1.validators import (
+    validate_area_key,
+    validate_is_valid_area_key,
+)
 
 
 class Area(models.Model):

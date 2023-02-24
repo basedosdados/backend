@@ -64,11 +64,14 @@ def get_bd_packages():
         return df
 
 
-def get_package_model(id):
-    url = f"https://basedosdados.org/api/3/action/package_show?name_or_id={id}"
+def get_package_model(name_or_id):
+    url = f"https://basedosdados.org/api/3/action/package_show?name_or_id={name_or_id}"
     packages = requests.get(url, verify=False).json()["result"]
-    df = pd.DataFrame(data={"packages": packages})
+
+    df = pd.DataFrame(data={"packages": [packages]})
+
     df["package_id"] = df["packages"].apply(lambda x: x["id"])
+
     return df
 
 
@@ -87,16 +90,16 @@ def parse_temporal_coverage(temporal_coverage):
         result = {}
         if date_len == 3:
             date = datetime.strptime(date_str, "%Y-%m-%d")
-            result[f"{position}_year"] = date.year
-            result[f"{position}_month"] = date.month
-            result[f"{position}_day"] = date.month
+            result[f"{position}Year"] = date.year
+            result[f"{position}Month"] = date.month
+            result[f"{position}Day"] = date.month
         elif date_len == 2:
             date = datetime.strptime(date_str, "%Y-%m")
-            result[f"{position}_year"] = date.year
-            result[f"{position}_month"] = date.month
+            result[f"{position}Year"] = date.year
+            result[f"{position}Month"] = date.month
         elif date_len == 1:
             date = datetime.strptime(date_str, "%Y")
-            result[f"{position}_year"] = date.year
+            result[f"{position}Year"] = date.year
         return result
 
     start_result = parse_date(position="start", date_str=start_str, date_len=start_len)
@@ -153,7 +156,7 @@ class Migration:
                 id = id.split(":")[1]
             return r, id
         else:
-            print("get:  Error:", json.dumps(r, indent=4))
+            print("get:  Error:", json.dumps(r, indent=4, ensure_ascii=False))
             raise Exception("get: Error")
 
     def create_update(
@@ -186,7 +189,9 @@ class Migration:
         if "data" in r:
             if r["data"][mutation_class]["errors"] != []:
                 print(f"create: not found {mutation_class}", mutation_parameters)
-                print("create: error\n", json.dumps(r, indent=4), "\n")
+                print(
+                    "create: error\n", json.dumps(r, indent=4, ensure_ascii=False), "\n"
+                )
                 id = None
             else:
                 id = r["data"][mutation_class][_classe]["id"]
@@ -196,8 +201,12 @@ class Migration:
             return r, id
         else:
             print("\n", "create: query\n", query, "\n")
-            print("create: input\n", json.dumps(mutation_parameters, indent=4), "\n")
-            print("create: error\n", json.dumps(r, indent=4), "\n")
+            print(
+                "create: input\n",
+                json.dumps(mutation_parameters, indent=4, ensure_ascii=False),
+                "\n",
+            )
+            print("create: error\n", json.dumps(r, indent=4, ensure_ascii=False), "\n")
             raise Exception("create: Error")
 
     def delete(self, classe, id):
@@ -248,15 +257,15 @@ class Migration:
             r, id = self.create_update(
                 mutation_class="CreateUpdateTag",
                 mutation_parameters={
-                    "slug": "desconhecido"
+                    "slug": "desconhecida"
                     if tag_slug is None
                     else tag_slug.replace(" ", "_"),
-                    "name": "desconhecido"
+                    "name": "desconhecida"
                     if tag_name is None
                     else tag_name.replace(" ", "_"),
                 },
                 query_class="allTag",
-                query_parameters={"$slug: String": tag_slug},
+                query_parameters={"$slug: String": tag_slug.replace(" ", "_")},
             )
             ids.append(id)
 
@@ -281,7 +290,7 @@ class Migration:
                 mutation_class="CreateUpdateEntity",
                 mutation_parameters={
                     "slug": "desconhecida",
-                    "name": "todo",
+                    "name": "desconhecida",
                 },
                 query_class="allEntity",
                 query_parameters={"$slug: String": "desconhecida"},
@@ -402,7 +411,9 @@ class Migration:
                 },
                 query_class="allObservationlevel",
                 query_parameters={
-                    "$id: ID": self.create_entity(obj=None),
+                    "$tables_Coverages_RawDataSource_Dataset_InformationRequests_UpdateFrequency_Entity_Id: ID": self.create_entity(
+                        obj=None
+                    ),
                 },
             )
         else:
@@ -415,7 +426,7 @@ class Migration:
                     },
                     query_class="allObservationlevel",
                     query_parameters={
-                        "$id: ID": entity_id,
+                        "$tables_Coverages_RawDataSource_Dataset_InformationRequests_UpdateFrequency_Entity_Id: ID": entity_id,
                     },
                 )
 
@@ -426,8 +437,8 @@ class Migration:
             mutation_class="CreateUpdateLicense",
             mutation_parameters={
                 "slug": "desconhecida",
-                "name": "todo",
-                "url": "todo.com",
+                "name": "desconhecida",
+                "url": "desconhecida.com",
             },
             query_class="allLicense",
             query_parameters={"$slug: String": "desconhecida"},
@@ -460,8 +471,63 @@ class Migration:
         else:
             return None
 
-    def create_columns(self, objs, table_id):
+    def create_temporal_coverage(self, resource, coverage_id):
+        temporal_temporal_coverages = (
+            [None]
+            if resource.get("temporal_coverage") == []
+            or resource.get("temporal_coverage") is None
+            else resource.get("temporal_coverage")
+        )
 
+        for temporal_coverage in temporal_temporal_coverages:
+            if temporal_coverage is not None:
+                resource_to_temporal_coverage = parse_temporal_coverage(
+                    temporal_coverage
+                )
+                resource_to_temporal_coverage["coverage"] = coverage_id
+
+                r, id = self.create_update(
+                    query_class="allDatetimerange",
+                    query_parameters={"$coverage_Id: ID": coverage_id},
+                    mutation_class="CreateUpdateDateTimeRange",
+                    mutation_parameters=resource_to_temporal_coverage,
+                )
+
+    def create_coverage(self, resource, coverage):
+        coverage_type = list(coverage.keys())[0]
+        coverage_value = list(coverage.values())[0]
+        area_slugs = (
+            ["desconhecida"]
+            if resource.get("spatial_coverage") == []
+            or resource.get("spatial_coverage") is None
+            else resource.get("spatial_coverage")
+        )
+
+        if coverage_type == "table":
+            coverage_filter = "table_Id"
+        elif coverage_type == "column":
+            coverage_filter = "table_Columns_Id"
+        elif coverage_type == "rawDataSource":
+            coverage_filter = "table_Columns_ObservationLevels_Entity_UpdateFrequencies_RawDataSources_Id"
+        elif coverage_type == "informationRequest":
+            coverage_filter = "table_Columns_ObservationLevels_Entity_UpdateFrequencies_RawDataSources_Dataset_InformationRequests_Id"
+
+        for area in area_slugs:
+            package_to_coverage = {coverage_type: coverage_value}
+            package_to_coverage["area"] = self.create_area(area=area)
+            r, id = self.create_update(
+                query_class="allCoverage",
+                query_parameters={f"${coverage_filter}: ID": coverage_value},
+                mutation_class="CreateUpdateCoverage",
+                mutation_parameters=package_to_coverage,
+            )
+
+            self.create_temporal_coverage(resource=resource, coverage_id=id)
+
+        return id
+
+    def create_columns(self, resource, table_id):
+        objs = resource.get("columns")
         if objs is None:
             r, id = self.create_update(
                 mutation_class="CreateUpdateColumn",
@@ -479,6 +545,11 @@ class Migration:
                 },
                 query_class="allColumn",
                 query_parameters={"$name: String": "desconhecida"},
+            )
+
+            coverage_id = self.create_coverage(
+                resource=resource,
+                coverage={"column": id},
             )
             ids = [id]
         else:
@@ -504,55 +575,78 @@ class Migration:
                         "observations": column.get("observations"),
                     },
                     query_class="allColumn",
-                    query_parameters={"$name: String": column.get("name")},
+                    query_parameters={
+                        "$name: String": column.get("name"),
+                        "$coverages_Table_Id: ID": table_id,
+                    },
                 )
+
+                coverage_id = self.create_coverage(
+                    resource=resource,
+                    coverage={"column": id},
+                )
+
                 ids.append(id)
 
         return ids
 
-    def create_part_org(self, partner_organization):
+    def create_org(self, org_dict):
 
-        part_org_name = partner_organization.get("organization_id")
-
-        if part_org_name is None:
-            r, part_org_id = self.create_update(
+        if org_dict is None:
+            r, graphql_org_id = self.create_update(
                 query_class="allOrganization",
                 query_parameters={"$slug: String": "desconhecida"},
                 mutation_class="CreateUpdateOrganization",
                 mutation_parameters={
-                    "area": self.create_update(
-                        query_class="allArea",
-                        query_parameters={"$slug: String": "desconhecida"},
-                        mutation_class="CreateUpdateArea",
-                        mutation_parameters={"slug": "desconhecida"},
-                    )[1],
+                    "area": self.create_area(area="desconhecida"),
                     "slug": "desconhecida",
                     "name": "desconhecida",
                     "description": "desconhecida",
                 },
             )
         else:
-            part_org_slug = partner_organization.get("organization_id").replace(
-                "-", "_"
+            org_name = (
+                org_dict.get("title", "desconhecida")
+                if "title" in org_dict
+                else org_dict.get("name", "desconhecida")
             )
+            org_description = org_dict.get("description", "desconhecida")
+
+            org_id = (
+                org_dict.get("name")
+                if "title" in org_dict
+                else org_dict.get("organization_id")
+            )
+            org_slug = "desconhecida" if org_id is None else org_id.replace("-", "_")
+
             package_to_part_org = {
-                "area": self.create_update(
-                    query_class="allArea",
-                    query_parameters={"$slug: String": "desconhecida"},
-                    mutation_class="CreateUpdateArea",
-                    mutation_parameters={"slug": "desconhecida"},
-                )[1],
-                "slug": part_org_slug,
-                "name": partner_organization.get("name"),
-                "description": "",
+                "area": self.create_area("desconhecida"),
+                "slug": org_slug,
+                "name": org_name,
+                "description": org_description,
             }
-            r, part_org_id = self.create_update(
+            r, graphql_org_id = self.create_update(
                 query_class="allOrganization",
-                query_parameters={"$slug: String": part_org_slug},
+                query_parameters={"$slug: String": org_slug},
                 mutation_class="CreateUpdateOrganization",
                 mutation_parameters=package_to_part_org,
             )
-        return part_org_id
+        return graphql_org_id
+
+    def create_area(self, area):
+
+        area = area.replace("-", ".").replace(" ", ".")
+        r, id = self.create_update(
+            query_class="allArea",
+            query_parameters={"$slug: String": area.replace(".", "_")},
+            mutation_class="CreateUpdateArea",
+            mutation_parameters={
+                "slug": area.replace(".", "_"),
+                "name": area,
+                "key": "unknown" if area == "desconhecida" else area,
+            },
+        )
+        return id
 
     def test(self):
         query = """
