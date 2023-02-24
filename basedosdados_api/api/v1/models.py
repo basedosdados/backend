@@ -10,11 +10,19 @@ from basedosdados_api.api.v1.utils import (
     check_kebab_case,
     check_snake_case,
 )
+from basedosdados_api.api.v1.validators import validate_area_key, validate_is_valid_area_key
 
 
 class Area(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
+    name = models.CharField(max_length=255, blank=False, null=False)
     slug = models.SlugField(unique=True)
+    key = models.CharField(
+        max_length=255,
+        null=True,
+        blank=False,
+        validators=[validate_area_key, validate_is_valid_area_key],
+    )
 
     def __str__(self):
         return str(self.slug)
@@ -570,11 +578,10 @@ class ObservationLevel(models.Model):
         return str(self.entity)
 
 
-class TemporalCoverage(models.Model):
+class DateTimeRange(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    slug = models.SlugField(unique=True)
     coverage = models.ForeignKey(
-        "Coverage", on_delete=models.CASCADE, related_name="temporal_coverages"
+        "Coverage", on_delete=models.CASCADE, related_name="datetime_ranges"
     )
     start_year = models.IntegerField(blank=True, null=True)
     start_semester = models.IntegerField(blank=True, null=True)
@@ -672,7 +679,7 @@ class TemporalCoverage(models.Model):
         return super().clean()
 
     class Meta:
-        db_table = "temporal_coverage"
-        verbose_name = "Temporal Coverage"
-        verbose_name_plural = "Temporal Coverages"
-        ordering = ["slug"]
+        db_table = "datetime_range"
+        verbose_name = "DateTime Range"
+        verbose_name_plural = "DateTime Ranges"
+        ordering = ["id"]

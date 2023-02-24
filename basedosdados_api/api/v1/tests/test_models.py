@@ -1,21 +1,24 @@
+# -*- coding: utf-8 -*-
 import pytest
 from django.core.exceptions import ValidationError
-from django.core.validators import RegexValidator
+
+# from django.core.validators import RegexValidator
 
 from basedosdados_api.api.v1.models import (
     Dataset,
     Area,
     Table,
-    Column,
+    # Column,
     RawDataSource,
-    InformationRequest,
+    InformationRequest, DateTimeRange,
 )
 
 
 @pytest.mark.django_db
-def test_invalid_area_brasil():
+def test_invalid_area_slug_brasil():
     """Test for Area with dot names, which are invalid in slug."""
     area = Area(
+        name="Brasil",
         slug="sa.br",
     )
     with pytest.raises(ValidationError):
@@ -23,10 +26,81 @@ def test_invalid_area_brasil():
 
 
 @pytest.mark.django_db
+def test_invalid_area_key():
+    """Test for Area with dot names, which are invalid in slug."""
+    area = Area(
+        name="Brasil",
+        key="SA.br",
+    )
+    with pytest.raises(ValidationError):
+        area.full_clean()
+
+
+@pytest.mark.django_db
+def test_area_key_not_in_bd_dict():
+    """Test for Area with dot names, which are invalid in slug."""
+    area = Area(
+        name="Brasil",
+        name_en="Brazil",
+        slug="brasil",
+        key="na.br",
+    )
+    with pytest.raises(ValidationError):
+        area.full_clean()
+
+
+@pytest.mark.django_db
+def test_valid_area_key():
+    """Test for Area with dot names, which are invalid in slug."""
+    area = Area(
+        name="Brasil",
+        slug="brasil",
+        key="sa.br",
+    )
+    area.full_clean()
+    area.save()
+    assert Area.objects.exists()
+
+
+@pytest.mark.django_db
 def test_invalid_organization(organizacao_bd):
     """Test for Organization."""
     with pytest.raises(ValidationError):
         organizacao_bd.full_clean()
+
+
+@pytest.mark.django_db
+def test_date_time_range(coverage_tabela):
+    """Test for DateTimeRange."""
+    date_time_range = DateTimeRange(
+        coverage=coverage_tabela,
+        start_year=2019,
+        start_month=1,
+        start_day=1,
+        end_year=2022,
+        end_month=6,
+        interval=1
+    )
+    date_time_range.full_clean()
+    date_time_range.save()
+    assert DateTimeRange.objects.exists()
+
+
+@pytest.mark.django_db
+def test_invalid_date_time_range(coverage_tabela):
+    """Test for DateTimeRange."""
+    date_time_range = DateTimeRange(
+        coverage=coverage_tabela,
+        start_year=2019,
+        start_month=1,
+        start_quarter=5,
+        start_day=1,
+        end_year=2022,
+        end_month=6,
+        interval=0
+    )
+    with pytest.raises(ValidationError):
+        date_time_range.clean()
 
 
 @pytest.mark.django_db
@@ -65,11 +139,7 @@ def test_columns_create(
 
 
 @pytest.mark.django_db
-def test_create_rawdatasource(
-    raw_data_source,
-    entity_escola,
-    entity_anual
-):
+def test_create_rawdatasource(raw_data_source, entity_escola, entity_anual):
     """Test for RawDataSource."""
     raw_data_source.save()
     raw_data_source.entities.add(entity_escola, entity_anual)
@@ -78,11 +148,7 @@ def test_create_rawdatasource(
 
 
 @pytest.mark.django_db
-def test_create_information_request(
-    pedido_informacao,
-    entity_escola,
-    entity_anual
-):
+def test_create_information_request(pedido_informacao, entity_escola, entity_anual):
     """Test for InformationRequest."""
     pedido_informacao.save()
     pedido_informacao.entities.add(entity_escola, entity_anual)

@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "basedosdados_api.account",
     "basedosdados_api.api.v1",
+    "basedosdados_api.schemas",
 ]
 
 MIDDLEWARE = [
