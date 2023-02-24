@@ -1,4 +1,6 @@
 ### TODO fazer coverage para os trez tipos de recurso utilizando parse_temporal_coverage
+### TODO filtrar pelo id do modelo pai
+### TODO usar dataframe para controle dos packages, coluna migrate 'e alterada para 1 quando o package 'e migrado
 
 import requests
 import json
@@ -41,13 +43,18 @@ def get_bd_packages():
     return requests.get(api_url, verify=False).json()["result"]["results"]
 
 
-def get_package_model():
-    url = "https://basedosdados.org/api/3/action/package_show?name_or_id=br-sgp-informacao"
+def get_package_model(id):
+    url = f"https://basedosdados.org/api/3/action/package_show?name_or_id={id}"
+
     return requests.get(url, verify=False).json()["result"]
 
 
 from datetime import datetime
 import re
+
+
+def pprint(msg):
+    print(">>>>> ", msg)
 
 
 def parse_temporal_coverage(temporal_coverage):
@@ -118,7 +125,6 @@ class Migration:
         ).json()
 
         if "data" in r:
-
             if r["data"][query_class]["edges"] == []:
                 id = None
                 print(f"get: not found {query_class}", dict(zip(keys, values)))
@@ -221,14 +227,20 @@ class Migration:
     def create_tags(self, objs):
         ids = []
         for obj in objs:
+            tag_slug = obj.get("name")
+            tag_name = obj.get("display_name")
             r, id = self.create_update(
                 mutation_class="CreateUpdateTag",
                 mutation_parameters={
-                    "slug": obj.get("name"),
-                    "name": obj.get("display_name"),
+                    "slug": "desconhecido"
+                    if tag_slug is None
+                    else tag_slug.replace(" ", "_"),
+                    "name": "desconhecido"
+                    if tag_name is None
+                    else tag_name.replace(" ", "_"),
                 },
                 query_class="allTag",
-                query_parameters={"$slug: String": obj.get("name")},
+                query_parameters={"$slug: String": tag_slug},
             )
             ids.append(id)
 
@@ -239,7 +251,7 @@ class Migration:
             mutation_class="CreateUpdateAvailability",
             mutation_parameters={
                 "slug": obj.get("availability"),
-                "name": obj.get("availability").capitalize(),
+                "name": obj.get("availability"),
             },
             query_class="allAvailability",
             query_parameters={"$slug: String": obj.get("availability")},
@@ -248,7 +260,7 @@ class Migration:
         return id
 
     def create_entity(self, obj=None):
-        if obj is None:
+        if (obj is None) or (obj.get("entity") is None):
             r, id = self.create_update(
                 mutation_class="CreateUpdateEntity",
                 mutation_parameters={
@@ -276,21 +288,21 @@ class Migration:
             "second": 1,
             "minute": 1,
             "hour": 1,
-            "day ": 1,
+            "day": 1,
             "week": 1,
-            "month ": 1,
-            "quarter ": 1,
+            "month": 1,
+            "quarter": 1,
             "semester": 1,
             "one_year": 1,
-            "two_years ": 2,
-            "three_years ": 3,
+            "two_years": 2,
+            "three_years": 3,
             "four_years": 4,
             "five_years": 5,
-            "ten_years ": 10,
+            "ten_years": 10,
             "unique": 0,
-            "recurring ": 0,
-            "uncertain ": 0,
-            "other ": 0,
+            "recurring": 0,
+            "uncertain": 0,
+            "other": 0,
             None: 0,
         }
 
@@ -323,7 +335,10 @@ class Migration:
             )
         else:
             for ob in observation_levels:
-                if ob["entity"] in update_frequency_entity_dict:
+                if (
+                    ob.get("entity") in update_frequency_entity_dict
+                    and ob.get("entity") is not None
+                ):
                     entity_id = self.create_entity(obj=ob)
                     r, id = self.create_update(
                         mutation_class="CreateUpdateUpdateFrequency",
@@ -336,6 +351,28 @@ class Migration:
                             "$number: Int": update_frequency_dict[update_frequency]
                         },
                     )
+                elif ob.get("entity") is None:
+                    r, id = self.create_update(
+                        mutation_class="CreateUpdateUpdateFrequency",
+                        mutation_parameters={
+                            "entity": self.create_entity(obj=None),
+                            "number": update_frequency_dict[update_frequency],
+                        },
+                        query_class="allUpdatefrequency",
+                        query_parameters={
+                            "$number: Int": update_frequency_dict[update_frequency]
+                        },
+                    )
+                else:
+                    r, id = self.create_update(
+                        mutation_class="CreateUpdateUpdateFrequency",
+                        mutation_parameters={
+                            "entity": self.create_entity(obj=None),
+                            "number": 0,
+                        },
+                        query_class="allUpdatefrequency",
+                        query_parameters={"$number: Int": 0},
+                    )
 
         return id
 
@@ -345,11 +382,11 @@ class Migration:
             r, id = self.create_update(
                 mutation_class="CreateUpdateObservationLevel",
                 mutation_parameters={
-                    "entity": self.create_entity(obj=None)[1],
+                    "entity": self.create_entity(obj=None),
                 },
                 query_class="allObservationlevel",
                 query_parameters={
-                    "$id: ID": self.create_entity(obj=None)[1],
+                    "$id: ID": self.create_entity(obj=None),
                 },
             )
         else:
@@ -409,31 +446,97 @@ class Migration:
             return None
 
     def create_columns(self, objs, table_id):
-        ids = []
-        for column in objs:
+
+        if objs is None:
             r, id = self.create_update(
                 mutation_class="CreateUpdateColumn",
                 mutation_parameters={
                     "table": table_id,
-                    "bigqueryType": self.create_bq_type(column.get("bigquery_type")),
-                    "directoryPrimaryKey": self.create_directory_columns(column),
-                    "name": column.get("name"),
-                    "isInStaging": column.get("is_in_staging"),
-                    "isPartition": column.get("is_partition"),
-                    "description": column.get("description"),
-                    "coveredByDictionary": True
-                    if column.get("covered_by_dictionary") == "yes"
-                    else False,
-                    "measurementUnit": column.get("measurement_unit"),
-                    "containsSensitiveData": column.get("contains_sensitive_data"),
-                    "observations": column.get("observations"),
+                    "bigqueryType": self.create_bq_type("desconhecida"),
+                    "name": "desconhecida",
+                    "isInStaging": "desconhecida",
+                    "isPartition": "desconhecida",
+                    "description": "desconhecida",
+                    "coveredByDictionary": False,
+                    "measurementUnit": "desconhecida",
+                    "containsSensitiveData": False,
+                    "observations": "desconhecida",
                 },
                 query_class="allColumn",
-                query_parameters={"$name: String": column.get("name")},
+                query_parameters={"$name: String": "desconhecida"},
             )
-            ids.append(id)
+            ids = [id]
+        else:
+            ids = []
+            for column in objs:
+                r, id = self.create_update(
+                    mutation_class="CreateUpdateColumn",
+                    mutation_parameters={
+                        "table": table_id,
+                        "bigqueryType": self.create_bq_type(
+                            column.get("bigquery_type")
+                        ),
+                        "directoryPrimaryKey": self.create_directory_columns(column),
+                        "name": column.get("name"),
+                        "isInStaging": column.get("is_in_staging"),
+                        "isPartition": column.get("is_partition"),
+                        "description": column.get("description"),
+                        "coveredByDictionary": True
+                        if column.get("covered_by_dictionary") == "yes"
+                        else False,
+                        "measurementUnit": column.get("measurement_unit"),
+                        "containsSensitiveData": column.get("contains_sensitive_data"),
+                        "observations": column.get("observations"),
+                    },
+                    query_class="allColumn",
+                    query_parameters={"$name: String": column.get("name")},
+                )
+                ids.append(id)
 
         return ids
+
+    def create_part_org(self, part_org_name):
+        if part_org_name is None:
+            r, part_org_id = self.create_update(
+                query_class="allOrganization",
+                query_parameters={"$slug: String": "desconhecida"},
+                mutation_class="CreateUpdateOrganization",
+                mutation_parameters={
+                    "area": self.create_update(
+                        query_class="allArea",
+                        query_parameters={"$slug: String": "desconhecida"},
+                        mutation_class="CreateUpdateArea",
+                        mutation_parameters={"slug": "desconhecida"},
+                    )[1],
+                    "slug": "desconhecida",
+                    "name": "desconhecida",
+                    "description": "desconhecida",
+                },
+            )
+        else:
+            part_org_slug = (
+                resource["partner_organization"]
+                .get("organization_id")
+                .replace("-", "_")
+            )
+            package_to_part_org = {
+                "area": self.create_update(
+                    query_class="allArea",
+                    query_parameters={"$slug: String": "desconhecida"},
+                    mutation_class="CreateUpdateArea",
+                    mutation_parameters={"slug": "desconhecida"},
+                )[1],
+                "slug": part_org_slug,
+                "name": resource["partner_organization"].get("name"),
+                "description": "",
+            }
+            r, part_org_id = self.create_update(
+                query_class="allOrganization",
+                query_parameters={"$slug: String": part_org_slug},
+                mutation_class="CreateUpdateOrganization",
+                mutation_parameters=package_to_part_org,
+            )
+        return part_org_id
 
     def test(self):
         query = """
@@ -458,14 +561,17 @@ class Migration:
 
 if __name__ == "__main__":
     TOKEN = get_token(USERNAME, PASSWORD)
-    # packages = get_bd_packages()
-    package = get_package_model()
+    # id = 'br-sgp-informacao'
+    # id = "br-me-clima-organizacional"
+    # packages = [get_package_model(id=id)]
+
+    packages = get_bd_packages()
+
     m = Migration(TOKEN)
     entity_id = m.create_entity()
     update_frequency_id = m.create_update_frequency()
     # r = m.delete(classe="Dataset", id="77239376-6662-4d64-8950-2f57f1225e53")
-
-    for p in [package]:
+    for p in packages:
         # create tags
         tags_ids = m.create_tags(objs=p.get("tags"))
         themes_ids = m.create_themes(objs=p.get("groups"))
@@ -496,7 +602,7 @@ if __name__ == "__main__":
         print("\nCreate Dataset")
         package_to_dataset = {
             "organization": org_id,
-            "slug": p["name"].replace("-", "_"),
+            "slug": p["name"].replace("-", "_")[:49],
             "name": p["title"],
             "description": p["notes"],
             "tags": tags_ids,
@@ -514,29 +620,7 @@ if __name__ == "__main__":
 
             if resource_type == "bdm_table":
                 print("\nCreate Table")
-                package_to_part_org = {
-                    "area": m.create_update(
-                        query_class="allArea",
-                        query_parameters={"$slug: String": "desconhecida"},
-                        mutation_class="CreateUpdateArea",
-                        mutation_parameters={"slug": "desconhecida"},
-                    )[1],
-                    "slug": resource["partner_organization"]
-                    .get("organization_id")
-                    .replace("-", "_"),
-                    "name": resource["partner_organization"].get("name"),
-                    "description": "",
-                }
-                r, part_org_id = m.create_update(
-                    query_class="allOrganization",
-                    query_parameters={
-                        "$slug: String": resource["partner_organization"]
-                        .get("organization_id")
-                        .replace("-", "_")
-                    },
-                    mutation_class="CreateUpdateOrganization",
-                    mutation_parameters=package_to_part_org,
-                )
+
                 update_frequency_id = m.create_update_frequency(
                     observation_levels=resource["observation_level"],
                     update_frequency=resource["update_frequency"],
@@ -544,7 +628,9 @@ if __name__ == "__main__":
                 resource_to_table = {
                     "dataset": dataset_id,
                     "license": m.create_license(),
-                    "partnerOrganization": part_org_id,
+                    "partnerOrganization": m.create_part_org(
+                        resource["partner_organization"].get("organization_id")
+                    ),
                     "updateFrequency": update_frequency_id,
                     "slug": resource["table_id"],
                     "name": resource["name"],
@@ -565,7 +651,7 @@ if __name__ == "__main__":
                     "uncompressedFileSize": resource["uncompressed_file_size"],
                     "compressedFileSize": resource["compressed_file_size"],
                     "numberRows": 0,
-                    "numberColumns": len(p["resources"][0]["columns"]),
+                    "numberColumns": len(resource["columns"]),
                     "observationLevel": m.create_observation_level(
                         observation_levels=resource["observation_level"]
                     ),
@@ -583,7 +669,7 @@ if __name__ == "__main__":
                 if "columns" in resource:
                     print("\nCreate Column")
                     columns_ids = m.create_columns(
-                        objs=resource["columns"], table_id=table_id
+                        objs=resource.get("columns"), table_id=table_id
                     )
 
                     resource_to_cloud_table = {
@@ -664,7 +750,9 @@ if __name__ == "__main__":
                     "startedAt": datetime.strptime(
                         resource["opening_date"], "%d/%m/%Y"
                     ).strftime("%Y-%m-%d")
-                    + "T00:00:00",
+                    + "T00:00:00"
+                    if "/" in resource["opening_date"]
+                    else resource["opening_date"] + "T00:00:00",
                     "dataUrl": resource["data_url"],
                     "observations": resource["department"],
                     "startedBy": 1,
@@ -677,3 +765,5 @@ if __name__ == "__main__":
                     query_parameters={"$url: String": resource["url"]},
                 )
                 print(r)
+
+        # df.loc[0,'migrate'] = 1
