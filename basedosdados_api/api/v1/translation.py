@@ -15,7 +15,7 @@ from .models import (
     Status,
     Table,
     Tag,
-    Theme,
+    Theme, Area,
 )
 
 
@@ -23,6 +23,12 @@ class AnalysisTypeTranslationOptions(TranslationOptions):
     fields = (
         "name",
         "tag",
+    )
+
+
+class AreaTranslationOptions(TranslationOptions):
+    fields = (
+        "name",
     )
 
 
@@ -85,6 +91,7 @@ class ThemeTranslationOptions(TranslationOptions):
 
 
 translator.register(AnalysisType, AnalysisTypeTranslationOptions)
+translator.register(Area, AreaTranslationOptions)
 translator.register(Availability, AvailabilityTranslationOptions)
 translator.register(Column, ColumnTranslationOptions)
 translator.register(Dataset, DatasetTranslationOptions)

@@ -10,7 +10,7 @@ from basedosdados_api.api.v1.models import (
     Table,
     # Column,
     RawDataSource,
-    InformationRequest,
+    InformationRequest, DateTimeRange,
 )
 
 
@@ -18,6 +18,7 @@ from basedosdados_api.api.v1.models import (
 def test_invalid_area_slug_brasil():
     """Test for Area with dot names, which are invalid in slug."""
     area = Area(
+        name="Brasil",
         slug="sa.br",
     )
     with pytest.raises(ValidationError):
@@ -28,6 +29,7 @@ def test_invalid_area_slug_brasil():
 def test_invalid_area_key():
     """Test for Area with dot names, which are invalid in slug."""
     area = Area(
+        name="Brasil",
         key="SA.br",
     )
     with pytest.raises(ValidationError):
@@ -38,6 +40,8 @@ def test_invalid_area_key():
 def test_area_key_not_in_bd_dict():
     """Test for Area with dot names, which are invalid in slug."""
     area = Area(
+        name="Brasil",
+        name_en="Brazil",
         slug="brasil",
         key="na.br",
     )
@@ -49,6 +53,7 @@ def test_area_key_not_in_bd_dict():
 def test_valid_area_key():
     """Test for Area with dot names, which are invalid in slug."""
     area = Area(
+        name="Brasil",
         slug="brasil",
         key="sa.br",
     )
@@ -62,6 +67,40 @@ def test_invalid_organization(organizacao_bd):
     """Test for Organization."""
     with pytest.raises(ValidationError):
         organizacao_bd.full_clean()
+
+
+@pytest.mark.django_db
+def test_date_time_range(coverage_tabela):
+    """Test for DateTimeRange."""
+    date_time_range = DateTimeRange(
+        coverage=coverage_tabela,
+        start_year=2019,
+        start_month=1,
+        start_day=1,
+        end_year=2022,
+        end_month=6,
+        interval=1
+    )
+    date_time_range.full_clean()
+    date_time_range.save()
+    assert DateTimeRange.objects.exists()
+
+
+@pytest.mark.django_db
+def test_invalid_date_time_range(coverage_tabela):
+    """Test for DateTimeRange."""
+    date_time_range = DateTimeRange(
+        coverage=coverage_tabela,
+        start_year=2019,
+        start_month=1,
+        start_quarter=5,
+        start_day=1,
+        end_year=2022,
+        end_month=6,
+        interval=0
+    )
+    with pytest.raises(ValidationError):
+        date_time_range.clean()
 
 
 @pytest.mark.django_db

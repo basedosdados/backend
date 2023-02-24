@@ -15,6 +15,7 @@ from basedosdados_api.api.v1.validators import validate_area_key, validate_is_va
 
 class Area(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
+    name = models.CharField(max_length=255, blank=False, null=False)
     slug = models.SlugField(unique=True)
     key = models.CharField(
         max_length=255,
