@@ -158,6 +158,11 @@ def generate_filter_fields(model: models.Model):
         used_models.append(model)
         filter_fields = {}
         model_fields = model._meta.get_fields()
+        foreign_models = [
+            f.related_model
+            for f in model_fields
+            if isinstance(f, foreign_key_field_types)
+        ]
         for field in model_fields:
             if (
                 isinstance(field, exempted_field_types)
@@ -168,8 +173,8 @@ def generate_filter_fields(model: models.Model):
                 related_model: models.Model = field.related_model
                 if related_model in used_models:
                     continue
-                related_model_filter_fields, related_used_models = _get_filter_fields(
-                    related_model, used_models=used_models
+                related_model_filter_fields, _ = _get_filter_fields(
+                    related_model, used_models=used_models + foreign_models
                 )
                 for (
                     related_model_field_name,
