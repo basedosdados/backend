@@ -7,6 +7,7 @@ from copy import deepcopy
 from typing import Iterable, Optional
 
 from django.apps import apps
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.forms.fields import FileField
@@ -158,6 +159,11 @@ def generate_filter_fields(model: models.Model):
         used_models.append(model)
         filter_fields = {}
         model_fields = model._meta.get_fields()
+        foreign_models = [
+            f.related_model
+            for f in model_fields
+            if isinstance(f, foreign_key_field_types)
+        ]
         for field in model_fields:
             if (
                 isinstance(field, exempted_field_types)
@@ -168,8 +174,8 @@ def generate_filter_fields(model: models.Model):
                 related_model: models.Model = field.related_model
                 if related_model in used_models:
                     continue
-                related_model_filter_fields, related_used_models = _get_filter_fields(
-                    related_model, used_models=used_models
+                related_model_filter_fields, _ = _get_filter_fields(
+                    related_model, used_models=used_models + foreign_models
                 )
                 for (
                     related_model_field_name,
@@ -314,8 +320,22 @@ def build_mutation_schema(application_name: str, add_jwt_mutations: bool = True)
 
 
 def build_schema(application_name: str, add_jwt_mutations: bool = True):
+    schema_cache_key = f"graphql_schema_{application_name}"
+    schema_cache_dict = settings.GRAPHENE_SCHEMAS_CACHE
+    # Try to fetch schema from cache
+    try:
+        if schema_cache_key in schema_cache_dict:
+            return schema_cache_dict[schema_cache_key]
+    except Exception:
+        pass
     query = build_query_schema(application_name)
     mutation = build_mutation_schema(
         application_name, add_jwt_mutations=add_jwt_mutations
     )
-    return Schema(query=query, mutation=mutation)
+    schema = Schema(query=query, mutation=mutation)
+    # Try to cache schema
+    try:
+        schema_cache_dict[schema_cache_key] = schema
+    except Exception:
+        pass
+    return schema
