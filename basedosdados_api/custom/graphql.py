@@ -7,6 +7,7 @@ from copy import deepcopy
 from typing import Iterable, Optional
 
 from django.apps import apps
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.forms.fields import FileField
@@ -319,8 +320,22 @@ def build_mutation_schema(application_name: str, add_jwt_mutations: bool = True)
 
 
 def build_schema(application_name: str, add_jwt_mutations: bool = True):
+    schema_cache_key = f"graphql_schema_{application_name}"
+    schema_cache_dict = settings.GRAPHENE_SCHEMAS_CACHE
+    # Try to fetch schema from cache
+    try:
+        if schema_cache_key in schema_cache_dict:
+            return schema_cache_dict[schema_cache_key]
+    except Exception:
+        pass
     query = build_query_schema(application_name)
     mutation = build_mutation_schema(
         application_name, add_jwt_mutations=add_jwt_mutations
     )
-    return Schema(query=query, mutation=mutation)
+    schema = Schema(query=query, mutation=mutation)
+    # Try to cache schema
+    try:
+        schema_cache_dict[schema_cache_key] = schema
+    except Exception:
+        pass
+    return schema
