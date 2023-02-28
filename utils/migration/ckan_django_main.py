@@ -109,6 +109,7 @@ if __name__ == "__main__":
                     query_parameters={
                         "$slug: String": resource["table_id"],
                         "$name: String": resource["name"],
+                        "$dataset_Id: ID": dataset_id,
                     },
                 )
 
@@ -132,6 +133,7 @@ if __name__ == "__main__":
                         query_parameters={
                             "$gcpDatasetId: String": resource["dataset_id"],
                             "$gcpTableId: String": resource["table_id"],
+                            "$table_Id: ID": table_id,
                         },
                     )
 
@@ -164,7 +166,10 @@ if __name__ == "__main__":
                     mutation_class="CreateUpdateRawDataSource",
                     mutation_parameters=resource_to_raw_data_source,
                     query_class="allRawdatasource",
-                    query_parameters={"$url: String": resource["url"]},
+                    query_parameters={
+                        "$url: String": resource["url"],
+                        "$dataset_Id: ID": dataset_id,
+                    },
                 )
                 m.create_coverage(
                     resource=resource, coverage={"rawDataSource": raw_source_id}
@@ -177,7 +182,9 @@ if __name__ == "__main__":
                     "dataset": dataset_id,
                     "status": m.create_update(
                         query_class="allStatus",
-                        query_parameters={"$slug: String": resource["state"]},
+                        query_parameters={
+                            "$slug: String": resource["state"],
+                        },
                         mutation_class="CreateUpdateStatus",
                         mutation_parameters={
                             "slug": resource["state"],
@@ -203,7 +210,10 @@ if __name__ == "__main__":
                     mutation_class="CreateUpdateInformationRequest",
                     mutation_parameters=resource_to_information_request,
                     query_class="allInformationrequest",
-                    query_parameters={"$url: String": resource["url"]},
+                    query_parameters={
+                        "$url: String": resource["url"],
+                        "$dataset_Id: ID": dataset_id,
+                    },
                 )
                 m.create_coverage(
                     resource=resource, coverage={"informationRequest": info_id}

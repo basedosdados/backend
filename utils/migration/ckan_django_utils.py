@@ -347,15 +347,18 @@ class Migration:
         }
 
         if observation_levels is None:
+            entity_id = self.create_entity(obj=None)
+
             r, id = self.create_update(
                 mutation_class="CreateUpdateUpdateFrequency",
                 mutation_parameters={
-                    "entity": self.create_entity(obj=None),
+                    "entity": entity_id,
                     "number": update_frequency_dict[update_frequency],
                 },
                 query_class="allUpdatefrequency",
                 query_parameters={
-                    "$number: Int": update_frequency_dict[update_frequency]
+                    "$number: Int": update_frequency_dict[update_frequency],
+                    "$entity_Id: ID": entity_id,
                 },
             )
         else:
@@ -373,30 +376,39 @@ class Migration:
                         },
                         query_class="allUpdatefrequency",
                         query_parameters={
-                            "$number: Int": update_frequency_dict[update_frequency]
+                            "$number: Int": update_frequency_dict[update_frequency],
+                            "$entity_Id: ID": entity_id,
                         },
                     )
                 elif ob.get("entity") is None:
+
+                    entity_id = self.create_entity(obj=None)
+
                     r, id = self.create_update(
                         mutation_class="CreateUpdateUpdateFrequency",
                         mutation_parameters={
-                            "entity": self.create_entity(obj=None),
+                            "entity": entity_id,
                             "number": update_frequency_dict[update_frequency],
                         },
                         query_class="allUpdatefrequency",
                         query_parameters={
-                            "$number: Int": update_frequency_dict[update_frequency]
+                            "$number: Int": update_frequency_dict[update_frequency],
+                            "$entity_Id: ID": entity_id,
                         },
                     )
                 else:
+                    entity_id = self.create_entity(obj=None)
                     r, id = self.create_update(
                         mutation_class="CreateUpdateUpdateFrequency",
                         mutation_parameters={
-                            "entity": self.create_entity(obj=None),
+                            "entity": entity_id,
                             "number": 0,
                         },
                         query_class="allUpdatefrequency",
-                        query_parameters={"$number: Int": 0},
+                        query_parameters={
+                            "$number: Int": 0,
+                            "$entity_Id: ID": entity_id,
+                        },
                     )
 
         return id
@@ -404,16 +416,15 @@ class Migration:
     def create_observation_level(self, observation_levels=None):
 
         if observation_levels is None:
+            entity_id = self.create_entity(obj=None)
             r, id = self.create_update(
                 mutation_class="CreateUpdateObservationLevel",
                 mutation_parameters={
-                    "entity": self.create_entity(obj=None),
+                    "entity": entity_id,
                 },
                 query_class="allObservationlevel",
                 query_parameters={
-                    "$tables_Coverages_RawDataSource_Dataset_InformationRequests_UpdateFrequency_Entity_Id: ID": self.create_entity(
-                        obj=None
-                    ),
+                    "$entity_Id: ID": entity_id,
                 },
             )
         else:
@@ -426,10 +437,9 @@ class Migration:
                     },
                     query_class="allObservationlevel",
                     query_parameters={
-                        "$tables_Coverages_RawDataSource_Dataset_InformationRequests_UpdateFrequency_Entity_Id: ID": entity_id,
+                        "$entity_Id: ID": entity_id,
                     },
                 )
-
         return id
 
     def create_license(self):
@@ -458,15 +468,15 @@ class Migration:
 
         return id
 
-    def create_directory_columns(self, column):
+    def create_directory_columns(self, column, table_id):
         if column.get("covered_by_dictionary") == "yes":
             r, id = self.get_id(
                 query_class="allColumn",
                 query_parameters={
                     "$name: String": column.get("directory_column").get("column_name"),
+                    "$table_Id: ID": table_id,
                 },
             )
-
             return id
         else:
             return None
@@ -506,11 +516,11 @@ class Migration:
         if coverage_type == "table":
             coverage_filter = "table_Id"
         elif coverage_type == "column":
-            coverage_filter = "table_Columns_Id"
+            coverage_filter = "column_Id"
         elif coverage_type == "rawDataSource":
-            coverage_filter = "table_Columns_ObservationLevels_Entity_UpdateFrequencies_RawDataSources_Id"
+            coverage_filter = "rawDataSource_Id"
         elif coverage_type == "informationRequest":
-            coverage_filter = "table_Columns_ObservationLevels_Entity_UpdateFrequencies_RawDataSources_Dataset_InformationRequests_Id"
+            coverage_filter = "informationRequest_Id"
 
         for area in area_slugs:
             package_to_coverage = {coverage_type: coverage_value}
@@ -544,7 +554,10 @@ class Migration:
                     "observations": "desconhecida",
                 },
                 query_class="allColumn",
-                query_parameters={"$name: String": "desconhecida"},
+                query_parameters={
+                    "$name: String": "desconhecida",
+                    "$table_Id: ID": table_id,
+                },
             )
 
             coverage_id = self.create_coverage(
@@ -562,7 +575,9 @@ class Migration:
                         "bigqueryType": self.create_bq_type(
                             column.get("bigquery_type")
                         ),
-                        "directoryPrimaryKey": self.create_directory_columns(column),
+                        "directoryPrimaryKey": self.create_directory_columns(
+                            column, table_id
+                        ),
                         "name": column.get("name"),
                         "isInStaging": column.get("is_in_staging"),
                         "isPartition": column.get("is_partition"),
@@ -577,7 +592,7 @@ class Migration:
                     query_class="allColumn",
                     query_parameters={
                         "$name: String": column.get("name"),
-                        "$coverages_Table_Id: ID": table_id,
+                        "$table_Id: ID": table_id,
                     },
                 )
 
