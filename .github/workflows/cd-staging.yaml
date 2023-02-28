@@ -141,10 +141,10 @@ jobs:
             replicas: 1
             resources:
               limits:
-                cpu: 500m
-                memory: 512Mi
+                cpu: 1Gi
+                memory: 1Gi
               requests:
-                cpu: 250m
+                cpu: 500m
                 memory: 512Mi
             env: []
             envFrom:
