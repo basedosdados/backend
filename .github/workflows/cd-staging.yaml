@@ -141,11 +141,11 @@ jobs:
             replicas: 1
             resources:
               limits:
-                cpu: 1Gi
-                memory: 1Gi
+                cpu: 2000m
+                memory: 2048Mi
               requests:
-                cpu: 500m
-                memory: 512Mi
+                cpu: 1000m
+                memory: 1024Mi
             env: []
             envFrom:
               - secretRef:
