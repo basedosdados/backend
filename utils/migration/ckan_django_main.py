@@ -14,21 +14,25 @@ from ckan_django_utils import (
 from pathlib import Path
 import pandas as pd
 
-j = json.load(open("./credentials.json"))
-USERNAME = j["username"]
-PASSWORD = j["password"]
+
+def get_credentials(mode):
+    j = json.load(open("./credentials.json"))
+    return j[mode]["username"], j[mode]["password"], j[mode]["url"]
+
+
+USERNAME, PASSWORD, URL = get_credentials("local")
 
 migration_control = 1
 
 if __name__ == "__main__":
-    TOKEN = get_token(USERNAME, PASSWORD)
+    TOKEN = get_token(URL, USERNAME, PASSWORD)
+    m = Migration(url=URL, token=TOKEN)
+
     id = "br-sgp-informacao"
     # id = "br-me-clima-organizacional"
     df = get_package_model(name_or_id=id)
-
     # df = get_bd_packages()
 
-    m = Migration(TOKEN)
     entity_id = m.create_entity()
     update_frequency_id = m.create_update_frequency()
     # r = m.delete(classe="Dataset", id="77239376-6662-4d64-8950-2f57f1225e53")

@@ -12,10 +12,9 @@ from pathlib import Path
 import pandas as pd
 
 
-def get_token(username, password):
+def get_token(url, username, password):
     r = requests.post(
-        "http://localhost:8080/api/v1/graphql",
-        # "https://staging.backend.dados.rio/api/v1/graphql",
+        url,
         headers={"Content-Type": "application/json"},
         json={
             "query": """
@@ -111,9 +110,8 @@ def parse_temporal_coverage(temporal_coverage):
 
 
 class Migration:
-    def __init__(self, token):
-        self.base_url = "http://localhost:8080/api/v1/graphql"
-        # "https://staging.backend.dados.rio/api/v1/graphql"
+    def __init__(self, url, token):
+        self.base_url = url
         self.header = {
             "Content-Type": "application/json",
             "Authorization": f"Bearer {token}",
