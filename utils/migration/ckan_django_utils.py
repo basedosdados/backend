@@ -49,7 +49,7 @@ def request_bd_package(file_path):
 def get_bd_packages():
     path = Path("./utils/migration/data")
     path.mkdir(parents=True, exist_ok=True)
-    file_path = path / "packages.json"
+    file_path = path / "packages_2.json"
     file_path_migrated = path / "packages_migrated.csv"
 
     if not file_path.exists():
@@ -191,12 +191,13 @@ class Migration:
                     "create: error\n", json.dumps(r, indent=4, ensure_ascii=False), "\n"
                 )
                 id = None
+                raise Exception("create: Error")
             else:
                 id = r["data"][mutation_class][_classe]["id"]
                 print(f"create: created {id}")
                 id = id.split(":")[1]
 
-            return r, id
+                return r, id
         else:
             print("\n", "create: query\n", query, "\n")
             print(
@@ -631,6 +632,8 @@ class Migration:
                 else org_dict.get("organization_id")
             )
             org_slug = "desconhecida" if org_id is None else org_id.replace("-", "_")
+
+            org_name = org_slug if org_name is None else org_name
 
             package_to_part_org = {
                 "area": self.create_area("desconhecida"),

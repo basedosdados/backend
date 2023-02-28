@@ -20,18 +20,17 @@ def get_credentials(mode):
     return j[mode]["username"], j[mode]["password"], j[mode]["url"]
 
 
-USERNAME, PASSWORD, URL = get_credentials("local")
-
-migration_control = 1
+migration_control = 0
 
 if __name__ == "__main__":
+    USERNAME, PASSWORD, URL = get_credentials("local")
     TOKEN = get_token(URL, USERNAME, PASSWORD)
     m = Migration(url=URL, token=TOKEN)
 
-    id = "br-sgp-informacao"
+    # id = "br-sgp-informacao"
     # id = "br-me-clima-organizacional"
-    df = get_package_model(name_or_id=id)
-    # df = get_bd_packages()
+    # df = get_package_model(name_or_id=id)
+    df = get_bd_packages()
 
     entity_id = m.create_entity()
     update_frequency_id = m.create_update_frequency()
@@ -116,6 +115,20 @@ if __name__ == "__main__":
                         "$dataset_Id: ID": dataset_id,
                     },
                 )
+
+                # if table_id is None:
+                #     r["data"]['CreateUpdateTable']['errors'][0]['message']=="Table com este Slug já existe."
+                #     resource_to_table['slug'] =
+                #     r, table_id = m.create_update(
+                #         mutation_class="CreateUpdateTable",
+                #         mutation_parameters=resource_to_table,
+                #         query_class="allTable",
+                #         query_parameters={
+                #             "$slug: String": resource["table_id"],
+                #             "$name: String": resource["name"],
+                #             "$dataset_Id: ID": dataset_id,
+                #         },
+                #     )
 
                 m.create_coverage(resource=resource, coverage={"table": table_id})
 
