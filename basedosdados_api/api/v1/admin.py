@@ -43,6 +43,7 @@ class CoverageAdmin(admin.ModelAdmin):
 
 class DateTimeRangeAdmin(admin.ModelAdmin):
     readonly_fields = ["id"]
+    list_display = ["__str__", "coverage"]
 
 
 admin.site.register(Organization)
