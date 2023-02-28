@@ -2,6 +2,7 @@
 
 credentials.json
 utils/migration/data/*
+**/data/*
 
 __pycache__/
 *.py[cod]
