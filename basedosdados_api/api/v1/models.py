@@ -535,11 +535,11 @@ class InformationRequest(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    origin = models.CharField(max_length=255, blank=True, null=True)
+    origin = models.TextField(max_length=500, blank=True, null=True)
     slug = models.SlugField(unique=True, blank=True, null=True)
     url = models.URLField(blank=True, null=True)
     started_at = models.DateTimeField(blank=True, null=True)
-    data_url = models.URLField(blank=True, null=True)
+    data_url = models.URLField(max_length=500, blank=True, null=True)
     observations = models.TextField(blank=True, null=True)
     entities = models.ManyToManyField(
         "Entity", related_name="information_requests", blank=True
@@ -556,6 +556,11 @@ class InformationRequest(models.Model):
         verbose_name = "Information Request"
         verbose_name_plural = "Information Requests"
         ordering = ["slug"]
+
+    def clean(self) -> None:
+        errors = {}
+        if self.origin is not None and len(self.origin) > 500:
+            errors["origin"] = "Origin cannot be longer than 500 characters"
 
 
 class Entity(models.Model):
@@ -622,7 +627,8 @@ class DateTimeRange(models.Model):
         end_hour = f" {self.end_hour}" if self.end_hour else ""
         end_minute = f":{self.end_minute}" if self.end_minute else ""
         interval = f"({self.interval})" if self.interval else "()"
-        return f"{start_year}{start_month}{start_day}{start_hour}{start_minute}{start_second}{interval}{end_year}{end_month}{end_day}{end_hour}{end_minute}"
+        return f"{start_year}{start_month}{start_day}{start_hour}{start_minute}{start_second}{interval}\
+            {end_year}{end_month}{end_day}{end_hour}{end_minute}"
 
     def clean(self) -> None:
         errors = {}

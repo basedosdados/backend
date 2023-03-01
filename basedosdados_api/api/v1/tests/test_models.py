@@ -10,7 +10,8 @@ from basedosdados_api.api.v1.models import (
     Table,
     # Column,
     RawDataSource,
-    InformationRequest, DateTimeRange,
+    InformationRequest,
+    DateTimeRange,
 )
 
 
@@ -79,7 +80,7 @@ def test_date_time_range(coverage_tabela):
         start_day=1,
         end_year=2022,
         end_month=6,
-        interval=1
+        interval=1,
     )
     date_time_range.full_clean()
     date_time_range.save()
@@ -97,7 +98,7 @@ def test_invalid_date_time_range(coverage_tabela):
         start_day=1,
         end_year=2022,
         end_month=6,
-        interval=0
+        interval=0,
     )
     with pytest.raises(ValidationError):
         date_time_range.clean()

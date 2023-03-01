@@ -15,7 +15,8 @@ from .models import (
     Status,
     Table,
     Tag,
-    Theme, Area,
+    Theme,
+    Area,
 )
 
 
@@ -27,9 +28,7 @@ class AnalysisTypeTranslationOptions(TranslationOptions):
 
 
 class AreaTranslationOptions(TranslationOptions):
-    fields = (
-        "name",
-    )
+    fields = ("name",)
 
 
 class AvailabilityTranslationOptions(TranslationOptions):
