@@ -211,7 +211,10 @@ if __name__ == "__main__":
                     )[1],
                     "updateFrequency": update_frequency_id,
                     "origin": resource["origin"],
-                    "slug": resource["name"].replace("/", "").replace("-", "").replace(".", ""),
+                    "slug": resource["name"]
+                    .replace("/", "")
+                    .replace("-", "")
+                    .replace(".", ""),
                     "url": resource["url"],
                     "startedAt": datetime.strptime(
                         resource["opening_date"], "%d/%m/%Y"

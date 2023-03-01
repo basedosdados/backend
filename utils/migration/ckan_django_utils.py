@@ -13,6 +13,8 @@ import pandas as pd
 from tqdm import tqdm
 import itertools
 
+from unidecode import unidecode
+
 
 def get_token(url, username, password):
     r = requests.post(
@@ -84,6 +86,10 @@ def parse_temporal_coverage(temporal_coverage):
     # Extrai as informações de data e intervalo da string
     if "(" in temporal_coverage:
         start_str, interval_str, end_str = re.split(r"[(|)]", temporal_coverage)
+        if start_str == "" and end_str != "":
+            start_str = end_str
+        elif end_str == "" and start_str != "":
+            end_str = start_str
     elif len(temporal_coverage) == 4:
         start_str, interval_str, end_str = temporal_coverage, 1, temporal_coverage
     start_len = 0 if start_str == "" else len(start_str.split("-"))
@@ -265,27 +271,34 @@ class Migration:
                 mutation_parameters={
                     "slug": "desconhecida"
                     if tag_slug is None
-                    else tag_slug.replace(" ", "_"),
+                    else unidecode(tag_slug.replace(" ", "_")),
                     "name": "desconhecida"
                     if tag_name is None
                     else tag_name.replace(" ", "_"),
                 },
                 query_class="allTag",
-                query_parameters={"$slug: String": tag_slug.replace(" ", "_")},
+                query_parameters={
+                    "$slug: String": unidecode(tag_slug.replace(" ", "_"))
+                },
             )
             ids.append(id)
 
         return ids
 
     def create_availability(self, obj):
+        availability = (
+            "desconhecida"
+            if obj.get("availability") is None
+            else obj.get("availability")
+        )
         r, id = self.create_update(
             mutation_class="CreateUpdateAvailability",
             mutation_parameters={
-                "slug": obj.get("availability"),
-                "name": obj.get("availability"),
+                "slug": availability,
+                "name": availability,
             },
             query_class="allAvailability",
-            query_parameters={"$slug: String": obj.get("availability")},
+            query_parameters={"$slug: String": availability},
         )
 
         return id
@@ -650,16 +663,16 @@ class Migration:
             org_slug = "desconhecida" if org_id is None else org_id.replace("-", "_")
 
             org_name = org_slug if org_name is None else org_name
-
+            print(org_slug[:50])
             package_to_part_org = {
                 "area": self.create_area("desconhecida"),
-                "slug": org_slug,
+                "slug": org_slug[:50],
                 "name": org_name,
                 "description": org_description,
             }
             r, graphql_org_id = self.create_update(
                 query_class="allOrganization",
-                query_parameters={"$slug: String": org_slug},
+                query_parameters={"$slug: String": org_slug[:50]},
                 mutation_class="CreateUpdateOrganization",
                 mutation_parameters=package_to_part_org,
             )
