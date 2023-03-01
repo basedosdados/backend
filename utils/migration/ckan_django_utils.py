@@ -10,6 +10,8 @@ import requests
 
 from pathlib import Path
 import pandas as pd
+from tqdm import tqdm
+import itertools
 
 
 def get_token(url, username, password):
@@ -49,7 +51,7 @@ def request_bd_package(file_path):
 def get_bd_packages():
     path = Path("./utils/migration/data")
     path.mkdir(parents=True, exist_ok=True)
-    file_path = path / "packages_2.json"
+    file_path = path / "packages.json"
     file_path_migrated = path / "packages_migrated.csv"
 
     if not file_path.exists():
@@ -80,8 +82,10 @@ def pprint(msg):
 
 def parse_temporal_coverage(temporal_coverage):
     # Extrai as informações de data e intervalo da string
-    start_str, interval_str, end_str = re.split(r"[(|)]", temporal_coverage)
-
+    if "(" in temporal_coverage:
+        start_str, interval_str, end_str = re.split(r"[(|)]", temporal_coverage)
+    elif len(temporal_coverage) == 4:
+        start_str, interval_str, end_str = temporal_coverage, 1, temporal_coverage
     start_len = 0 if start_str == "" else len(start_str.split("-"))
     end_len = 0 if end_str == "" else len(end_str.split("-"))
 
@@ -104,7 +108,9 @@ def parse_temporal_coverage(temporal_coverage):
     start_result = parse_date(position="start", date_str=start_str, date_len=start_len)
     end_result = parse_date(position="end", date_str=end_str, date_len=end_len)
     start_result.update(end_result)
-    start_result["interval"] = int(interval_str)
+
+    if interval_str != 0:
+        start_result["interval"] = int(interval_str)
 
     return start_result
 
@@ -145,12 +151,12 @@ class Migration:
         ).json()
 
         if "data" in r:
-            if r["data"][query_class]["edges"] == []:
+            if r.get("data", {}).get(query_class, {}).get("edges") == []:
                 id = None
-                print(f"get: not found {query_class}", dict(zip(keys, values)))
+                # print(f"get: not found {query_class}", dict(zip(keys, values)))
             else:
                 id = r["data"][query_class]["edges"][0]["node"]["id"]
-                print(f"get: found {id}")
+                # print(f"get: found {id}")
                 id = id.split(":")[1]
             return r, id
         else:
@@ -162,6 +168,7 @@ class Migration:
     ):
         r, id = self.get_id(query_class=query_class, query_parameters=query_parameters)
         if id is not None:
+            r["r"] = "query"
             return r, id
         _classe = mutation_class.replace("CreateUpdate", "").lower()
         query = f"""
@@ -183,9 +190,9 @@ class Migration:
             json={"query": query, "variables": {"input": mutation_parameters}},
             headers=self.header,
         ).json()
-
+        r["r"] = "mutation"
         if "data" in r:
-            if r["data"][mutation_class]["errors"] != []:
+            if r.get("data", {}).get(mutation_class, {}).get("errors", []) != []:
                 print(f"create: not found {mutation_class}", mutation_parameters)
                 print(
                     "create: error\n", json.dumps(r, indent=4, ensure_ascii=False), "\n"
@@ -194,7 +201,7 @@ class Migration:
                 raise Exception("create: Error")
             else:
                 id = r["data"][mutation_class][_classe]["id"]
-                print(f"create: created {id}")
+                # print(f"create: created {id}")
                 id = id.split(":")[1]
 
                 return r, id
@@ -488,6 +495,14 @@ class Migration:
             else resource.get("temporal_coverage")
         )
 
+        if temporal_temporal_coverages != [None]:
+            temporal_temporal_coverages_chain = [
+                s.split(",") if "," in s else [s] for s in temporal_temporal_coverages
+            ]
+            temporal_temporal_coverages = list(
+                itertools.chain(*temporal_temporal_coverages_chain)
+            )
+
         for temporal_coverage in temporal_temporal_coverages:
             if temporal_coverage is not None:
                 resource_to_temporal_coverage = parse_temporal_coverage(
@@ -558,15 +573,16 @@ class Migration:
                     "$table_Id: ID": table_id,
                 },
             )
-
-            coverage_id = self.create_coverage(
-                resource=resource,
-                coverage={"column": id},
-            )
+            if r.get("r") == "mutation":
+                coverage_id = self.create_coverage(
+                    resource=resource,
+                    coverage={"column": id},
+                )
             ids = [id]
         else:
             ids = []
-            for column in objs:
+            for column in tqdm(objs):
+                # print(column.get("name"))
                 r, id = self.create_update(
                     mutation_class="CreateUpdateColumn",
                     mutation_parameters={
@@ -594,11 +610,11 @@ class Migration:
                         "$table_Id: ID": table_id,
                     },
                 )
-
-                coverage_id = self.create_coverage(
-                    resource=resource,
-                    coverage={"column": id},
-                )
+                if r.get("r") == "mutation":
+                    coverage_id = self.create_coverage(
+                        resource=resource,
+                        coverage={"column": id},
+                    )
 
                 ids.append(id)
 
@@ -659,7 +675,7 @@ class Migration:
             mutation_parameters={
                 "slug": area.replace(".", "_"),
                 "name": area,
-                "key": "unknown" if area == "desconhecida" else area,
+                "key": "world" if area == "desconhecida" else area,
             },
         )
         return id

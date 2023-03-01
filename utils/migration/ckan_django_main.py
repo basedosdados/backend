@@ -1,5 +1,10 @@
 ### TODO checar filtragem de todos os campos
 ### TODO rever observational_level, pede lista de id de colunas que atualmente n esta recebendo
+#  https://staging.api.basedosdados.org/api/v1/graphql
+#  https://staging.api.basedosdados.org/admin/
+
+# "https://staging.backend.dados.rio/api/v1/graphql"
+
 
 import json
 from datetime import datetime
@@ -20,7 +25,7 @@ def get_credentials(mode):
     return j[mode]["username"], j[mode]["password"], j[mode]["url"]
 
 
-migration_control = 0
+migration_control = 1
 
 if __name__ == "__main__":
     USERNAME, PASSWORD, URL = get_credentials("local")
@@ -41,11 +46,18 @@ if __name__ == "__main__":
         themes_ids = m.create_themes(objs=p.get("groups"))
 
         ## create organization
-        print("\nCreate Organization")
+        print(
+            "\n###############################################################################################\n\n",
+            "Create Organization",
+        )
         org_id = m.create_org(p.get("organization"))
 
         ## create dataset
-        print("\nCreate Dataset")
+        print(
+            "\nCreate Dataset:",
+            p["name"],
+            package_id,
+        )
         package_to_dataset = {
             "organization": org_id,
             "slug": p["name"].replace("-", "_")[:49],
@@ -56,7 +68,7 @@ if __name__ == "__main__":
         }
         r, dataset_id = m.create_update(
             query_class="allDataset",
-            query_parameters={"$slug: String": p["name"].replace("-", "_")},
+            query_parameters={"$slug: String": p["name"].replace("-", "_")[:49]},
             mutation_class="CreateUpdateDataset",
             mutation_parameters=package_to_dataset,
         )
@@ -64,8 +76,8 @@ if __name__ == "__main__":
         for resource in p["resources"]:
             resource_type = resource["resource_type"]
 
-            if resource_type == "bdm_table":
-                print("\nCreate Table")
+            if resource_type == "bdm_table" and resource["table_id"] == "":
+                print("\nCreate Table:", resource["table_id"])
 
                 update_frequency_id = m.create_update_frequency(
                     observation_levels=resource["observation_level"],
@@ -92,7 +104,7 @@ if __name__ == "__main__":
                     "isDirectory": False,
                     "dataCleaningDescription": resource["data_cleaning_description"],
                     "dataCleaningCodeUrl": resource["data_cleaning_code_url"],
-                    "rawDataUrl": resource["raw_files_url"],
+                    "rawDataUrl": resource["raw_files_url"][:200],
                     "auxiliaryFilesUrl": resource["auxiliary_files_url"],
                     "architectureUrl": resource["architecture_url"],
                     "sourceBucketName": resource["source_bucket_name"],
@@ -116,20 +128,6 @@ if __name__ == "__main__":
                     },
                 )
 
-                # if table_id is None:
-                #     r["data"]['CreateUpdateTable']['errors'][0]['message']=="Table com este Slug já existe."
-                #     resource_to_table['slug'] =
-                #     r, table_id = m.create_update(
-                #         mutation_class="CreateUpdateTable",
-                #         mutation_parameters=resource_to_table,
-                #         query_class="allTable",
-                #         query_parameters={
-                #             "$slug: String": resource["table_id"],
-                #             "$name: String": resource["name"],
-                #             "$dataset_Id: ID": dataset_id,
-                #         },
-                #     )
-
                 m.create_coverage(resource=resource, coverage={"table": table_id})
 
                 if "columns" in resource:
@@ -142,7 +140,11 @@ if __name__ == "__main__":
                         "gcpTableId": resource["table_id"],
                         "columns": columns_ids,
                     }
-                    print("\nCreate CloudTable")
+                    print(
+                        "\nCreate CloudTable:",
+                        resource["dataset_id"] + "." + resource["table_id"],
+                        "\n\n_______________________________________________________________________________________________",
+                    )
                     r, cloud_table_id = m.create_update(
                         mutation_class="CreateUpdateCloudTable",
                         mutation_parameters=resource_to_cloud_table,
@@ -155,8 +157,7 @@ if __name__ == "__main__":
                     )
 
             elif resource_type == "external_link":
-
-                print("\nCreate RawDataSource")
+                print("\nCreate RawDataSource: ", resource["url"])
                 resource_to_raw_data_source = {
                     "dataset": dataset_id,
                     # "coverages": "",
@@ -193,7 +194,7 @@ if __name__ == "__main__":
                 )
 
             elif resource_type == "information_request":
-                print("\nCreate InformationRequest")
+                print("\nCreate InformationRequest: ", resource["name"])
 
                 resource_to_information_request = {
                     "dataset": dataset_id,
@@ -210,7 +211,7 @@ if __name__ == "__main__":
                     )[1],
                     "updateFrequency": update_frequency_id,
                     "origin": resource["origin"],
-                    "slug": resource["name"],
+                    "slug": resource["name"].replace("/", "").replace("-", "").replace(".", ""),
                     "url": resource["url"],
                     "startedAt": datetime.strptime(
                         resource["opening_date"], "%d/%m/%Y"
@@ -235,7 +236,9 @@ if __name__ == "__main__":
                 m.create_coverage(
                     resource=resource, coverage={"informationRequest": info_id}
                 )
-
+        print(
+            "\n\n***********************************************************************************************\n\n"
+        )
         if migration_control:
             path = Path("./utils/migration/data")
             path.mkdir(parents=True, exist_ok=True)
