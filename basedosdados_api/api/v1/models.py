@@ -316,7 +316,7 @@ class Table(models.Model):
     is_directory = models.BooleanField(default=False, blank=True, null=True)
     data_cleaning_description = models.TextField(blank=True, null=True)
     data_cleaning_code_url = models.URLField(blank=True, null=True)
-    raw_data_url = models.URLField(blank=True, null=True)
+    raw_data_url = models.URLField(blank=True, null=True, max_length=500)
     auxiliary_files_url = models.URLField(blank=True, null=True)
     architecture_url = models.URLField(blank=True, null=True)
     source_bucket_name = models.CharField(max_length=255, blank=True, null=True)
