@@ -60,7 +60,7 @@ if __name__ == "__main__":
         )
         package_to_dataset = {
             "organization": org_id,
-            "slug": p["name"].replace("-", "_")[:49],
+            "slug": p["name"].replace("-", "_"),
             "name": p["title"],
             "description": p["notes"],
             "tags": tags_ids,
@@ -68,7 +68,7 @@ if __name__ == "__main__":
         }
         r, dataset_id = m.create_update(
             query_class="allDataset",
-            query_parameters={"$slug: String": p["name"].replace("-", "_")[:49]},
+            query_parameters={"$slug: String": p["name"].replace("-", "_")},
             mutation_class="CreateUpdateDataset",
             mutation_parameters=package_to_dataset,
         )
@@ -104,7 +104,7 @@ if __name__ == "__main__":
                     "isDirectory": False,
                     "dataCleaningDescription": resource["data_cleaning_description"],
                     "dataCleaningCodeUrl": resource["data_cleaning_code_url"],
-                    "rawDataUrl": resource["raw_files_url"][:200],
+                    "rawDataUrl": resource["raw_files_url"],
                     "auxiliaryFilesUrl": resource["auxiliary_files_url"],
                     "architectureUrl": resource["architecture_url"],
                     "sourceBucketName": resource["source_bucket_name"],

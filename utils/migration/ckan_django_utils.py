@@ -663,16 +663,16 @@ class Migration:
             org_slug = "desconhecida" if org_id is None else org_id.replace("-", "_")
 
             org_name = org_slug if org_name is None else org_name
-            print(org_slug[:50])
+            print(org_slug)
             package_to_part_org = {
                 "area": self.create_area("desconhecida"),
-                "slug": org_slug[:50],
+                "slug": org_slug,
                 "name": org_name,
                 "description": org_description,
             }
             r, graphql_org_id = self.create_update(
                 query_class="allOrganization",
-                query_parameters={"$slug: String": org_slug[:50]},
+                query_parameters={"$slug: String": org_slug},
                 mutation_class="CreateUpdateOrganization",
                 mutation_parameters=package_to_part_org,
             )
