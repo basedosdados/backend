@@ -10,7 +10,10 @@ from basedosdados_api.api.v1.utils import (
     check_kebab_case,
     check_snake_case,
 )
-from basedosdados_api.api.v1.validators import validate_area_key, validate_is_valid_area_key
+from basedosdados_api.api.v1.validators import (
+    validate_area_key,
+    validate_is_valid_area_key,
+)
 
 
 class Area(models.Model):
@@ -307,7 +310,7 @@ class Table(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField(unique=False)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     is_directory = models.BooleanField(default=False, blank=True, null=True)
@@ -333,6 +336,11 @@ class Table(models.Model):
         verbose_name = "Table"
         verbose_name_plural = "Tables"
         ordering = ["slug"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["dataset", "slug"], name="constraint_dataset_table_slug"
+            )
+        ]
 
 
 class BigQueryTypes(models.Model):
@@ -527,11 +535,11 @@ class InformationRequest(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    origin = models.CharField(max_length=255, blank=True, null=True)
+    origin = models.TextField(max_length=500, blank=True, null=True)
     slug = models.SlugField(unique=True, blank=True, null=True)
     url = models.URLField(blank=True, null=True)
     started_at = models.DateTimeField(blank=True, null=True)
-    data_url = models.URLField(blank=True, null=True)
+    data_url = models.URLField(max_length=500, blank=True, null=True)
     observations = models.TextField(blank=True, null=True)
     entities = models.ManyToManyField(
         "Entity", related_name="information_requests", blank=True
@@ -548,6 +556,11 @@ class InformationRequest(models.Model):
         verbose_name = "Information Request"
         verbose_name_plural = "Information Requests"
         ordering = ["slug"]
+
+    def clean(self) -> None:
+        errors = {}
+        if self.origin is not None and len(self.origin) > 500:
+            errors["origin"] = "Origin cannot be longer than 500 characters"
 
 
 class Entity(models.Model):
@@ -602,7 +615,20 @@ class DateTimeRange(models.Model):
     interval = models.IntegerField(blank=True, null=True)
 
     def __str__(self):
-        return str(self.slug)
+        start_year = self.start_year or ""
+        start_month = f"-{self.start_month}" if self.start_month else ""
+        start_day = f"-{self.start_day}" if self.start_day else ""
+        start_hour = f" {self.start_hour}" if self.start_hour else ""
+        start_minute = f":{self.start_minute}" if self.start_minute else ""
+        start_second = f":{self.start_second}" if self.start_second else ""
+        end_year = self.end_year or ""
+        end_month = f"-{self.end_month}" if self.end_month else ""
+        end_day = f"-{self.end_day}" if self.end_day else ""
+        end_hour = f" {self.end_hour}" if self.end_hour else ""
+        end_minute = f":{self.end_minute}" if self.end_minute else ""
+        interval = f"({self.interval})" if self.interval else "()"
+        return f"{start_year}{start_month}{start_day}{start_hour}{start_minute}{start_second}{interval}\
+            {end_year}{end_month}{end_day}{end_hour}{end_minute}"
 
     def clean(self) -> None:
         errors = {}
