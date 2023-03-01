@@ -264,22 +264,18 @@ class Migration:
     def create_tags(self, objs):
         ids = []
         for obj in objs:
-            tag_slug = obj.get("name")
+            tag_slug = obj.get("name").replace("+", "").lower().replace(" ", "_")
             tag_name = obj.get("display_name")
             r, id = self.create_update(
                 mutation_class="CreateUpdateTag",
                 mutation_parameters={
-                    "slug": "desconhecida"
-                    if tag_slug is None
-                    else unidecode(tag_slug.replace(" ", "_")),
+                    "slug": "desconhecida" if tag_slug is None else unidecode(tag_slug),
                     "name": "desconhecida"
                     if tag_name is None
                     else tag_name.replace(" ", "_"),
                 },
                 query_class="allTag",
-                query_parameters={
-                    "$slug: String": unidecode(tag_slug.replace(" ", "_"))
-                },
+                query_parameters={"$slug: String": unidecode(tag_slug)},
             )
             ids.append(id)
 

@@ -61,7 +61,7 @@ if __name__ == "__main__":
         package_to_dataset = {
             "organization": org_id,
             "slug": p["name"].replace("-", "_"),
-            "name": p["title"],
+            "name": p["title"][:255],
             "description": p["notes"],
             "tags": tags_ids,
             "themes": themes_ids,
@@ -168,7 +168,7 @@ if __name__ == "__main__":
                     "areaIpAddressRequired": m.create_area(area="desconhecida"),
                     # "createdAt": "",
                     # "updatedAt": "",
-                    "url": resource["url"],
+                    "url": resource["url"].replace(" ", ""),
                     "name": resource["name"],
                     "description": "TO DO"
                     if resource["description"] is None
@@ -185,7 +185,7 @@ if __name__ == "__main__":
                     mutation_parameters=resource_to_raw_data_source,
                     query_class="allRawdatasource",
                     query_parameters={
-                        "$url: String": resource["url"],
+                        "$url: String": resource["url"].replace(" ", ""),
                         "$dataset_Id: ID": dataset_id,
                     },
                 )
@@ -222,7 +222,7 @@ if __name__ == "__main__":
                     + "T00:00:00"
                     if "/" in resource["opening_date"]
                     else resource["opening_date"] + "T00:00:00",
-                    "dataUrl": resource["data_url"],
+                    "dataUrl": resource.get("data_url", ""),
                     "observations": resource["department"],
                     "startedBy": 1,
                     # "entities": "",
