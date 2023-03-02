@@ -215,15 +215,15 @@ if __name__ == "__main__":
                     .replace("/", "")
                     .replace("-", "")
                     .replace(".", ""),
-                    "url": resource["url"],
+                    "url": resource.get("data_url", ""),
                     "startedAt": datetime.strptime(
                         resource["opening_date"], "%d/%m/%Y"
                     ).strftime("%Y-%m-%d")
                     + "T00:00:00"
                     if "/" in resource["opening_date"]
                     else resource["opening_date"] + "T00:00:00",
-                    "dataUrl": resource.get("data_url", ""),
-                    "observations": resource["department"],
+                    "dataUrl": resource["url"],
+                    "observations": resource.get("url", ""),
                     "startedBy": 1,
                     # "entities": "",
                 }
@@ -235,6 +235,7 @@ if __name__ == "__main__":
                         "$url: String": resource["url"],
                         "$dataset_Id: ID": dataset_id,
                     },
+                    # update=True,
                 )
                 m.create_coverage(
                     resource=resource, coverage={"informationRequest": info_id}

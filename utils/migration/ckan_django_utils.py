@@ -170,12 +170,19 @@ class Migration:
             raise Exception("get: Error")
 
     def create_update(
-        self, mutation_class, mutation_parameters, query_class, query_parameters
+        self,
+        mutation_class,
+        mutation_parameters,
+        query_class,
+        query_parameters,
+        update=False,
     ):
         r, id = self.get_id(query_class=query_class, query_parameters=query_parameters)
         if id is not None:
             r["r"] = "query"
-            return r, id
+            if update == False:
+                return r, id
+
         _classe = mutation_class.replace("CreateUpdate", "").lower()
         query = f"""
                 mutation($input:{mutation_class}Input!){{
@@ -191,6 +198,9 @@ class Migration:
                 }}
                 }}
             """
+
+        if update == True and id is not None:
+            mutation_parameters["id"] = id
         r = requests.post(
             self.base_url,
             json={"query": query, "variables": {"input": mutation_parameters}},
