@@ -28,7 +28,7 @@ def get_credentials(mode):
 migration_control = 1
 
 if __name__ == "__main__":
-    USERNAME, PASSWORD, URL = get_credentials("local")
+    USERNAME, PASSWORD, URL = get_credentials("staging")
     TOKEN = get_token(URL, USERNAME, PASSWORD)
     m = Migration(url=URL, token=TOKEN)
 
@@ -36,10 +36,11 @@ if __name__ == "__main__":
     # id = "br-me-clima-organizacional"
     # df = get_package_model(name_or_id=id)
     df = get_bd_packages()
-
+    df = df.head(50)
     entity_id = m.create_entity()
     update_frequency_id = m.create_update_frequency()
     # r = m.delete(classe="Dataset", id="77239376-6662-4d64-8950-2f57f1225e53")
+    count = 1
     for p, package_id in zip(df["packages"].tolist(), df["package_id"].tolist()):
         # create tags
         tags_ids = m.create_tags(objs=p.get("tags"))
@@ -54,9 +55,7 @@ if __name__ == "__main__":
 
         ## create dataset
         print(
-            "\nCreate Dataset:",
-            p["name"],
-            package_id,
+            f"\nCreate Dataset: {count} - {p['name']} - {package_id}",
         )
         package_to_dataset = {
             "organization": org_id,
@@ -72,13 +71,24 @@ if __name__ == "__main__":
             mutation_class="CreateUpdateDataset",
             mutation_parameters=package_to_dataset,
         )
-
+        # if p["name"] != "br-ibge-estadic":
+        #     break
         for resource in p["resources"]:
             resource_type = resource["resource_type"]
 
-            if resource_type == "bdm_table" and resource["table_id"] == "":
+            if resource_type == "bdm_table":
+                #     and resource["table_id"] not in [
+                #     "comunicacao_informatica",
+                #     "dicionario",
+                #     "governanca",
+                #     "politica_mulher",
+                #     "recursos_humanos",
+                #     "indicadores_perfil_gestor",
+                #     "indicadores_quantidade_vinculo",
+                #     "",
+                #     "",
+                # ]:
                 print("\nCreate Table:", resource["table_id"])
-
                 update_frequency_id = m.create_update_frequency(
                     observation_levels=resource["observation_level"],
                     update_frequency=resource["update_frequency"],
@@ -127,11 +137,10 @@ if __name__ == "__main__":
                         "$dataset_Id: ID": dataset_id,
                     },
                 )
-
                 m.create_coverage(resource=resource, coverage={"table": table_id})
-
                 if "columns" in resource:
                     print("\nCreate Column")
+
                     columns_ids = m.create_columns(resource=resource, table_id=table_id)
                     resource_to_cloud_table = {
                         "table": table_id,

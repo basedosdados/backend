@@ -67,6 +67,16 @@ def get_bd_packages():
         return df
 
 
+def build_areas_from_json():
+
+    with open(
+        "./basedosdados_api/schemas/repository/bd_spatial_coverage_tree.json"
+    ) as f:
+        area = json.load(f)
+
+    return area.get("result")
+
+
 def get_package_model(name_or_id):
     url = f"https://basedosdados.org/api/3/action/package_show?name_or_id={name_or_id}"
     packages = requests.get(url, verify=False).json()["result"]
@@ -128,6 +138,7 @@ class Migration:
             "Content-Type": "application/json",
             "Authorization": f"Bearer {token}",
         }
+        self.area_dict = build_areas_from_json()
 
     def get_id(
         self, query_class, query_parameters
@@ -149,14 +160,25 @@ class Migration:
                         }}
                         }}
                     }}"""
+        retry = 0
+        while retry < 3:
+            r = requests.post(
+                url=self.base_url,
+                json={"query": query, "variables": dict(zip(keys, values))},
+                headers=self.header,
+            )
 
-        r = requests.post(
-            url=self.base_url,
-            json={"query": query, "variables": dict(zip(keys, values))},
-            headers=self.header,
-        ).json()
+            if r.status_code == 200:
+                r = r.json()
+                retry = 3
+            else:
+                print(f"retrying {retry}", r.status_code, r.text)
+                retry += 1
+                if retry == 3:
+                    print("get:  Error:", json.dumps(r, indent=4, ensure_ascii=False))
+                    raise Exception("get: Error")
 
-        if "data" in r:
+        if "data" in r and r is not None:
             if r.get("data", {}).get(query_class, {}).get("edges") == []:
                 id = None
                 # print(f"get: not found {query_class}", dict(zip(keys, values)))
@@ -201,13 +223,28 @@ class Migration:
 
         if update == True and id is not None:
             mutation_parameters["id"] = id
-        r = requests.post(
-            self.base_url,
-            json={"query": query, "variables": {"input": mutation_parameters}},
-            headers=self.header,
-        ).json()
+        retry = 0
+        while retry < 3:
+            r = requests.post(
+                self.base_url,
+                json={"query": query, "variables": {"input": mutation_parameters}},
+                headers=self.header,
+            )
+
+            if r.status_code == 200:
+                r = r.json()
+                retry = 3
+            else:
+                print(f"retrying {retry}", r.status_code, r.text)
+                retry += 1
+                if retry == 3:
+                    print(
+                        "create:  Error:", json.dumps(r, indent=4, ensure_ascii=False)
+                    )
+                    raise Exception("create: Error")
+
         r["r"] = "mutation"
-        if "data" in r:
+        if "data" in r and r is not None:
             if r.get("data", {}).get(mutation_class, {}).get("errors", []) != []:
                 print(f"create: not found {mutation_class}", mutation_parameters)
                 print(
@@ -601,7 +638,6 @@ class Migration:
         else:
             ids = []
             for column in tqdm(objs):
-                # print(column.get("name"))
                 r, id = self.create_update(
                     mutation_class="CreateUpdateColumn",
                     mutation_parameters={
@@ -669,7 +705,6 @@ class Migration:
             org_slug = "desconhecida" if org_id is None else org_id.replace("-", "_")
 
             org_name = org_slug if org_name is None else org_name
-            print(org_slug)
             package_to_part_org = {
                 "area": self.create_area("desconhecida"),
                 "slug": org_slug,
@@ -693,8 +728,10 @@ class Migration:
             mutation_class="CreateUpdateArea",
             mutation_parameters={
                 "slug": area.replace(".", "_"),
-                "name": area,
-                "key": "world" if area == "desconhecida" else area,
+                "name": self.area_dict.get(area, {})
+                .get("label", {})
+                .get("pt", "desconhecida"),
+                "key": "unknown" if area == "desconhecida" else area,
             },
         )
         return id
