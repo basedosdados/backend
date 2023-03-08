@@ -537,7 +537,7 @@ class InformationRequest(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     origin = models.TextField(max_length=500, blank=True, null=True)
     slug = models.SlugField(unique=True, blank=True, null=True)
-    url = models.URLField(blank=True, null=True)
+    url = models.URLField(blank=True, max_length=500, null=True)
     started_at = models.DateTimeField(blank=True, null=True)
     data_url = models.URLField(max_length=500, blank=True, null=True)
     observations = models.TextField(blank=True, null=True)
