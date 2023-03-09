@@ -160,23 +160,11 @@ class Migration:
                         }}
                         }}
                     }}"""
-        retry = 0
-        while retry < 3:
-            r = requests.post(
-                url=self.base_url,
-                json={"query": query, "variables": dict(zip(keys, values))},
-                headers=self.header,
-            )
-
-            if r.status_code == 200:
-                r = r.json()
-                retry = 3
-            else:
-                print(f"retrying {retry}", r.status_code, r.text)
-                retry += 1
-                if retry == 3:
-                    print("get:  Error:", json.dumps(r, indent=4, ensure_ascii=False))
-                    raise Exception("get: Error")
+        r = requests.post(
+            url=self.base_url,
+            json={"query": query, "variables": dict(zip(keys, values))},
+            headers=self.header,
+        ).json()
 
         if "data" in r and r is not None:
             if r.get("data", {}).get(query_class, {}).get("edges") == []:
@@ -223,25 +211,11 @@ class Migration:
 
         if update == True and id is not None:
             mutation_parameters["id"] = id
-        retry = 0
-        while retry < 3:
-            r = requests.post(
-                self.base_url,
-                json={"query": query, "variables": {"input": mutation_parameters}},
-                headers=self.header,
-            )
-
-            if r.status_code == 200:
-                r = r.json()
-                retry = 3
-            else:
-                print(f"retrying {retry}", r.status_code, r.text)
-                retry += 1
-                if retry == 3:
-                    print(
-                        "create:  Error:", json.dumps(r, indent=4, ensure_ascii=False)
-                    )
-                    raise Exception("create: Error")
+        r = requests.post(
+            self.base_url,
+            json={"query": query, "variables": {"input": mutation_parameters}},
+            headers=self.header,
+        ).json()
 
         r["r"] = "mutation"
         if "data" in r and r is not None:
@@ -730,7 +704,7 @@ class Migration:
                 "slug": area.replace(".", "_"),
                 "name": self.area_dict.get(area, {})
                 .get("label", {})
-                .get("pt", "desconhecida"),
+                .get("pt", "Desconhecida"),
                 "key": "unknown" if area == "desconhecida" else area,
             },
         )

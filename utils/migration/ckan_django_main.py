@@ -28,6 +28,7 @@ def get_credentials(mode):
 migration_control = 1
 
 if __name__ == "__main__":
+
     USERNAME, PASSWORD, URL = get_credentials("staging")
     TOKEN = get_token(URL, USERNAME, PASSWORD)
     m = Migration(url=URL, token=TOKEN)
