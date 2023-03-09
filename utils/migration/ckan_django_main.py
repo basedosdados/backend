@@ -27,8 +27,8 @@ def get_credentials(mode):
 
 migration_control = 1
 
-if __name__ == "__main__":
 
+def main():
     USERNAME, PASSWORD, URL = get_credentials("staging")
     TOKEN = get_token(URL, USERNAME, PASSWORD)
     m = Migration(url=URL, token=TOKEN)
@@ -265,3 +265,14 @@ if __name__ == "__main__":
                 mode="a",
                 header=not file_path_migrated.exists(),
             )
+
+
+if __name__ == "__main__":
+    retry = 0
+    while retry < 3:
+        try:
+            main()
+        except Exception as e:
+            retry += 1
+            print("*********Retry: ", retry)
+            print(e)
