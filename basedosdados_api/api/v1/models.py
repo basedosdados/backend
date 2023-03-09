@@ -18,14 +18,13 @@ from basedosdados_api.api.v1.validators import (
 
 class Area(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    name = models.CharField(max_length=255, blank=False, null=False)
-    slug = models.SlugField(unique=True)
     key = models.CharField(
         max_length=255,
         null=True,
         blank=False,
         validators=[validate_area_key, validate_is_valid_area_key],
     )
+    name = models.CharField(max_length=255, blank=False, null=False)
 
     def __str__(self):
         return str(self.slug)
@@ -240,6 +239,7 @@ class Organization(models.Model):
     facebook = models.URLField(blank=True, null=True)
     linkedin = models.URLField(blank=True, null=True)
     instagram = models.URLField(blank=True, null=True)
+    image = models.ImageField()
 
     def __str__(self):
         return str(self.slug)
@@ -567,6 +567,7 @@ class Entity(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
+    category = models.CharField(max_length=255)
 
     def __str__(self):
         return str(self.slug)
