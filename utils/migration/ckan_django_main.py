@@ -28,7 +28,7 @@ def get_credentials(mode):
 migration_control = 1
 
 
-def main():
+def main(package_name_error=None, tables_error=[]):
     USERNAME, PASSWORD, URL = get_credentials("staging")
     TOKEN = get_token(URL, USERNAME, PASSWORD)
     m = Migration(url=URL, token=TOKEN)
@@ -72,23 +72,18 @@ def main():
             mutation_class="CreateUpdateDataset",
             mutation_parameters=package_to_dataset,
         )
-        # if p["name"] != "br-ibge-estadic":
-        #     break
+
+        if package_name_error is not None and p["name"] != package_name_error:
+            break
+
         for resource in p["resources"]:
             resource_type = resource["resource_type"]
 
-            if resource_type == "bdm_table":
-                #     and resource["table_id"] not in [
-                #     "comunicacao_informatica",
-                #     "dicionario",
-                #     "governanca",
-                #     "politica_mulher",
-                #     "recursos_humanos",
-                #     "indicadores_perfil_gestor",
-                #     "indicadores_quantidade_vinculo",
-                #     "",
-                #     "",
-                # ]:
+            if (
+                resource_type == "bdm_table"
+                and resource["table_id"] not in tables_error
+            ):
+
                 print("\nCreate Table:", resource["table_id"])
                 update_frequency_id = m.create_update_frequency(
                     observation_levels=resource["observation_level"],
@@ -271,8 +266,15 @@ if __name__ == "__main__":
     retry = 0
     while retry < 3:
         try:
-            main()
+            main(
+                package_name_error="br-inep-censo-escolar",
+                tables_error=["turma", "docente", "escola"],
+            )
         except Exception as e:
             retry += 1
-            print("*********Retry: ", retry)
+            print(
+                "\n\n\n\n************************************ Retry: ",
+                retry,
+                "************************************\n\n\n\n",
+            )
             print(e)
