@@ -206,6 +206,7 @@ GRAPHQL_JWT = {
 LANGUAGES = (
     ("pt", lambda x: "Português"),
     ("en", lambda x: "English"),
+    ("es", lambda x: "Español"),
 )
 
 MODELTRANSLATION_AUTO_POPULATE = True
