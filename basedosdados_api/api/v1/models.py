@@ -239,7 +239,6 @@ class Organization(models.Model):
     facebook = models.URLField(blank=True, null=True)
     linkedin = models.URLField(blank=True, null=True)
     instagram = models.URLField(blank=True, null=True)
-    image = models.ImageField()
 
     def __str__(self):
         return str(self.slug)
