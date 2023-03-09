@@ -267,8 +267,8 @@ if __name__ == "__main__":
     while retry < 3:
         try:
             main(
-                package_name_error="br-inep-censo-escolar",
-                tables_error=["turma", "docente", "escola"],
+                package_name_error=None,
+                tables_error=[],
             )
         except Exception as e:
             retry += 1
