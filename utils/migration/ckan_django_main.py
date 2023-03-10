@@ -29,6 +29,10 @@ from ckan_django_utils import (
 
 from data.enums.availability import AvailabilityEnum
 from data.enums.bigquery_type import BigQueryTypeEnum
+from data.enums.entity import EntityArtEnum
+from data.enums.language import LanguageEnum
+from data.enums.license import LicenseEnum
+from data.enums.status import StatusEnum
 
 from pathlib import Path
 import pandas as pd
