@@ -1,7 +1,18 @@
 ### TODO checar filtragem de todos os campos
 ### TODO rever observational_level, pede lista de id de colunas que atualmente n esta recebendo
+### TODO subir avaliable_options do website:
+#### Area - avaliable_options/spacial_coverage/spacial_coverage_tree.csv id vira key
+#### License avaliable_options/license.py
+#### bigqueryType avaliable_options/bigquery_type.py
+#### aviability
+#### language - traduzir para abreviacoes
+#### status
+#### entity
+
+
 #  https://staging.api.basedosdados.org/api/v1/graphql
 #  https://staging.api.basedosdados.org/admin/
+
 
 # "https://staging.backend.dados.rio/api/v1/graphql"
 
@@ -74,7 +85,7 @@ def main(package_name_error=None, tables_error=[]):
         )
 
         if package_name_error is not None and p["name"] != package_name_error:
-            break
+            raise Exception("Package name error")
 
         for resource in p["resources"]:
             resource_type = resource["resource_type"]
