@@ -1,6 +1,12 @@
 {
   "success": true,
   "result": {
+    "unknown": {
+      "id": "unknown",
+      "label": {
+        "pt": "Desconhecida"
+      }
+    },
     "world": {
       "id": "world",
       "label": {
