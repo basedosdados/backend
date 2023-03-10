@@ -27,8 +27,19 @@ from ckan_django_utils import (
     parse_temporal_coverage,
 )
 
+from data.enums.availability import AvailabilityEnum
+from data.enums.bigquery_type import BigQueryTypeEnum
+
 from pathlib import Path
 import pandas as pd
+
+
+def class_to_dict(class_obj):
+    return {
+        name: getattr(class_obj, name)
+        for name in dir(class_obj)
+        if not name.startswith("__")
+    }
 
 
 def get_credentials(mode):
@@ -274,18 +285,21 @@ def main(package_name_error=None, tables_error=[]):
 
 
 if __name__ == "__main__":
-    retry = 0
-    while retry < 3:
-        try:
-            main(
-                package_name_error=None,
-                tables_error=[],
-            )
-        except Exception as e:
-            retry += 1
-            print(
-                "\n\n\n\n************************************ Retry: ",
-                retry,
-                "************************************\n\n\n\n",
-            )
-            print(e)
+
+    print(class_to_dict(BigQueryTypeEnum()))
+
+    # retry = 0
+    # while retry < 3:
+    #     try:
+    #         main(
+    #             package_name_error=None,
+    #             tables_error=[],
+    #         )
+    #     except Exception as e:
+    #         retry += 1
+    #         print(
+    #             "\n\n\n\n************************************ Retry: ",
+    #             retry,
+    #             "************************************\n\n\n\n",
+    #         )
+    #         print(e)
