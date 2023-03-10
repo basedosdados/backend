@@ -25,6 +25,7 @@ from basedosdados_api.api.v1.models import (
     Availability,
     InformationRequest,
     Status,
+    Coverage,
 )
 
 
@@ -194,6 +195,16 @@ def fixture_status_em_processamento():
     return Status.objects.create(
         name="Em processamento",
         slug="em_processamento",
+    )
+
+
+@pytest.fixture(name="coverage_tabela")
+@pytest.mark.django_db
+def fixture_coverage_tabela(tabela_bairros, area_br):
+    """Fixture for Coverage."""
+    return Coverage.objects.create(
+        table=tabela_bairros,
+        area=area_br,
     )
 
 

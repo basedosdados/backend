@@ -10,11 +10,22 @@ from basedosdados_api.api.v1.utils import (
     check_kebab_case,
     check_snake_case,
 )
+from basedosdados_api.api.v1.validators import (
+    validate_area_key,
+    validate_is_valid_area_key,
+)
 
 
 class Area(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
+    name = models.CharField(max_length=255, blank=False, null=False)
     slug = models.SlugField(unique=True)
+    key = models.CharField(
+        max_length=255,
+        null=True,
+        blank=False,
+        validators=[validate_area_key, validate_is_valid_area_key],
+    )
 
     def __str__(self):
         return str(self.slug)
@@ -221,7 +232,7 @@ class Organization(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField(unique=True, max_length=255)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     website = models.URLField(blank=True, null=True)
@@ -249,7 +260,7 @@ class Dataset(models.Model):
     tags = models.ManyToManyField("Tag", related_name="datasets")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField(unique=True, max_length=255)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
 
@@ -299,13 +310,13 @@ class Table(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    slug = models.SlugField(unique=True)
+    slug = models.SlugField(unique=False)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     is_directory = models.BooleanField(default=False, blank=True, null=True)
     data_cleaning_description = models.TextField(blank=True, null=True)
     data_cleaning_code_url = models.URLField(blank=True, null=True)
-    raw_data_url = models.URLField(blank=True, null=True)
+    raw_data_url = models.URLField(blank=True, null=True, max_length=500)
     auxiliary_files_url = models.URLField(blank=True, null=True)
     architecture_url = models.URLField(blank=True, null=True)
     source_bucket_name = models.CharField(max_length=255, blank=True, null=True)
@@ -325,6 +336,11 @@ class Table(models.Model):
         verbose_name = "Table"
         verbose_name_plural = "Tables"
         ordering = ["slug"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["dataset", "slug"], name="constraint_dataset_table_slug"
+            )
+        ]
 
 
 class BigQueryTypes(models.Model):
@@ -473,7 +489,7 @@ class RawDataSource(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    url = models.URLField(blank=True, null=True)
+    url = models.URLField(max_length=500, blank=True, null=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     contains_structure_data = models.BooleanField(default=False)
@@ -519,11 +535,11 @@ class InformationRequest(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    origin = models.CharField(max_length=255, blank=True, null=True)
+    origin = models.TextField(max_length=500, blank=True, null=True)
     slug = models.SlugField(unique=True, blank=True, null=True)
-    url = models.URLField(blank=True, null=True)
+    url = models.URLField(blank=True, max_length=500, null=True)
     started_at = models.DateTimeField(blank=True, null=True)
-    data_url = models.URLField(blank=True, null=True)
+    data_url = models.URLField(max_length=500, blank=True, null=True)
     observations = models.TextField(blank=True, null=True)
     entities = models.ManyToManyField(
         "Entity", related_name="information_requests", blank=True
@@ -540,6 +556,11 @@ class InformationRequest(models.Model):
         verbose_name = "Information Request"
         verbose_name_plural = "Information Requests"
         ordering = ["slug"]
+
+    def clean(self) -> None:
+        errors = {}
+        if self.origin is not None and len(self.origin) > 500:
+            errors["origin"] = "Origin cannot be longer than 500 characters"
 
 
 class Entity(models.Model):
@@ -570,11 +591,10 @@ class ObservationLevel(models.Model):
         return str(self.entity)
 
 
-class TemporalCoverage(models.Model):
+class DateTimeRange(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    slug = models.SlugField(unique=True)
     coverage = models.ForeignKey(
-        "Coverage", on_delete=models.CASCADE, related_name="temporal_coverages"
+        "Coverage", on_delete=models.CASCADE, related_name="datetime_ranges"
     )
     start_year = models.IntegerField(blank=True, null=True)
     start_semester = models.IntegerField(blank=True, null=True)
@@ -595,7 +615,20 @@ class TemporalCoverage(models.Model):
     interval = models.IntegerField(blank=True, null=True)
 
     def __str__(self):
-        return str(self.slug)
+        start_year = self.start_year or ""
+        start_month = f"-{self.start_month}" if self.start_month else ""
+        start_day = f"-{self.start_day}" if self.start_day else ""
+        start_hour = f" {self.start_hour}" if self.start_hour else ""
+        start_minute = f":{self.start_minute}" if self.start_minute else ""
+        start_second = f":{self.start_second}" if self.start_second else ""
+        end_year = self.end_year or ""
+        end_month = f"-{self.end_month}" if self.end_month else ""
+        end_day = f"-{self.end_day}" if self.end_day else ""
+        end_hour = f" {self.end_hour}" if self.end_hour else ""
+        end_minute = f":{self.end_minute}" if self.end_minute else ""
+        interval = f"({self.interval})" if self.interval else "()"
+        return f"{start_year}{start_month}{start_day}{start_hour}{start_minute}{start_second}{interval}\
+            {end_year}{end_month}{end_day}{end_hour}{end_minute}"
 
     def clean(self) -> None:
         errors = {}
@@ -672,7 +705,7 @@ class TemporalCoverage(models.Model):
         return super().clean()
 
     class Meta:
-        db_table = "temporal_coverage"
-        verbose_name = "Temporal Coverage"
-        verbose_name_plural = "Temporal Coverages"
-        ordering = ["slug"]
+        db_table = "datetime_range"
+        verbose_name = "DateTime Range"
+        verbose_name_plural = "DateTime Ranges"
+        ordering = ["id"]

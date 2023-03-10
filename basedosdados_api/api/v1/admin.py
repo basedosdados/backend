@@ -24,7 +24,7 @@ from basedosdados_api.api.v1.models import (
     Dictionary,
     Pipeline,
     AnalysisType,
-    TemporalCoverage,
+    DateTimeRange,
 )
 
 
@@ -41,8 +41,9 @@ class CoverageAdmin(admin.ModelAdmin):
     list_display = ["area", "coverage_type", "table"]
 
 
-class TemporalCoverageAdmin(admin.ModelAdmin):
+class DateTimeRangeAdmin(admin.ModelAdmin):
     readonly_fields = ["id"]
+    list_display = ["__str__", "coverage"]
 
 
 admin.site.register(Organization)
@@ -67,4 +68,4 @@ admin.site.register(Entity)
 admin.site.register(Dictionary)
 admin.site.register(Pipeline)
 admin.site.register(AnalysisType)
-admin.site.register(TemporalCoverage, TemporalCoverageAdmin)
+admin.site.register(DateTimeRange, DateTimeRangeAdmin)

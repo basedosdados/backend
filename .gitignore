@@ -1,4 +1,9 @@
 # Byte-compiled / optimized / DLL files
+
+credentials.json
+utils/migration/data/*
+**/data/*
+
 __pycache__/
 *.py[cod]
 *$py.class
