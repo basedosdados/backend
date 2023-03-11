@@ -130,6 +130,14 @@ class UserAdmin(BaseUserAdmin):
             }
         ),
         (
+            "Organizations",
+            {
+                "fields": (
+                    "organizations",
+                )
+            }
+        ),
+        (
             "Permissions",
             {
                 "fields": (

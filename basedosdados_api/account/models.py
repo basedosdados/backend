@@ -129,7 +129,7 @@ class Account(AbstractBaseUser, PermissionsMixin):
     get_full_name.short_description = "nome completo"
 
     def get_organization(self):
-        return self.organizations.all()
+        return ", ".join(self.organizations.all().values_list("name", flat=True))
 
     get_organization.short_description = "organização"
 
