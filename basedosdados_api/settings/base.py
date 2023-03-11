@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "health_check.contrib.migrations",
     "rest_framework",
     "basedosdados_api.account",
+    "basedosdados_api.core",
     "basedosdados_api.api.v1",
     "basedosdados_api.schemas",
 ]
@@ -127,6 +128,9 @@ STATIC_URL = "static/"
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
+
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
