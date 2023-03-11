@@ -350,7 +350,7 @@ class Table(models.Model):
 
 class BigQueryTypes(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    slug = models.SlugField(unique=False)
+    name = models.CharField(max_length=255)
 
     def __str__(self):
         return str(self.name)
