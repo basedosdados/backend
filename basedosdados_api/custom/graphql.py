@@ -19,6 +19,8 @@ from graphene_django.filter import DjangoFilterConnectionField
 import graphql_jwt
 from graphql_jwt.decorators import login_required
 
+EXEMPTED_MODELS = ("RegistrationToken", )
+
 
 class PlainTextNode(relay.Node):
     class Meta:
@@ -36,10 +38,10 @@ class PlainTextNode(relay.Node):
 class CustomModelForm(ModelForm):
     def __init__(self, *args, **kwargs) -> None:
         data = args[0] if args else kwargs.get("data")
-        # Store raw data so we can verify whether the user has filled None or hasn't filled anything
+        # Store raw data, so we can verify whether the user has filled None or hasn't filled anything
         self.__raw_data = deepcopy(data)
         super().__init__(*args, **kwargs)
-        # Store which fields are required so we can validate them later
+        # Store which fields are required, so we can validate them later
         self.__required_fields = set()
         for field_name, field in self.fields.items():
             if field.required:
@@ -129,7 +131,7 @@ def id_resolver(self, *_):
 
 
 def generate_filter_fields(model: models.Model):
-    exempted_field_types = ()
+    exempted_field_types = (models.ImageField, )
     exempted_field_names = ("_field_status",)
     string_field_types = (models.CharField, models.TextField)
     comparable_field_types = (
@@ -168,7 +170,9 @@ def generate_filter_fields(model: models.Model):
             if (
                 isinstance(field, exempted_field_types)
                 or field.name in exempted_field_names
+                or model.__module__.startswith("django")
             ):
+                print(f"Skipping {field.name}")
                 continue
             if isinstance(field, foreign_key_field_types):
                 related_model: models.Model = field.related_model
@@ -269,6 +273,9 @@ def build_query_objs(application_name: str):
 
     for model in models:
         model_name = model.__name__
+        if model_name in EXEMPTED_MODELS:
+            print(f"Skipping {model_name}...")
+            continue
         meta_class = create_model_object_meta(model)
 
         node = type(
@@ -291,6 +298,9 @@ def build_mutation_objs(application_name: str):
 
     for model in models:
         model_name = model.__name__
+        if model_name in EXEMPTED_MODELS:
+            print(f"Skipping {model_name}...")
+            continue
         mutations.update(
             {f"CreateUpdate{model_name}": create_mutation_factory(model).Field()}
         )
@@ -319,8 +329,9 @@ def build_mutation_schema(application_name: str, add_jwt_mutations: bool = True)
     return mutation
 
 
-def build_schema(application_name: str, add_jwt_mutations: bool = True):
-    schema_cache_key = f"graphql_schema_{application_name}"
+def build_schema(application_name: list, add_jwt_mutations: bool = True):
+    # schema_cache_key = f"graphql_schema_{application_name}"
+    schema_cache_key = "graphql_schema_v1"
     schema_cache_dict = settings.GRAPHENE_SCHEMAS_CACHE
     # Try to fetch schema from cache
     try:
@@ -328,11 +339,20 @@ def build_schema(application_name: str, add_jwt_mutations: bool = True):
             return schema_cache_dict[schema_cache_key]
     except Exception:
         pass
-    query = build_query_schema(application_name)
-    mutation = build_mutation_schema(
-        application_name, add_jwt_mutations=add_jwt_mutations
-    )
-    schema = Schema(query=query, mutation=mutation)
+    queries = [build_query_schema(app) for app in application_name]
+    mutations = [build_mutation_schema(app, add_jwt_mutations=add_jwt_mutations) for app in application_name]
+    # query = build_query_schema(application_name)
+    # mutation = build_mutation_schema(
+    #     application_name, add_jwt_mutations=add_jwt_mutations
+    # )
+
+    class Query(*queries):
+        pass
+
+    class Mutations(*mutations):
+        pass
+
+    schema = Schema(query=Query, mutation=Mutations)
     # Try to cache schema
     try:
         schema_cache_dict[schema_cache_key] = schema

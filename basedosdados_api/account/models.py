@@ -2,17 +2,12 @@
 from uuid import uuid4
 
 from django.db import models
-# from django.contrib.auth.models import User
 
 from django.contrib.auth.models import (
     AbstractBaseUser,
     BaseUserManager,
     PermissionsMixin,
 )
-from django.db import models
-from django.conf import settings
-
-from basedosdados_api.api.v1.models import Organization
 
 
 class RegistrationToken(models.Model):
@@ -29,36 +24,8 @@ class RegistrationToken(models.Model):
         verbose_name_plural = "Registration Tokens"
 
 
-# class Profile(models.Model):
-#     user = models.OneToOneField(User, on_delete=models.CASCADE)
-#     organizations = models.ManyToManyField(
-#         Organization, related_name="users", blank=True
-#     )
-#     created_at = models.DateTimeField(auto_now_add=True)
-#     updated_at = models.DateTimeField(auto_now=True)
-#     name = models.CharField(max_length=255)
-#     description = models.TextField(null=True, blank=True)
-#     birth_date = models.DateField(null=True, blank=True)
-#     picture_url = models.URLField(null=True, blank=True)
-#     twitter = models.CharField(max_length=255, null=True, blank=True)
-#     linkedin = models.CharField(max_length=255, null=True, blank=True)
-#     github = models.CharField(max_length=255, null=True, blank=True)
-#     website = models.URLField(null=True, blank=True)
-#     email = models.EmailField(null=True, blank=True)
-#     # picture = models.ImageField(upload_to="profile_pictures", null=True, blank=True)
-
-#     def __str__(self):
-#         return self.name
-
-#     class Meta:
-#         db_table = "profile"
-#         verbose_name = "Profile"
-#         verbose_name_plural = "Profiles"
-#         ordering = ["name"]
-
-
 class AccountManager(BaseUserManager):
-    def create_user(self, email, password=None, profile_id=2, **kwargs):
+    def create_user(self, email, password=None, profile=2, **kwargs):
         if not email:
             raise ValueError("Users must have a valid email address.")
 
@@ -70,7 +37,7 @@ class AccountManager(BaseUserManager):
             username=kwargs.get("username"),
             first_name=kwargs.get("first_name"),
             last_name=kwargs.get("last_name"),
-            profile_id=profile_id,
+            profile=profile,
             is_superuser=False,
         )
 
@@ -81,7 +48,7 @@ class AccountManager(BaseUserManager):
 
     def create_superuser(self, email, password, **kwargs):
 
-        account = self.create_user(email, password, profile_id=1, **kwargs)
+        account = self.create_user(email, password, profile=1, **kwargs)
 
         account.is_admin = True
         account.is_superuser = True
@@ -91,19 +58,32 @@ class AccountManager(BaseUserManager):
 
 
 class Account(AbstractBaseUser, PermissionsMixin):
-    email = models.EmailField(unique=True)
-    username = models.CharField(max_length=40, unique=True)
+    STAFF = 1
+    VISITANTE = 2
+    COLABORADOR = 3
 
-    first_name = models.CharField(max_length=40, blank=True)
-    last_name = models.CharField(max_length=40, blank=True)
-    birth_date = models.DateField(null=True, blank=True)
-    # picture    = models.ImageField(upload_to="profile_pictures", null=True, blank=True)
-    twitter = models.CharField(max_length=255, null=True, blank=True)
-    linkedin = models.CharField(max_length=255, null=True, blank=True)
-    github = models.CharField(max_length=255, null=True, blank=True)
-    website = models.URLField(null=True, blank=True)
-    email = models.EmailField(null=True, blank=True)
+    PROFILE_CHOICES = (
+        (STAFF, "Staff"),
+        (VISITANTE, "Visitante"),
+        (COLABORADOR, "Colaborador"),
+    )
 
+    email = models.EmailField("Email", unique=True)
+    username = models.CharField("Username", max_length=40, unique=True)
+
+    first_name = models.CharField("Nome", max_length=40, blank=True)
+    last_name = models.CharField("Sobrenome", max_length=40, blank=True)
+    birth_date = models.DateField("Data de Nascimento", null=True, blank=True)
+    picture = models.ImageField("Imagem", upload_to="profile_pictures", null=True, blank=True)
+    twitter = models.CharField("Twitter", max_length=255, null=True, blank=True)
+    linkedin = models.CharField("Linkedin", max_length=255, null=True, blank=True)
+    github = models.CharField("Github", max_length=255, null=True, blank=True)
+    website = models.URLField("Website", null=True, blank=True)
+    description = models.TextField("Descrição", null=True, blank=True)
+
+    organizations = models.ManyToManyField(
+        "v1.Organization", related_name="users", blank=True
+    )
 
     is_admin = models.BooleanField(
         "Membro da equipe",
@@ -114,8 +94,10 @@ class Account(AbstractBaseUser, PermissionsMixin):
         "Ativo", default=True, help_text="Indica se o usuário está ativo"
     )
 
-    profile = models.ForeignKey(
-        Profile, on_delete=models.CASCADE, verbose_name="Perfil"
+    profile = models.IntegerField(
+        choices=PROFILE_CHOICES,
+        default=VISITANTE,
+        verbose_name="Perfil",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -128,9 +110,9 @@ class Account(AbstractBaseUser, PermissionsMixin):
 
     class Meta:
         db_table = "account"
-        verbose_name = "account" 
+        verbose_name = "account"
         verbose_name_plural = "accounts"
-        ordering = ["get_full_name"]
+        ordering = ["first_name", "last_name"]
 
     # def has_perm(self, perm, obj=None):
     #     return True
@@ -146,10 +128,10 @@ class Account(AbstractBaseUser, PermissionsMixin):
 
     get_full_name.short_description = "nome completo"
 
-    def get_company(self):
-        return self.usercompany.company.name
+    def get_organization(self):
+        return self.organizations.all()
 
-    get_company.short_description = "empresa"
+    get_organization.short_description = "organização"
 
     def get_short_name(self):
         return self.first_name

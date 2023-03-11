@@ -5,7 +5,8 @@ import calendar
 from datetime import datetime
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.contrib.auth.models import User
+
+from basedosdados_api.account.models import Account
 from basedosdados_api.api.v1.utils import (
     check_kebab_case,
     check_snake_case,
@@ -545,7 +546,7 @@ class InformationRequest(models.Model):
         "Entity", related_name="information_requests", blank=True
     )
     started_by = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="information_requests"
+        Account, on_delete=models.CASCADE, related_name="information_requests"
     )
 
     def __str__(self):
