@@ -82,7 +82,11 @@ class Account(AbstractBaseUser, PermissionsMixin):
     description = models.TextField("Descrição", null=True, blank=True)
 
     organizations = models.ManyToManyField(
-        "v1.Organization", related_name="users", blank=True
+        "v1.Organization",
+        related_name="users",
+        verbose_name="Organizações",
+        related_query_name="user",
+        blank=True
     )
 
     is_admin = models.BooleanField(
@@ -114,11 +118,6 @@ class Account(AbstractBaseUser, PermissionsMixin):
         verbose_name_plural = "accounts"
         ordering = ["first_name", "last_name"]
 
-    # def has_perm(self, perm, obj=None):
-    #     return True
-    #
-    # def has_module_perms(self, app_label):
-    #     return True
 
     def __str__(self):
         return self.email
