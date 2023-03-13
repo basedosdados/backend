@@ -29,13 +29,13 @@ class Area(models.Model):
     name = models.CharField(max_length=255, blank=False, null=False)
 
     def __str__(self):
-        return str(self.slug)
+        return str(self.name)
 
     class Meta:
         db_table = "area"
         verbose_name = "Area"
         verbose_name_plural = "Areas"
-        ordering = ["slug"]
+        ordering = ["name"]
 
 
 class Coverage(models.Model):
@@ -341,10 +341,10 @@ class Table(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     published_by = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="tables"
+        Account, on_delete=models.CASCADE, related_name="tables_published"
     )
     data_cleaned_by = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="tables"
+        Account, on_delete=models.CASCADE, related_name="tables_cleaned"
     )
     data_cleaning_description = models.TextField(blank=True, null=True)
     data_cleaning_code_url = models.URLField(blank=True, null=True)
@@ -377,7 +377,7 @@ class Table(models.Model):
 
 class BigQueryTypes(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    slug = models.SlugField(unique=False)
+    name = models.CharField(max_length=255)
 
     def __str__(self):
         return str(self.name)
@@ -566,13 +566,13 @@ class InformationRequest(models.Model):
     )
 
     def __str__(self):
-        return str(self.slug)
+        return str(self.number)
 
     class Meta:
         db_table = "information_request"
         verbose_name = "Information Request"
         verbose_name_plural = "Information Requests"
-        ordering = ["slug"]
+        ordering = ["number"]
 
     def clean(self) -> None:
         errors = {}
