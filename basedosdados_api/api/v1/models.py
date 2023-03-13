@@ -5,6 +5,7 @@ import calendar
 from datetime import datetime
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.urls import reverse
 
 from basedosdados_api.account.models import Account
 from basedosdados_api.api.v1.utils import (
@@ -252,6 +253,21 @@ class Organization(models.Model):
         ordering = ["slug"]
 
 
+class Status(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    slug = models.SlugField(unique=True)
+    name = models.CharField(max_length=255)
+
+    def __str__(self) -> str:
+        return str(self.slug)
+
+    class Meta:
+        db_table = "status"
+        verbose_name = "Status"
+        verbose_name_plural = "Statuses"
+        ordering = ["slug"]
+
+
 class Dataset(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     organization = models.ForeignKey(
@@ -273,6 +289,9 @@ class Dataset(models.Model):
         verbose_name = "Dataset"
         verbose_name_plural = "Datasets"
         ordering = ["slug"]
+
+    def get_success_url(self):
+        return reverse("datasetdetail", kwargs={"pk": self.object.pk})
 
 
 class UpdateFrequency(models.Model):
@@ -296,6 +315,13 @@ class Table(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="tables"
+    )
+    status = models.ForeignKey(
+        "Status",
+        on_delete=models.PROTECT,
+        related_name="tables",
+        null=True,
+        blank=True,
     )
     license = models.ForeignKey(
         "License", on_delete=models.CASCADE, related_name="tables"
@@ -506,21 +532,6 @@ class RawDataSource(models.Model):
         verbose_name = "Raw Data Source"
         verbose_name_plural = "Raw Data Sources"
         ordering = ["url"]
-
-
-class Status(models.Model):
-    id = models.UUIDField(primary_key=True, default=uuid4)
-    slug = models.SlugField(unique=True)
-    name = models.CharField(max_length=255)
-
-    def __str__(self) -> str:
-        return str(self.slug)
-
-    class Meta:
-        db_table = "status"
-        verbose_name = "Status"
-        verbose_name_plural = "Statuses"
-        ordering = ["slug"]
 
 
 class InformationRequest(models.Model):

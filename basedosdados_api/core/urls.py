@@ -2,10 +2,14 @@
 from django.urls import path
 from basedosdados_api.core.views import (
     HomeView,
-    DatasetView
+    DatasetCreateView,
+    DatasetUpdateView,
+    DatasetDeleteView,
 )
 
 urlpatterns = [
     path("", HomeView.as_view(), name="home"),
-    path("dataset/<uuid:id>/", DatasetView.as_view()),
+    path("dataset/", DatasetCreateView.as_view(), name="dataset"),
+    path("dataset/<uuid:pk>/", DatasetUpdateView.as_view(), name="dataset-detail"),
+    path("dataset/<uuid:pk>/delete/", DatasetDeleteView.as_view(), name="datasetdelete"),
 ]

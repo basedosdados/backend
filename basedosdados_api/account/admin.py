@@ -5,7 +5,13 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from django.contrib.auth.models import Group
 
-from basedosdados_api.account.models import RegistrationToken, Account
+from basedosdados_api.account.models import (
+    RegistrationToken,
+    Account,
+    BDRole,
+    BDGroup,
+    BDGroupRole,
+)
 
 
 class UserCreationForm(forms.ModelForm):
@@ -45,7 +51,7 @@ class UserChangeForm(forms.ModelForm):
     password = ReadOnlyPasswordHashField(
         label="Password",
         help_text="Senha em formato hash. Não é possível visualizar a senha, mas você "
-                  "pode alterá-la usando '<a href=\"{}\">este formulário</a>.'",
+        "pode alterá-la usando '<a href=\"{}\">este formulário</a>.'",
     )
 
     class Meta:
@@ -67,7 +73,7 @@ class UserChangeForm(forms.ModelForm):
             "is_active",
             "is_admin",
             "is_superuser",
-            "organizations"
+            "organizations",
         )
 
     def clean_password(self):
@@ -96,19 +102,16 @@ class UserAdmin(BaseUserAdmin):
     # The fields to be used in displaying the User model.
     # These override the definitions on the base UserAdmin
     # that reference specific fields on auth.User.
-    list_display = ("email", "username", "get_full_name", "get_organization", "is_admin")
+    list_display = (
+        "email",
+        "username",
+        "get_full_name",
+        "get_organization",
+        "is_admin",
+    )
     list_filter = ("is_admin",)
     fieldsets = (
-        (
-            None,
-            {
-                "fields": (
-                    "username",
-                    "email",
-                    "password"
-                )
-            }
-        ),
+        (None, {"fields": ("username", "email", "password")}),
         (
             "Personal info",
             {
@@ -125,18 +128,11 @@ class UserAdmin(BaseUserAdmin):
                     "description_pt",
                     "description_en",
                     "description_es",
-                    "profile"
+                    "profile",
                 )
-            }
+            },
         ),
-        (
-            "Organizations",
-            {
-                "fields": (
-                    "organizations",
-                )
-            }
-        ),
+        ("Organizations", {"fields": ("organizations",)}),
         (
             "Permissions",
             {
@@ -144,7 +140,7 @@ class UserAdmin(BaseUserAdmin):
                     "is_active",
                     "is_admin",
                     "is_superuser",
-                    "user_permissions",
+                    "groups",
                 )
             },
         ),
@@ -173,6 +169,20 @@ class UserAdmin(BaseUserAdmin):
     filter_horizontal = ()
 
 
+class BDGroupRoleInline(admin.TabularInline):
+    model = BDGroupRole
+    extra = 1
+
+
+class BDGroupAdmin(admin.ModelAdmin):
+    inlines = (BDGroupRoleInline,)
+    list_display = ("name", "description")
+    search_fields = ("name", "description")
+    ordering = ("name",)
+
+
 admin.site.register(RegistrationToken)
 admin.site.register(Account, UserAdmin)
 admin.site.unregister(Group)
+admin.site.register(BDRole)
+admin.site.register(BDGroup, BDGroupAdmin)
