@@ -2,12 +2,12 @@
 from modeltranslation.translator import translator, TranslationOptions
 
 from .models import (
-    Profile,
+    Account,
 )
 
 
-class ProfileTranslationOptions(TranslationOptions):
+class AccountTranslationOptions(TranslationOptions):
     fields = ("description",)
 
 
-translator.register(Profile, ProfileTranslationOptions)
+translator.register(Account, AccountTranslationOptions)

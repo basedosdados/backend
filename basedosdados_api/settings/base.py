@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "health_check.contrib.migrations",
     "rest_framework",
     "basedosdados_api.account",
+    "basedosdados_api.core",
     "basedosdados_api.api.v1",
     "basedosdados_api.schemas",
 ]
@@ -123,6 +124,14 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 
+# Media files
+MEDIA_URL = "media/"
+MEDIA_ROOT = BASE_DIR / "media"
+DEFAULT_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
+
+LOGIN_REDIRECT_URL = "/"
+LOGOUT_REDIRECT_URL = "/"
+
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 
@@ -194,6 +203,8 @@ AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
 ]
 
+AUTH_USER_MODEL = "account.Account"
+
 # GraphQL JWT configurations
 GRAPHQL_JWT = {
     "JWT_AUTH_HEADER_PREFIX": "Bearer",
@@ -206,6 +217,7 @@ GRAPHQL_JWT = {
 LANGUAGES = (
     ("pt", lambda x: "Português"),
     ("en", lambda x: "English"),
+    ("es", lambda x: "Español"),
 )
 
 MODELTRANSLATION_AUTO_POPULATE = True

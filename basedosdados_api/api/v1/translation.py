@@ -44,7 +44,7 @@ class DatasetTranslationOptions(TranslationOptions):
 
 
 class EntityTranslationOptions(TranslationOptions):
-    fields = ("name",)
+    fields = ("name","category")
 
 
 class InformationRequestTranslationOptions(TranslationOptions):
