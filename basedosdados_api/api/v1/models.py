@@ -20,14 +20,13 @@ from basedosdados_api.api.v1.validators import (
 
 class Area(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    name = models.CharField(max_length=255, blank=False, null=False)
-    slug = models.SlugField(unique=True)
     key = models.CharField(
         max_length=255,
         null=True,
         blank=False,
         validators=[validate_area_key, validate_is_valid_area_key],
     )
+    name = models.CharField(max_length=255, blank=False, null=False)
 
     def __str__(self):
         return str(self.slug)
@@ -179,6 +178,7 @@ class Pipeline(models.Model):
 
 class AnalysisType(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
+    slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
     tag = models.CharField(max_length=255)
 
@@ -213,7 +213,6 @@ class Theme(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
-    logo_url = models.URLField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -229,14 +228,14 @@ class Theme(models.Model):
 
 class Organization(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
+    slug = models.SlugField(unique=True, max_length=255)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
     area = models.ForeignKey(
         "Area", on_delete=models.CASCADE, related_name="organizations"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    slug = models.SlugField(unique=True, max_length=255)
-    name = models.CharField(max_length=255)
-    description = models.TextField(blank=True, null=True)
     website = models.URLField(blank=True, null=True)
     twitter = models.URLField(blank=True, null=True)
     facebook = models.URLField(blank=True, null=True)
@@ -270,6 +269,9 @@ class Status(models.Model):
 
 class Dataset(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
+    slug = models.SlugField(unique=True, max_length=255)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
     organization = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="datasets"
     )
@@ -277,9 +279,6 @@ class Dataset(models.Model):
     tags = models.ManyToManyField("Tag", related_name="datasets")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    slug = models.SlugField(unique=True, max_length=255)
-    name = models.CharField(max_length=255)
-    description = models.TextField(blank=True, null=True)
 
     def __str__(self):
         return str(self.slug)
@@ -313,6 +312,9 @@ class UpdateFrequency(models.Model):
 
 class Table(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
+    slug = models.SlugField(unique=False)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="tables"
     )
@@ -335,12 +337,15 @@ class Table(models.Model):
     pipeline = models.ForeignKey(
         "Pipeline", on_delete=models.CASCADE, related_name="tables"
     )
+    is_directory = models.BooleanField(default=False, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    slug = models.SlugField(unique=False)
-    name = models.CharField(max_length=255)
-    description = models.TextField(blank=True, null=True)
-    is_directory = models.BooleanField(default=False, blank=True, null=True)
+    published_by = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="tables"
+    )
+    data_cleaned_by = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="tables"
+    )
     data_cleaning_description = models.TextField(blank=True, null=True)
     data_cleaning_code_url = models.URLField(blank=True, null=True)
     raw_data_url = models.URLField(blank=True, null=True, max_length=500)
@@ -372,7 +377,7 @@ class Table(models.Model):
 
 class BigQueryTypes(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    name = models.CharField(max_length=255, unique=True)
+    slug = models.SlugField(unique=False)
 
     def __str__(self):
         return str(self.name)
@@ -387,9 +392,12 @@ class BigQueryTypes(models.Model):
 class Column(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     table = models.ForeignKey("Table", on_delete=models.CASCADE, related_name="columns")
+    name = models.CharField(max_length=255)
     bigquery_type = models.ForeignKey(
         "BigQueryTypes", on_delete=models.CASCADE, related_name="columns"
     )
+    description = models.TextField(blank=True, null=True)
+    covered_by_dictionary = models.BooleanField(default=False, blank=True, null=True)
     directory_primary_key = models.ForeignKey(
         "Column",
         on_delete=models.PROTECT,
@@ -397,14 +405,11 @@ class Column(models.Model):
         blank=True,
         null=True,
     )
-    name = models.CharField(max_length=255)
-    is_in_staging = models.BooleanField(default=True)
-    is_partition = models.BooleanField(default=False)
-    description = models.TextField(blank=True, null=True)
-    covered_by_dictionary = models.BooleanField(default=False, blank=True, null=True)
     measurement_unit = models.CharField(max_length=255, blank=True, null=True)
     contains_sensitive_data = models.BooleanField(default=False, blank=True, null=True)
     observations = models.TextField(blank=True, null=True)
+    is_in_staging = models.BooleanField(default=True)
+    is_partition = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{str(self.table.dataset.slug)}.{self.table.slug}.{str(self.name)}"
@@ -496,6 +501,9 @@ class Language(models.Model):
 
 class RawDataSource(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    url = models.URLField(max_length=500, blank=True, null=True)
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="raw_data_sources"
     )
@@ -516,9 +524,6 @@ class RawDataSource(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    url = models.URLField(max_length=500, blank=True, null=True)
-    name = models.CharField(max_length=255)
-    description = models.TextField(blank=True, null=True)
     contains_structure_data = models.BooleanField(default=False)
     contains_api = models.BooleanField(default=False)
     is_free = models.BooleanField(default=False)
@@ -548,7 +553,7 @@ class InformationRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     origin = models.TextField(max_length=500, blank=True, null=True)
-    slug = models.SlugField(unique=True, blank=True, null=True)
+    number = models.CharField(max_length=255)
     url = models.URLField(blank=True, max_length=500, null=True)
     started_at = models.DateTimeField(blank=True, null=True)
     data_url = models.URLField(max_length=500, blank=True, null=True)
@@ -579,6 +584,7 @@ class Entity(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
+    category = models.CharField(max_length=255)
 
     def __str__(self):
         return str(self.slug)
