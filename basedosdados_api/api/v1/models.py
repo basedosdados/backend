@@ -298,6 +298,13 @@ class Table(models.Model):
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="tables"
     )
+    status = models.ForeignKey(
+        "Status", on_delete=models.CASCADE, related_name="tables"
+    )
+    publish_sql = models.CharField(max_length=10000, blank=True, null=True)
+    observation_level = models.ManyToManyField(
+        "ObservationLevel", related_name="tables", blank=True
+    )
     license = models.ForeignKey(
         "License", on_delete=models.CASCADE, related_name="tables"
     )
@@ -329,9 +336,6 @@ class Table(models.Model):
     compressed_file_size = models.BigIntegerField(blank=True, null=True)
     number_rows = models.BigIntegerField(blank=True, null=True)
     number_columns = models.BigIntegerField(blank=True, null=True)
-    observation_level = models.ManyToManyField(
-        "ObservationLevel", related_name="tables", blank=True
-    )
 
     def __str__(self):
         return f"{str(self.dataset.slug)}.{str(self.slug)}"
