@@ -341,10 +341,18 @@ class Table(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     published_by = models.ForeignKey(
-        Account, on_delete=models.CASCADE, related_name="tables_published"
+        Account,
+        on_delete=models.CASCADE,
+        related_name="tables_published",
+        blank=True,
+        null=True,
     )
     data_cleaned_by = models.ForeignKey(
-        Account, on_delete=models.CASCADE, related_name="tables_cleaned"
+        Account,
+        on_delete=models.CASCADE,
+        related_name="tables_cleaned",
+        blank=True,
+        null=True,
     )
     data_cleaning_description = models.TextField(blank=True, null=True)
     data_cleaning_code_url = models.URLField(blank=True, null=True)
@@ -562,7 +570,11 @@ class InformationRequest(models.Model):
         "Entity", related_name="information_requests", blank=True
     )
     started_by = models.ForeignKey(
-        Account, on_delete=models.CASCADE, related_name="information_requests"
+        Account,
+        on_delete=models.PROTECT,
+        related_name="information_requests",
+        blank=True,
+        null=True,
     )
 
     def __str__(self):
