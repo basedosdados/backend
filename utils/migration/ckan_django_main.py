@@ -293,11 +293,15 @@ def migrate_enum(mode):
     # entities = class_to_dict()
     entity_dict = {}
     for entity in EntityEnum:
-        entity_dict.update(class_to_dict(entity))
-    for key in entity_dict.keys():
-        obj = {}
-        obj["entity"] = entity.get()
-        obj["categories"] = entity_dict[entity]
+        entity_dict |= class_to_dict(entity)
+    for key in entity_dict:
+        obj = {
+            "entity": key,
+            "label": entity_dict[key].get("label"),
+            "category": entity_dict[key].get("category"),
+        }
+        m.create_entity(obj)
+        print(obj)
 
 
 if __name__ == "__main__":
