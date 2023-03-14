@@ -186,7 +186,7 @@ class Account(AbstractBaseUser, PermissionsMixin):
     )
 
     email = models.EmailField("Email", unique=True)
-    username = models.CharField("Username", max_length=40, unique=True)
+    username = models.CharField("Username", max_length=40, blank=True, null=True, unique=True)
 
     first_name = models.CharField("Nome", max_length=40, blank=True)
     last_name = models.CharField("Sobrenome", max_length=40, blank=True)
