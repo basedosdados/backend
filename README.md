@@ -43,7 +43,7 @@
 
 * OBS2: É possível realizar a execução do servidor django com os comandos 
 ```sh
-    
+    python manage.py makemigrations
     python manage.py migrate 
     python manage.py createsuperuser
     python manage.py runserver 8080

@@ -29,7 +29,7 @@ from ckan_django_utils import (
 
 from data.enums.availability import AvailabilityEnum
 from data.enums.bigquery_type import BigQueryTypeEnum
-from data.enums.entity import EntityArtEnum
+from data.enums.entity import EntityEnum
 from data.enums.language import LanguageEnum
 from data.enums.license import LicenseEnum
 from data.enums.status import StatusEnum
@@ -54,8 +54,8 @@ def get_credentials(mode):
 migration_control = 1
 
 
-def main(package_name_error=None, tables_error=[]):
-    USERNAME, PASSWORD, URL = get_credentials("staging")
+def main(mode="local", package_name_error=None, tables_error=[]):
+    USERNAME, PASSWORD, URL = get_credentials(mode)
     TOKEN = get_token(URL, USERNAME, PASSWORD)
     m = Migration(url=URL, token=TOKEN)
 
@@ -70,8 +70,8 @@ def main(package_name_error=None, tables_error=[]):
     count = 1
     for p, package_id in zip(df["packages"].tolist(), df["package_id"].tolist()):
         # create tags
-        tags_ids = m.create_tags(objs=p.get("tags"))
         themes_ids = m.create_themes(objs=p.get("groups"))
+        tags_ids = m.create_tags(objs=p.get("tags"))
 
         ## create organization
         print(
@@ -147,6 +147,7 @@ def main(package_name_error=None, tables_error=[]):
                     "observationLevel": m.create_observation_level(
                         observation_levels=resource["observation_level"]
                     ),
+                    # "publishedBy":resource.get("published_by",{}).get("name",None),
                 }
 
                 r, table_id = m.create_update(
@@ -242,10 +243,7 @@ def main(package_name_error=None, tables_error=[]):
                     )[1],
                     "updateFrequency": update_frequency_id,
                     "origin": resource["origin"],
-                    "slug": resource["name"]
-                    .replace("/", "")
-                    .replace("-", "")
-                    .replace(".", ""),
+                    "number": resource["name"],
                     "url": resource.get("data_url", ""),
                     "startedAt": datetime.strptime(
                         resource["opening_date"], "%d/%m/%Y"
@@ -288,10 +286,29 @@ def main(package_name_error=None, tables_error=[]):
             )
 
 
+def migrate_enum(mode):
+    USERNAME, PASSWORD, URL = get_credentials(mode)
+    TOKEN = get_token(URL, USERNAME, PASSWORD)
+    m = Migration(url=URL, token=TOKEN)
+    # entities = class_to_dict()
+    entity_dict = {}
+    for entity in EntityEnum:
+        entity_dict.update(class_to_dict(entity))
+    for key in entity_dict.keys():
+        obj = {}
+        obj["entity"] = entity.get()
+        obj["categories"] = entity_dict[entity]
+
+
 if __name__ == "__main__":
 
-    print(class_to_dict(BigQueryTypeEnum()))
+    migrate_enum(mode="local")
 
+    # migrate_enum(
+    #     mode="local",
+    #     package_name_error=None,
+    #     tables_error=[],
+    # )
     # retry = 0
     # while retry < 3:
     #     try:

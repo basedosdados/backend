@@ -24,7 +24,7 @@ def get_token(url, username, password):
             "query": """
                 mutation tokenAuth($username: String!, $password: String!) {
                     tokenAuth(
-                        username: $username,
+                        email: $username,
                         password: $password,
                     ) {
                         payload,
@@ -219,13 +219,12 @@ class Migration:
 
         r["r"] = "mutation"
         if "data" in r and r is not None:
-            if r.get("data", {}).get(mutation_class, {}).get("errors", []) != []:
-                print(f"create: not found {mutation_class}", mutation_parameters)
-                print(
-                    "create: error\n", json.dumps(r, indent=4, ensure_ascii=False), "\n"
-                )
-                id = None
-                raise Exception("create: Error")
+            r_mutation_class = r.get("data", {}).get(mutation_class, {})
+            r_mutation_class = {} if r_mutation_class is None else r_mutation_class
+            if r.get("errors", []) != []:
+                self.get_mutation_error(mutation_class, query, mutation_parameters, r)
+            elif r_mutation_class.get("errors", []) != []:
+                self.get_mutation_error(mutation_class, query, mutation_parameters, r)
             else:
                 id = r["data"][mutation_class][_classe]["id"]
                 # print(f"create: created {id}")
@@ -241,6 +240,12 @@ class Migration:
             )
             print("create: error\n", json.dumps(r, indent=4, ensure_ascii=False), "\n")
             raise Exception("create: Error")
+
+    def get_mutation_error(self, mutation_class, query, mutation_parameters, r):
+        print(f"create: not found {mutation_class}", mutation_parameters)
+        print("create: error\n", json.dumps(r, indent=4, ensure_ascii=False), "\n")
+        id = None
+        raise Exception("create: Error")
 
     def delete(self, classe, id):
         query = f"""
@@ -268,15 +273,16 @@ class Migration:
     def create_themes(self, objs):
         ids = []
         for obj in objs:
+            theme_name = obj.get("name")
             r, id = self.create_update(
                 mutation_class="CreateUpdateTheme",
                 mutation_parameters={
-                    "slug": obj.get("name"),
+                    "slug": theme_name,
                     "name": obj.get("title"),
-                    "logoUrl": obj.get("image_display_url"),
+                    # "logoUrl": f"https://basedosdados-static.s3.us-east-2.amazonaws.com/category_icons/2022/icone_{theme_name}.svg",
                 },
                 query_class="allTheme",
-                query_parameters={"$slug: String": obj.get("name")},
+                query_parameters={"$slug: String": theme_name},
             )
             ids.append(id)
 
@@ -327,9 +333,12 @@ class Migration:
                 mutation_parameters={
                     "slug": "desconhecida",
                     "name": "desconhecida",
+                    "category": "desconhecida",
                 },
                 query_class="allEntity",
-                query_parameters={"$slug: String": "desconhecida"},
+                query_parameters={
+                    "$slug: String": "desconhecida",
+                },
             )
         else:
             r, id = self.create_update(
@@ -337,6 +346,7 @@ class Migration:
                 mutation_parameters={
                     "slug": obj["entity"],
                     "name": obj["entity"],
+                    "category": obj["category"],
                 },
                 query_class="allEntity",
                 query_parameters={"$slug: String": obj["entity"]},
@@ -589,13 +599,13 @@ class Migration:
                     "table": table_id,
                     "bigqueryType": self.create_bq_type("desconhecida"),
                     "name": "desconhecida",
-                    "isInStaging": "desconhecida",
-                    "isPartition": "desconhecida",
-                    "description": "desconhecida",
-                    "coveredByDictionary": False,
-                    "measurementUnit": "desconhecida",
-                    "containsSensitiveData": False,
-                    "observations": "desconhecida",
+                    # "isInStaging": "desconhecida",
+                    # "isPartition": "desconhecida",
+                    # "description": "desconhecida",
+                    # "coveredByDictionary": False,
+                    # "measurementUnit": "desconhecida",
+                    # "containsSensitiveData": False,
+                    # "observations": "desconhecida",
                 },
                 query_class="allColumn",
                 query_parameters={
@@ -696,15 +706,13 @@ class Migration:
     def create_area(self, area):
 
         area = area.replace("-", ".").replace(" ", ".")
+        name = self.area_dict.get(area, {}).get("label", {}).get("pt", "Desconhecida")
         r, id = self.create_update(
             query_class="allArea",
-            query_parameters={"$slug: String": area.replace(".", "_")},
+            query_parameters={"$name: String": name},
             mutation_class="CreateUpdateArea",
             mutation_parameters={
-                "slug": area.replace(".", "_"),
-                "name": self.area_dict.get(area, {})
-                .get("label", {})
-                .get("pt", "Desconhecida"),
+                "name": name,
                 "key": "unknown" if area == "desconhecida" else area,
             },
         )
