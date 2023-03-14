@@ -211,6 +211,7 @@ GRAPHQL_JWT = {
     "JWT_EXPIRATION_DELTA": timedelta(minutes=30),
     "JWT_REFRESH_EXPIRATION_DELTA": timedelta(days=1),
     "JWT_VERIFY_EXPIRATION": True,
+    'JWT_ALLOW_ANY_HANDLER': 'basedosdados_api.custom.allow_any.allow_any',
 }
 
 # Translations
