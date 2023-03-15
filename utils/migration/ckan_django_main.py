@@ -43,7 +43,6 @@ def main(mode="local", migrate_enum=True, package_name_error=None, tables_error=
     # id = "br-me-clima-organizacional"
     # df = get_package_model(name_or_id=id)
     df = get_bd_packages()
-    df = df.head(50)
     entity_id = m.create_entity()
     update_frequency_id = m.create_update_frequency()
     # r = m.delete(classe="Dataset", id="77239376-6662-4d64-8950-2f57f1225e53")
@@ -270,7 +269,7 @@ def main(mode="local", migrate_enum=True, package_name_error=None, tables_error=
 
 if __name__ == "__main__":
     main(
-        mode="local",
+        mode="staging",
         migrate_enum=True,
         package_name_error=None,
         tables_error=[],
@@ -280,6 +279,8 @@ if __name__ == "__main__":
     # while retry < 3:
     #     try:
     #         main(
+    #             mode="staging",
+    #             migrate_enum=True,
     #             package_name_error=None,
     #             tables_error=[],
     #         )
@@ -290,4 +291,4 @@ if __name__ == "__main__":
     #             retry,
     #             "************************************\n\n\n\n",
     #         )
-    #         print(e)
+    #         print(e, "\n\n\n\n")

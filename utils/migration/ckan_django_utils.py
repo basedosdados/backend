@@ -7,6 +7,7 @@ from datetime import datetime
 import json
 import re
 import requests
+import time
 
 from pathlib import Path
 import pandas as pd
@@ -206,6 +207,7 @@ class Migration:
         update=False,
     ):
         r, id = self.get_id(query_class=query_class, query_parameters=query_parameters)
+        time.sleep(0.1)
         if id is not None:
             r["r"] = "query"
             if update == False:
@@ -233,7 +235,10 @@ class Migration:
             self.base_url,
             json={"query": query, "variables": {"input": mutation_parameters}},
             headers=self.header,
-        ).json()
+        )
+        r.raise_for_status()
+        time.sleep(0.1)
+        r = r.json()
 
         r["r"] = "mutation"
         if "data" in r and r is not None:
@@ -795,58 +800,58 @@ class Migration:
 
     def create_enum(self):
 
-        availabilities = class_to_dict(AvailabilityEnum())
-        for key in availabilities:
-            obj = {
-                "availability": key,
-                "name": availabilities[key].get("label"),
-            }
-            self.create_availability(obj)
-        print("AvailabilityEnum Done")
+        # availabilities = class_to_dict(AvailabilityEnum())
+        # for key in availabilities:
+        #     obj = {
+        #         "availability": key,
+        #         "name": availabilities[key].get("label"),
+        #     }
+        #     self.create_availability(obj)
+        # print("AvailabilityEnum Done")
 
-        licenses = class_to_dict(LicenseEnum())
-        for key in licenses:
-            obj = {
-                "slug": key,
-                "name": licenses[key].get("label"),
-            }
-            self.create_license(obj)
-        print("LicenseEnum Done")
+        # licenses = class_to_dict(LicenseEnum())
+        # for key in licenses:
+        #     obj = {
+        #         "slug": key,
+        #         "name": licenses[key].get("label"),
+        #     }
+        #     self.create_license(obj)
+        # print("LicenseEnum Done")
 
-        languages = class_to_dict(LanguageEnum())
-        for key in languages:
-            obj = {
-                "slug": key,
-                "name": languages[key].get("label"),
-            }
-            self.create_language(obj)
-        print("LanguageEnum Done")
+        # languages = class_to_dict(LanguageEnum())
+        # for key in languages:
+        #     obj = {
+        #         "slug": key,
+        #         "name": languages[key].get("label"),
+        #     }
+        #     self.create_language(obj)
+        # print("LanguageEnum Done")
 
-        status = class_to_dict(StatusEnum())
-        for key in status:
-            obj = {
-                "slug": key,
-                "name": status[key].get("label"),
-            }
-            self.create_status(obj)
-        print("StatusEnum Done")
+        # status = class_to_dict(StatusEnum())
+        # for key in status:
+        #     obj = {
+        #         "slug": key,
+        #         "name": status[key].get("label"),
+        #     }
+        #     self.create_status(obj)
+        # print("StatusEnum Done")
 
-        bq_types = class_to_dict(BigQueryTypeEnum())
-        for key in bq_types:
-            self.create_bq_type(bq_types[key].get("label"))
-        print("BigQueryTypeEnum Done")
+        # bq_types = class_to_dict(BigQueryTypeEnum())
+        # for key in bq_types:
+        #     self.create_bq_type(bq_types[key].get("label"))
+        # print("BigQueryTypeEnum Done")
 
-        entity_dict = {}
-        for entity in EntityEnum:
-            entity_dict |= class_to_dict(entity)
-        for key in entity_dict:
-            obj = {
-                "entity": key,
-                "label": entity_dict[key].get("label"),
-                "category": entity_dict[key].get("category"),
-            }
-            self.create_entity(obj)
-        print("EntityEnum Done")
+        # entity_dict = {}
+        # for entity in EntityEnum:
+        #     entity_dict |= class_to_dict(entity)
+        # for key in entity_dict:
+        #     obj = {
+        #         "entity": key,
+        #         "label": entity_dict[key].get("label"),
+        #         "category": entity_dict[key].get("category"),
+        #     }
+        #     self.create_entity(obj)
+        # print("EntityEnum Done")
 
         df_area = pd.read_csv("./utils/migration/data/enums/spatial_coverage_tree.csv")
         areas = df_area["id"].to_list()
@@ -859,6 +864,7 @@ class Migration:
                 "name": name_pt,
                 "name_en": name_en,
             }
+            print(obj)
             self.create_area(obj)
         print("Area Done")
 
