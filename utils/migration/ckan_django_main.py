@@ -106,7 +106,9 @@ def main(mode="local", migrate_enum=True, package_name_error=None, tables_error=
                 )
                 resource_to_table = {
                     "dataset": dataset_id,
-                    "license": m.create_license(),
+                    "license": m.create_license(
+                        obj={"slug": "desconhecida", "name": "desconhecida"}
+                    ),
                     "partnerOrganization": m.create_org(
                         resource["partner_organization"]
                     ),
@@ -278,7 +280,7 @@ def main(mode="local", migrate_enum=True, package_name_error=None, tables_error=
 if __name__ == "__main__":
     main(
         mode="local",
-        migrate_enum=True,
+        migrate_enum=False,
         package_name_error=None,
         tables_error=[],
     )

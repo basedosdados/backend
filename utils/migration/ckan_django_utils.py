@@ -362,12 +362,12 @@ class Migration:
             r, id = self.create_update(
                 mutation_class="CreateUpdateEntity",
                 mutation_parameters={
-                    "slug": obj["entity"],
-                    "name": obj["label"],
-                    "category": obj["category"],
+                    "slug": obj.get("entity"),
+                    "name": obj.get("label"),
+                    "category": obj.get("category"),
                 },
                 query_class="allEntity",
-                query_parameters={"$slug: String": obj["entity"]},
+                query_parameters={"$slug: String": obj.get("entity", "desconhecida")},
             )
 
         return id
@@ -601,7 +601,11 @@ class Migration:
 
         for area in area_slugs:
             package_to_coverage = {coverage_type: coverage_value}
-            package_to_coverage["area"] = self.create_area(area=area)
+            package_to_coverage["area"] = self.create_area(
+                obj={
+                    "key": area,
+                }
+            )
             r, id = self.create_update(
                 query_class="allCoverage",
                 query_parameters={f"${coverage_filter}: ID": coverage_value},
@@ -713,7 +717,7 @@ class Migration:
 
             org_name = org_slug if org_name is None else org_name
             package_to_part_org = {
-                "area": self.create_area("desconhecida"),
+                "area": self.create_area(obj="desconhecida"),
                 "slug": org_slug,
                 "name": org_name,
                 "description": org_description,
@@ -730,17 +734,25 @@ class Migration:
 
         # area = area.replace("-", ".").replace(" ", ".")
         # name = self.area_dict.get(area, {}).get("label", {}).get("pt", "Desconhecida")
-        area = obj.get("area")
+
+        if obj == "desconhecida":
+            obj = {
+                "area": "desconhecida",
+                "name": "Desconhecida",
+                "name_en": "Unknown",
+            }
+
         name = obj.get("name")
-        name_en = obj.get("name_en")
+        name_en = obj.get("name_en", None)
+        key = "unknown" if obj.get("area") == "desconhecida" else obj.get("key")
 
         r, id = self.create_update(
             query_class="allArea",
-            query_parameters={"$name: String": name},
+            query_parameters={"$key: String": key},
             mutation_class="CreateUpdateArea",
             mutation_parameters={
                 "name": name,
-                "key": "unknown" if area == "desconhecida" else area,
+                "key": key,
                 "nameEn": name_en,
             },
         )
@@ -798,9 +810,9 @@ class Migration:
         name_pt = df_area["label__pt"].to_list()
         name_en = df_area["label__en"].to_list()
 
-        for area, name_pt, name_en in zip(areas, name_pt, name_en):
+        for key, name_pt, name_en in zip(areas, name_pt, name_en):
             obj = {
-                "area": area,
+                "key": key,
                 "name": name_pt,
                 "name_en": name_en,
             }
