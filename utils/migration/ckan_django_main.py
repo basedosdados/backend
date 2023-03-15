@@ -302,7 +302,7 @@ def migrate_enum(mode):
     #         "category": entity_dict[key].get("category"),
     #     }
     #     m.create_entity(obj)
-    #     print(obj)
+    # print("BigQueryTypeEnum Done")
 
     # df_area = pd.read_csv("./utils/migration/data/enums/spatial_coverage_tree.csv")
     # areas = df_area["id"].to_list()
@@ -316,11 +316,12 @@ def migrate_enum(mode):
     #         "name_en": name_en,
     #     }
     #     m.create_area(obj)
-    #     print(obj)
+    # print("BigQueryTypeEnum Done")
 
     # bq_types = class_to_dict(BigQueryTypeEnum())
     # for key in bq_types:
     #     m.create_bq_type(bq_types[key].get("label"))
+    # print("BigQueryTypeEnum Done")
 
     # availabilities = class_to_dict(AvailabilityEnum())
     # for key in availabilities:
