@@ -271,7 +271,7 @@ def main(mode="local", migrate_enum=True, package_name_error=None, tables_error=
 if __name__ == "__main__":
     main(
         mode="local",
-        migrate_enum=False,
+        migrate_enum=True,
         package_name_error=None,
         tables_error=[],
     )

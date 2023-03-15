@@ -182,7 +182,10 @@ class Migration:
         ).json()
 
         if "data" in r and r is not None:
-            if r.get("data", {}).get(query_class, {}).get("edges") == []:
+
+            r_query_class = r.get("data", {}).get(query_class, {})
+            r_query_class = {} if r_query_class is None else r_query_class
+            if r_query_class.get("edges", []) == []:
                 id = None
                 # print(f"get: not found {query_class}", dict(zip(keys, values)))
             else:
@@ -791,38 +794,6 @@ class Migration:
         return id
 
     def create_enum(self):
-        entity_dict = {}
-        for entity in EntityEnum:
-            entity_dict |= class_to_dict(entity)
-        for key in entity_dict:
-            obj = {
-                "entity": key,
-                "label": entity_dict[key].get("label"),
-                "category": entity_dict[key].get("category"),
-            }
-            self.create_entity(obj)
-        print("EntityEnum Done")
-
-        df_area = pd.read_csv(
-            "./utils/migration/data/enums/spatial_coverage_tree_small.csv"
-        )
-        areas = df_area["id"].to_list()
-        name_pt = df_area["label__pt"].to_list()
-        name_en = df_area["label__en"].to_list()
-
-        for key, name_pt, name_en in zip(areas, name_pt, name_en):
-            obj = {
-                "key": key,
-                "name": name_pt,
-                "name_en": name_en,
-            }
-            self.create_area(obj)
-        print("Area Done")
-
-        bq_types = class_to_dict(BigQueryTypeEnum())
-        for key in bq_types:
-            self.create_bq_type(bq_types[key].get("label"))
-        print("BigQueryTypeEnum Done")
 
         availabilities = class_to_dict(AvailabilityEnum())
         for key in availabilities:
@@ -859,6 +830,37 @@ class Migration:
             }
             self.create_status(obj)
         print("StatusEnum Done")
+
+        bq_types = class_to_dict(BigQueryTypeEnum())
+        for key in bq_types:
+            self.create_bq_type(bq_types[key].get("label"))
+        print("BigQueryTypeEnum Done")
+
+        entity_dict = {}
+        for entity in EntityEnum:
+            entity_dict |= class_to_dict(entity)
+        for key in entity_dict:
+            obj = {
+                "entity": key,
+                "label": entity_dict[key].get("label"),
+                "category": entity_dict[key].get("category"),
+            }
+            self.create_entity(obj)
+        print("EntityEnum Done")
+
+        df_area = pd.read_csv("./utils/migration/data/enums/spatial_coverage_tree.csv")
+        areas = df_area["id"].to_list()
+        name_pt = df_area["label__pt"].to_list()
+        name_en = df_area["label__en"].to_list()
+
+        for key, name_pt, name_en in zip(areas, name_pt, name_en):
+            obj = {
+                "key": key,
+                "name": name_pt,
+                "name_en": name_en,
+            }
+            self.create_area(obj)
+        print("Area Done")
 
         print(
             "\n===================================== ENUMS DONE!!!! =====================================\n\n\n"
