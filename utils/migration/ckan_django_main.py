@@ -19,6 +19,7 @@
 
 import json
 from datetime import datetime
+import pandas as pd
 from ckan_django_utils import (
     Migration,
     get_token,
@@ -290,20 +291,58 @@ def migrate_enum(mode):
     USERNAME, PASSWORD, URL = get_credentials(mode)
     TOKEN = get_token(URL, USERNAME, PASSWORD)
     m = Migration(url=URL, token=TOKEN)
-    # entities = class_to_dict()
-    entity_dict = {}
-    for entity in EntityEnum:
-        entity_dict |= class_to_dict(entity)
-    for key in entity_dict:
+
+    # entity_dict = {}
+    # for entity in EntityEnum:
+    #     entity_dict |= class_to_dict(entity)
+    # for key in entity_dict:
+    #     obj = {
+    #         "entity": key,
+    #         "label": entity_dict[key].get("label"),
+    #         "category": entity_dict[key].get("category"),
+    #     }
+    #     m.create_entity(obj)
+    #     print(obj)
+
+    # df_area = pd.read_csv("./utils/migration/data/enums/spatial_coverage_tree.csv")
+    # areas = df_area["id"].to_list()
+    # name_pt = df_area["label__pt"].to_list()
+    # name_en = df_area["label__en"].to_list()
+
+    # for area, name_pt, name_en in zip(areas, name_pt, name_en):
+    #     obj = {
+    #         "area": area,
+    #         "name": name_pt,
+    #         "name_en": name_en,
+    #     }
+    #     m.create_area(obj)
+    #     print(obj)
+
+    # bq_types = class_to_dict(BigQueryTypeEnum())
+    # for key in bq_types:
+    #     m.create_bq_type(bq_types[key].get("label"))
+
+    # availabilities = class_to_dict(AvailabilityEnum())
+    # for key in availabilities:
+    #     obj = {
+    #         "availability": key,
+    #         "name": availabilities[key].get("label"),
+    #     }
+    #     m.create_availability(obj)
+    # print("AvailabilityEnum Done")
+
+    licenses = class_to_dict(LicenseEnum())
+    for key in licenses:
         obj = {
-            "entity": key,
-            "label": entity_dict[key].get("label"),
-            "category": entity_dict[key].get("category"),
+            "slug": key,
+            "name": licenses[key].get("label"),
         }
-        m.create_entity(obj)
-        print(obj)
+        m.create_license(obj)
+    print("LicenseEnum Done")
 
 
+# from data.enums.language import LanguageEnum
+# from data.enums.status import StatusEnum
 if __name__ == "__main__":
 
     migrate_enum(mode="local")

@@ -314,11 +314,14 @@ class Migration:
             if obj.get("availability") is None
             else obj.get("availability")
         )
+        name = obj.get("name", None)
+        name = name if name is None else availability
+
         r, id = self.create_update(
             mutation_class="CreateUpdateAvailability",
             mutation_parameters={
                 "slug": availability,
-                "name": availability,
+                "name": name,
             },
             query_class="allAvailability",
             query_parameters={"$slug: String": availability},
@@ -345,7 +348,7 @@ class Migration:
                 mutation_class="CreateUpdateEntity",
                 mutation_parameters={
                     "slug": obj["entity"],
-                    "name": obj["entity"],
+                    "name": obj["label"],
                     "category": obj["category"],
                 },
                 query_class="allEntity",
@@ -488,16 +491,21 @@ class Migration:
                 )
         return id
 
-    def create_license(self):
+    def create_license(self, obj):
+        slug = obj["slug"]
+        name = obj["name"]
+
+        slug = slug if slug is not None else "desconhecida"
+        name = name if name is not None else "Desconhecida"
         r, id = self.create_update(
             mutation_class="CreateUpdateLicense",
             mutation_parameters={
-                "slug": "desconhecida",
-                "name": "desconhecida",
-                "url": "desconhecida.com",
+                "slug": slug,
+                "name": name,
+                "url": "todo.com",
             },
             query_class="allLicense",
-            query_parameters={"$slug: String": "desconhecida"},
+            query_parameters={"$slug: String": slug},
         )
 
         return id
@@ -703,10 +711,14 @@ class Migration:
             )
         return graphql_org_id
 
-    def create_area(self, area):
+    def create_area(self, obj):
 
-        area = area.replace("-", ".").replace(" ", ".")
-        name = self.area_dict.get(area, {}).get("label", {}).get("pt", "Desconhecida")
+        # area = area.replace("-", ".").replace(" ", ".")
+        # name = self.area_dict.get(area, {}).get("label", {}).get("pt", "Desconhecida")
+        area = obj.get("area")
+        name = obj.get("name")
+        name_en = obj.get("name_en")
+
         r, id = self.create_update(
             query_class="allArea",
             query_parameters={"$name: String": name},
@@ -714,6 +726,7 @@ class Migration:
             mutation_parameters={
                 "name": name,
                 "key": "unknown" if area == "desconhecida" else area,
+                "nameEn": name_en,
             },
         )
         return id
