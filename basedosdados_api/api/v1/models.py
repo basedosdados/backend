@@ -16,9 +16,10 @@ from basedosdados_api.api.v1.validators import (
     validate_area_key,
     validate_is_valid_area_key,
 )
+from basedosdados_api.custom.model import BdmModel
 
 
-class Area(models.Model):
+class Area(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     key = models.CharField(
         max_length=255,
@@ -38,7 +39,7 @@ class Area(models.Model):
         ordering = ["name"]
 
 
-class Coverage(models.Model):
+class Coverage(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     table = models.ForeignKey(
         "Table",
@@ -131,7 +132,7 @@ class Coverage(models.Model):
             )
 
 
-class License(models.Model):
+class License(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
@@ -147,7 +148,7 @@ class License(models.Model):
         ordering = ["slug"]
 
 
-class Key(models.Model):
+class Key(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     name = models.CharField(max_length=255)
     value = models.CharField(max_length=255)
@@ -162,7 +163,7 @@ class Key(models.Model):
         ordering = ["name"]
 
 
-class Pipeline(models.Model):
+class Pipeline(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     github_url = models.URLField()
 
@@ -176,7 +177,7 @@ class Pipeline(models.Model):
         ordering = ["github_url"]
 
 
-class AnalysisType(models.Model):
+class AnalysisType(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
@@ -192,7 +193,7 @@ class AnalysisType(models.Model):
         ordering = ["name"]
 
 
-class Tag(models.Model):
+class Tag(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
@@ -209,7 +210,7 @@ class Tag(models.Model):
         ordering = ["slug"]
 
 
-class Theme(models.Model):
+class Theme(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
@@ -226,7 +227,7 @@ class Theme(models.Model):
         ordering = ["slug"]
 
 
-class Organization(models.Model):
+class Organization(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True, max_length=255)
     name = models.CharField(max_length=255)
@@ -252,7 +253,7 @@ class Organization(models.Model):
         ordering = ["slug"]
 
 
-class Status(models.Model):
+class Status(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
@@ -267,7 +268,7 @@ class Status(models.Model):
         ordering = ["slug"]
 
 
-class Dataset(models.Model):
+class Dataset(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True, max_length=255)
     name = models.CharField(max_length=255)
@@ -293,7 +294,7 @@ class Dataset(models.Model):
         return reverse("datasetdetail", kwargs={"pk": self.object.pk})
 
 
-class UpdateFrequency(models.Model):
+class UpdateFrequency(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     entity = models.ForeignKey(
         "Entity", on_delete=models.CASCADE, related_name="update_frequencies"
@@ -310,7 +311,7 @@ class UpdateFrequency(models.Model):
         ordering = ["number"]
 
 
-class Table(models.Model):
+class Table(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=False)
     name = models.CharField(max_length=255)
@@ -383,7 +384,7 @@ class Table(models.Model):
         ]
 
 
-class BigQueryTypes(models.Model):
+class BigQueryTypes(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     name = models.CharField(max_length=255)
 
@@ -397,7 +398,7 @@ class BigQueryTypes(models.Model):
         ordering = ["name"]
 
 
-class Column(models.Model):
+class Column(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     table = models.ForeignKey("Table", on_delete=models.CASCADE, related_name="columns")
     name = models.CharField(max_length=255)
@@ -429,7 +430,7 @@ class Column(models.Model):
         ordering = ["name"]
 
 
-class Dictionary(models.Model):
+class Dictionary(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     column = models.OneToOneField(
         "Column", on_delete=models.CASCADE, related_name="dictionary"
@@ -439,7 +440,7 @@ class Dictionary(models.Model):
     )
 
 
-class CloudTable(models.Model):
+class CloudTable(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     table = models.ForeignKey(
         "Table", on_delete=models.CASCADE, related_name="cloud_tables"
@@ -477,7 +478,7 @@ class CloudTable(models.Model):
         ordering = ["id"]
 
 
-class Availability(models.Model):
+class Availability(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
@@ -492,7 +493,7 @@ class Availability(models.Model):
         ordering = ["slug"]
 
 
-class Language(models.Model):
+class Language(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
@@ -507,7 +508,7 @@ class Language(models.Model):
         ordering = ["slug"]
 
 
-class RawDataSource(models.Model):
+class RawDataSource(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
@@ -547,7 +548,7 @@ class RawDataSource(models.Model):
         ordering = ["url"]
 
 
-class InformationRequest(models.Model):
+class InformationRequest(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="information_requests"
@@ -592,7 +593,7 @@ class InformationRequest(models.Model):
             errors["origin"] = "Origin cannot be longer than 500 characters"
 
 
-class Entity(models.Model):
+class Entity(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
@@ -608,7 +609,7 @@ class Entity(models.Model):
         ordering = ["slug"]
 
 
-class ObservationLevel(models.Model):
+class ObservationLevel(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     entity = models.ForeignKey(
         "Entity", on_delete=models.CASCADE, related_name="observation_levels"
@@ -621,7 +622,7 @@ class ObservationLevel(models.Model):
         return str(self.entity)
 
 
-class DateTimeRange(models.Model):
+class DateTimeRange(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     coverage = models.ForeignKey(
         "Coverage", on_delete=models.CASCADE, related_name="datetime_ranges"

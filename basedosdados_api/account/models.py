@@ -2,16 +2,17 @@
 from uuid import uuid4
 
 from django.db import models
-
 from django.contrib.auth.models import (
     AbstractBaseUser,
     BaseUserManager,
     PermissionsMixin,
-    Permission
+    Permission,
 )
 
+from basedosdados_api.custom.model import BdmModel
 
-class RegistrationToken(models.Model):
+
+class RegistrationToken(BdmModel):
     token = models.CharField(max_length=255, unique=True, default=uuid4)
     created_at = models.DateTimeField(auto_now_add=True)
     used_at = models.DateTimeField(auto_now=True)
@@ -36,7 +37,7 @@ class BDRoleManager(models.Manager):
         return self.get(name=name)
 
 
-class BDRole(models.Model):
+class BDRole(BdmModel):
     """
     Roles is a way to group permissions. Based on roles from IAM,
     a role is a collection of permissions that can be assigned to a group.
@@ -46,6 +47,7 @@ class BDRole(models.Model):
     The relationship between roles and groups is defined in the BDGroupRole model,
     which also holds the organization to which the role is related.
     """
+
     name = models.CharField(max_length=255, unique=True)
     description = models.TextField(null=True, blank=True)
     permissions = models.ManyToManyField(
@@ -77,7 +79,7 @@ class BDGroupManager(models.Manager):
         return self.get(name=name)
 
 
-class BDGroup(models.Model):
+class BDGroup(BdmModel):
     """
     Based on Group model from django.contrib.auth.models
     To avoid clashes with django.contrib.auth.models.Group
@@ -90,6 +92,7 @@ class BDGroup(models.Model):
     link groups to roles.
 
     """
+
     name = models.CharField(max_length=255, unique=True)
     description = models.TextField(null=True, blank=True)
     roles = models.ManyToManyField(
@@ -111,13 +114,14 @@ class BDGroup(models.Model):
         return self.name
 
     def natural_key(self):
-        return (self.name, )
+        return (self.name,)
 
 
-class BDGroupRole(models.Model):
+class BDGroupRole(BdmModel):
     """
     The model that links groups to roles.
     """
+
     group = models.ForeignKey(BDGroup, on_delete=models.CASCADE)
     role = models.ForeignKey(BDRole, on_delete=models.CASCADE)
     organization = models.ForeignKey(
@@ -186,12 +190,16 @@ class Account(AbstractBaseUser, PermissionsMixin):
     )
 
     email = models.EmailField("Email", unique=True)
-    username = models.CharField("Username", max_length=40, blank=True, null=True, unique=True)
+    username = models.CharField(
+        "Username", max_length=40, blank=True, null=True, unique=True
+    )
 
     first_name = models.CharField("Nome", max_length=40, blank=True)
     last_name = models.CharField("Sobrenome", max_length=40, blank=True)
     birth_date = models.DateField("Data de Nascimento", null=True, blank=True)
-    picture = models.ImageField("Imagem", upload_to="profile_pictures", null=True, blank=True)
+    picture = models.ImageField(
+        "Imagem", upload_to="profile_pictures", null=True, blank=True
+    )
     twitter = models.CharField("Twitter", max_length=255, null=True, blank=True)
     linkedin = models.CharField("Linkedin", max_length=255, null=True, blank=True)
     github = models.CharField("Github", max_length=255, null=True, blank=True)
@@ -203,7 +211,7 @@ class Account(AbstractBaseUser, PermissionsMixin):
         related_name="users",
         verbose_name="Organizações",
         related_query_name="user",
-        blank=True
+        blank=True,
     )
 
     is_admin = models.BooleanField(
