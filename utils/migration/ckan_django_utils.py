@@ -13,6 +13,13 @@ import pandas as pd
 from tqdm import tqdm
 import itertools
 
+from data.enums.availability import AvailabilityEnum
+from data.enums.bigquery_type import BigQueryTypeEnum
+from data.enums.entity import EntityEnum
+from data.enums.language import LanguageEnum
+from data.enums.license import LicenseEnum
+from data.enums.status import StatusEnum
+
 from unidecode import unidecode
 
 
@@ -75,6 +82,14 @@ def build_areas_from_json():
         area = json.load(f)
 
     return area.get("result")
+
+
+def class_to_dict(class_obj):
+    return {
+        name: getattr(class_obj, name)
+        for name in dir(class_obj)
+        if not name.startswith("__")
+    }
 
 
 def get_package_model(name_or_id):
@@ -730,6 +745,112 @@ class Migration:
             },
         )
         return id
+
+    def create_language(self, obj):
+
+        slug = obj.get("slug")
+        name = obj.get("name")
+
+        r, id = self.create_update(
+            query_class="allLanguage",
+            query_parameters={"$slug: String": name},
+            mutation_class="CreateUpdateLanguage",
+            mutation_parameters={
+                "name": name,
+                "slug": slug,
+            },
+        )
+        return id
+
+    def create_status(self, obj):
+
+        slug = obj.get("slug")
+        name = obj.get("name")
+
+        r, id = self.create_update(
+            query_class="allStatus",
+            query_parameters={"$slug: String": slug},
+            mutation_class="CreateUpdateStatus",
+            mutation_parameters={
+                "name": name,
+                "slug": slug,
+            },
+        )
+        return id
+
+    def create_enum(self):
+        entity_dict = {}
+        for entity in EntityEnum:
+            entity_dict |= class_to_dict(entity)
+        for key in entity_dict:
+            obj = {
+                "entity": key,
+                "label": entity_dict[key].get("label"),
+                "category": entity_dict[key].get("category"),
+            }
+            self.create_entity(obj)
+        print("EntityEnum Done")
+
+        df_area = pd.read_csv(
+            "./utils/migration/data/enums/spatial_coverage_tree_small.csv"
+        )
+        areas = df_area["id"].to_list()
+        name_pt = df_area["label__pt"].to_list()
+        name_en = df_area["label__en"].to_list()
+
+        for area, name_pt, name_en in zip(areas, name_pt, name_en):
+            obj = {
+                "area": area,
+                "name": name_pt,
+                "name_en": name_en,
+            }
+            self.create_area(obj)
+        print("Area Done")
+
+        bq_types = class_to_dict(BigQueryTypeEnum())
+        for key in bq_types:
+            self.create_bq_type(bq_types[key].get("label"))
+        print("BigQueryTypeEnum Done")
+
+        availabilities = class_to_dict(AvailabilityEnum())
+        for key in availabilities:
+            obj = {
+                "availability": key,
+                "name": availabilities[key].get("label"),
+            }
+            self.create_availability(obj)
+        print("AvailabilityEnum Done")
+
+        licenses = class_to_dict(LicenseEnum())
+        for key in licenses:
+            obj = {
+                "slug": key,
+                "name": licenses[key].get("label"),
+            }
+            self.create_license(obj)
+        print("LicenseEnum Done")
+
+        languages = class_to_dict(LanguageEnum())
+        for key in languages:
+            obj = {
+                "slug": key,
+                "name": languages[key].get("label"),
+            }
+            self.create_language(obj)
+        print("LanguageEnum Done")
+
+        status = class_to_dict(StatusEnum())
+        for key in status:
+            obj = {
+                "slug": key,
+                "name": status[key].get("label"),
+            }
+            self.create_status(obj)
+        print("StatusEnum Done")
+
+        print(
+            "\n===================================== ENUMS DONE!!!! =====================================\n\n\n"
+        )
 
     def test(self):
         query = """

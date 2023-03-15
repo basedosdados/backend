@@ -28,23 +28,9 @@ from ckan_django_utils import (
     parse_temporal_coverage,
 )
 
-from data.enums.availability import AvailabilityEnum
-from data.enums.bigquery_type import BigQueryTypeEnum
-from data.enums.entity import EntityEnum
-from data.enums.language import LanguageEnum
-from data.enums.license import LicenseEnum
-from data.enums.status import StatusEnum
 
 from pathlib import Path
 import pandas as pd
-
-
-def class_to_dict(class_obj):
-    return {
-        name: getattr(class_obj, name)
-        for name in dir(class_obj)
-        if not name.startswith("__")
-    }
 
 
 def get_credentials(mode):
@@ -55,10 +41,12 @@ def get_credentials(mode):
 migration_control = 1
 
 
-def main(mode="local", package_name_error=None, tables_error=[]):
+def main(mode="local", migrate_enum=True, package_name_error=None, tables_error=[]):
     USERNAME, PASSWORD, URL = get_credentials(mode)
     TOKEN = get_token(URL, USERNAME, PASSWORD)
     m = Migration(url=URL, token=TOKEN)
+    if migrate_enum:
+        m.create_enum()
 
     # id = "br-sgp-informacao"
     # id = "br-me-clima-organizacional"
@@ -287,72 +275,14 @@ def main(mode="local", package_name_error=None, tables_error=[]):
             )
 
 
-def migrate_enum(mode):
-    USERNAME, PASSWORD, URL = get_credentials(mode)
-    TOKEN = get_token(URL, USERNAME, PASSWORD)
-    m = Migration(url=URL, token=TOKEN)
-
-    # entity_dict = {}
-    # for entity in EntityEnum:
-    #     entity_dict |= class_to_dict(entity)
-    # for key in entity_dict:
-    #     obj = {
-    #         "entity": key,
-    #         "label": entity_dict[key].get("label"),
-    #         "category": entity_dict[key].get("category"),
-    #     }
-    #     m.create_entity(obj)
-    # print("BigQueryTypeEnum Done")
-
-    # df_area = pd.read_csv("./utils/migration/data/enums/spatial_coverage_tree.csv")
-    # areas = df_area["id"].to_list()
-    # name_pt = df_area["label__pt"].to_list()
-    # name_en = df_area["label__en"].to_list()
-
-    # for area, name_pt, name_en in zip(areas, name_pt, name_en):
-    #     obj = {
-    #         "area": area,
-    #         "name": name_pt,
-    #         "name_en": name_en,
-    #     }
-    #     m.create_area(obj)
-    # print("BigQueryTypeEnum Done")
-
-    # bq_types = class_to_dict(BigQueryTypeEnum())
-    # for key in bq_types:
-    #     m.create_bq_type(bq_types[key].get("label"))
-    # print("BigQueryTypeEnum Done")
-
-    # availabilities = class_to_dict(AvailabilityEnum())
-    # for key in availabilities:
-    #     obj = {
-    #         "availability": key,
-    #         "name": availabilities[key].get("label"),
-    #     }
-    #     m.create_availability(obj)
-    # print("AvailabilityEnum Done")
-
-    licenses = class_to_dict(LicenseEnum())
-    for key in licenses:
-        obj = {
-            "slug": key,
-            "name": licenses[key].get("label"),
-        }
-        m.create_license(obj)
-    print("LicenseEnum Done")
-
-
-# from data.enums.language import LanguageEnum
-# from data.enums.status import StatusEnum
 if __name__ == "__main__":
+    main(
+        mode="local",
+        migrate_enum=True,
+        package_name_error=None,
+        tables_error=[],
+    )
 
-    migrate_enum(mode="local")
-
-    # migrate_enum(
-    #     mode="local",
-    #     package_name_error=None,
-    #     tables_error=[],
-    # )
     # retry = 0
     # while retry < 3:
     #     try:
