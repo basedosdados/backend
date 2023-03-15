@@ -1,13 +1,4 @@
-### TODO checar filtragem de todos os campos
 ### TODO rever observational_level, pede lista de id de colunas que atualmente n esta recebendo
-### TODO subir avaliable_options do website:
-#### Area - avaliable_options/spacial_coverage/spacial_coverage_tree.csv id vira key
-#### License avaliable_options/license.py
-#### bigqueryType avaliable_options/bigquery_type.py
-#### aviability
-#### language - traduzir para abreviacoes
-#### status
-#### entity
 
 
 #  https://staging.api.basedosdados.org/api/v1/graphql
