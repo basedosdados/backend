@@ -156,14 +156,25 @@ def generate_filter_fields(model: BdmModel):
         models.ManyToOneRel,
     )
 
+    def is_bdm_model(model: models.Model):
+        return issubclass(model, BdmModel)
+
     def _get_filter_fields(
         model: BdmModel, used_models: Optional[Iterable[BdmModel]] = None
     ):
         if used_models is None:
             used_models = []
+            if is_bdm_model(model):
+                model_fields = model.get_graphql_filter_fields_whitelist()
+            else:
+                model_fields = model._meta.get_fields()
+        else:
+            if is_bdm_model(model):
+                model_fields = model.get_graphql_nested_filter_fields_whitelist()
+            else:
+                model_fields = model._meta.get_fields()
         used_models.append(model)
         filter_fields = {}
-        model_fields = model._meta.get_fields()
         foreign_models = [
             f.related_model
             for f in model_fields

@@ -178,7 +178,7 @@ class AccountManager(BaseUserManager):
         return account
 
 
-class Account(AbstractBaseUser, PermissionsMixin):
+class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
     STAFF = 1
     VISITANTE = 2
     COLABORADOR = 3
