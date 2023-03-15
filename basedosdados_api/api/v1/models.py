@@ -29,6 +29,8 @@ class Area(BdmModel):
     )
     name = models.CharField(max_length=255, blank=False, null=False)
 
+    graphql_nested_filter_fields_whitelist = ["id"]
+
     def __str__(self):
         return str(self.name)
 
@@ -73,6 +75,8 @@ class Coverage(BdmModel):
         "Key", blank=True, null=True, on_delete=models.CASCADE, related_name="coverages"
     )
     area = models.ForeignKey("Area", on_delete=models.CASCADE, related_name="coverages")
+
+    graphql_nested_filter_fields_whitelist = ["id"]
 
     class Meta:
         db_table = "coverage"
@@ -138,6 +142,8 @@ class License(BdmModel):
     name = models.CharField(max_length=255)
     url = models.URLField()
 
+    graphql_nested_filter_fields_whitelist = ["id"]
+
     def __str__(self):
         return str(self.slug)
 
@@ -153,6 +159,8 @@ class Key(BdmModel):
     name = models.CharField(max_length=255)
     value = models.CharField(max_length=255)
 
+    graphql_nested_filter_fields_whitelist = ["id"]
+
     def __str__(self):
         return str(self.name)
 
@@ -166,6 +174,8 @@ class Key(BdmModel):
 class Pipeline(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     github_url = models.URLField()
+
+    graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
         return str(self.github_url)
@@ -182,6 +192,8 @@ class AnalysisType(BdmModel):
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
     tag = models.CharField(max_length=255)
+
+    graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
         return str(self.name)
@@ -200,6 +212,8 @@ class Tag(BdmModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    graphql_nested_filter_fields_whitelist = ["id"]
+
     def __str__(self):
         return str(self.slug)
 
@@ -216,6 +230,8 @@ class Theme(BdmModel):
     name = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
         return str(self.slug)
@@ -243,6 +259,8 @@ class Organization(BdmModel):
     linkedin = models.URLField(blank=True, null=True)
     instagram = models.URLField(blank=True, null=True)
 
+    graphql_nested_filter_fields_whitelist = ["id"]
+
     def __str__(self):
         return str(self.slug)
 
@@ -260,6 +278,8 @@ class Status(BdmModel):
 
     def __str__(self) -> str:
         return str(self.slug)
+
+    graphql_nested_filter_fields_whitelist = ["id"]
 
     class Meta:
         db_table = "status"
@@ -281,6 +301,8 @@ class Dataset(BdmModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    graphql_nested_filter_fields_whitelist = ["id"]
+
     def __str__(self):
         return str(self.slug)
 
@@ -300,6 +322,8 @@ class UpdateFrequency(BdmModel):
         "Entity", on_delete=models.CASCADE, related_name="update_frequencies"
     )
     number = models.IntegerField()
+
+    graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
         return f"{str(self.number)} {str(self.entity)}"
@@ -369,6 +393,8 @@ class Table(BdmModel):
         "ObservationLevel", related_name="tables", blank=True
     )
 
+    graphql_nested_filter_fields_whitelist = ["id"]
+
     def __str__(self):
         return f"{str(self.dataset.slug)}.{str(self.slug)}"
 
@@ -387,6 +413,8 @@ class Table(BdmModel):
 class BigQueryTypes(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     name = models.CharField(max_length=255)
+
+    graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
         return str(self.name)
@@ -420,6 +448,8 @@ class Column(BdmModel):
     is_in_staging = models.BooleanField(default=True)
     is_partition = models.BooleanField(default=False)
 
+    graphql_nested_filter_fields_whitelist = ["id"]
+
     def __str__(self):
         return f"{str(self.table.dataset.slug)}.{self.table.slug}.{str(self.name)}"
 
@@ -439,6 +469,8 @@ class Dictionary(BdmModel):
         "Key", on_delete=models.CASCADE, related_name="dictionaries"
     )
 
+    graphql_nested_filter_fields_whitelist = ["id"]
+
 
 class CloudTable(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -449,6 +481,8 @@ class CloudTable(BdmModel):
     gcp_project_id = models.CharField(max_length=255)
     gcp_dataset_id = models.CharField(max_length=255)
     gcp_table_id = models.CharField(max_length=255)
+
+    graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
         return f"{self.gcp_project_id}.{self.gcp_dataset_id}.{self.gcp_table_id}"
@@ -483,6 +517,8 @@ class Availability(BdmModel):
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
 
+    graphql_nested_filter_fields_whitelist = ["id"]
+
     def __str__(self):
         return str(self.slug)
 
@@ -497,6 +533,8 @@ class Language(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
+
+    graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
         return str(self.slug)
@@ -541,6 +579,8 @@ class RawDataSource(BdmModel):
         "Entity", related_name="raw_data_sources", blank=True
     )
 
+    graphql_nested_filter_fields_whitelist = ["id"]
+
     class Meta:
         db_table = "raw_data_source"
         verbose_name = "Raw Data Source"
@@ -578,6 +618,8 @@ class InformationRequest(BdmModel):
         null=True,
     )
 
+    graphql_nested_filter_fields_whitelist = ["id"]
+
     def __str__(self):
         return str(self.number)
 
@@ -599,6 +641,8 @@ class Entity(BdmModel):
     name = models.CharField(max_length=255)
     category = models.CharField(max_length=255)
 
+    graphql_nested_filter_fields_whitelist = ["id"]
+
     def __str__(self):
         return str(self.slug)
 
@@ -617,6 +661,8 @@ class ObservationLevel(BdmModel):
     columns = models.ManyToManyField(
         "Column", related_name="observation_levels", blank=True
     )
+
+    graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
         return str(self.entity)
@@ -644,6 +690,8 @@ class DateTimeRange(BdmModel):
     end_minute = models.IntegerField(blank=True, null=True)
     end_second = models.IntegerField(blank=True, null=True)
     interval = models.IntegerField(blank=True, null=True)
+
+    graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
         start_year = self.start_year or ""

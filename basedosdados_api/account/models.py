@@ -58,6 +58,8 @@ class BDRole(BdmModel):
         blank=True,
     )
 
+    graphql_nested_filter_fields_whitelist = ["name"]
+
     objects = BDRoleManager()
 
     class Meta:
@@ -105,6 +107,8 @@ class BDGroup(BdmModel):
     )
 
     objects = BDGroupManager()
+
+    graphql_nested_filter_fields_whitelist = ["name"]
 
     class Meta:
         verbose_name = "BD group"
@@ -241,6 +245,8 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
     updated_at = models.DateTimeField(auto_now=True)
 
     objects = AccountManager()
+
+    graphql_nested_filter_fields_whitelist = ["email", "username"]
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username", "first_name", "last_name"]
