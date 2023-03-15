@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+    <div class="d-flex flex-row-fluid flex-column bgi-size-cover bgi-position-center bgi-no-repeat p-10 p-sm-30">
+        <!--begin::Content-->
+        <h1 class="font-weight-boldest text-dark-75 mt-15" style="font-size: 10rem;text-align: center;">Acesso negado</h1>
+        <p class="font-size-h3 text-muted font-weight-normal" style="text-align: center;">Você não tem permissão para acessar essa página</p>
+        <p class="font-size-h3 text-muted font-weight-normal" style="text-align: center;">Voltar para a <a href="{% url 'home' %}">página inicial</a></p>
+        <!--end::Content-->
+    </div>
+{% endblock %}

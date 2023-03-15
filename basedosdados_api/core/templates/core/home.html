@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Home View</title>
+</head>
+{% block content %}
+<body>
+    <h1>Home View</h1>
+    {% if user.is_authenticated %}
+    <p>Olá, {{ name }}!</p>
+    <p>Organização: {{ organization }}</p>
+    {% endif %}
+    <p>Para ir para GraphiQL, clique <a href="{% url 'api' %}">nesse link</a></p>
+</body>
+{% endblock %}
+{% if user.is_authenticated %}
+<a href="{% url 'logout' %}">Logout</a>
+{% else %}
+<a href="{% url 'login' %}">Login</a>
+{% endif %}
+</html>
