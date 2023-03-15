@@ -12,11 +12,12 @@ current_site = os.getenv("url")
 
 def validate_area_key(value):
     """Validate area hierarchy."""
-    regex = re.compile(r"^[a-z]+(\.[a-z]+)*$")
+    regex = re.compile(r"^[a-z]+(\.[a-z0-9]+)*$")
     if not regex.match(value):
         raise ValidationError(
             f"Area '{value}' is not valid. \
-            Area must be a dot-separated string of lowercase letters."
+            Area must be a dot-separated string of lowercase letters \
+            or numbers (except for the first part, that must be letters)."
         )
 
 
