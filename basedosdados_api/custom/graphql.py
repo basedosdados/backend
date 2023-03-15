@@ -19,7 +19,9 @@ from graphene_django.filter import DjangoFilterConnectionField
 import graphql_jwt
 from graphql_jwt.decorators import login_required
 
-EXEMPTED_MODELS = ("RegistrationToken", )
+from basedosdados_api.custom.model import BdmModel
+
+EXEMPTED_MODELS = ("RegistrationToken",)
 
 
 class PlainTextNode(relay.Node):
@@ -38,7 +40,8 @@ class PlainTextNode(relay.Node):
 class CustomModelForm(ModelForm):
     def __init__(self, *args, **kwargs) -> None:
         data = args[0] if args else kwargs.get("data")
-        # Store raw data, so we can verify whether the user has filled None or hasn't filled anything
+        # Store raw data, so we can verify whether the user has filled None or hasn't filled
+        # anything
         self.__raw_data = deepcopy(data)
         super().__init__(*args, **kwargs)
         # Store which fields are required, so we can validate them later
@@ -74,7 +77,7 @@ class CustomModelForm(ModelForm):
                 self.add_error(name, e)
 
 
-def create_mutation_factory(model: models.Model):
+def create_mutation_factory(model: BdmModel):
     return type(
         f"CreateUpdate{model.__name__}",
         (DjangoModelFormMutation,),
@@ -99,7 +102,7 @@ def create_mutation_factory(model: models.Model):
     )
 
 
-def delete_mutation_factory(model: models.Model):
+def delete_mutation_factory(model: BdmModel):
     def mutate(cls, root, info, id):
         try:
             obj = model.objects.get(pk=id)
@@ -130,8 +133,8 @@ def id_resolver(self, *_):
     return self.id
 
 
-def generate_filter_fields(model: models.Model):
-    exempted_field_types = (models.ImageField, )
+def generate_filter_fields(model: BdmModel):
+    exempted_field_types = (models.ImageField,)
     exempted_field_names = ("_field_status",)
     string_field_types = (models.CharField, models.TextField)
     comparable_field_types = (
@@ -153,14 +156,25 @@ def generate_filter_fields(model: models.Model):
         models.ManyToOneRel,
     )
 
+    def is_bdm_model(model: models.Model):
+        return issubclass(model, BdmModel)
+
     def _get_filter_fields(
-        model: models.Model, used_models: Optional[Iterable[models.Model]] = None
+        model: BdmModel, used_models: Optional[Iterable[BdmModel]] = None
     ):
         if used_models is None:
             used_models = []
+            if is_bdm_model(model):
+                model_fields = model.get_graphql_filter_fields_whitelist()
+            else:
+                model_fields = model._meta.get_fields()
+        else:
+            if is_bdm_model(model):
+                model_fields = model.get_graphql_nested_filter_fields_whitelist()
+            else:
+                model_fields = model._meta.get_fields()
         used_models.append(model)
         filter_fields = {}
-        model_fields = model._meta.get_fields()
         foreign_models = [
             f.related_model
             for f in model_fields
@@ -172,10 +186,9 @@ def generate_filter_fields(model: models.Model):
                 or field.name in exempted_field_names
                 or model.__module__.startswith("django")
             ):
-                print(f"Skipping {field.name}")
                 continue
             if isinstance(field, foreign_key_field_types):
-                related_model: models.Model = field.related_model
+                related_model: BdmModel = field.related_model
                 if related_model in used_models:
                     continue
                 related_model_filter_fields, _ = _get_filter_fields(
@@ -200,7 +213,7 @@ def generate_filter_fields(model: models.Model):
     return filter_fields
 
 
-def create_model_object_meta(model: models.Model):
+def create_model_object_meta(model: BdmModel):
     return type(
         "Meta",
         (object,),
@@ -212,7 +225,7 @@ def create_model_object_meta(model: models.Model):
     )
 
 
-def generate_model_object_type(model: models.Model):
+def generate_model_object_type(model: BdmModel):
     meta = type(
         "Meta",
         (object,),
@@ -231,7 +244,7 @@ def generate_model_object_type(model: models.Model):
     )
 
 
-def generate_form_fields(model: models.Model):
+def generate_form_fields(model: BdmModel):
     whitelist_field_types = (
         models.DateTimeField,
         models.SlugField,
@@ -261,7 +274,7 @@ def generate_form_fields(model: models.Model):
     return fields
 
 
-def generate_form(model: models.Model):
+def generate_form(model: BdmModel):
     return modelform_factory(
         model, form=CustomModelForm, fields=generate_form_fields(model)
     )
@@ -274,7 +287,6 @@ def build_query_objs(application_name: str):
     for model in models:
         model_name = model.__name__
         if model_name in EXEMPTED_MODELS:
-            print(f"Skipping {model_name}...")
             continue
         meta_class = create_model_object_meta(model)
 
@@ -299,7 +311,6 @@ def build_mutation_objs(application_name: str):
     for model in models:
         model_name = model.__name__
         if model_name in EXEMPTED_MODELS:
-            print(f"Skipping {model_name}...")
             continue
         mutations.update(
             {f"CreateUpdate{model_name}": create_mutation_factory(model).Field()}
@@ -340,7 +351,10 @@ def build_schema(application_name: list, add_jwt_mutations: bool = True):
     except Exception:
         pass
     queries = [build_query_schema(app) for app in application_name]
-    mutations = [build_mutation_schema(app, add_jwt_mutations=add_jwt_mutations) for app in application_name]
+    mutations = [
+        build_mutation_schema(app, add_jwt_mutations=add_jwt_mutations)
+        for app in application_name
+    ]
     # query = build_query_schema(application_name)
     # mutation = build_mutation_schema(
     #     application_name, add_jwt_mutations=add_jwt_mutations
