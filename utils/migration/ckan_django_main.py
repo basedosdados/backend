@@ -13,10 +13,10 @@ from datetime import datetime
 import pandas as pd
 from ckan_django_utils import (
     Migration,
-    get_package_model,
+    class_to_dict,
     get_bd_packages,
-    parse_temporal_coverage,
 )
+from data.enums.language import LanguageEnum
 
 
 from pathlib import Path
@@ -37,7 +37,6 @@ def main(
     # id = "br-me-clima-organizacional"
     # df = get_package_model(name_or_id=id)
     df = get_bd_packages()
-    entity_id = m.create_entity()
     update_frequency_id = m.create_update_frequency()
     # r = m.delete(classe="Dataset", id="77239376-6662-4d64-8950-2f57f1225e53")
     count = 1
@@ -52,7 +51,7 @@ def main(
             "Create Organization",
         )
         org_id, dataset_remove_prefix = m.create_org(p.get("organization"))
-
+        print(org_id)
         dataset_slug = p["name"].replace("-", "_")
         if dataset_remove_prefix is not None and dataset_remove_prefix in dataset_slug:
             dataset_slug = dataset_slug.replace(dataset_remove_prefix, "")
@@ -71,7 +70,10 @@ def main(
         }
         r, dataset_id = m.create_update(
             query_class="allDataset",
-            query_parameters={"$slug: String": dataset_slug},
+            query_parameters={
+                "$slug: String": dataset_slug,
+                "$organization_Id: ID": org_id,
+            },
             mutation_class="CreateUpdateDataset",
             mutation_parameters=package_to_dataset,
         )
@@ -87,93 +89,108 @@ def main(
                 and resource["table_id"] not in tables_error
             ):
 
-                print("\nCreate Table:", resource["table_id"])
-                update_frequency_id = m.create_update_frequency(
-                    observation_levels=resource["observation_level"],
-                    update_frequency=resource["update_frequency"],
-                )
-                resource_to_table = {
-                    "dataset": dataset_id,
-                    "license": m.create_license(
-                        obj={"slug": "desconhecida", "name": "desconhecida"}
-                    ),
-                    "partnerOrganization": m.create_org(
-                        resource["partner_organization"]
-                    )[0],
-                    "updateFrequency": update_frequency_id,
-                    "slug": resource["table_id"],
-                    "name": resource["name"],
-                    "pipeline": m.create_update(
-                        query_class="allPipeline",
-                        query_parameters={
-                            "$githubUrl: String": "http://desconhecida.com"
-                        },
-                        mutation_class="CreateUpdatePipeline",
-                        mutation_parameters={"githubUrl": "desconhecida.com"},
-                    )[1],
-                    "description": resource["description"],
-                    "isDirectory": False,
-                    "dataCleaningDescription": resource["data_cleaning_description"],
-                    "dataCleaningCodeUrl": resource["data_cleaning_code_url"],
-                    "rawDataUrl": resource["raw_files_url"],
-                    "auxiliaryFilesUrl": resource["auxiliary_files_url"],
-                    "architectureUrl": resource["architecture_url"],
-                    "sourceBucketName": resource["source_bucket_name"],
-                    "uncompressedFileSize": resource["uncompressed_file_size"],
-                    "compressedFileSize": resource["compressed_file_size"],
-                    "numberRows": 0,
-                    "numberColumns": len(resource["columns"]),
-                    "observationLevel": m.create_observation_level(
-                        observation_levels=resource["observation_level"]
-                    ),
-                    # "publishedBy":resource.get("published_by",{}).get("name",None),
-                }
+                # print("\nCreate Table:", resource["table_id"])
+                # update_frequency_id = m.create_update_frequency(
+                #     observation_levels=resource["observation_level"],
+                #     update_frequency=resource["update_frequency"],
+                # )
+                # resource_to_table = {
+                #     "dataset": dataset_id,
+                #     "license": m.create_license(
+                #         obj={"slug": "desconhecida", "name": "desconhecida"}
+                #     ),
+                #     "partnerOrganization": m.create_org(
+                #         resource["partner_organization"]
+                #     )[0],
+                #     "updateFrequency": update_frequency_id,
+                #     "slug": resource["table_id"],
+                #     "name": resource["name"],
+                #     "pipeline": m.create_update(
+                #         query_class="allPipeline",
+                #         query_parameters={
+                #             "$githubUrl: String": "http://desconhecida.com"
+                #         },
+                #         mutation_class="CreateUpdatePipeline",
+                #         mutation_parameters={"githubUrl": "desconhecida.com"},
+                #     )[1],
+                #     "description": resource["description"],
+                #     "isDirectory": False,
+                #     "dataCleaningDescription": resource["data_cleaning_description"],
+                #     "dataCleaningCodeUrl": resource["data_cleaning_code_url"],
+                #     "rawDataUrl": resource["raw_files_url"],
+                #     "auxiliaryFilesUrl": resource["auxiliary_files_url"],
+                #     "architectureUrl": resource["architecture_url"],
+                #     "sourceBucketName": resource["source_bucket_name"],
+                #     "uncompressedFileSize": resource["uncompressed_file_size"],
+                #     "compressedFileSize": resource["compressed_file_size"],
+                #     "numberRows": 0,
+                #     "numberColumns": len(resource["columns"]),
+                #     "observationLevel": m.create_observation_level(
+                #         observation_levels=resource["observation_level"]
+                #     ),
+                #     # "publishedBy":resource.get("published_by",{}).get("name",None),
+                # }
 
-                r, table_id = m.create_update(
-                    mutation_class="CreateUpdateTable",
-                    mutation_parameters=resource_to_table,
-                    query_class="allTable",
-                    query_parameters={
-                        "$slug: String": resource["table_id"],
-                        "$name: String": resource["name"],
-                        "$dataset_Id: ID": dataset_id,
-                    },
-                )
-                m.create_coverage(resource=resource, coverage={"table": table_id})
-                if "columns" in resource:
-                    print("\nCreate Column")
+                # r, table_id = m.create_update(
+                #     mutation_class="CreateUpdateTable",
+                #     mutation_parameters=resource_to_table,
+                #     query_class="allTable",
+                #     query_parameters={
+                #         "$slug: String": resource["table_id"],
+                #         "$name: String": resource["name"],
+                #         "$dataset_Id: ID": dataset_id,
+                #     },
+                # )
+                # m.create_coverage(resource=resource, coverage={"table": table_id})
+                # if "columns" in resource:
+                #     print("\nCreate Column")
 
-                    columns_ids = m.create_columns(resource=resource, table_id=table_id)
-                    resource_to_cloud_table = {
-                        "table": table_id,
-                        "gcpProjectId": resource["source_bucket_name"],
-                        "gcpDatasetId": resource["dataset_id"],
-                        "gcpTableId": resource["table_id"],
-                        "columns": columns_ids,
-                    }
-                    print(
-                        "\nCreate CloudTable:",
-                        resource["dataset_id"] + "." + resource["table_id"],
-                        "\n\n_______________________________________________________________________________________________",
-                    )
-                    r, cloud_table_id = m.create_update(
-                        mutation_class="CreateUpdateCloudTable",
-                        mutation_parameters=resource_to_cloud_table,
-                        query_class="allCloudtable",
-                        query_parameters={
-                            "$gcpDatasetId: String": resource["dataset_id"],
-                            "$gcpTableId: String": resource["table_id"],
-                            "$table_Id: ID": table_id,
-                        },
-                    )
-
+                #     columns_ids = m.create_columns(resource=resource, table_id=table_id)
+                #     resource_to_cloud_table = {
+                #         "table": table_id,
+                #         "gcpProjectId": resource["source_bucket_name"],
+                #         "gcpDatasetId": resource["dataset_id"],
+                #         "gcpTableId": resource["table_id"],
+                #         "columns": columns_ids,
+                #     }
+                #     print(
+                #         "\nCreate CloudTable:",
+                #         resource["dataset_id"] + "." + resource["table_id"],
+                #         "\n\n_______________________________________________________________________________________________",
+                #     )
+                #     r, cloud_table_id = m.create_update(
+                #         mutation_class="CreateUpdateCloudTable",
+                #         mutation_parameters=resource_to_cloud_table,
+                #         query_class="allCloudtable",
+                #         query_parameters={
+                #             "$gcpDatasetId: String": resource["dataset_id"],
+                #             "$gcpTableId: String": resource["table_id"],
+                #             "$table_Id: ID": table_id,
+                #         },
+                #     )
+                pass
             elif resource_type == "external_link":
                 print("\nCreate RawDataSource: ", resource["url"])
+
+                languages_ids = []
+                languages = class_to_dict(LanguageEnum())
+
+                for lang in resource.get("language", []):
+
+                    languages_ids.append(
+                        m.create_language(
+                            {
+                                "slug": languages.get(lang, {}).get("abrev", None),
+                                "name": languages.get(lang, {}).get("label", None),
+                            }
+                        )
+                    )
+
                 resource_to_raw_data_source = {
                     "dataset": dataset_id,
                     # "coverages": "",
                     "availability": m.create_availability(resource),
-                    # "languages": "",
+                    "languages": languages_ids,
                     "license": m.create_license(
                         obj={
                             "slug": resource.get("license", "unknown"),
@@ -181,7 +198,7 @@ def main(
                         }
                     ),
                     "updateFrequency": update_frequency_id,
-                    "areaIpAddressRequired": m.create_area(obj="desconhecida"),
+                    # "areaIpAddressRequired": m.create_area(obj="desconhecida"),
                     # "createdAt": "",
                     # "updatedAt": "",
                     "url": resource["url"].replace(" ", ""),
@@ -189,10 +206,12 @@ def main(
                     "description": "TO DO"
                     if resource["description"] is None
                     else resource["description"],
-                    "containsStructureData": resource.get("has_structured_data ", None),
-                    "containsApi": resource.get("has_api", None),
-                    "isFree": resource.get("is_free", None),
-                    "requiredRegistration": resource.get("requires_registration", None),
+                    "containsStructureData": resource.get("has_structured_data ", None)
+                    == "yes",
+                    "containsApi": resource.get("has_api", None) == "yes",
+                    "isFree": resource.get("is_free", None) == "yes",
+                    "requiredRegistration": resource.get("requires_registration", None)
+                    == "yes",
                     # "entities": "",
                 }
 
@@ -276,7 +295,7 @@ if __name__ == "__main__":
         migrate_enum={
             "AvailabilityEnum": False,
             "LicenseEnum": False,
-            "LanguageEnum": False,
+            "LanguageEnum": True,
             "StatusEnum": False,
             "BigQueryTypeEnum": False,
             "EntityEnum": False,

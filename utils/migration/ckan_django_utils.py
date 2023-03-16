@@ -538,11 +538,11 @@ class Migration:
 
     def create_bq_type(self, obj):
         r, id = self.create_update(
-            mutation_class="CreateUpdateBigQueryTypes",
+            mutation_class="CreateUpdateBigQueryType",
             mutation_parameters={
                 "name": obj,
             },
-            query_class="allBigquerytypes",
+            query_class="allBigquerytype",
             query_parameters={"$name: String": obj},
         )
 
@@ -688,22 +688,23 @@ class Migration:
                     "description": "desconhecida",
                 },
             )
+
         else:
             org_name = org_dict.get("title") or org_dict.get("name") or "desconhecida"
             org_description = org_dict.get("description", "desconhecida")
             org_id = org_dict.get("name") or org_dict.get("organization_id")
             org_slug = "desconhecida" if org_id is None else org_id.replace("-", "_")
-
             org_slug_parts = org_slug.split("_", 1)
             df = self.df_area
             df["possible_areas"] = df["id"].apply(
-                lambda x: x.replace("_", ".").split("_", 1)[-1]
+                lambda x: x.replace(".", "_").split("_", 1)[-1]
             )
             possible_areas = df["possible_areas"].to_list()
-
             area_prefix = "unknown"
             if len(org_slug_parts) > 1:
                 prefix = org_slug_parts[0].lower()
+                if prefix == "mundo":
+                    prefex = "world"
                 if prefix in possible_areas:
                     org_slug = org_slug_parts[1]
                     dataset_remove_prefix = prefix + "_" + org_slug + "_"
@@ -712,7 +713,7 @@ class Migration:
             area_row = df[df["possible_areas"] == area_prefix]
             area_name_pt = area_row["label__pt"].values[0]
             area_name_en = area_row["label__en"].values[0]
-
+            print(org_slug)
             package_to_part_org = {
                 "area": self.create_area(
                     obj={
@@ -732,7 +733,7 @@ class Migration:
                 mutation_class="CreateUpdateOrganization",
                 mutation_parameters=package_to_part_org,
             )
-
+        print(graphql_org_id)
         return graphql_org_id, dataset_remove_prefix
 
     def create_area(self, obj):
@@ -750,14 +751,14 @@ class Migration:
         name = obj.get("name", "Desconhecida")
         name_en = obj.get("name_en", "Unknown")
         key = obj.get("key", "unknown")
-        key = "unknown" if key == "desconhecida" else key
+        slug = "unknown" if key == "desconhecida" else key.replace(".", "_")
         r, id = self.create_update(
             query_class="allArea",
-            query_parameters={"$key: String": key},
+            query_parameters={"$slug: String": slug},
             mutation_class="CreateUpdateArea",
             mutation_parameters={
                 "name": name,
-                "key": key,
+                "slug": slug,
                 "nameEn": name_en,
             },
         )
@@ -765,12 +766,12 @@ class Migration:
 
     def create_language(self, obj):
 
-        slug = obj.get("slug")
-        name = obj.get("name")
+        slug = obj.get("slug", "unknown")
+        name = obj.get("name", 'Desconhecida"')
 
         r, id = self.create_update(
             query_class="allLanguage",
-            query_parameters={"$slug: String": name},
+            query_parameters={"$slug: String": slug},
             mutation_class="CreateUpdateLanguage",
             mutation_parameters={
                 "name": name,
@@ -821,7 +822,7 @@ class Migration:
             languages = class_to_dict(LanguageEnum())
             for key in languages:
                 obj = {
-                    "slug": key,
+                    "slug": languages[key].get("abrev"),
                     "name": languages[key].get("label"),
                 }
                 self.create_language(obj)
@@ -849,7 +850,6 @@ class Migration:
                 for entity in EntityEnum
                 for key, value in class_to_dict(entity).items()
             }
-            print(entity_dict)
             for key in entity_dict:
                 obj = {
                     "entity": key,
