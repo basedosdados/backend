@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 current_site = os.getenv("url")
 
 
-def validate_area_slug(value):
+def validate_area_key(value):   # outdated because it assumes separators as `.` instead of `_`
     """Validate area hierarchy."""
     regex = re.compile(r"^[a-z]+(\.[a-z0-9]+)*$")
     if not regex.match(value):
@@ -21,7 +21,7 @@ def validate_area_slug(value):
         )
 
 
-def validate_is_valid_area_slug(value):
+def validate_is_valid_area_key(value):  # outdated because it assumes separators as `.` instead of `_`
     """Validate area key is in BD dict."""
     with open(
         settings.BASE_DIR / "schemas/repository/bd_spatial_coverage_tree.json"
