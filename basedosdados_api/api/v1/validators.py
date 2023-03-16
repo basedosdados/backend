@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 import re
-
-
-import json
 import os
+import json
+
 from django.conf import settings
 from django.core.exceptions import ValidationError
 
