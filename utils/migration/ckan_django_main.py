@@ -51,15 +51,19 @@ def main(
             "\n###############################################################################################\n\n",
             "Create Organization",
         )
-        org_id = m.create_org(p.get("organization"))
+        org_id, dataset_remove_prefix = m.create_org(p.get("organization"))
+
+        dataset_slug = p["name"].replace("-", "_")
+        if dataset_remove_prefix is not None and dataset_remove_prefix in dataset_slug:
+            dataset_slug = dataset_slug.replace(dataset_remove_prefix, "")
 
         ## create dataset
         print(
-            f"\nCreate Dataset: {count} - {p['name']} - {package_id}",
+            f"\nCreate Dataset: {count} - {p['name']} - {dataset_slug} - {package_id}",
         )
         package_to_dataset = {
             "organization": org_id,
-            "slug": p["name"].replace("-", "_"),
+            "slug": dataset_slug,
             "name": p["title"][:255],
             "description": p["notes"],
             "tags": tags_ids,
@@ -67,7 +71,7 @@ def main(
         }
         r, dataset_id = m.create_update(
             query_class="allDataset",
-            query_parameters={"$slug: String": p["name"].replace("-", "_")},
+            query_parameters={"$slug: String": dataset_slug},
             mutation_class="CreateUpdateDataset",
             mutation_parameters=package_to_dataset,
         )
@@ -95,7 +99,7 @@ def main(
                     ),
                     "partnerOrganization": m.create_org(
                         resource["partner_organization"]
-                    ),
+                    )[0],
                     "updateFrequency": update_frequency_id,
                     "slug": resource["table_id"],
                     "name": resource["name"],
@@ -172,8 +176,8 @@ def main(
                     # "languages": "",
                     "license": m.create_license(
                         obj={
-                            "slug": "unknown",
-                            "name": "Desconhecida",
+                            "slug": resource.get("license", "unknown"),
+                            "name": resource.get("license", "Desconhecida"),
                         }
                     ),
                     "updateFrequency": update_frequency_id,
@@ -185,10 +189,10 @@ def main(
                     "description": "TO DO"
                     if resource["description"] is None
                     else resource["description"],
-                    # "containsStructureData": "",
-                    # "containsApi": "",
-                    # "isFree": "",
-                    # "requiredRegistration": "",
+                    "containsStructureData": resource.get("has_structured_data ", None),
+                    "containsApi": resource.get("has_api", None),
+                    "isFree": resource.get("is_free", None),
+                    "requiredRegistration": resource.get("requires_registration", None),
                     # "entities": "",
                 }
 
@@ -268,7 +272,7 @@ def main(
 
 if __name__ == "__main__":
     main(
-        mode="staging",
+        mode="local",
         migrate_enum={
             "AvailabilityEnum": False,
             "LicenseEnum": False,

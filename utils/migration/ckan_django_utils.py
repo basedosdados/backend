@@ -136,7 +136,9 @@ class Migration:
             "Content-Type": "application/json",
             "Authorization": f"Bearer {self.get_token()}",
         }
-        self.area_dict = build_areas_from_json()
+        self.df_area = pd.read_csv(
+            "./utils/migration/data/enums/spatial_coverage_tree.csv"
+        )
         self.token_updater = threading.Thread(target=self.update_token_periodically)
         self.token_updater.setDaemon(True)
         self.token_updater.start()
@@ -172,9 +174,7 @@ class Migration:
         r.raise_for_status()
         return r.json()["data"]["tokenAuth"]["token"]
 
-    def get_id(
-        self, query_class, query_parameters
-    ):  # sourcery skip: avoid-builtin-shadow
+    def get_id(self, query_class, query_parameters):
         _filter = ", ".join(list(query_parameters.keys()))
         keys = [
             parameter.replace("$", "").split(":")[0]
@@ -183,35 +183,36 @@ class Migration:
         values = list(query_parameters.values())
         _input = ", ".join([f"{key}:${key}" for key in keys])
 
-        query = f"""query({_filter}) {{
-                        {query_class}({_input}){{
-                        edges{{
-                            node{{
-                            id,
-                            }}
-                        }}
-                        }}
-                    }}"""
-        r = requests.post(
+        query = f"""
+        query({_filter}) {{
+            {query_class}({_input}) {{
+                edges {{
+                    node {{
+                        id
+                    }}
+                }}
+            }}
+        }}
+        """
+
+        response = requests.post(
             url=self.base_url,
             json={"query": query, "variables": dict(zip(keys, values))},
             headers=self.header,
         ).json()
 
-        if "data" in r and r is not None:
+        if "data" in response and response is not None:
+            query_class_data = response.get("data", {}).get(query_class, {}) or {}
+            edges = query_class_data.get("edges", [])
 
-            r_query_class = r.get("data", {}).get(query_class, {})
-            r_query_class = {} if r_query_class is None else r_query_class
-            if r_query_class.get("edges", []) == []:
-                id = None
-                # print(f"get: not found {query_class}", dict(zip(keys, values)))
-            else:
-                id = r["data"][query_class]["edges"][0]["node"]["id"]
-                # print(f"get: found {id}")
-                id = id.split(":")[1]
-            return r, id
+            if not edges:
+                return response, None
+
+            node_id = edges[0]["node"]["id"]
+            return response, node_id.split(":")[1]
+
         else:
-            print("get:  Error:", json.dumps(r, indent=4, ensure_ascii=False))
+            print("get: Error:", json.dumps(response, indent=4, ensure_ascii=False))
             raise Exception("get: Error")
 
     def create_update(
@@ -222,139 +223,136 @@ class Migration:
         query_parameters,
         update=False,
     ):
-        r, id = self.get_id(query_class=query_class, query_parameters=query_parameters)
+        response, node_id = self.get_id(
+            query_class=query_class, query_parameters=query_parameters
+        )
         time.sleep(0.1)
-        if id is not None:
-            r["r"] = "query"
-            if update == False:
-                return r, id
 
-        _classe = mutation_class.replace("CreateUpdate", "").lower()
+        if node_id is not None and not update:
+            response["r"] = "query"
+            return response, node_id
+
+        _class = mutation_class.replace("CreateUpdate", "").lower()
         query = f"""
-                mutation($input:{mutation_class}Input!){{
-                    {mutation_class}(input: $input){{
-                    errors {{
-                        field,
-                        messages
-                    }},
-                    clientMutationId,
-                    {_classe} {{
-                        id,
-                    }}
+        mutation($input:{mutation_class}Input!) {{
+            {mutation_class}(input: $input) {{
+                errors {{
+                    field,
+                    messages
+                }},
+                clientMutationId,
+                {_class} {{
+                    id,
                 }}
-                }}
-            """
+            }}
+        }}
+        """
 
-        if update == True and id is not None:
-            mutation_parameters["id"] = id
+        if update and node_id is not None:
+            mutation_parameters["id"] = node_id
 
-        retry = 0
-        while retry < 5:
+        for retry in range(5):
             try:
-                r = requests.post(
+                response = requests.post(
                     self.base_url,
                     json={"query": query, "variables": {"input": mutation_parameters}},
                     headers=self.header,
                 ).json()
                 time.sleep(0.1)
-                retry = 5
+                break
             except Exception as e:
-                print(
-                    f"retrying...{retry}",
-                )
+                print(f"retrying...{retry}")
                 print("create: Error:", e)
-                retry = +1
 
-        r["r"] = "mutation"
-        if "data" in r and r is not None:
-            r_mutation_class = r.get("data", {}).get(mutation_class, {})
-            r_mutation_class = {} if r_mutation_class is None else r_mutation_class
-            if r.get("errors", []) != []:
-                self.get_mutation_error(mutation_class, query, mutation_parameters, r)
-            elif r_mutation_class.get("errors", []) != []:
-                self.get_mutation_error(mutation_class, query, mutation_parameters, r)
-            else:
-                id = r["data"][mutation_class][_classe]["id"]
-                # print(f"create: created {id}")
-                id = id.split(":")[1]
+        response["r"] = "mutation"
 
-                return r, id
-        else:
-            print("\n", "create: query\n", query, "\n")
-            print(
-                "create: input\n",
-                json.dumps(mutation_parameters, indent=4, ensure_ascii=False),
-                "\n",
+        if "data" not in response or response is None:
+            self.get_mutation_error(
+                mutation_class, query, mutation_parameters, response
             )
-            print("create: error\n", json.dumps(r, indent=4, ensure_ascii=False), "\n")
-            raise Exception("create: Error")
 
-    def get_mutation_error(self, mutation_class, query, mutation_parameters, r):
+        mutation_class_data = response.get("data", {}).get(mutation_class, {}) or {}
+
+        if response.get("errors", []) or mutation_class_data.get("errors", []):
+            self.get_mutation_error(
+                mutation_class, query, mutation_parameters, response
+            )
+
+        _id = mutation_class_data[_class]["id"].split(":")[1]
+        return response, _id
+
+    def get_mutation_error(self, mutation_class, query, mutation_parameters, response):
         print(f"create: not found {mutation_class}", mutation_parameters)
-        print("create: error\n", json.dumps(r, indent=4, ensure_ascii=False), "\n")
-        id = None
+        print(
+            "create: error\n", json.dumps(response, indent=4, ensure_ascii=False), "\n"
+        )
         raise Exception("create: Error")
 
-    def delete(self, classe, id):
+    def delete(self, class_name, node_id):
         query = f"""
-            mutation{{
-                Delete{classe}(id: "{id}") {{
+            mutation {{
+                Delete{class_name}(id: "{node_id}") {{
                     ok,
                     errors
                 }}
             }}
         """
 
-        r = requests.post(
+        response = requests.post(
             self.base_url,
             json={"query": query},
             headers=self.header,
         ).json()
 
-        if r["data"][f"Delete{classe}"]["ok"] == True:
-            print(f"deleted dataset {id} ")
+        if response["data"][f"Delete{class_name}"]["ok"]:
+            print(f"Deleted {class_name.lower()} {node_id}")
         else:
-            print("delete errors", r["data"][f"Delete{classe}"]["errors"])
+            errors = response["data"][f"Delete{class_name}"]["errors"]
+            print(f"Delete errors for {class_name.lower()} {node_id}:", errors)
 
-        return r
+        return response
 
     def create_themes(self, objs):
-        ids = []
+        theme_ids = []
+
         for obj in objs:
             theme_name = obj.get("name")
-            r, id = self.create_update(
+            response, theme_id = self.create_update(
                 mutation_class="CreateUpdateTheme",
                 mutation_parameters={
                     "slug": theme_name,
                     "name": obj.get("title"),
-                    # "logoUrl": f"https://basedosdados-static.s3.us-east-2.amazonaws.com/category_icons/2022/icone_{theme_name}.svg",
                 },
                 query_class="allTheme",
                 query_parameters={"$slug: String": theme_name},
             )
-            ids.append(id)
+            theme_ids.append(theme_id)
 
-        return ids
+        return theme_ids
 
     def create_tags(self, objs):
-        ids = []
+        tag_ids = []
+
         for obj in objs:
             tag_slug = obj.get("name").replace("+", "").lower().replace(" ", "_")
             tag_name = obj.get("display_name")
-            r, id = self.create_update(
+            tag_slug = "desconhecida" if tag_slug is None else unidecode(tag_slug)
+            tag_name = (
+                "desconhecida" if tag_name is None else tag_name.replace(" ", "_")
+            )
+
+            response, tag_id = self.create_update(
                 mutation_class="CreateUpdateTag",
                 mutation_parameters={
-                    "slug": "desconhecida" if tag_slug is None else unidecode(tag_slug),
-                    "name": "desconhecida"
-                    if tag_name is None
-                    else tag_name.replace(" ", "_"),
+                    "slug": tag_slug,
+                    "name": tag_name,
                 },
                 query_class="allTag",
                 query_parameters={"$slug: String": unidecode(tag_slug)},
             )
-            ids.append(id)
+            tag_ids.append(tag_id)
 
-        return ids
+        return tag_ids
 
     def create_availability(self, obj):
         slug = obj.get("availability", "unknown")
@@ -375,33 +373,64 @@ class Migration:
 
         return id
 
+    def _create_update_entity(self, slug, name, category):
+        r, id = self.create_update(
+            mutation_class="CreateUpdateEntity",
+            mutation_parameters={
+                "slug": slug,
+                "name": name,
+                "category": category,
+            },
+            query_class="allEntity",
+            query_parameters={
+                "$slug: String": slug,
+            },
+        )
+        return id
+
     def create_entity(self, obj=None):
-        if (obj is None) or (obj.get("entity") is None):
-            r, id = self.create_update(
-                mutation_class="CreateUpdateEntity",
-                mutation_parameters={
-                    "slug": "unknown",
-                    "name": "Desconhecida",
-                    "category": "unknown",
-                },
-                query_class="allEntity",
-                query_parameters={
-                    "$slug: String": "unknown",
-                },
-            )
+        if obj is None or obj.get("entity") is None:
+            default_parameters = {
+                "slug": "unknown",
+                "name": "Desconhecida",
+                "category": "unknown",
+            }
+
+            return self._create_update_entity(**default_parameters)
         else:
-            r, id = self.create_update(
-                mutation_class="CreateUpdateEntity",
-                mutation_parameters={
-                    "slug": obj.get("entity", "unknown"),
-                    "name": obj.get("label", "Desconhecida"),
-                    "category": obj.get("category", "unknown"),
-                },
-                query_class="allEntity",
-                query_parameters={
-                    "$slug: String": obj.get("entity", "desconhecida"),
-                },
-            )
+
+            entity_dict = entity_dict = {
+                key: value
+                for entity in EntityEnum
+                for key, value in class_to_dict(entity).items()
+            }
+            slug = obj.get("entity", "unknown")
+            name = obj.get("label") or entity_dict[slug].get("label")
+            category = obj.get("category") or entity_dict[slug].get("category")
+
+            parameters = {
+                "slug": slug,
+                "name": name,
+                "category": category,
+            }
+
+            print(parameters)
+
+            return self._create_update_entity(**parameters)
+
+    def _create_update_frequency_for_entity(self, entity_id, update_frequency_number):
+        r, id = self.create_update(
+            mutation_class="CreateUpdateUpdateFrequency",
+            mutation_parameters={
+                "entity": entity_id,
+                "number": update_frequency_number,
+            },
+            query_class="allUpdatefrequency",
+            query_parameters={
+                "$number: Int": update_frequency_number,
+                "$entity_Id: ID": entity_id,
+            },
+        )
 
         return id
 
@@ -444,100 +473,49 @@ class Migration:
         }
 
         if observation_levels is None:
-            entity_id = self.create_entity(obj=None)
+            observation_levels = [None]
 
-            r, id = self.create_update(
-                mutation_class="CreateUpdateUpdateFrequency",
-                mutation_parameters={
-                    "entity": entity_id,
-                    "number": update_frequency_dict[update_frequency],
-                },
-                query_class="allUpdatefrequency",
-                query_parameters={
-                    "$number: Int": update_frequency_dict[update_frequency],
-                    "$entity_Id: ID": entity_id,
-                },
+        for ob in observation_levels:
+            entity_key = ob.get("entity") if ob else None
+            entity_id = self.create_entity(obj=ob)
+
+            if entity_key in update_frequency_entity_dict and entity_key is not None:
+                update_frequency_number = update_frequency_dict[update_frequency]
+            else:
+                update_frequency_number = 0
+
+            id = self._create_update_frequency_for_entity(
+                entity_id, update_frequency_number
             )
-        else:
-            for ob in observation_levels:
-                if (
-                    ob.get("entity") in update_frequency_entity_dict
-                    and ob.get("entity") is not None
-                ):
-                    entity_id = self.create_entity(obj=ob)
-                    r, id = self.create_update(
-                        mutation_class="CreateUpdateUpdateFrequency",
-                        mutation_parameters={
-                            "entity": entity_id,
-                            "number": update_frequency_dict[update_frequency],
-                        },
-                        query_class="allUpdatefrequency",
-                        query_parameters={
-                            "$number: Int": update_frequency_dict[update_frequency],
-                            "$entity_Id: ID": entity_id,
-                        },
-                    )
-                elif ob.get("entity") is None:
 
-                    entity_id = self.create_entity(obj=None)
+        return id
 
-                    r, id = self.create_update(
-                        mutation_class="CreateUpdateUpdateFrequency",
-                        mutation_parameters={
-                            "entity": entity_id,
-                            "number": update_frequency_dict[update_frequency],
-                        },
-                        query_class="allUpdatefrequency",
-                        query_parameters={
-                            "$number: Int": update_frequency_dict[update_frequency],
-                            "$entity_Id: ID": entity_id,
-                        },
-                    )
-                else:
-                    entity_id = self.create_entity(obj=None)
-                    r, id = self.create_update(
-                        mutation_class="CreateUpdateUpdateFrequency",
-                        mutation_parameters={
-                            "entity": entity_id,
-                            "number": 0,
-                        },
-                        query_class="allUpdatefrequency",
-                        query_parameters={
-                            "$number: Int": 0,
-                            "$entity_Id: ID": entity_id,
-                        },
-                    )
+    def _create_observation_level_for_entity(self, entity_id):
+        r, id = self.create_update(
+            mutation_class="CreateUpdateObservationLevel",
+            mutation_parameters={
+                "entity": entity_id,
+            },
+            query_class="allObservationlevel",
+            query_parameters={
+                "$entity_Id: ID": entity_id,
+            },
+        )
 
         return id
 
     def create_observation_level(self, observation_levels=None):
-
         if observation_levels is None:
-            entity_id = self.create_entity(obj=None)
-            r, id = self.create_update(
-                mutation_class="CreateUpdateObservationLevel",
-                mutation_parameters={
-                    "entity": entity_id,
-                },
-                query_class="allObservationlevel",
-                query_parameters={
-                    "$entity_Id: ID": entity_id,
-                },
-            )
-        else:
-            for ob in observation_levels:
-                entity_id = self.create_entity(obj=ob)
-                r, id = self.create_update(
-                    mutation_class="CreateUpdateObservationLevel",
-                    mutation_parameters={
-                        "entity": entity_id,
-                    },
-                    query_class="allObservationlevel",
-                    query_parameters={
-                        "$entity_Id: ID": entity_id,
-                    },
-                )
-        return id
+            observation_levels = [None]
+
+        ids = []
+
+        for ob in observation_levels:
+            entity_id = self.create_entity(obj=ob)
+            id = self._create_observation_level_for_entity(entity_id)
+            ids.append(id)
+
+        return ids[-1]
 
     def create_license(self, obj):
         slug = obj["slug"]
@@ -613,116 +591,93 @@ class Migration:
                     mutation_parameters=resource_to_temporal_coverage,
                 )
 
-    def create_coverage(self, resource, coverage):
+    def _create_coverage_for_area(self, resource, coverage, area):
         coverage_type = list(coverage.keys())[0]
         coverage_value = list(coverage.values())[0]
-        area_slugs = (
-            ["desconhecida"]
-            if resource.get("spatial_coverage") == []
-            or resource.get("spatial_coverage") is None
-            else resource.get("spatial_coverage")
+        coverage_filter = f"{coverage_type}_Id"
+
+        package_to_coverage = {
+            coverage_type: coverage_value,
+            "area": self.create_area(obj={"key": area}),
+        }
+        r, id = self.create_update(
+            query_class="allCoverage",
+            query_parameters={f"${coverage_filter}: ID": coverage_value},
+            mutation_class="CreateUpdateCoverage",
+            mutation_parameters=package_to_coverage,
         )
 
-        if coverage_type == "table":
-            coverage_filter = "table_Id"
-        elif coverage_type == "column":
-            coverage_filter = "column_Id"
-        elif coverage_type == "rawDataSource":
-            coverage_filter = "rawDataSource_Id"
-        elif coverage_type == "informationRequest":
-            coverage_filter = "informationRequest_Id"
+        self.create_temporal_coverage(resource=resource, coverage_id=id)
+
+        return id
+
+    def create_coverage(self, resource, coverage):
+        area_slugs = resource.get("spatial_coverage") or ["desconhecida"]
+
+        ids = []
 
         for area in area_slugs:
-            package_to_coverage = {coverage_type: coverage_value}
-            package_to_coverage["area"] = self.create_area(
-                obj={
-                    "key": area,
-                }
-            )
-            r, id = self.create_update(
-                query_class="allCoverage",
-                query_parameters={f"${coverage_filter}: ID": coverage_value},
-                mutation_class="CreateUpdateCoverage",
-                mutation_parameters=package_to_coverage,
+            id = self._create_coverage_for_area(resource, coverage, area)
+            ids.append(id)
+
+        return ids[-1]
+
+    def _create_column(self, column, table_id, resource):
+        mutation_parameters = {
+            "table": table_id,
+            "bigqueryType": self.create_bq_type(
+                column.get("bigquery_type", "desconhecida")
+            ),
+            "name": column.get("name", "desconhecida"),
+            "isInStaging": column.get("is_in_staging"),
+            "isPartition": column.get("is_partition"),
+            "description": column.get("description"),
+            "coveredByDictionary": column.get("covered_by_dictionary") == "yes",
+            "measurementUnit": column.get("measurement_unit"),
+            "containsSensitiveData": column.get("contains_sensitive_data"),
+            "observations": column.get("observations"),
+        }
+
+        if "directory_primary_key" in column:
+            mutation_parameters["directoryPrimaryKey"] = self.create_directory_columns(
+                column, table_id
             )
 
-            self.create_temporal_coverage(resource=resource, coverage_id=id)
+        r, id = self.create_update(
+            mutation_class="CreateUpdateColumn",
+            mutation_parameters=mutation_parameters,
+            query_class="allColumn",
+            query_parameters={
+                "$name: String": column.get("name", "desconhecida"),
+                "$table_Id: ID": table_id,
+            },
+        )
+
+        if r.get("r") == "mutation":
+            coverage_id = self.create_coverage(
+                resource=resource, coverage={"column": id}
+            )
 
         return id
 
     def create_columns(self, resource, table_id):
         objs = resource.get("columns")
-        if objs is None:
-            r, id = self.create_update(
-                mutation_class="CreateUpdateColumn",
-                mutation_parameters={
-                    "table": table_id,
-                    "bigqueryType": self.create_bq_type("desconhecida"),
-                    "name": "desconhecida",
-                    # "isInStaging": "desconhecida",
-                    # "isPartition": "desconhecida",
-                    # "description": "desconhecida",
-                    # "coveredByDictionary": False,
-                    # "measurementUnit": "desconhecida",
-                    # "containsSensitiveData": False,
-                    # "observations": "desconhecida",
-                },
-                query_class="allColumn",
-                query_parameters={
-                    "$name: String": "desconhecida",
-                    "$table_Id: ID": table_id,
-                },
-            )
-            if r.get("r") == "mutation":
-                coverage_id = self.create_coverage(
-                    resource=resource,
-                    coverage={"column": id},
-                )
-            ids = [id]
-        else:
-            ids = []
-            for column in tqdm(objs):
-                r, id = self.create_update(
-                    mutation_class="CreateUpdateColumn",
-                    mutation_parameters={
-                        "table": table_id,
-                        "bigqueryType": self.create_bq_type(
-                            column.get("bigquery_type")
-                        ),
-                        "directoryPrimaryKey": self.create_directory_columns(
-                            column, table_id
-                        ),
-                        "name": column.get("name"),
-                        "isInStaging": column.get("is_in_staging"),
-                        "isPartition": column.get("is_partition"),
-                        "description": column.get("description"),
-                        "coveredByDictionary": True
-                        if column.get("covered_by_dictionary") == "yes"
-                        else False,
-                        "measurementUnit": column.get("measurement_unit"),
-                        "containsSensitiveData": column.get("contains_sensitive_data"),
-                        "observations": column.get("observations"),
-                    },
-                    query_class="allColumn",
-                    query_parameters={
-                        "$name: String": column.get("name"),
-                        "$table_Id: ID": table_id,
-                    },
-                )
-                if r.get("r") == "mutation":
-                    coverage_id = self.create_coverage(
-                        resource=resource,
-                        coverage={"column": id},
-                    )
 
-                ids.append(id)
+        if objs is None:
+            objs = [{}]
+
+        ids = []
+
+        for column in tqdm(objs):
+            id = self._create_column(column, table_id, resource)
+            ids.append(id)
 
         return ids
 
     def create_org(self, org_dict):
-
+        dataset_remove_prefix = None
         if org_dict is None:
-            r, graphql_org_id = self.create_update(
+            response, graphql_org_id = self.create_update(
                 query_class="allOrganization",
                 query_parameters={"$slug: String": "desconhecida"},
                 mutation_class="CreateUpdateOrganization",
@@ -734,34 +689,51 @@ class Migration:
                 },
             )
         else:
-            org_name = (
-                org_dict.get("title", "desconhecida")
-                if "title" in org_dict
-                else org_dict.get("name", "desconhecida")
-            )
+            org_name = org_dict.get("title") or org_dict.get("name") or "desconhecida"
             org_description = org_dict.get("description", "desconhecida")
-
-            org_id = (
-                org_dict.get("name")
-                if "title" in org_dict
-                else org_dict.get("organization_id")
-            )
+            org_id = org_dict.get("name") or org_dict.get("organization_id")
             org_slug = "desconhecida" if org_id is None else org_id.replace("-", "_")
 
-            org_name = org_slug if org_name is None else org_name
+            org_slug_parts = org_slug.split("_", 1)
+            df = self.df_area
+            df["possible_areas"] = df["id"].apply(
+                lambda x: x.replace("_", ".").split("_", 1)[-1]
+            )
+            possible_areas = df["possible_areas"].to_list()
+
+            area_prefix = "unknown"
+            if len(org_slug_parts) > 1:
+                prefix = org_slug_parts[0].lower()
+                if prefix in possible_areas:
+                    org_slug = org_slug_parts[1]
+                    dataset_remove_prefix = prefix + "_" + org_slug + "_"
+                    area_prefix = prefix
+
+            area_row = df[df["possible_areas"] == area_prefix]
+            area_name_pt = area_row["label__pt"].values[0]
+            area_name_en = area_row["label__en"].values[0]
+
             package_to_part_org = {
-                "area": self.create_area(obj="desconhecida"),
+                "area": self.create_area(
+                    obj={
+                        "key": area_prefix,
+                        "name": area_name_pt,
+                        "name_en": area_name_en,
+                    }
+                ),
                 "slug": org_slug,
                 "name": org_name,
                 "description": org_description,
             }
-            r, graphql_org_id = self.create_update(
+
+            response, graphql_org_id = self.create_update(
                 query_class="allOrganization",
                 query_parameters={"$slug: String": org_slug},
                 mutation_class="CreateUpdateOrganization",
                 mutation_parameters=package_to_part_org,
             )
-        return graphql_org_id
+
+        return graphql_org_id, dataset_remove_prefix
 
     def create_area(self, obj):
 
@@ -872,9 +844,12 @@ class Migration:
             print("BigQueryTypeEnum Done")
 
         if migrate_enum["EntityEnum"]:
-            entity_dict = {}
-            for entity in EntityEnum:
-                entity_dict |= class_to_dict(entity)
+            entity_dict = entity_dict = {
+                key: value
+                for entity in EntityEnum
+                for key, value in class_to_dict(entity).items()
+            }
+            print(entity_dict)
             for key in entity_dict:
                 obj = {
                     "entity": key,
@@ -885,12 +860,10 @@ class Migration:
             print("EntityEnum Done")
 
         if migrate_enum["AreaEnum"]:
-            df_area = pd.read_csv(
-                "./utils/migration/data/enums/spatial_coverage_tree.csv"
-            )
-            areas = df_area["id"].to_list()
-            name_pt = df_area["label__pt"].to_list()
-            name_en = df_area["label__en"].to_list()
+
+            areas = self.df_area["id"].to_list()
+            name_pt = self.df_area["label__pt"].to_list()
+            name_en = self.df_area["label__en"].to_list()
 
             for key, name_pt, name_en in zip(areas, name_pt, name_en):
                 obj = {
