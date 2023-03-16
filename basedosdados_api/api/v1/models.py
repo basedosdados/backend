@@ -448,7 +448,7 @@ class Column(BdmModel):
     is_in_staging = models.BooleanField(default=True)
     is_partition = models.BooleanField(default=False)
 
-    graphql_nested_filter_fields_whitelist = ["id"]
+    graphql_nested_filter_fields_whitelist = ["id", "name"]
 
     def __str__(self):
         return f"{str(self.table.dataset.slug)}.{self.table.slug}.{str(self.name)}"
