@@ -183,12 +183,24 @@ class Migration:
         values = list(query_parameters.values())
         _input = ", ".join([f"{key}:${key}" for key in keys])
 
+        column_query = """
+            columns {
+                edges {
+                    node {
+                        id
+                    }
+                }
+            }
+        """
+
+        columns = column_query if query_class == "allObservationlevel" else ""
         query = f"""
         query({_filter}) {{
             {query_class}({_input}) {{
                 edges {{
                     node {{
                         id
+                        {columns}
                     }}
                 }}
             }}
@@ -208,9 +220,14 @@ class Migration:
             if not edges:
                 return response, None
 
-            node_id = edges[0]["node"]["id"]
-            return response, node_id.split(":")[1]
+            node = edges[0]["node"]
 
+            if columns != "":
+                columns = edges[0]["node"]["columns"]["edges"]
+                cols_ids = [d.get("node").get("id").split(":")[-1] for d in columns]
+                return cols_ids, node["id"].split(":")[1]
+            else:
+                return response, node["id"].split(":")[1]
         else:
             print("get: Error:", json.dumps(response, indent=4, ensure_ascii=False))
             raise Exception("get: Error")
@@ -229,7 +246,8 @@ class Migration:
         time.sleep(0.1)
 
         if node_id is not None and not update:
-            response["r"] = "query"
+            if mutation_class != "CreateUpdateObservationLevel":
+                response["r"] = "query"
             return response, node_id
 
         _class = mutation_class.replace("CreateUpdate", "").lower()
@@ -414,7 +432,7 @@ class Migration:
                 "category": category,
             }
 
-            print(parameters)
+            # print(parameters)
 
             return self._create_update_entity(**parameters)
 
@@ -472,13 +490,12 @@ class Migration:
             "time": "",
         }
 
-        if observation_levels is None:
-            observation_levels = [None]
+        if observation_levels is None or len(observation_levels) == 0:
+            observation_levels = [{"entity": "unknown"}]
 
         for ob in observation_levels:
             entity_key = ob.get("entity") if ob else None
             entity_id = self.create_entity(obj=ob)
-
             if entity_key in update_frequency_entity_dict and entity_key is not None:
                 update_frequency_number = update_frequency_dict[update_frequency]
             else:
@@ -490,29 +507,54 @@ class Migration:
 
         return id
 
-    def _create_observation_level_for_entity(self, entity_id):
+    def _create_observation_level_for_entity(self, entity_id, table_id, ob):
+        mutation_parameters = {
+            "entity": entity_id,
+        }
+        if table_id is not None:
+            new_columns_ids = [
+                self.get_id(
+                    query_class="allColumn",
+                    query_parameters={
+                        "$table_Id: ID": table_id,
+                        "$name: String": column,
+                    },
+                )[1]
+                for column in ob.get("columns", [])
+            ]
+
+            prev_columns, obs_id = self.get_id(
+                query_class="allObservationlevel",
+                query_parameters={
+                    "$entity_Id: ID": entity_id,
+                },
+            )
+
+            columns_ids = list(set(prev_columns + new_columns_ids))
+
+            mutation_parameters["id"] = obs_id
+            mutation_parameters["columns"] = columns_ids
         r, id = self.create_update(
             mutation_class="CreateUpdateObservationLevel",
-            mutation_parameters={
-                "entity": entity_id,
-            },
+            mutation_parameters=mutation_parameters,
             query_class="allObservationlevel",
             query_parameters={
                 "$entity_Id: ID": entity_id,
             },
+            update=table_id is not None,
         )
 
         return id
 
-    def create_observation_level(self, observation_levels=None):
-        if observation_levels is None:
-            observation_levels = [None]
+    def create_observation_level(self, observation_levels=None, table_id=None):
+        if observation_levels is None or len(observation_levels) == 0:
+            observation_levels = [{"entity": "unknown"}]
 
         ids = []
 
         for ob in observation_levels:
             entity_id = self.create_entity(obj=ob)
-            id = self._create_observation_level_for_entity(entity_id)
+            id = self._create_observation_level_for_entity(entity_id, table_id, ob)
             ids.append(id)
 
         return ids[-1]
@@ -704,16 +746,19 @@ class Migration:
             if len(org_slug_parts) > 1:
                 prefix = org_slug_parts[0].lower()
                 if prefix == "mundo":
-                    prefex = "world"
+                    prefix = "world"
                 if prefix in possible_areas:
                     org_slug = org_slug_parts[1]
                     dataset_remove_prefix = prefix + "_" + org_slug + "_"
                     area_prefix = prefix
 
+            if org_slug_parts[0].lower() == "mundo":
+                dataset_remove_prefix = "mundo_" + org_slug + "_"
+
             area_row = df[df["possible_areas"] == area_prefix]
             area_name_pt = area_row["label__pt"].values[0]
             area_name_en = area_row["label__en"].values[0]
-            print(org_slug)
+            print("org_slug: ", org_slug)
             package_to_part_org = {
                 "area": self.create_area(
                     obj={
@@ -733,7 +778,6 @@ class Migration:
                 mutation_class="CreateUpdateOrganization",
                 mutation_parameters=package_to_part_org,
             )
-        print(graphql_org_id)
         return graphql_org_id, dataset_remove_prefix
 
     def create_area(self, obj):
@@ -871,7 +915,7 @@ class Migration:
                     "name": name_pt,
                     "name_en": name_en,
                 }
-                print(obj)
+                # print(obj)
                 self.create_area(obj)
             print("Area Done")
 
