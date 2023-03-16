@@ -144,10 +144,10 @@ class Migration:
     def update_token_periodically(self):
         while True:
             time.sleep(300)  # Sleep for 5 minutes (300 seconds)
-            new_token = self.get_token(
-                self.mode
-            )  # Implement this method to obtain a new token
+            new_token = self.get_token()
+            # Implement this method to obtain a new token
             self.header["Authorization"] = f"Bearer {new_token}"
+            print("$$$$$$$$$$$$$$$$$$$$$ Token updated $$$$$$$$$$$$$$$$$$$$$")
 
     def get_token(self):
         r = requests.post(
