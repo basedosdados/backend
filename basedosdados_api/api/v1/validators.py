@@ -5,6 +5,7 @@ import json
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.core.validators import FileExtensionValidator
 
 current_site = os.getenv("url")
 
@@ -32,3 +33,11 @@ def validate_is_valid_area_key(value):  # outdated because it assumes separators
             f"Area '{value}' is not valid. Area must valid.\
             See {current_site}/schemas/bd_spatial_coverage_tree/ for valid areas."
         )
+
+
+def validate_is_valid_image_format(value):
+    """Validate image file."""
+    validate_image_file_extension = FileExtensionValidator(
+        allowed_extensions=["jpg", "jpeg", "png"]
+    )
+    validate_image_file_extension(value)

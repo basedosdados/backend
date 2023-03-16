@@ -10,6 +10,8 @@ from django.contrib.auth.models import (
     Permission,
 )
 
+from basedosdados_api.account.storage import OverwriteStorage
+from basedosdados_api.api.v1.validators import validate_is_valid_image_format
 from basedosdados_api.custom.model import BdmModel
 
 
@@ -214,7 +216,12 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
     last_name = models.CharField("Sobrenome", max_length=40, blank=True)
     birth_date = models.DateField("Data de Nascimento", null=True, blank=True)
     picture = models.ImageField(
-        "Imagem", upload_to=image_path_and_rename, null=True, blank=True
+        "Imagem",
+        upload_to=image_path_and_rename,
+        null=True,
+        blank=True,
+        validators=[validate_is_valid_image_format],
+        storage=OverwriteStorage()
     )
     twitter = models.CharField("Twitter", max_length=255, null=True, blank=True)
     linkedin = models.CharField("Linkedin", max_length=255, null=True, blank=True)
