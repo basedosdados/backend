@@ -410,7 +410,7 @@ class Table(BdmModel):
         ]
 
 
-class BigQueryTypes(BdmModel):
+class BigQueryType(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     name = models.CharField(max_length=255)
 
@@ -420,7 +420,7 @@ class BigQueryTypes(BdmModel):
         return str(self.name)
 
     class Meta:
-        db_table = "bigquery_types"
+        db_table = "bigquery_type"
         verbose_name = "BigQuery Type"
         verbose_name_plural = "BigQuery Types"
         ordering = ["name"]
@@ -431,7 +431,7 @@ class Column(BdmModel):
     table = models.ForeignKey("Table", on_delete=models.CASCADE, related_name="columns")
     name = models.CharField(max_length=255)
     bigquery_type = models.ForeignKey(
-        "BigQueryTypes", on_delete=models.CASCADE, related_name="columns"
+        "BigQueryType", on_delete=models.CASCADE, related_name="columns"
     )
     description = models.TextField(blank=True, null=True)
     covered_by_dictionary = models.BooleanField(default=False, blank=True, null=True)
