@@ -12,18 +12,12 @@ from basedosdados_api.api.v1.utils import (
     check_kebab_case,
     check_snake_case,
 )
-from basedosdados_api.api.v1.validators import (
-    validate_area_slug,
-    validate_is_valid_area_slug,
-)
 from basedosdados_api.custom.model import BdmModel
 
 
 class Area(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    slug = models.SlugField(
-        unique=True,
-        validators=[validate_area_slug, validate_is_valid_area_slug])
+    slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255, blank=False, null=False)
 
     graphql_nested_filter_fields_whitelist = ["id"]
