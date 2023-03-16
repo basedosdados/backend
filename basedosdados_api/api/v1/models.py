@@ -236,7 +236,7 @@ class Theme(BdmModel):
 
 class Organization(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    slug = models.SlugField(unique=True, max_length=255)
+    slug = models.SlugField(unique=False, max_length=255)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     area = models.ForeignKey(
