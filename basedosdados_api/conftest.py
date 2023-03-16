@@ -5,6 +5,7 @@ import uuid
 from django.contrib.auth.models import User
 
 from basedosdados_api.account.models import Account
+
 # from django.core.exceptions import ValidationError
 
 from basedosdados_api.api.v1.models import (
@@ -21,7 +22,7 @@ from basedosdados_api.api.v1.models import (
     Pipeline,
     ObservationLevel,
     Column,
-    BigQueryTypes,
+    BigQueryType,
     RawDataSource,
     Availability,
     InformationRequest,
@@ -168,15 +169,15 @@ def fixture_observation_level_anual(
 @pytest.fixture(name="bigquery_type_string")
 @pytest.mark.django_db
 def fixture_bigquery_type_string():
-    """Fixture for BigQueryTypes."""
-    return BigQueryTypes.objects.create(name="STRING")
+    """Fixture for BigQueryType."""
+    return BigQueryType.objects.create(name="STRING")
 
 
 @pytest.fixture(name="bigquery_type_int64")
 @pytest.mark.django_db
 def fixture_bigquery_type_int64():
-    """Fixture for BigQueryTypes."""
-    return BigQueryTypes.objects.create(name="INT64")
+    """Fixture for BigQueryType."""
+    return BigQueryType.objects.create(name="INT64")
 
 
 @pytest.fixture(name="disponibilidade_online")
@@ -411,7 +412,7 @@ def fixture_usuario_inicio():
         email="usuario@usuario.com",
         first_name="Usuario",
         last_name="Inicio",
-        profile=Account.STAFF
+        profile=Account.STAFF,
     )
 
 

@@ -7,7 +7,7 @@ from basedosdados_api.api.v1.models import (
     Table,
     InformationRequest,
     RawDataSource,
-    BigQueryTypes,
+    BigQueryType,
     Column,
     CloudTable,
     Area,
@@ -51,7 +51,7 @@ admin.site.register(Dataset, DatasetAdmin)
 admin.site.register(Table, TableAdmin)
 admin.site.register(InformationRequest)
 admin.site.register(RawDataSource)
-admin.site.register(BigQueryTypes)
+admin.site.register(BigQueryType)
 admin.site.register(Column)
 admin.site.register(CloudTable)
 admin.site.register(Area)

@@ -12,17 +12,12 @@ from basedosdados_api.api.v1.utils import (
     check_kebab_case,
     check_snake_case,
 )
-
 from basedosdados_api.custom.model import BdmModel
 
 
 class Area(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    key = models.CharField(
-        max_length=255,
-        null=True,
-        blank=False,
-    )
+    slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255, blank=False, null=False)
 
     graphql_nested_filter_fields_whitelist = ["id"]
@@ -406,7 +401,7 @@ class Table(BdmModel):
         ]
 
 
-class BigQueryTypes(BdmModel):
+class BigQueryType(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     name = models.CharField(max_length=255)
 
@@ -416,7 +411,7 @@ class BigQueryTypes(BdmModel):
         return str(self.name)
 
     class Meta:
-        db_table = "bigquery_types"
+        db_table = "bigquery_type"
         verbose_name = "BigQuery Type"
         verbose_name_plural = "BigQuery Types"
         ordering = ["name"]
@@ -427,7 +422,7 @@ class Column(BdmModel):
     table = models.ForeignKey("Table", on_delete=models.CASCADE, related_name="columns")
     name = models.CharField(max_length=255)
     bigquery_type = models.ForeignKey(
-        "BigQueryTypes", on_delete=models.CASCADE, related_name="columns"
+        "BigQueryType", on_delete=models.CASCADE, related_name="columns"
     )
     description = models.TextField(blank=True, null=True)
     covered_by_dictionary = models.BooleanField(default=False, blank=True, null=True)
@@ -444,7 +439,7 @@ class Column(BdmModel):
     is_in_staging = models.BooleanField(default=True)
     is_partition = models.BooleanField(default=False)
 
-    graphql_nested_filter_fields_whitelist = ["id"]
+    graphql_nested_filter_fields_whitelist = ["id", "name"]
 
     def __str__(self):
         return f"{str(self.table.dataset.slug)}.{self.table.slug}.{str(self.name)}"
