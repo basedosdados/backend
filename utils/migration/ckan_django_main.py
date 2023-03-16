@@ -23,11 +23,6 @@ from pathlib import Path
 import pandas as pd
 
 
-def get_credentials(mode):
-    j = json.load(open("./credentials.json"))
-    return j[mode]["username"], j[mode]["password"], j[mode]["url"]
-
-
 def main(
     mode="local",
     migrate_enum=True,
@@ -35,9 +30,7 @@ def main(
     package_name_error=None,
     tables_error=[],
 ):
-    # USERNAME, PASSWORD, URL = get_credentials(mode)
-    # TOKEN = get_token(URL, USERNAME, PASSWORD)
-    m = Migration(mode="staging")
+    m = Migration(mode=mode)
     m.create_enum(migrate_enum)
 
     # id = "br-sgp-informacao"
