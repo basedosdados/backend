@@ -1,7 +1,4 @@
 ### TODO fazer coverage para os trez tipos de recurso utilizando parse_temporal_coverage
-### TODO filtrar pelo id do modelo pai
-### TODO usar dataframe para controle dos packages, coluna migrate 'e alterada para 1 quando o package 'e migrado
-
 
 from datetime import datetime
 import json
@@ -21,31 +18,10 @@ from data.enums.language import LanguageEnum
 from data.enums.license import LicenseEnum
 from data.enums.status import StatusEnum
 
+import threading
+
+
 from unidecode import unidecode
-
-
-def get_token(url, username, password):
-    r = requests.post(
-        url,
-        headers={"Content-Type": "application/json"},
-        json={
-            "query": """
-                mutation tokenAuth($username: String!, $password: String!) {
-                    tokenAuth(
-                        email: $username,
-                        password: $password,
-                    ) {
-                        payload,
-                        refreshExpiresIn,
-                        token
-                    }
-                }
-            """,
-            "variables": {"username": username, "password": password},
-        },
-    )
-    r.raise_for_status()
-    return r.json()["data"]["tokenAuth"]["token"]
 
 
 def request_bd_package(file_path):
@@ -147,14 +123,54 @@ def parse_temporal_coverage(temporal_coverage):
     return start_result
 
 
+def get_credentials(mode):
+    j = json.load(open("./credentials.json"))
+    return j[mode]["username"], j[mode]["password"], j[mode]["url"]
+
+
 class Migration:
-    def __init__(self, url, token):
-        self.base_url = url
+    def __init__(self, mode):
+        self.mode = mode
+        self.username, self.password, self.base_url = get_credentials(mode)
         self.header = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {token}",
+            "Authorization": f"Bearer {self.get_token()}",
         }
         self.area_dict = build_areas_from_json()
+        self.token_updater = threading.Thread(target=self.update_token_periodically)
+        self.token_updater.setDaemon(True)
+        self.token_updater.start()
+
+    def update_token_periodically(self):
+        while True:
+            time.sleep(300)  # Sleep for 5 minutes (300 seconds)
+            new_token = self.get_token(
+                self.mode
+            )  # Implement this method to obtain a new token
+            self.header["Authorization"] = f"Bearer {new_token}"
+
+    def get_token(self):
+        r = requests.post(
+            self.base_url,
+            headers={"Content-Type": "application/json"},
+            json={
+                "query": """
+                    mutation tokenAuth($username: String!, $password: String!) {
+                        tokenAuth(
+                            email: $username,
+                            password: $password,
+                        ) {
+                            payload,
+                            refreshExpiresIn,
+                            token
+                        }
+                    }
+                """,
+                "variables": {"username": self.username, "password": self.password},
+            },
+        )
+        r.raise_for_status()
+        return r.json()["data"]["tokenAuth"]["token"]
 
     def get_id(
         self, query_class, query_parameters
@@ -364,25 +380,27 @@ class Migration:
             r, id = self.create_update(
                 mutation_class="CreateUpdateEntity",
                 mutation_parameters={
-                    "slug": "desconhecida",
-                    "name": "desconhecida",
-                    "category": "desconhecida",
+                    "slug": "unknown",
+                    "name": "Desconhecida",
+                    "category": "unknown",
                 },
                 query_class="allEntity",
                 query_parameters={
-                    "$slug: String": "desconhecida",
+                    "$slug: String": "unknown",
                 },
             )
         else:
             r, id = self.create_update(
                 mutation_class="CreateUpdateEntity",
                 mutation_parameters={
-                    "slug": obj.get("entity"),
-                    "name": obj.get("label"),
-                    "category": obj.get("category"),
+                    "slug": obj.get("entity", "unknown"),
+                    "name": obj.get("label", "Desconhecida"),
+                    "category": obj.get("category", "unknown"),
                 },
                 query_class="allEntity",
-                query_parameters={"$slug: String": obj.get("entity", "desconhecida")},
+                query_parameters={
+                    "$slug: String": obj.get("entity", "desconhecida"),
+                },
             )
 
         return id
@@ -805,75 +823,84 @@ class Migration:
         )
         return id
 
-    def create_enum(self):
+    def create_enum(self, migrate_enum={}):
 
-        availabilities = class_to_dict(AvailabilityEnum())
-        for key in availabilities:
-            obj = {
-                "availability": key,
-                "name": availabilities[key].get("label"),
-            }
-            self.create_availability(obj)
-        print("AvailabilityEnum Done")
+        if migrate_enum["AvailabilityEnum"]:
+            availabilities = class_to_dict(AvailabilityEnum())
+            for key in availabilities:
+                obj = {
+                    "availability": key,
+                    "name": availabilities[key].get("label"),
+                }
+                self.create_availability(obj)
+            print("AvailabilityEnum Done")
 
-        # licenses = class_to_dict(LicenseEnum())
-        # for key in licenses:
-        #     obj = {
-        #         "slug": key,
-        #         "name": licenses[key].get("label"),
-        #     }
-        #     self.create_license(obj)
-        # print("LicenseEnum Done")
+        if migrate_enum["LicenseEnum"]:
+            licenses = class_to_dict(LicenseEnum())
+            for key in licenses:
+                obj = {
+                    "slug": key,
+                    "name": licenses[key].get("label"),
+                }
+                self.create_license(obj)
+            print("LicenseEnum Done")
 
-        # languages = class_to_dict(LanguageEnum())
-        # for key in languages:
-        #     obj = {
-        #         "slug": key,
-        #         "name": languages[key].get("label"),
-        #     }
-        #     self.create_language(obj)
-        # print("LanguageEnum Done")
+        if migrate_enum["LanguageEnum"]:
+            languages = class_to_dict(LanguageEnum())
+            for key in languages:
+                obj = {
+                    "slug": key,
+                    "name": languages[key].get("label"),
+                }
+                self.create_language(obj)
+            print("LanguageEnum Done")
 
-        # status = class_to_dict(StatusEnum())
-        # for key in status:
-        #     obj = {
-        #         "slug": key,
-        #         "name": status[key].get("label"),
-        #     }
-        #     self.create_status(obj)
-        # print("StatusEnum Done")
+        if migrate_enum["StatusEnum"]:
+            status = class_to_dict(StatusEnum())
+            for key in status:
+                obj = {
+                    "slug": key,
+                    "name": status[key].get("label"),
+                }
+                self.create_status(obj)
+            print("StatusEnum Done")
 
-        # bq_types = class_to_dict(BigQueryTypeEnum())
-        # for key in bq_types:
-        #     self.create_bq_type(bq_types[key].get("label"))
-        # print("BigQueryTypeEnum Done")
+        if migrate_enum["BigQueryTypeEnum"]:
+            bq_types = class_to_dict(BigQueryTypeEnum())
+            for key in bq_types:
+                self.create_bq_type(bq_types[key].get("label"))
+            print("BigQueryTypeEnum Done")
 
-        # entity_dict = {}
-        # for entity in EntityEnum:
-        #     entity_dict |= class_to_dict(entity)
-        # for key in entity_dict:
-        #     obj = {
-        #         "entity": key,
-        #         "label": entity_dict[key].get("label"),
-        #         "category": entity_dict[key].get("category"),
-        #     }
-        #     self.create_entity(obj)
-        # print("EntityEnum Done")
+        if migrate_enum["EntityEnum"]:
+            entity_dict = {}
+            for entity in EntityEnum:
+                entity_dict |= class_to_dict(entity)
+            for key in entity_dict:
+                obj = {
+                    "entity": key,
+                    "label": entity_dict[key].get("label"),
+                    "category": entity_dict[key].get("category"),
+                }
+                self.create_entity(obj)
+            print("EntityEnum Done")
 
-        # df_area = pd.read_csv("./utils/migration/data/enums/spatial_coverage_tree.csv")
-        # areas = df_area["id"].to_list()
-        # name_pt = df_area["label__pt"].to_list()
-        # name_en = df_area["label__en"].to_list()
+        if migrate_enum["AreaEnum"]:
+            df_area = pd.read_csv(
+                "./utils/migration/data/enums/spatial_coverage_tree.csv"
+            )
+            areas = df_area["id"].to_list()
+            name_pt = df_area["label__pt"].to_list()
+            name_en = df_area["label__en"].to_list()
 
-        # for key, name_pt, name_en in zip(areas, name_pt, name_en):
-        #     obj = {
-        #         "key": key,
-        #         "name": name_pt,
-        #         "name_en": name_en,
-        #     }
-        #     print(obj)
-        #     self.create_area(obj)
-        # print("Area Done")
+            for key, name_pt, name_en in zip(areas, name_pt, name_en):
+                obj = {
+                    "key": key,
+                    "name": name_pt,
+                    "name_en": name_en,
+                }
+                print(obj)
+                self.create_area(obj)
+            print("Area Done")
 
         print(
             "\n===================================== ENUMS DONE!!!! =====================================\n\n\n"

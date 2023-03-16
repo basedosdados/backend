@@ -13,7 +13,6 @@ from datetime import datetime
 import pandas as pd
 from ckan_django_utils import (
     Migration,
-    get_token,
     get_package_model,
     get_bd_packages,
     parse_temporal_coverage,
@@ -36,11 +35,10 @@ def main(
     package_name_error=None,
     tables_error=[],
 ):
-    USERNAME, PASSWORD, URL = get_credentials(mode)
-    TOKEN = get_token(URL, USERNAME, PASSWORD)
-    m = Migration(url=URL, token=TOKEN)
-    if migrate_enum:
-        m.create_enum()
+    # USERNAME, PASSWORD, URL = get_credentials(mode)
+    # TOKEN = get_token(URL, USERNAME, PASSWORD)
+    m = Migration(mode="staging")
+    m.create_enum(migrate_enum)
 
     # id = "br-sgp-informacao"
     # id = "br-me-clima-organizacional"
@@ -181,7 +179,7 @@ def main(
                     # "languages": "",
                     "license": m.create_license(
                         obj={
-                            "slug": "unknow",
+                            "slug": "unknown",
                             "name": "Desconhecida",
                         }
                     ),
@@ -278,7 +276,15 @@ def main(
 if __name__ == "__main__":
     main(
         mode="staging",
-        migrate_enum=False,
+        migrate_enum={
+            "AvailabilityEnum": False,
+            "LicenseEnum": False,
+            "LanguageEnum": False,
+            "StatusEnum": False,
+            "BigQueryTypeEnum": False,
+            "EntityEnum": False,
+            "AreaEnum": False,
+        },
         migration_control=True,
         package_name_error=None,
         tables_error=[],
