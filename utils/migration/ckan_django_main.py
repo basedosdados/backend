@@ -29,10 +29,13 @@ def get_credentials(mode):
     return j[mode]["username"], j[mode]["password"], j[mode]["url"]
 
 
-migration_control = 1
-
-
-def main(mode="local", migrate_enum=True, package_name_error=None, tables_error=[]):
+def main(
+    mode="local",
+    migrate_enum=True,
+    migration_control=True,
+    package_name_error=None,
+    tables_error=[],
+):
     USERNAME, PASSWORD, URL = get_credentials(mode)
     TOKEN = get_token(URL, USERNAME, PASSWORD)
     m = Migration(url=URL, token=TOKEN)
@@ -176,9 +179,14 @@ def main(mode="local", migrate_enum=True, package_name_error=None, tables_error=
                     # "coverages": "",
                     "availability": m.create_availability(resource),
                     # "languages": "",
-                    "license": m.create_license(),
+                    "license": m.create_license(
+                        obj={
+                            "slug": "unknow",
+                            "name": "Desconhecida",
+                        }
+                    ),
                     "updateFrequency": update_frequency_id,
-                    "areaIpAddressRequired": m.create_area(area="desconhecida"),
+                    "areaIpAddressRequired": m.create_area(obj="desconhecida"),
                     # "createdAt": "",
                     # "updatedAt": "",
                     "url": resource["url"].replace(" ", ""),
@@ -270,7 +278,8 @@ def main(mode="local", migrate_enum=True, package_name_error=None, tables_error=
 if __name__ == "__main__":
     main(
         mode="staging",
-        migrate_enum=True,
+        migrate_enum=False,
+        migration_control=True,
         package_name_error=None,
         tables_error=[],
     )

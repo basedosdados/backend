@@ -231,14 +231,23 @@ class Migration:
 
         if update == True and id is not None:
             mutation_parameters["id"] = id
-        r = requests.post(
-            self.base_url,
-            json={"query": query, "variables": {"input": mutation_parameters}},
-            headers=self.header,
-        )
-        r.raise_for_status()
-        time.sleep(0.1)
-        r = r.json()
+
+        retry = 0
+        while retry < 5:
+            try:
+                r = requests.post(
+                    self.base_url,
+                    json={"query": query, "variables": {"input": mutation_parameters}},
+                    headers=self.header,
+                ).json()
+                time.sleep(0.1)
+                retry = 5
+            except Exception as e:
+                print(
+                    f"retrying...{retry}",
+                )
+                print("create: Error:", e)
+                retry = +1
 
         r["r"] = "mutation"
         if "data" in r and r is not None:
@@ -332,22 +341,20 @@ class Migration:
         return ids
 
     def create_availability(self, obj):
-        availability = (
-            "desconhecida"
-            if obj.get("availability") is None
-            else obj.get("availability")
-        )
+        slug = obj.get("availability", "unknown")
+        slug = slug if slug is not None else "unknown"
         name = obj.get("name", None)
-        name = name if name is None else availability
+        nameEn = slug.replace("_", " ").title()
 
         r, id = self.create_update(
             mutation_class="CreateUpdateAvailability",
             mutation_parameters={
-                "slug": availability,
+                "slug": slug,
                 "name": name,
+                "nameEn": nameEn,
             },
             query_class="allAvailability",
-            query_parameters={"$slug: String": availability},
+            query_parameters={"$slug: String": slug},
         )
 
         return id
@@ -745,15 +752,15 @@ class Migration:
 
         if obj == "desconhecida":
             obj = {
-                "area": "desconhecida",
+                "key": "unknown",
                 "name": "Desconhecida",
                 "name_en": "Unknown",
             }
 
-        name = obj.get("name")
-        name_en = obj.get("name_en", None)
-        key = "unknown" if obj.get("area") == "desconhecida" else obj.get("key")
-
+        name = obj.get("name", "Desconhecida")
+        name_en = obj.get("name_en", "Unknown")
+        key = obj.get("key", "unknown")
+        key = "unknown" if key == "desconhecida" else key
         r, id = self.create_update(
             query_class="allArea",
             query_parameters={"$key: String": key},
@@ -800,14 +807,14 @@ class Migration:
 
     def create_enum(self):
 
-        # availabilities = class_to_dict(AvailabilityEnum())
-        # for key in availabilities:
-        #     obj = {
-        #         "availability": key,
-        #         "name": availabilities[key].get("label"),
-        #     }
-        #     self.create_availability(obj)
-        # print("AvailabilityEnum Done")
+        availabilities = class_to_dict(AvailabilityEnum())
+        for key in availabilities:
+            obj = {
+                "availability": key,
+                "name": availabilities[key].get("label"),
+            }
+            self.create_availability(obj)
+        print("AvailabilityEnum Done")
 
         # licenses = class_to_dict(LicenseEnum())
         # for key in licenses:
@@ -853,20 +860,20 @@ class Migration:
         #     self.create_entity(obj)
         # print("EntityEnum Done")
 
-        df_area = pd.read_csv("./utils/migration/data/enums/spatial_coverage_tree.csv")
-        areas = df_area["id"].to_list()
-        name_pt = df_area["label__pt"].to_list()
-        name_en = df_area["label__en"].to_list()
+        # df_area = pd.read_csv("./utils/migration/data/enums/spatial_coverage_tree.csv")
+        # areas = df_area["id"].to_list()
+        # name_pt = df_area["label__pt"].to_list()
+        # name_en = df_area["label__en"].to_list()
 
-        for key, name_pt, name_en in zip(areas, name_pt, name_en):
-            obj = {
-                "key": key,
-                "name": name_pt,
-                "name_en": name_en,
-            }
-            print(obj)
-            self.create_area(obj)
-        print("Area Done")
+        # for key, name_pt, name_en in zip(areas, name_pt, name_en):
+        #     obj = {
+        #         "key": key,
+        #         "name": name_pt,
+        #         "name_en": name_en,
+        #     }
+        #     print(obj)
+        #     self.create_area(obj)
+        # print("Area Done")
 
         print(
             "\n===================================== ENUMS DONE!!!! =====================================\n\n\n"
