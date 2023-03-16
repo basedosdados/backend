@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import os
 from uuid import uuid4
 
 from django.db import models
@@ -10,6 +11,17 @@ from django.contrib.auth.models import (
 )
 
 from basedosdados_api.custom.model import BdmModel
+
+
+def image_path_and_rename(instance, filename):
+    """
+    Rename file to be the username
+    """
+    upload_to = instance.__class__.__name__.lower()
+    ext = filename.split(".")[-1]
+    # get filename
+    filename = f"{instance.username}.{ext}"
+    return os.path.join(upload_to, filename)
 
 
 class RegistrationToken(BdmModel):
@@ -202,7 +214,7 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
     last_name = models.CharField("Sobrenome", max_length=40, blank=True)
     birth_date = models.DateField("Data de Nascimento", null=True, blank=True)
     picture = models.ImageField(
-        "Imagem", upload_to="profile_pictures", null=True, blank=True
+        "Imagem", upload_to=image_path_and_rename, null=True, blank=True
     )
     twitter = models.CharField("Twitter", max_length=255, null=True, blank=True)
     linkedin = models.CharField("Linkedin", max_length=255, null=True, blank=True)
