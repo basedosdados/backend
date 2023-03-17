@@ -659,11 +659,30 @@ class InformationRequest(BdmModel):
         return super().clean()
 
 
+class EntityCategory(BdmModel):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    slug = models.SlugField(unique=True)
+    name = models.CharField(max_length=255)
+
+    graphql_nested_filter_fields_whitelist = ["id"]
+
+    def __str__(self):
+        return str(self.slug)
+
+    class Meta:
+        db_table = "entity_category"
+        verbose_name = "EntityCategory"
+        verbose_name_plural = "EntityCategories"
+        ordering = ["slug"]
+
+
 class Entity(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
-    category = models.CharField(max_length=255)
+    category = models.ForeignKey(
+        "EntityCategory", on_delete=models.CASCADE, related_name="entities"
+    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
