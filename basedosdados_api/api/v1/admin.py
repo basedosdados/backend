@@ -21,6 +21,7 @@ from basedosdados_api.api.v1.models import (
     Language,
     ObservationLevel,
     Entity,
+    EntityCategory,
     Dictionary,
     Pipeline,
     AnalysisType,
@@ -65,6 +66,7 @@ admin.site.register(License)
 admin.site.register(Language)
 admin.site.register(ObservationLevel)
 admin.site.register(Entity)
+admin.site.register(EntityCategory)
 admin.site.register(Dictionary)
 admin.site.register(Pipeline)
 admin.site.register(AnalysisType)
