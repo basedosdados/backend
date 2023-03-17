@@ -1,5 +1,3 @@
-### TODO fazer coverage para os trez tipos de recurso utilizando parse_temporal_coverage
-
 from datetime import datetime
 import json
 import re
