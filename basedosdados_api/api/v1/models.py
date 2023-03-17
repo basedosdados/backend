@@ -403,9 +403,6 @@ class Table(BdmModel):
     compressed_file_size = models.BigIntegerField(blank=True, null=True)
     number_rows = models.BigIntegerField(blank=True, null=True)
     number_columns = models.BigIntegerField(blank=True, null=True)
-    observation_level = models.ManyToManyField(
-        "ObservationLevel", related_name="tables", blank=True
-    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -423,6 +420,11 @@ class Table(BdmModel):
             )
         ]
 
+
+class X:
+    table_id = FK
+    observation_level_id = FK
+    column_id = FK (null=True)
 
 class BigQueryType(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -461,6 +463,9 @@ class Column(BdmModel):
     observations = models.TextField(blank=True, null=True)
     is_in_staging = models.BooleanField(default=True)
     is_partition = models.BooleanField(default=False)
+    observation_level = models.ForeignKey(
+        "ObservationLevel", on_delete=models.CASCADE, related_name="columns"
+    )
 
     graphql_nested_filter_fields_whitelist = ["id", "name"]
 
@@ -589,9 +594,6 @@ class RawDataSource(BdmModel):
     contains_api = models.BooleanField(default=False)
     is_free = models.BooleanField(default=False)
     required_registration = models.BooleanField(default=False)
-    entities = models.ManyToManyField(
-        "Entity", related_name="raw_data_sources", blank=True
-    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -621,9 +623,6 @@ class InformationRequest(BdmModel):
     started_at = models.DateTimeField(blank=True, null=True)
     data_url = models.URLField(max_length=500, blank=True, null=True)
     observations = models.TextField(blank=True, null=True)
-    entities = models.ManyToManyField(
-        "Entity", related_name="information_requests", blank=True
-    )
     started_by = models.ForeignKey(
         Account,
         on_delete=models.PROTECT,
@@ -670,16 +669,50 @@ class Entity(BdmModel):
 class ObservationLevel(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     entity = models.ForeignKey(
-        "Entity", on_delete=models.CASCADE, related_name="observation_levels"
+        "Entity",
+        on_delete=models.CASCADE,
+        related_name="observation_levels"
     )
-    columns = models.ManyToManyField(
-        "Column", related_name="observation_levels", blank=True
+    table = models.ForeignKey(
+        "Table",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="observation_levels",
+    )
+    raw_data_source = models.ForeignKey(
+        "RawDataSource",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="observation_levels",
+    )
+    information_request = models.ForeignKey(
+        "InformationRequest",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="observation_levels",
     )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
         return str(self.entity)
+    
+    def clean(self) -> None:
+        # Assert that only one of "table", "raw_data_source", "information_request" is set
+        count = 0
+        if self.table:
+            count += 1
+        if self.raw_data_source:
+            count += 1
+        if self.information_request:
+            count += 1
+        if count != 1:
+            raise ValidationError(
+                "One and only one of 'table', 'raw_data_source', 'information_request' must be set."  # noqa
+            )
 
 
 class DateTimeRange(BdmModel):
