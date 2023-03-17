@@ -477,6 +477,14 @@ class Column(BdmModel):
         verbose_name_plural = "Columns"
         ordering = ["name"]
 
+    def clean(self) -> None:
+        # If observation_level is not null, assert that its table is the same as the column's table
+        if self.observation_level and self.observation_level.table != self.table:
+            raise ValidationError(
+                "Observation level is not in the same table as the column."
+            )
+        return super().clean()
+
 
 class Dictionary(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -645,6 +653,10 @@ class InformationRequest(BdmModel):
         errors = {}
         if self.origin is not None and len(self.origin) > 500:
             errors["origin"] = "Origin cannot be longer than 500 characters"
+        if errors:
+            raise ValidationError(errors)
+
+        return super().clean()
 
 
 class Entity(BdmModel):
@@ -710,6 +722,7 @@ class ObservationLevel(BdmModel):
             raise ValidationError(
                 "One and only one of 'table', 'raw_data_source', 'information_request' must be set."  # noqa
             )
+        return super().clean()
 
 
 class DateTimeRange(BdmModel):
