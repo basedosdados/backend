@@ -270,7 +270,7 @@ class Organization(BdmModel):
         null=True,
         blank=True,
         validators=[validate_is_valid_image_format],
-        storage=OverwriteStorage()
+        storage=OverwriteStorage(),
     )
 
     graphql_nested_filter_fields_whitelist = ["id"]
@@ -459,7 +459,11 @@ class Column(BdmModel):
     is_in_staging = models.BooleanField(default=True)
     is_partition = models.BooleanField(default=False)
     observation_level = models.ForeignKey(
-        "ObservationLevel", on_delete=models.CASCADE, related_name="columns"
+        "ObservationLevel",
+        on_delete=models.CASCADE,
+        related_name="columns",
+        null=True,
+        blank=True,
     )
 
     graphql_nested_filter_fields_whitelist = ["id", "name"]
@@ -664,9 +668,7 @@ class Entity(BdmModel):
 class ObservationLevel(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     entity = models.ForeignKey(
-        "Entity",
-        on_delete=models.CASCADE,
-        related_name="observation_levels"
+        "Entity", on_delete=models.CASCADE, related_name="observation_levels"
     )
     table = models.ForeignKey(
         "Table",
@@ -694,7 +696,7 @@ class ObservationLevel(BdmModel):
 
     def __str__(self):
         return str(self.entity)
-    
+
     def clean(self) -> None:
         # Assert that only one of "table", "raw_data_source", "information_request" is set
         count = 0
