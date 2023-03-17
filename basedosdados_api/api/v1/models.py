@@ -3,16 +3,31 @@ from uuid import uuid4
 
 import calendar
 from datetime import datetime
+
+import os
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.urls import reverse
 
 from basedosdados_api.account.models import Account
+from basedosdados_api.account.storage import OverwriteStorage
 from basedosdados_api.api.v1.utils import (
     check_kebab_case,
     check_snake_case,
 )
+from basedosdados_api.api.v1.validators import validate_is_valid_image_format
 from basedosdados_api.custom.model import BdmModel
+
+
+def image_path_and_rename(instance, filename):
+    """
+    Rename file to be the username
+    """
+    upload_to = instance.__class__.__name__.lower()
+    ext = filename.split(".")[-1]
+    # get filename
+    filename = f"{instance.name.lower()}.{ext}"
+    return os.path.join(upload_to, filename)
 
 
 class Area(BdmModel):
@@ -249,6 +264,14 @@ class Organization(BdmModel):
     facebook = models.URLField(blank=True, null=True)
     linkedin = models.URLField(blank=True, null=True)
     instagram = models.URLField(blank=True, null=True)
+    picture = models.ImageField(
+        "Imagem",
+        upload_to=image_path_and_rename,
+        null=True,
+        blank=True,
+        validators=[validate_is_valid_image_format],
+        storage=OverwriteStorage()
+    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
