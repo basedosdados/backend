@@ -421,11 +421,6 @@ class Table(BdmModel):
         ]
 
 
-class X:
-    table_id = FK
-    observation_level_id = FK
-    column_id = FK (null=True)
-
 class BigQueryType(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     name = models.CharField(max_length=255)
