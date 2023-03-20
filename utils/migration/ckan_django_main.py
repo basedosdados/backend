@@ -171,24 +171,23 @@ def main(
                     table_id=table_id,
                 )
 
-                # pass
+                pass
 
             elif resource_type == "external_link":
                 print("\nCreate RawDataSource: ", resource["url"])
 
                 languages_ids = []
                 languages = class_to_dict(LanguageEnum())
-
-                for lang in resource.get("language", []):
-
-                    languages_ids.append(
-                        m.create_language(
-                            {
-                                "slug": languages.get(lang, {}).get("abrev", None),
-                                "name": languages.get(lang, {}).get("label", None),
-                            }
+                if resource.get("language", []) is not None:
+                    for lang in resource.get("language", []):
+                        languages_ids.append(
+                            m.create_language(
+                                {
+                                    "slug": languages.get(lang, {}).get("abrev", None),
+                                    "name": languages.get(lang, {}).get("label", None),
+                                }
+                            )
                         )
-                    )
 
                 resource_to_raw_data_source = {
                     "dataset": dataset_id,
