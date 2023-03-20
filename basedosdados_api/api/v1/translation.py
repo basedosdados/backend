@@ -16,7 +16,7 @@ from .models import (
     Table,
     Tag,
     Theme,
-    Area,
+    Area, EntityCategory,
 )
 
 
@@ -44,7 +44,11 @@ class DatasetTranslationOptions(TranslationOptions):
 
 
 class EntityTranslationOptions(TranslationOptions):
-    fields = ("name","category")
+    fields = ("name",)
+
+
+class EntityCategoryTranslationOptions(TranslationOptions):
+    fields = ("name",)
 
 
 class InformationRequestTranslationOptions(TranslationOptions):
@@ -95,6 +99,7 @@ translator.register(Availability, AvailabilityTranslationOptions)
 translator.register(Column, ColumnTranslationOptions)
 translator.register(Dataset, DatasetTranslationOptions)
 translator.register(Entity, EntityTranslationOptions)
+translator.register(EntityCategory, EntityCategoryTranslationOptions)
 translator.register(InformationRequest, InformationRequestTranslationOptions)
 translator.register(Language, LanguageTranslationOptions)
 translator.register(License, LicenseTranslationOptions)
