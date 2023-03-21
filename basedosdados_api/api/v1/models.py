@@ -330,12 +330,14 @@ class Dataset(BdmModel):
         return reverse("datasetdetail", kwargs={"pk": self.object.pk})
 
 
-class UpdateFrequency(BdmModel):
+class Update(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     entity = models.ForeignKey(
-        "Entity", on_delete=models.CASCADE, related_name="update_frequencies"
+        "Entity", on_delete=models.CASCADE, related_name="updates"
     )
-    number = models.IntegerField()
+    frequency = models.IntegerField()
+    lag = models.IntegerField()
+    last = models.DateTimeField(blank=True, null=True)
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -343,9 +345,9 @@ class UpdateFrequency(BdmModel):
         return f"{str(self.number)} {str(self.entity)}"
 
     class Meta:
-        db_table = "update_frequency"
-        verbose_name = "Update Frequency"
-        verbose_name_plural = "Update Frequencies"
+        db_table = "update"
+        verbose_name = "Update"
+        verbose_name_plural = "Updates"
         ordering = ["number"]
 
 
@@ -370,8 +372,8 @@ class Table(BdmModel):
     partner_organization = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="partner_tables"
     )
-    update_frequency = models.ForeignKey(
-        "UpdateFrequency", on_delete=models.CASCADE, related_name="tables"
+    update = models.ForeignKey(
+        "Update", on_delete=models.CASCADE, related_name="tables"
     )
     pipeline = models.ForeignKey(
         "Pipeline", on_delete=models.CASCADE, related_name="tables"
@@ -589,8 +591,8 @@ class RawDataSource(BdmModel):
     license = models.ForeignKey(
         "License", on_delete=models.CASCADE, related_name="raw_data_sources"
     )
-    update_frequency = models.ForeignKey(
-        "UpdateFrequency", on_delete=models.CASCADE, related_name="raw_data_sources"
+    update = models.ForeignKey(
+        "Update", on_delete=models.CASCADE, related_name="raw_data_sources"
     )
     area_ip_address_required = models.ManyToManyField(
         "Area", related_name="raw_data_sources", blank=True
@@ -619,8 +621,8 @@ class InformationRequest(BdmModel):
     status = models.ForeignKey(
         "Status", on_delete=models.CASCADE, related_name="information_requests"
     )
-    update_frequency = models.ForeignKey(
-        "UpdateFrequency", on_delete=models.CASCADE, related_name="information_requests"
+    update = models.ForeignKey(
+        "Update", on_delete=models.CASCADE, related_name="information_requests"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
