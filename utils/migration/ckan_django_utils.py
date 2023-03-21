@@ -84,6 +84,7 @@ def pprint(msg):
 
 def parse_temporal_coverage(temporal_coverage):
     # Extrai as informações de data e intervalo da string
+    print(temporal_coverage)
     if "(" in temporal_coverage:
         start_str, interval_str, end_str = re.split(r"[(|)]", temporal_coverage)
         if start_str == "" and end_str != "":
@@ -92,6 +93,9 @@ def parse_temporal_coverage(temporal_coverage):
             end_str = start_str
     elif len(temporal_coverage) == 4:
         start_str, interval_str, end_str = temporal_coverage, 1, temporal_coverage
+    elif len(temporal_coverage) == 7:
+        start_str, interval_str, end_str = temporal_coverage, 1, temporal_coverage
+
     start_len = 0 if start_str == "" else len(start_str.split("-"))
     end_len = 0 if end_str == "" else len(end_str.split("-"))
 
@@ -415,19 +419,24 @@ class Migration:
             return self._create_update_entity(**default_parameters)
         else:
 
-            entity_dict = entity_dict = {
+            entity_dict = {
                 key: value
                 for entity in EntityEnum
                 for key, value in class_to_dict(entity).items()
             }
             slug = obj.get("entity", "unknown")
+            if slug == "langugage":
+                slug = "language"
+
             name = obj.get("label") or entity_dict[slug].get("label")
             category = obj.get("category") or entity_dict[slug].get("category")
+
+            category_id = self.create_category(category)
 
             parameters = {
                 "slug": slug,
                 "name": name,
-                "category": category,
+                "category": category_id,
             }
 
             # print(parameters)
@@ -505,46 +514,31 @@ class Migration:
 
         return id
 
-    def _create_observation_level_for_entity(self, entity_id, table_id, ob):
+    def _create_observation_level_for_entity(self, entity_id, obs_resource):
+
+        resource_type = list(obs_resource.keys())[0]
+        resource_id = list(obs_resource.values())[0]
+        resource_filter = f"{resource_type}_Id"
+
         mutation_parameters = {
             "entity": entity_id,
+            resource_type: resource_id,
         }
-        if table_id is not None:
-            new_columns_ids = [
-                self.get_id(
-                    query_class="allColumn",
-                    query_parameters={
-                        "$table_Id: ID": table_id,
-                        "$name: String": column,
-                    },
-                )[1]
-                for column in ob.get("columns", [])
-            ]
 
-            prev_columns, obs_id = self.get_id(
-                query_class="allObservationlevel",
-                query_parameters={
-                    "$entity_Id: ID": entity_id,
-                },
-            )
-
-            columns_ids = list(set(prev_columns + new_columns_ids))
-
-            mutation_parameters["id"] = obs_id
-            mutation_parameters["columns"] = columns_ids
         r, id = self.create_update(
             mutation_class="CreateUpdateObservationLevel",
             mutation_parameters=mutation_parameters,
             query_class="allObservationlevel",
             query_parameters={
                 "$entity_Id: ID": entity_id,
+                f"${resource_filter}: ID": resource_id,
             },
-            update=table_id is not None,
         )
 
         return id
 
-    def create_observation_level(self, observation_levels=None, table_id=None):
+    def create_observation_level(self, observation_levels=None, obs_resource=None):
+
         if observation_levels is None or len(observation_levels) == 0:
             observation_levels = [{"entity": "unknown"}]
 
@@ -552,10 +546,10 @@ class Migration:
 
         for ob in observation_levels:
             entity_id = self.create_entity(obj=ob)
-            id = self._create_observation_level_for_entity(entity_id, table_id, ob)
+            id = self._create_observation_level_for_entity(entity_id, obs_resource)
             ids.append(id)
 
-        return ids[-1]
+        return ids
 
     def create_license(self, obj):
         slug = obj["slug"]
@@ -662,13 +656,19 @@ class Migration:
 
         return ids[-1]
 
+    def get_obs_level(self, obs_levels, column_name):
+        for obs in obs_levels:
+            if column_name in obs.get("columns", []):
+                return obs
+
     def _create_column(self, column, table_id, resource):
+        column_name = column.get("name", "desconhecida")
         mutation_parameters = {
             "table": table_id,
             "bigqueryType": self.create_bq_type(
                 column.get("bigquery_type", "desconhecida")
             ),
-            "name": column.get("name", "desconhecida"),
+            "name": column_name,
             "isInStaging": column.get("is_in_staging"),
             "isPartition": column.get("is_partition"),
             "description": column.get("description"),
@@ -683,12 +683,30 @@ class Migration:
                 column, table_id
             )
 
+        if resource.get("observation_level") is not None:
+            obs_level = self.get_obs_level(
+                resource.get("observation_level"), column_name
+            )
+        else:
+            obs_level = None
+
+        if obs_level is not None:
+            entity_id = self.create_entity(obj=obs_level)
+            obs_id = self.get_id(
+                query_class="allObservationlevel",
+                query_parameters={
+                    "$entity_Id: ID": entity_id,
+                    "$table_Id: ID": table_id,
+                },
+            )[1]
+            mutation_parameters["observationLevel"] = obs_id
+
         r, id = self.create_update(
             mutation_class="CreateUpdateColumn",
             mutation_parameters=mutation_parameters,
             query_class="allColumn",
             query_parameters={
-                "$name: String": column.get("name", "desconhecida"),
+                "$name: String": column_name,
                 "$table_Id: ID": table_id,
             },
         )
@@ -707,7 +725,6 @@ class Migration:
             objs = [{}]
 
         ids = []
-
         for column in tqdm(objs):
             id = self._create_column(column, table_id, resource)
             ids.append(id)
@@ -722,7 +739,7 @@ class Migration:
                 query_parameters={"$slug: String": "desconhecida"},
                 mutation_class="CreateUpdateOrganization",
                 mutation_parameters={
-                    "area": self.create_area(area="desconhecida"),
+                    "area": self.create_area(obj="desconhecida"),
                     "slug": "desconhecida",
                     "name": "desconhecida",
                     "description": "desconhecida",
@@ -733,7 +750,16 @@ class Migration:
             org_name = org_dict.get("title") or org_dict.get("name") or "desconhecida"
             org_description = org_dict.get("description", "desconhecida")
             org_id = org_dict.get("name") or org_dict.get("organization_id")
-            org_slug = "desconhecida" if org_id is None else org_id.replace("-", "_")
+            org_slug = (
+                "desconhecida"
+                if org_id is None
+                else org_id.replace("-", "_")
+                .replace(".", "_")
+                .lower()
+                .replace(" ", "_")
+            )
+            org_slug = unidecode(org_slug)
+
             org_slug_parts = org_slug.split("_", 1)
             df = self.df_area
             df["possible_areas"] = df["id"].apply(
@@ -836,6 +862,20 @@ class Migration:
                 "slug": slug,
             },
         )
+        return id
+
+    def create_category(self, category):
+        r, id = self.create_update(
+            mutation_class="CreateUpdateEntityCategory",
+            mutation_parameters={
+                "slug": category,
+                "name": category,
+                "nameEn": category.capitalize(),
+            },
+            query_class="allEntitycategory",
+            query_parameters={"$slug: String": category},
+        )
+
         return id
 
     def create_enum(self, migrate_enum={}):

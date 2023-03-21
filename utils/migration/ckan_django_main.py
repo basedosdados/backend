@@ -122,9 +122,6 @@ def main(
                     "compressedFileSize": resource["compressed_file_size"],
                     "numberRows": 0,
                     "numberColumns": len(resource["columns"]),
-                    "observationLevel": m.create_observation_level(
-                        observation_levels=resource["observation_level"],
-                    ),
                     # "publishedBy":resource.get("published_by",{}).get("name",None),
                 }
 
@@ -138,7 +135,15 @@ def main(
                         "$dataset_Id: ID": dataset_id,
                     },
                 )
-                m.create_coverage(resource=resource, coverage={"table": table_id})
+
+                if resource.get("spatial_coverage") is not None:
+                    m.create_coverage(resource=resource, coverage={"table": table_id})
+
+                if resource.get("observation_level") is not None:
+                    m.create_observation_level(
+                        observation_levels=resource["observation_level"],
+                        obs_resource={"table": table_id},
+                    )
                 if "columns" in resource:
                     print("\nCreate Column")
 
@@ -165,11 +170,6 @@ def main(
                             "$table_Id: ID": table_id,
                         },
                     )
-                ### update observation level
-                m.create_observation_level(
-                    observation_levels=resource["observation_level"],
-                    table_id=table_id,
-                )
 
                 pass
 
@@ -230,9 +230,16 @@ def main(
                         "$dataset_Id: ID": dataset_id,
                     },
                 )
-                m.create_coverage(
-                    resource=resource, coverage={"rawDataSource": raw_source_id}
-                )
+                if resource.get("spatial_coverage") is not None:
+                    m.create_coverage(
+                        resource=resource, coverage={"rawDataSource": raw_source_id}
+                    )
+
+                if resource.get("observation_level") is not None:
+                    m.create_observation_level(
+                        observation_levels=resource.get("observation_level", None),
+                        obs_resource={"rawDataSource": raw_source_id},
+                    )
 
             elif resource_type == "information_request":
                 print("\nCreate InformationRequest: ", resource["name"])
@@ -278,9 +285,16 @@ def main(
                     },
                     # update=True,
                 )
-                m.create_coverage(
-                    resource=resource, coverage={"informationRequest": info_id}
-                )
+
+                if resource.get("spatial_coverage") is not None:
+                    m.create_coverage(
+                        resource=resource, coverage={"informationRequest": info_id}
+                    )
+                if resource.get("observation_level") is not None:
+                    m.create_observation_level(
+                        observation_levels=resource.get("observation_level"),
+                        obs_resource={"informationRequest": info_id},
+                    )
         print(
             "\n\n***********************************************************************************************\n\n"
         )
@@ -300,11 +314,11 @@ def main(
 
 if __name__ == "__main__":
     main(
-        mode="local",
+        mode="staging",
         migrate_enum={
             "AvailabilityEnum": False,
             "LicenseEnum": False,
-            "LanguageEnum": True,
+            "LanguageEnum": False,
             "StatusEnum": False,
             "BigQueryTypeEnum": False,
             "EntityEnum": False,
