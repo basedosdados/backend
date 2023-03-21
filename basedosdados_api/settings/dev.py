@@ -14,3 +14,14 @@ DATABASES = {
 }
 
 LOGGING = DEFAULT_LOGGING
+
+# Elasticsearch
+# HAYSTACK_CONNECTIONS = {
+#     "default": {
+#         "ENGINE": "haystack.backends.elasticsearch_backend.ElasticsearchSearchEngine",
+#         "URL": "https://localhost:9200",
+#         "INDEX_NAME": "default",
+#     },
+# }
+
+# HAYSTACK_SIGNAL_PROCESSOR = "haystack.signals.RealtimeSignalProcessor"

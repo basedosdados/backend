@@ -21,6 +21,7 @@ django-graphql-jwt = "^0.3.4"
 django-modeltranslation = "^0.18.8"
 pylint = "^2.16.1"
 pillow = "^9.4.0"
+django-haystack = {extras = ["elasticsearch"], version = "^3.2.1"}
 
 [tool.poetry.dev-dependencies]
 black = "^22.3.0"

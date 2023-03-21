@@ -49,3 +49,14 @@ SERVER_EMAIL = nonull_getenv("EMAIL_HOST_USER")
 LOGGING["handlers"]["logfile"][  # noqa
     "filename"
 ] = "/var/log/django/basedosdados_api.log"
+
+# Elasticsearch
+# HAYSTACK_CONNECTIONS = {
+#     "default": {
+#         "ENGINE": "haystack.backends.elasticsearch_backend.ElasticsearchSearchEngine",
+#         "URL": nonull_getenv("ELASTICSEARCH_URL"),
+#         "INDEX_NAME": "default",
+#     },
+# }
+
+# HAYSTACK_SIGNAL_PROCESSOR = "haystack.signals.RealtimeSignalProcessor"

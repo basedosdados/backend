@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "corsheaders",
     "graphene_django",
+    "haystack",
     "health_check",
     "health_check.db",
     "health_check.cache",
@@ -227,3 +228,13 @@ MODELTRANSLATION_AUTO_POPULATE = True
 GRAPHENE_SCHEMAS_CACHE = {}
 
 ALLOWED_UPLOAD_IMAGES = ["png"]
+
+HAYSTACK_CONNECTIONS = {
+    "default": {
+        "ENGINE": "haystack.backends.elasticsearch_backend.ElasticsearchSearchEngine",
+        "URL": "https://localhost:9200",
+        "INDEX_NAME": "default",
+    },
+}
+
+HAYSTACK_SIGNAL_PROCESSOR = "haystack.signals.RealtimeSignalProcessor"
