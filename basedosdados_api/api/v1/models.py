@@ -336,7 +336,7 @@ class Update(BdmModel):
         "Entity", on_delete=models.CASCADE, related_name="updates"
     )
     frequency = models.IntegerField()
-    lag = models.IntegerField()
+    lag = models.IntegerField(blank=True, null=True)
     last = models.DateTimeField(blank=True, null=True)
 
     graphql_nested_filter_fields_whitelist = ["id"]
@@ -350,6 +350,12 @@ class Update(BdmModel):
         verbose_name_plural = "Updates"
         ordering = ["number"]
 
+    def clean(self) -> None:
+        if self.entity.category.slug != "datetime":
+            raise ValidationError(
+                "Entity's category is not in category.slug = `datetime`."
+            )
+        return super().clean()
 
 class Table(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -373,7 +379,11 @@ class Table(BdmModel):
         "Organization", on_delete=models.CASCADE, related_name="partner_tables"
     )
     update = models.ForeignKey(
-        "Update", on_delete=models.CASCADE, related_name="tables"
+        "Update",
+        on_delete=models.CASCADE,
+        related_name="tables",
+        null=True,
+        blank=True,
     )
     pipeline = models.ForeignKey(
         "Pipeline", on_delete=models.CASCADE, related_name="tables"
@@ -592,7 +602,11 @@ class RawDataSource(BdmModel):
         "License", on_delete=models.CASCADE, related_name="raw_data_sources"
     )
     update = models.ForeignKey(
-        "Update", on_delete=models.CASCADE, related_name="raw_data_sources"
+        "Update",
+        on_delete=models.CASCADE,
+        related_name="raw_data_sources",
+        null=True,
+        blank=True,
     )
     area_ip_address_required = models.ManyToManyField(
         "Area", related_name="raw_data_sources", blank=True
@@ -622,7 +636,11 @@ class InformationRequest(BdmModel):
         "Status", on_delete=models.CASCADE, related_name="information_requests"
     )
     update = models.ForeignKey(
-        "Update", on_delete=models.CASCADE, related_name="information_requests"
+        "Update",
+        on_delete=models.CASCADE,
+        related_name="information_requests",
+        null=True,
+        blank=True,
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
