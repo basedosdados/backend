@@ -328,12 +328,12 @@ def build_query_objs(application_name: str):
             resolve__id=id_resolver,
         )
         # Custom attributes
-        if model_name == "Dataset":
-            attributes.update(
-                {
-                    "dataset_full_slug": String(source="dataset_full_slug"),
-                }
-            )
+        custom_attr_prefix = "get_graphql_"
+        custom_attrs = [
+            attr for attr in dir(model) if attr.startswith(custom_attr_prefix)
+        ]
+        for attr in custom_attrs:
+            attributes.update({attr.split(custom_attr_prefix)[1]: String(source=attr)})
         node = type(
             f"{model_name}Node",
             (DjangoObjectType,),

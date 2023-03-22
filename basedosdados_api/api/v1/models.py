@@ -330,8 +330,12 @@ class Dataset(BdmModel):
         return reverse("datasetdetail", kwargs={"pk": self.object.pk})
 
     @property
-    def dataset_full_slug(self):
+    def full_slug(self):
         return f"{self.organization.area.slug}_{self.organization.slug}_{self.slug}"
+
+    @property
+    def get_graphql_full_slug(self):
+        return self.full_slug
 
 
 class UpdateFrequency(BdmModel):
