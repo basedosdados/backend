@@ -315,12 +315,6 @@ def build_query_objs(application_name: str):
         if model_name in EXEMPTED_MODELS:
             continue
         meta_class = create_model_object_meta(model)
-        # if model_name == "Dataset":
-        #     print(model._meta.get_fields())
-        #     print(dir(model._meta))
-        #     model._meta.add_field(
-        #         graphene.String(name="dataset_full_slug", source="dataset_full_slug"),
-        #     )
 
         attributes = dict(
             Meta=meta_class,
