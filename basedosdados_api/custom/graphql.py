@@ -12,8 +12,21 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.forms.fields import FileField
 from django.forms import ModelForm, modelform_factory
-from graphene import Boolean, List, Mutation, ObjectType, relay, Schema, String, UUID, Connection, Int
+from graphene import (
+    Boolean,
+    List,
+    Mutation,
+    ObjectType,
+    relay,
+    Scalar,
+    Schema,
+    String,
+    UUID,
+    Connection,
+    Int,
+)
 from graphene_django import DjangoObjectType
+from graphene_django.converter import convert_django_field
 from graphene_django.forms.mutation import DjangoModelFormMutation
 from graphene_django.filter import DjangoFilterConnectionField
 import graphql_jwt
@@ -22,6 +35,22 @@ from graphql_jwt.decorators import login_required
 from basedosdados_api.custom.model import BdmModel
 
 EXEMPTED_MODELS = ("RegistrationToken",)
+
+
+class FileFieldScalar(Scalar):
+    @staticmethod
+    def serialize(value):
+        if not value:
+            return ""
+        return value.url
+
+    @staticmethod
+    def parse_literal(node):
+        return node
+
+    @staticmethod
+    def parse_value(value):
+        return value
 
 
 class PlainTextNode(relay.Node):
@@ -75,6 +104,11 @@ class CustomModelForm(ModelForm):
                     self.cleaned_data[name] = value
             except ValidationError as e:
                 self.add_error(name, e)
+
+
+@convert_django_field.register(models.FileField)
+def convert_file_to_url(field, registry=None):
+    return FileFieldScalar(description=field.help_text, required=not field.null)
 
 
 def create_mutation_factory(model: BdmModel):
@@ -236,25 +270,6 @@ def create_model_object_meta(model: BdmModel):
             interfaces=((PlainTextNode,)),
             filter_fields=(generate_filter_fields(model)),
             connection_class=CountableConnection,
-        ),
-    )
-
-
-def generate_model_object_type(model: BdmModel):
-    meta = type(
-        "Meta",
-        (object,),
-        dict(
-            model=(model),
-        ),
-    )
-    return type(
-        f"{model.__name__}Type",
-        (DjangoObjectType,),
-        dict(
-            Meta=meta,
-            _id=UUID(name="_id"),
-            resolve__id=id_resolver,
         ),
     )
 
