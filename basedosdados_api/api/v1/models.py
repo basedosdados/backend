@@ -3,16 +3,31 @@ from uuid import uuid4
 
 import calendar
 from datetime import datetime
+
+import os
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.urls import reverse
 
 from basedosdados_api.account.models import Account
+from basedosdados_api.account.storage import OverwriteStorage
 from basedosdados_api.api.v1.utils import (
     check_kebab_case,
     check_snake_case,
 )
+from basedosdados_api.api.v1.validators import validate_is_valid_image_format
 from basedosdados_api.custom.model import BdmModel
+
+
+def image_path_and_rename(instance, filename):
+    """
+    Rename file to be the username
+    """
+    upload_to = instance.__class__.__name__.lower()
+    ext = filename.split(".")[-1]
+    # get filename
+    filename = f"{instance.slug}.{ext}"
+    return os.path.join(upload_to, filename)
 
 
 class Area(BdmModel):
@@ -236,7 +251,7 @@ class Theme(BdmModel):
 
 class Organization(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    slug = models.SlugField(unique=True, max_length=255)
+    slug = models.SlugField(unique=False, max_length=255)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     area = models.ForeignKey(
@@ -249,6 +264,14 @@ class Organization(BdmModel):
     facebook = models.URLField(blank=True, null=True)
     linkedin = models.URLField(blank=True, null=True)
     instagram = models.URLField(blank=True, null=True)
+    picture = models.ImageField(
+        "Imagem",
+        upload_to=image_path_and_rename,
+        null=True,
+        blank=True,
+        validators=[validate_is_valid_image_format],
+        storage=OverwriteStorage(),
+    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -380,9 +403,6 @@ class Table(BdmModel):
     compressed_file_size = models.BigIntegerField(blank=True, null=True)
     number_rows = models.BigIntegerField(blank=True, null=True)
     number_columns = models.BigIntegerField(blank=True, null=True)
-    observation_level = models.ManyToManyField(
-        "ObservationLevel", related_name="tables", blank=True
-    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -438,6 +458,13 @@ class Column(BdmModel):
     observations = models.TextField(blank=True, null=True)
     is_in_staging = models.BooleanField(default=True)
     is_partition = models.BooleanField(default=False)
+    observation_level = models.ForeignKey(
+        "ObservationLevel",
+        on_delete=models.CASCADE,
+        related_name="columns",
+        null=True,
+        blank=True,
+    )
 
     graphql_nested_filter_fields_whitelist = ["id", "name"]
 
@@ -449,6 +476,14 @@ class Column(BdmModel):
         verbose_name = "Column"
         verbose_name_plural = "Columns"
         ordering = ["name"]
+
+    def clean(self) -> None:
+        # If observation_level is not null, assert that its table is the same as the column's table
+        if self.observation_level and self.observation_level.table != self.table:
+            raise ValidationError(
+                "Observation level is not in the same table as the column."
+            )
+        return super().clean()
 
 
 class Dictionary(BdmModel):
@@ -566,9 +601,6 @@ class RawDataSource(BdmModel):
     contains_api = models.BooleanField(default=False)
     is_free = models.BooleanField(default=False)
     required_registration = models.BooleanField(default=False)
-    entities = models.ManyToManyField(
-        "Entity", related_name="raw_data_sources", blank=True
-    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -598,9 +630,6 @@ class InformationRequest(BdmModel):
     started_at = models.DateTimeField(blank=True, null=True)
     data_url = models.URLField(max_length=500, blank=True, null=True)
     observations = models.TextField(blank=True, null=True)
-    entities = models.ManyToManyField(
-        "Entity", related_name="information_requests", blank=True
-    )
     started_by = models.ForeignKey(
         Account,
         on_delete=models.PROTECT,
@@ -624,13 +653,36 @@ class InformationRequest(BdmModel):
         errors = {}
         if self.origin is not None and len(self.origin) > 500:
             errors["origin"] = "Origin cannot be longer than 500 characters"
+        if errors:
+            raise ValidationError(errors)
+
+        return super().clean()
+
+
+class EntityCategory(BdmModel):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    slug = models.SlugField(unique=True)
+    name = models.CharField(max_length=255)
+
+    graphql_nested_filter_fields_whitelist = ["id"]
+
+    def __str__(self):
+        return str(self.slug)
+
+    class Meta:
+        db_table = "entity_category"
+        verbose_name = "EntityCategory"
+        verbose_name_plural = "EntityCategories"
+        ordering = ["slug"]
 
 
 class Entity(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
-    category = models.CharField(max_length=255)
+    category = models.ForeignKey(
+        "EntityCategory", on_delete=models.CASCADE, related_name="entities"
+    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -649,14 +701,47 @@ class ObservationLevel(BdmModel):
     entity = models.ForeignKey(
         "Entity", on_delete=models.CASCADE, related_name="observation_levels"
     )
-    columns = models.ManyToManyField(
-        "Column", related_name="observation_levels", blank=True
+    table = models.ForeignKey(
+        "Table",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="observation_levels",
+    )
+    raw_data_source = models.ForeignKey(
+        "RawDataSource",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="observation_levels",
+    )
+    information_request = models.ForeignKey(
+        "InformationRequest",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="observation_levels",
     )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
         return str(self.entity)
+
+    def clean(self) -> None:
+        # Assert that only one of "table", "raw_data_source", "information_request" is set
+        count = 0
+        if self.table:
+            count += 1
+        if self.raw_data_source:
+            count += 1
+        if self.information_request:
+            count += 1
+        if count != 1:
+            raise ValidationError(
+                "One and only one of 'table', 'raw_data_source', 'information_request' must be set."  # noqa
+            )
+        return super().clean()
 
 
 class DateTimeRange(BdmModel):

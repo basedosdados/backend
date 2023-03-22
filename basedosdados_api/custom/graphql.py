@@ -12,7 +12,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 from django.forms.fields import FileField
 from django.forms import ModelForm, modelform_factory
-from graphene import Boolean, List, Mutation, ObjectType, relay, Schema, String, UUID
+from graphene import Boolean, List, Mutation, ObjectType, relay, Schema, String, UUID, Connection, Int
 from graphene_django import DjangoObjectType
 from graphene_django.forms.mutation import DjangoModelFormMutation
 from graphene_django.filter import DjangoFilterConnectionField
@@ -213,6 +213,20 @@ def generate_filter_fields(model: BdmModel):
     return filter_fields
 
 
+class CountableConnection(Connection):
+    class Meta:
+        abstract = True
+
+    total_count = Int()
+    edge_count = Int()
+
+    def resolve_total_count(self, info, **kwargs):
+        return self.length
+
+    def resolve_edge_count(self, info, **kwargs):
+        return len(self.edges)
+
+
 def create_model_object_meta(model: BdmModel):
     return type(
         "Meta",
@@ -221,6 +235,7 @@ def create_model_object_meta(model: BdmModel):
             model=(model),
             interfaces=((PlainTextNode,)),
             filter_fields=(generate_filter_fields(model)),
+            connection_class=CountableConnection,
         ),
     )
 
