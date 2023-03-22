@@ -6,6 +6,7 @@ https://github.com/timothyjlaurent/auto-graphene-django
 from copy import deepcopy
 from typing import Iterable, Optional
 
+import graphene
 from django.apps import apps
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -304,6 +305,12 @@ def build_query_objs(application_name: str):
         if model_name in EXEMPTED_MODELS:
             continue
         meta_class = create_model_object_meta(model)
+        # if model_name == "Dataset":
+        #     print(model._meta.get_fields())
+        #     print(dir(model._meta))
+        #     model._meta.add_field(
+        #         graphene.String(name="dataset_full_slug", source="dataset_full_slug"),
+        #     )
 
         node = type(
             f"{model_name}Node",

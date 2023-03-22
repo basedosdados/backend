@@ -329,6 +329,10 @@ class Dataset(BdmModel):
     def get_success_url(self):
         return reverse("datasetdetail", kwargs={"pk": self.object.pk})
 
+    @property
+    def dataset_full_slug(self):
+        return f"{self.organization.area.slug}_{self.organization.slug}_{self.slug}"
+
 
 class UpdateFrequency(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
