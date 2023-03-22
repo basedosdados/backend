@@ -6,14 +6,24 @@ https://github.com/timothyjlaurent/auto-graphene-django
 from copy import deepcopy
 from typing import Iterable, Optional
 
-import graphene
 from django.apps import apps
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.forms.fields import FileField
 from django.forms import ModelForm, modelform_factory
-from graphene import Boolean, List, Mutation, ObjectType, relay, Schema, String, UUID, Connection, Int
+from graphene import (
+    Boolean,
+    List,
+    Mutation,
+    ObjectType,
+    relay,
+    Schema,
+    String,
+    UUID,
+    Connection,
+    Int,
+)
 from graphene_django import DjangoObjectType
 from graphene_django.forms.mutation import DjangoModelFormMutation
 from graphene_django.filter import DjangoFilterConnectionField
@@ -312,14 +322,22 @@ def build_query_objs(application_name: str):
         #         graphene.String(name="dataset_full_slug", source="dataset_full_slug"),
         #     )
 
+        attributes = dict(
+            Meta=meta_class,
+            _id=UUID(name="_id"),
+            resolve__id=id_resolver,
+        )
+        # Custom attributes
+        if model_name == "Dataset":
+            attributes.update(
+                {
+                    "dataset_full_slug": String(source="dataset_full_slug"),
+                }
+            )
         node = type(
             f"{model_name}Node",
             (DjangoObjectType,),
-            dict(
-                Meta=meta_class,
-                _id=UUID(name="_id"),
-                resolve__id=id_resolver,
-            ),
+            attributes,
         )
         queries.update({f"{model_name}Node": PlainTextNode.Field(node)})
         queries.update({f"all_{model_name}": DjangoFilterConnectionField(node)})
