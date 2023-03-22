@@ -328,7 +328,7 @@ class UpdateFrequency(BdmModel):
 
 class Table(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    slug = models.SlugField(unique=False)
+    slug = models.SlugField(unique=False, max_length=255)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     dataset = models.ForeignKey(
