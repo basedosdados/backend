@@ -13,6 +13,9 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 
 from datetime import timedelta
 from pathlib import Path
+from os import getenv
+import os
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -73,7 +76,7 @@ ROOT_URLCONF = "basedosdados_api.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [os.path.join(BASE_DIR, "templates")],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -229,10 +232,11 @@ GRAPHENE_SCHEMAS_CACHE = {}
 
 ALLOWED_UPLOAD_IMAGES = ["png"]
 
+# Haystack
 HAYSTACK_CONNECTIONS = {
     "default": {
         "ENGINE": "haystack.backends.elasticsearch_backend.ElasticsearchSearchEngine",
-        "URL": "https://localhost:9200",
+        "URL": getenv("ELASTICSEARCH_URL", "http://0.0.0.0:9200"),
         "INDEX_NAME": "default",
     },
 }
