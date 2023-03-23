@@ -11,7 +11,7 @@ import itertools
 
 from data.enums.availability import AvailabilityEnum
 from data.enums.bigquery_type import BigQueryTypeEnum
-from data.enums.entity import EntityEnum
+from data.enums.entity import EntityEnum, EntityDateTimeEnum
 from data.enums.language import LanguageEnum
 from data.enums.license import LicenseEnum
 from data.enums.status import StatusEnum
@@ -84,43 +84,44 @@ def pprint(msg):
 
 def parse_temporal_coverage(temporal_coverage):
     # Extrai as informações de data e intervalo da string
-    print(temporal_coverage)
     if "(" in temporal_coverage:
         start_str, interval_str, end_str = re.split(r"[(|)]", temporal_coverage)
-        if start_str == "" and end_str != "":
-            start_str = end_str
-        elif end_str == "" and start_str != "":
-            end_str = start_str
-    elif len(temporal_coverage) == 4:
-        start_str, interval_str, end_str = temporal_coverage, 1, temporal_coverage
-    elif len(temporal_coverage) == 7:
-        start_str, interval_str, end_str = temporal_coverage, 1, temporal_coverage
+        # if start_str == "" and end_str != "":
+        #     start_str = end_str
+        # elif end_str == "" and start_str != "":
+        #     end_str = start_str
+    elif len(temporal_coverage) in {4, 7, 9}:
+        start_str, interval_str, end_str = temporal_coverage, None, temporal_coverage
 
     start_len = 0 if start_str == "" else len(start_str.split("-"))
     end_len = 0 if end_str == "" else len(end_str.split("-"))
 
     def parse_date(position, date_str, date_len):
         result = {}
-        if date_len == 3:
-            date = datetime.strptime(date_str, "%Y-%m-%d")
-            result[f"{position}Year"] = date.year
-            result[f"{position}Month"] = date.month
-            result[f"{position}Day"] = date.month
-        elif date_len == 2:
-            date = datetime.strptime(date_str, "%Y-%m")
-            result[f"{position}Year"] = date.year
-            result[f"{position}Month"] = date.month
-        elif date_len == 1:
-            date = datetime.strptime(date_str, "%Y")
-            result[f"{position}Year"] = date.year
+
+        if date_str != "":
+            if date_len == 3:
+                date = datetime.strptime(date_str, "%Y-%m-%d")
+                result[f"{position}Year"] = date.year
+                result[f"{position}Month"] = date.month
+                result[f"{position}Day"] = date.month
+            elif date_len == 2:
+                date = datetime.strptime(date_str, "%Y-%m")
+                result[f"{position}Year"] = date.year
+                result[f"{position}Month"] = date.month
+            elif date_len == 1:
+                date = datetime.strptime(date_str, "%Y")
+                result[f"{position}Year"] = date.year
+
         return result
 
     start_result = parse_date(position="start", date_str=start_str, date_len=start_len)
     end_result = parse_date(position="end", date_str=end_str, date_len=end_len)
     start_result.update(end_result)
 
-    if interval_str != 0:
+    if interval_str != 0 and interval_str is not None:
         start_result["interval"] = int(interval_str)
+    # start_result["interval"] = interval_str
 
     return start_result
 
@@ -242,6 +243,7 @@ class Migration:
         query_parameters,
         update=False,
     ):
+
         response, node_id = self.get_id(
             query_class=query_class, query_parameters=query_parameters
         )
@@ -502,12 +504,15 @@ class Migration:
 
         for ob in observation_levels:
             entity_key = ob.get("entity") if ob else None
-            entity_id = self.create_entity(obj=ob)
-            if entity_key in update_frequency_entity_dict and entity_key is not None:
+            if (
+                entity_key in list(class_to_dict(EntityDateTimeEnum).keys())
+                and entity_key is not None
+            ):
+                entity_id = self.create_entity(obj=ob)
                 update_frequency_number = update_frequency_dict[update_frequency]
             else:
                 update_frequency_number = 0
-
+                entity_id = self.create_entity(obj={"entity": "unknown"})
             id = self._create_update_frequency_for_entity(
                 entity_id, update_frequency_number
             )
@@ -541,7 +546,6 @@ class Migration:
 
         if observation_levels is None or len(observation_levels) == 0:
             observation_levels = [{"entity": "unknown"}]
-
         ids = []
 
         for ob in observation_levels:
@@ -806,9 +810,6 @@ class Migration:
 
     def create_area(self, obj):
 
-        # area = area.replace("-", ".").replace(" ", ".")
-        # name = self.area_dict.get(area, {}).get("label", {}).get("pt", "Desconhecida")
-
         if obj == "desconhecida":
             obj = {
                 "key": "unknown",
@@ -816,10 +817,15 @@ class Migration:
                 "name_en": "Unknown",
             }
 
-        name = obj.get("name", "Desconhecida")
-        name_en = obj.get("name_en", "Unknown")
         key = obj.get("key", "unknown")
-        slug = "unknown" if key == "desconhecida" else key.replace(".", "_")
+        key = "unknown" if key == "desconhecida" else key
+        key = "sa.br" if key == "br" else key
+        df = self.df_area
+        area_row = df[df["id"] == key]
+
+        name = obj.get("name", None) or area_row["label__pt"].values[0]
+        name_en = obj.get("name_en", None) or area_row["label__en"].values[0]
+        slug = key.replace(".", "_")
         r, id = self.create_update(
             query_class="allArea",
             query_parameters={"$slug: String": slug},

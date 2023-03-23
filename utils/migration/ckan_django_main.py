@@ -204,7 +204,6 @@ def main(
                         observation_levels=resource.get("observation_level", None),
                         update_frequency=resource.get("update_frequency", None),
                     ),
-                    # "areaIpAddressRequired": m.create_area(obj="desconhecida"),
                     # "createdAt": "",
                     # "updatedAt": "",
                     "url": resource["url"].replace(" ", ""),
@@ -220,6 +219,18 @@ def main(
                     == "yes",
                     # "entities": "",
                 }
+
+                if (
+                    resource.get("country_ip_address_required") is not None
+                    or resource.get("country_ip_address_required") != []
+                ):
+                    resource_to_raw_data_source["areaIpAddressRequired"] = (
+                        m.create_area(
+                            obj={
+                                "key": "sa.br",
+                            }
+                        ),
+                    )
 
                 r, raw_source_id = m.create_update(
                     mutation_class="CreateUpdateRawDataSource",
@@ -314,7 +325,7 @@ def main(
 
 if __name__ == "__main__":
     main(
-        mode="staging",
+        mode="local",
         migrate_enum={
             "AvailabilityEnum": False,
             "LicenseEnum": False,
@@ -328,21 +339,3 @@ if __name__ == "__main__":
         package_name_error=None,
         tables_error=[],
     )
-
-    # retry = 0
-    # while retry < 3:
-    #     try:
-    #         main(
-    #             mode="staging",
-    #             migrate_enum=True,
-    #             package_name_error=None,
-    #             tables_error=[],
-    #         )
-    #     except Exception as e:
-    #         retry += 1
-    #         print(
-    #             "\n\n\n\n************************************ Retry: ",
-    #             retry,
-    #             "************************************\n\n\n\n",
-    #         )
-    #         print(e, "\n\n\n\n")
