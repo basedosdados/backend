@@ -348,6 +348,27 @@ class Update(BdmModel):
     frequency = models.IntegerField()
     lag = models.IntegerField(blank=True, null=True)
     latest = models.DateTimeField(blank=True, null=True)
+    table = models.ForeignKey(
+        "Table",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="updates",
+    )
+    raw_data_source = models.ForeignKey(
+        "RawDataSource",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="updates",
+    )
+    information_request = models.ForeignKey(
+        "InformationRequest",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="updates",
+    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -361,10 +382,25 @@ class Update(BdmModel):
         ordering = ["frequency"]
 
     def clean(self) -> None:
+    
+        # Assert that only one of "table", "raw_data_source", "information_request" is set
+        count = 0
+        if self.table:
+            count += 1
+        if self.raw_data_source:
+            count += 1
+        if self.information_request:
+            count += 1
+        if count != 1:
+            raise ValidationError(
+                "One and only one of 'table', 'raw_data_source', or 'information_request' must be set."  # noqa
+            )
+        
         if self.entity.category.slug != "datetime":
             raise ValidationError(
                 "Entity's category is not in category.slug = `datetime`."
             )
+        
         return super().clean()
 
 
@@ -388,13 +424,6 @@ class Table(BdmModel):
     )
     partner_organization = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="partner_tables"
-    )
-    update = models.ForeignKey(
-        "Update",
-        on_delete=models.CASCADE,
-        related_name="tables",
-        null=True,
-        blank=True,
     )
     pipeline = models.ForeignKey(
         "Pipeline", on_delete=models.CASCADE, related_name="tables"
@@ -612,13 +641,6 @@ class RawDataSource(BdmModel):
     license = models.ForeignKey(
         "License", on_delete=models.CASCADE, related_name="raw_data_sources"
     )
-    update = models.ForeignKey(
-        "Update",
-        on_delete=models.CASCADE,
-        related_name="raw_data_sources",
-        null=True,
-        blank=True,
-    )
     area_ip_address_required = models.ManyToManyField(
         "Area", related_name="raw_data_sources", blank=True
     )
@@ -645,13 +667,6 @@ class InformationRequest(BdmModel):
     )
     status = models.ForeignKey(
         "Status", on_delete=models.CASCADE, related_name="information_requests"
-    )
-    update = models.ForeignKey(
-        "Update",
-        on_delete=models.CASCADE,
-        related_name="information_requests",
-        null=True,
-        blank=True,
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
