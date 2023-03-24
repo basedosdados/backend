@@ -337,7 +337,7 @@ class Update(BdmModel):
     )
     frequency = models.IntegerField()
     lag = models.IntegerField(blank=True, null=True)
-    last = models.DateTimeField(blank=True, null=True)
+    latest = models.DateTimeField(blank=True, null=True)
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
