@@ -178,8 +178,8 @@ class CreateUpdateMutation(DjangoModelFormMutation):
                 cls._meta.form_class.base_fields[field], forms_fields.FileField
             )
         ]
+        file_data = {}
         if file_fields:
-            file_data = {}
             for field in file_fields:
                 if field in input:
                     file_data[field] = input[field]
@@ -429,14 +429,22 @@ def build_query_objs(application_name: str):
             continue
         meta_class = create_model_object_meta(model)
 
+        attributes = dict(
+            Meta=meta_class,
+            _id=UUID(name="_id"),
+            resolve__id=id_resolver,
+        )
+        # Custom attributes
+        custom_attr_prefix = "get_graphql_"
+        custom_attrs = [
+            attr for attr in dir(model) if attr.startswith(custom_attr_prefix)
+        ]
+        for attr in custom_attrs:
+            attributes.update({attr.split(custom_attr_prefix)[1]: String(source=attr)})
         node = type(
             f"{model_name}Node",
             (DjangoObjectType,),
-            dict(
-                Meta=meta_class,
-                _id=UUID(name="_id"),
-                resolve__id=id_resolver,
-            ),
+            attributes,
         )
         queries.update({f"{model_name}Node": PlainTextNode.Field(node)})
         queries.update({f"all_{model_name}": DjangoFilterConnectionField(node)})
