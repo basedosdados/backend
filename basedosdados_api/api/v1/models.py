@@ -331,7 +331,10 @@ class Dataset(BdmModel):
 
     @property
     def full_slug(self):
-        return f"{self.organization.area.slug}_{self.organization.slug}_{self.slug}"
+        if self.organization.area.slug != "unknown":
+            return f"{self.organization.area.slug}_{self.organization.slug}_{self.slug}"
+        else:
+            return f"{self.organization.slug}_{self.slug}"
 
     @property
     def get_graphql_full_slug(self):
