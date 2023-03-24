@@ -178,8 +178,8 @@ class CreateUpdateMutation(DjangoModelFormMutation):
                 cls._meta.form_class.base_fields[field], forms_fields.FileField
             )
         ]
+        file_data = {}
         if file_fields:
-            file_data = {}
             for field in file_fields:
                 if field in input:
                     file_data[field] = input[field]
