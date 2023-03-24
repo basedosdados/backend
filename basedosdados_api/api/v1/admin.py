@@ -30,7 +30,8 @@ from basedosdados_api.api.v1.models import (
 
 
 class DatasetAdmin(admin.ModelAdmin):
-    readonly_fields = ["id", "created_at", "updated_at"]
+    readonly_fields = ["id", "full_slug", "created_at", "updated_at"]
+    list_display = ["__str__", "full_slug", "organization"]
 
 
 class TableAdmin(admin.ModelAdmin):

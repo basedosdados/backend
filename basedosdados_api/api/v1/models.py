@@ -329,6 +329,13 @@ class Dataset(BdmModel):
     def get_success_url(self):
         return reverse("datasetdetail", kwargs={"pk": self.object.pk})
 
+    @property
+    def full_slug(self):
+        return f"{self.organization.area.slug}_{self.organization.slug}_{self.slug}"
+
+    @property
+    def get_graphql_full_slug(self):
+        return self.full_slug
 
 class Update(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
