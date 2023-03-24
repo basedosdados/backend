@@ -15,7 +15,7 @@ from basedosdados_api.api.v1.models import (
     Tag,
     Coverage,
     Status,
-    UpdateFrequency,
+    Update,
     Availability,
     License,
     Language,
@@ -61,7 +61,7 @@ admin.site.register(Theme)
 admin.site.register(Tag)
 admin.site.register(Coverage, CoverageAdmin)
 admin.site.register(Status)
-admin.site.register(UpdateFrequency)
+admin.site.register(Update)
 admin.site.register(Availability)
 admin.site.register(License)
 admin.site.register(Language)
