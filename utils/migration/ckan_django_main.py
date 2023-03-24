@@ -96,10 +96,6 @@ def main(
                     "partnerOrganization": m.create_org(
                         resource["partner_organization"]
                     )[0],
-                    "updateFrequency": m.create_update_frequency(
-                        observation_levels=resource.get("observation_level", None),
-                        update_frequency=resource.get("update_frequency", None),
-                    ),
                     "slug": resource["table_id"],
                     "name": resource["name"],
                     "pipeline": m.create_update(
@@ -124,6 +120,18 @@ def main(
                     "numberColumns": len(resource["columns"]),
                     # "publishedBy":resource.get("published_by",{}).get("name",None),
                 }
+
+                if resource.get("update_frequency", None) not in [
+                    None,
+                    "unique",
+                    "recurring",
+                    "uncertain",
+                    "other",
+                ]:
+                    resource_to_table["update"] = m.create_update_frequency(
+                        observation_levels=resource.get("observation_level", None),
+                        update_frequency=resource.get("update_frequency", None),
+                    )
 
                 r, table_id = m.create_update(
                     mutation_class="CreateUpdateTable",
@@ -200,10 +208,6 @@ def main(
                             "name": resource.get("license", "Desconhecida"),
                         }
                     ),
-                    "updateFrequency": m.create_update_frequency(
-                        observation_levels=resource.get("observation_level", None),
-                        update_frequency=resource.get("update_frequency", None),
-                    ),
                     # "createdAt": "",
                     # "updatedAt": "",
                     "url": resource["url"].replace(" ", ""),
@@ -230,6 +234,17 @@ def main(
                                 "key": "sa.br",
                             }
                         ),
+                    )
+                if resource.get("update_frequency", None) not in [
+                    None,
+                    "unique",
+                    "recurring",
+                    "uncertain",
+                    "other",
+                ]:
+                    resource_to_raw_data_source["Update"] = m.create_update_frequency(
+                        observation_levels=resource.get("observation_level", None),
+                        update_frequency=resource.get("update_frequency", None),
                     )
 
                 r, raw_source_id = m.create_update(
@@ -268,10 +283,6 @@ def main(
                             "name": resource["state"],
                         },
                     )[1],
-                    "updateFrequency": m.create_update_frequency(
-                        observation_levels=resource.get("observation_level", None),
-                        update_frequency=resource.get("update_frequency", None),
-                    ),
                     "origin": resource["origin"],
                     "number": resource["name"],
                     "url": resource.get("data_url", ""),
@@ -286,6 +297,21 @@ def main(
                     "startedBy": 1,
                     # "entities": "",
                 }
+
+                if resource.get("update_frequency", None) not in [
+                    None,
+                    "unique",
+                    "recurring",
+                    "uncertain",
+                    "other",
+                ]:
+                    resource_to_information_request[
+                        "update"
+                    ] = m.create_update_frequency(
+                        observation_levels=resource.get("observation_level", None),
+                        update_frequency=resource.get("update_frequency", None),
+                    )
+
                 r, info_id = m.create_update(
                     mutation_class="CreateUpdateInformationRequest",
                     mutation_parameters=resource_to_information_request,
