@@ -338,14 +338,14 @@ class Dataset(BdmModel):
         return self.full_slug
 
 
-class Update(BdmModel):
+class UpdateFrequency(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     entity = models.ForeignKey(
-        "Entity", on_delete=models.CASCADE, related_name="updates"
+        "Entity", on_delete=models.CASCADE, related_name="update_frequencies"
     )
-    frequency = models.IntegerField()
+    number = models.IntegerField()
     lag = models.IntegerField(blank=True, null=True)
-    last = models.DateTimeField(blank=True, null=True)
+    last_update = models.DateTimeField(blank=True, null=True)
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -358,12 +358,12 @@ class Update(BdmModel):
         verbose_name_plural = "Updates"
         ordering = ["number"]
 
-    def clean(self) -> None:
-        if self.entity.category.slug != "datetime":
-            raise ValidationError(
-                "Entity's category is not in category.slug = `datetime`."
-            )
-        return super().clean()
+    # def clean(self) -> None:
+    #     if self.entity.category.slug != "datetime":
+    #         raise ValidationError(
+    #             "Entity's category is not in category.slug = `datetime`."
+    #         )
+    #     return super().clean()
 
 class Table(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -387,7 +387,7 @@ class Table(BdmModel):
         "Organization", on_delete=models.CASCADE, related_name="partner_tables"
     )
     update = models.ForeignKey(
-        "Update",
+        "UpdateFrequency",
         on_delete=models.CASCADE,
         related_name="tables",
         null=True,
@@ -610,7 +610,7 @@ class RawDataSource(BdmModel):
         "License", on_delete=models.CASCADE, related_name="raw_data_sources"
     )
     update = models.ForeignKey(
-        "Update",
+        "UpdateFrequency",
         on_delete=models.CASCADE,
         related_name="raw_data_sources",
         null=True,
@@ -644,7 +644,7 @@ class InformationRequest(BdmModel):
         "Status", on_delete=models.CASCADE, related_name="information_requests"
     )
     update = models.ForeignKey(
-        "Update",
+        "UpdateFrequency",
         on_delete=models.CASCADE,
         related_name="information_requests",
         null=True,
