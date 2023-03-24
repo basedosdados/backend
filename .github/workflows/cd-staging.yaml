@@ -1,10 +1,5 @@
 name: Deployment - Staging
 
-# on:
-#   push:
-#     branches:
-#       - staging
-
 on:
   workflow_run:
     workflows: ["Docker - Release image"]
@@ -20,7 +15,8 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+        ref: staging
 
       - name: Import secrets from Vault
         id: import_secrets
@@ -91,14 +87,6 @@ jobs:
                 secretName: staging-backend-dados-rio-tls
           EOF
 
-      # - name: Wait for Docker image release
-      #   uses: lewagon/wait-on-check-action@v1.1.2
-      #   with:
-      #     ref: ${{ github.ref }}
-      #     check-name: 'Docker - Release image'
-      #     repo-token: ${{ secrets.GITHUB_TOKEN }}
-      #     verbose: true
-
       - name: Deploy using Helm
         run: |
           helm upgrade --install staging-backend charts/basedosdados-api/. -n staging-backend-dados-rio -f values.yaml --wait
@@ -112,7 +100,8 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
+        ref: staging
 
       - name: Import secrets from Vault
         id: import_secrets
@@ -181,14 +170,6 @@ jobs:
                   - staging.api.basedosdados.org
                 secretName: staging-api-basedosdados-org-tls
           EOF
-
-      # - name: Wait for Docker image release
-      #   uses: lewagon/wait-on-check-action@v1.1.2
-      #   with:
-      #     ref: ${{ github.ref }}
-      #     check-name: 'Docker - Release image'
-      #     repo-token: ${{ secrets.GITHUB_TOKEN }}
-      #     verbose: true
 
       - name: Deploy using Helm
         run: |
