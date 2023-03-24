@@ -8,8 +8,8 @@ name: Deployment - Staging
 on:
   workflow_run:
     workflows: ["Docker - Release image"]
-    branches:
-      - staging
+    # branches:
+    #   - staging
     types:
       - completed
 
