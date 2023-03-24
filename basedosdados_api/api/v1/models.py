@@ -342,7 +342,7 @@ class Update(BdmModel):
     graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
-        return f"{str(self.number)} {str(self.entity)}"
+        return f"{str(self.frequency)} {str(self.entity)}"
 
     class Meta:
         db_table = "update"
