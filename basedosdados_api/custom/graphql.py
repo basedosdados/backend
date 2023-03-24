@@ -171,6 +171,7 @@ class CreateUpdateMutation(DjangoModelFormMutation):
     @classmethod
     def get_form_kwargs(cls, root, info, **input):
         # Get file data
+        kwargs = {"data": input}
         file_fields = [
             field
             for field in cls._meta.form_class.base_fields
@@ -183,8 +184,7 @@ class CreateUpdateMutation(DjangoModelFormMutation):
             for field in file_fields:
                 if field in input:
                     file_data[field] = input[field]
-
-        kwargs = {"data": input, "files": file_data}
+            kwargs["files"] = file_data
 
         pk = input.pop("id", None)
         if pk:
