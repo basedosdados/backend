@@ -447,12 +447,12 @@ class Migration:
 
     def _create_update_frequency_for_entity(self, entity_id, update_frequency_number):
         r, id = self.create_update(
-            mutation_class="CreateUpdateUpdateFrequency",
+            mutation_class="CreateUpdateUpdate",
             mutation_parameters={
                 "entity": entity_id,
                 "number": update_frequency_number,
             },
-            query_class="allUpdatefrequency",
+            query_class="allUpdate",
             query_parameters={
                 "$number: Int": update_frequency_number,
                 "$entity_Id: ID": entity_id,
