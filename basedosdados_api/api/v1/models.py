@@ -382,7 +382,7 @@ class Update(BdmModel):
         ordering = ["frequency"]
 
     def clean(self) -> None:
-    
+
         # Assert that only one of "table", "raw_data_source", "information_request" is set
         count = 0
         if self.table:
@@ -395,12 +395,12 @@ class Update(BdmModel):
             raise ValidationError(
                 "One and only one of 'table', 'raw_data_source', or 'information_request' must be set."  # noqa
             )
-        
+
         if self.entity.category.slug != "datetime":
             raise ValidationError(
                 "Entity's category is not in category.slug = `datetime`."
             )
-        
+
         return super().clean()
 
 
@@ -658,6 +658,9 @@ class RawDataSource(BdmModel):
         verbose_name = "Raw Data Source"
         verbose_name_plural = "Raw Data Sources"
         ordering = ["url"]
+
+    def __str__(self):
+        return self.name
 
 
 class InformationRequest(BdmModel):
