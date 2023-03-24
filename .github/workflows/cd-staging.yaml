@@ -7,7 +7,7 @@ name: Deployment - Staging
 
 on:
   workflow_run:
-    workflows: ["Docker-Release-image"]
+    workflows: ["Docker - Release image"]
     branches:
       - staging
     types:
