@@ -3,6 +3,7 @@
 Utilities for building auto-generated GraphQL schemas. Primarily based on
 https://github.com/timothyjlaurent/auto-graphene-django
 """
+from collections import OrderedDict
 from copy import deepcopy
 from typing import Iterable, Optional
 
@@ -10,10 +11,15 @@ from django.apps import apps
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.forms.fields import FileField
+from django.forms import fields as forms_fields
 from django.forms import ModelForm, modelform_factory
 from graphene import (
     Boolean,
+    Connection,
+    Field,
+    ID,
+    InputField,
+    Int,
     List,
     Mutation,
     ObjectType,
@@ -22,13 +28,18 @@ from graphene import (
     Schema,
     String,
     UUID,
-    Connection,
-    Int,
 )
+from graphene.types.utils import yank_fields_from_attrs
 from graphene_django import DjangoObjectType
 from graphene_django.converter import convert_django_field
-from graphene_django.forms.mutation import DjangoModelFormMutation
+from graphene_django.forms.mutation import (
+    convert_form_field,
+    DjangoModelDjangoFormMutationOptions,
+    DjangoModelFormMutation,
+)
 from graphene_django.filter import DjangoFilterConnectionField
+from graphene_django.registry import get_global_registry
+from graphene_file_upload.scalars import Upload
 import graphql_jwt
 from graphql_jwt.decorators import login_required
 
@@ -94,7 +105,7 @@ class CustomModelForm(ModelForm):
                 )
                 continue
             try:
-                if isinstance(field, FileField):
+                if isinstance(field, forms_fields.FileField):
                     value = field.clean(value, bf.initial)
                 else:
                     value = field.clean(value)
@@ -106,15 +117,112 @@ class CustomModelForm(ModelForm):
                 self.add_error(name, e)
 
 
+class CreateUpdateMutation(DjangoModelFormMutation):
+    class Meta:
+        abstract = True
+
+    @classmethod
+    def __init_subclass_with_meta__(
+        cls,
+        form_class=None,
+        model=None,
+        return_field_name=None,
+        only_fields=(),
+        exclude_fields=(),
+        **options,
+    ):
+        if not form_class:
+            raise Exception("form_class is required for DjangoModelFormMutation")
+
+        if not model:
+            model = form_class._meta.model
+
+        if not model:
+            raise Exception("model is required for DjangoModelFormMutation")
+
+        form = form_class()
+        input_fields = fields_for_form(form, only_fields, exclude_fields)
+        if "id" not in exclude_fields:
+            input_fields["id"] = ID()
+
+        registry = get_global_registry()
+        model_type = registry.get_type_for_model(model)
+        if not model_type:
+            raise Exception("No type registered for model: {}".format(model.__name__))
+
+        if not return_field_name:
+            model_name = model.__name__
+            return_field_name = model_name[:1].lower() + model_name[1:]
+
+        output_fields = OrderedDict()
+        output_fields[return_field_name] = Field(model_type)
+
+        _meta = DjangoModelDjangoFormMutationOptions(cls)
+        _meta.form_class = form_class
+        _meta.model = model
+        _meta.return_field_name = return_field_name
+        _meta.fields = yank_fields_from_attrs(output_fields, _as=Field)
+
+        input_fields = yank_fields_from_attrs(input_fields, _as=InputField)
+        super(DjangoModelFormMutation, cls).__init_subclass_with_meta__(
+            _meta=_meta, input_fields=input_fields, **options
+        )
+
+    @classmethod
+    def get_form_kwargs(cls, root, info, **input):
+        # Get file data
+        file_fields = [
+            field
+            for field in cls._meta.form_class.base_fields
+            if isinstance(
+                cls._meta.form_class.base_fields[field], forms_fields.FileField
+            )
+        ]
+        if file_fields:
+            file_data = {}
+            for field in file_fields:
+                if field in input:
+                    file_data[field] = input[field]
+
+        kwargs = {"data": input, "files": file_data}
+
+        pk = input.pop("id", None)
+        if pk:
+            instance = cls._meta.model._default_manager.get(pk=pk)
+            kwargs["instance"] = instance
+
+        return kwargs
+
+
 @convert_django_field.register(models.FileField)
 def convert_file_to_url(field, registry=None):
     return FileFieldScalar(description=field.help_text, required=not field.null)
 
 
+def fields_for_form(form, only_fields, exclude_fields):
+    fields = OrderedDict()
+    for name, field in form.fields.items():
+        is_not_in_only = only_fields and name not in only_fields
+        is_excluded = (
+            name
+            in exclude_fields  # or
+            # name in already_created_fields
+        )
+
+        if is_not_in_only or is_excluded:
+            continue
+
+        if isinstance(field, forms_fields.FileField):
+            fields[name] = Upload(description=field.help_text)
+        else:
+            fields[name] = convert_form_field(field)
+    return fields
+
+
 def create_mutation_factory(model: BdmModel):
     return type(
         f"CreateUpdate{model.__name__}",
-        (DjangoModelFormMutation,),
+        (CreateUpdateMutation,),
         {
             "Meta": type(
                 "Meta",
@@ -287,6 +395,7 @@ def generate_form_fields(model: BdmModel):
         models.IntegerField,
         models.OneToOneField,
         models.ManyToManyField,
+        models.ImageField,
     )
     blacklist_field_names = (
         "_field_status",
