@@ -329,29 +329,84 @@ class Dataset(BdmModel):
     def get_success_url(self):
         return reverse("datasetdetail", kwargs={"pk": self.object.pk})
 
+    @property
+    def full_slug(self):
+        if self.organization.area.slug != "unknown":
+            return f"{self.organization.area.slug}_{self.organization.slug}_{self.slug}"
+        else:
+            return f"{self.organization.slug}_{self.slug}"
 
-class UpdateFrequency(BdmModel):
+    @property
+    def get_graphql_full_slug(self):
+        return self.full_slug
+
+class Update(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     entity = models.ForeignKey(
-        "Entity", on_delete=models.CASCADE, related_name="update_frequencies"
+        "Entity", on_delete=models.CASCADE, related_name="updates"
     )
-    number = models.IntegerField()
+    frequency = models.IntegerField()
+    lag = models.IntegerField(blank=True, null=True)
+    latest = models.DateTimeField(blank=True, null=True)
+    table = models.ForeignKey(
+        "Table",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="updates",
+    )
+    raw_data_source = models.ForeignKey(
+        "RawDataSource",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="updates",
+    )
+    information_request = models.ForeignKey(
+        "InformationRequest",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="updates",
+    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
-        return f"{str(self.number)} {str(self.entity)}"
+        return f"{str(self.frequency)} {str(self.entity)}"
 
     class Meta:
-        db_table = "update_frequency"
-        verbose_name = "Update Frequency"
-        verbose_name_plural = "Update Frequencies"
-        ordering = ["number"]
+        db_table = "update"
+        verbose_name = "Update"
+        verbose_name_plural = "Updates"
+        ordering = ["frequency"]
+
+    def clean(self) -> None:
+
+        # Assert that only one of "table", "raw_data_source", "information_request" is set
+        count = 0
+        if self.table:
+            count += 1
+        if self.raw_data_source:
+            count += 1
+        if self.information_request:
+            count += 1
+        if count != 1:
+            raise ValidationError(
+                "One and only one of 'table', 'raw_data_source', or 'information_request' must be set."  # noqa
+            )
+
+        if self.entity.category.slug != "datetime":
+            raise ValidationError(
+                "Entity's category is not in category.slug = `datetime`."
+            )
+
+        return super().clean()
 
 
 class Table(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    slug = models.SlugField(unique=False)
+    slug = models.SlugField(unique=False, max_length=255)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     dataset = models.ForeignKey(
@@ -369,9 +424,6 @@ class Table(BdmModel):
     )
     partner_organization = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="partner_tables"
-    )
-    update_frequency = models.ForeignKey(
-        "UpdateFrequency", on_delete=models.CASCADE, related_name="tables"
     )
     pipeline = models.ForeignKey(
         "Pipeline", on_delete=models.CASCADE, related_name="tables"
@@ -589,9 +641,6 @@ class RawDataSource(BdmModel):
     license = models.ForeignKey(
         "License", on_delete=models.CASCADE, related_name="raw_data_sources"
     )
-    update_frequency = models.ForeignKey(
-        "UpdateFrequency", on_delete=models.CASCADE, related_name="raw_data_sources"
-    )
     area_ip_address_required = models.ManyToManyField(
         "Area", related_name="raw_data_sources", blank=True
     )
@@ -610,6 +659,9 @@ class RawDataSource(BdmModel):
         verbose_name_plural = "Raw Data Sources"
         ordering = ["url"]
 
+    def __str__(self):
+        return self.name
+
 
 class InformationRequest(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -618,9 +670,6 @@ class InformationRequest(BdmModel):
     )
     status = models.ForeignKey(
         "Status", on_delete=models.CASCADE, related_name="information_requests"
-    )
-    update_frequency = models.ForeignKey(
-        "UpdateFrequency", on_delete=models.CASCADE, related_name="information_requests"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -770,20 +819,24 @@ class DateTimeRange(BdmModel):
     graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
-        start_year = self.start_year or ""
-        start_month = f"-{self.start_month}" if self.start_month else ""
-        start_day = f"-{self.start_day}" if self.start_day else ""
-        start_hour = f" {self.start_hour}" if self.start_hour else ""
-        start_minute = f":{self.start_minute}" if self.start_minute else ""
-        start_second = f":{self.start_second}" if self.start_second else ""
-        end_year = self.end_year or ""
-        end_month = f"-{self.end_month}" if self.end_month else ""
-        end_day = f"-{self.end_day}" if self.end_day else ""
-        end_hour = f" {self.end_hour}" if self.end_hour else ""
-        end_minute = f":{self.end_minute}" if self.end_minute else ""
-        interval = f"({self.interval})" if self.interval else "()"
-        return f"{start_year}{start_month}{start_day}{start_hour}{start_minute}{start_second}{interval}\
-            {end_year}{end_month}{end_day}{end_hour}{end_minute}"
+        # start_year = self.start_year or ""
+        # start_month = f"-{self.start_month}" if self.start_month else ""
+        # start_day = f"-{self.start_day}" if self.start_day else ""
+        # start_hour = f" {self.start_hour}" if self.start_hour else ""
+        # start_minute = f":{self.start_minute}" if self.start_minute else ""
+        # start_second = f":{self.start_second}" if self.start_second else ""
+        # end_year = self.end_year or ""
+        # end_month = f"-{self.end_month}" if self.end_month else ""
+        # end_day = f"-{self.end_day}" if self.end_day else ""
+        # end_hour = f" {self.end_hour}" if self.end_hour else ""
+        # end_minute = f":{self.end_minute}" if self.end_minute else ""
+        # end_second = f":{self.end_second}" if self.end_second else ""
+        # interval = f"({self.interval})" if self.interval else "()"
+        # return f"{start_year}-{start_month}-{start_day} {start_hour}:{start_minute}:{start_second}({interval})\
+        #    {end_year}-{end_month}-{end_day} {end_hour}:{end_minute}:{end_second}"
+        return (
+            self.id
+        )  # TODO smarter string for cases when fields are null (year, month, etc)
 
     def clean(self) -> None:
         errors = {}
@@ -791,30 +844,31 @@ class DateTimeRange(BdmModel):
         if (self.start_year and self.end_year) and self.start_year > self.end_year:
             errors["start_year"] = ["Start year cannot be greater than end year"]
 
-        try:
-            start_datetime = datetime(
-                self.start_year,
-                self.start_month or 1,
-                self.start_day or 1,
-                self.start_hour or 0,
-                self.start_minute or 0,
-                self.start_second or 0,
-            )
-            end_datetime = datetime(
-                self.end_year,
-                self.end_month or 1,
-                self.end_day or 1,
-                self.end_hour or 0,
-                self.end_minute or 0,
-                self.end_second or 0,
-            )
-            if start_datetime > end_datetime:
-                errors["start_year"] = [
-                    "Start datetime cannot be greater than end datetime"
-                ]
+        if self.start_year and self.end_year:
+            try:
+                start_datetime = datetime(
+                    self.start_year,
+                    self.start_month or 1,
+                    self.start_day or 1,
+                    self.start_hour or 0,
+                    self.start_minute or 0,
+                    self.start_second or 0,
+                )
+                end_datetime = datetime(
+                    self.end_year,
+                    self.end_month or 1,
+                    self.end_day or 1,
+                    self.end_hour or 0,
+                    self.end_minute or 0,
+                    self.end_second or 0,
+                )
+                if start_datetime > end_datetime:
+                    errors["start_year"] = [
+                        "Start datetime cannot be greater than end datetime"
+                    ]
 
-        except TypeError:
-            errors["start_year"] = ["Start year or end year are invalid"]
+            except TypeError:
+                errors["start_year"] = ["Start year or end year are invalid"]
 
         if self.start_day:
             max_day = calendar.monthrange(self.start_year, self.start_month)[1]

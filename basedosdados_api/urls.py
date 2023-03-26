@@ -20,7 +20,7 @@ from django.http import HttpResponseRedirect
 from django.urls import include, path, re_path
 from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
-from graphene_django.views import GraphQLView
+from graphene_file_upload.django import FileUploadGraphQLView
 
 
 def home_redirect(request):
@@ -41,7 +41,11 @@ urlpatterns = [
     re_path(r"^healthcheck/", include("health_check.urls")),
     path("api/", redirect_to_v1, name="api"),
     path("api/v1/", redirect_to_v1_graphql),
-    path("api/v1/graphql", csrf_exempt(GraphQLView.as_view(graphiql=True)), name="graphiql"),
+    path(
+        "api/v1/graphql",
+        csrf_exempt(FileUploadGraphQLView.as_view(graphiql=True)),
+        name="graphiql",
+    ),
     path("api/account/", include("basedosdados_api.account.urls")),
     path("schemas/", include("basedosdados_api.schemas.urls")),
     path("", include("basedosdados_api.core.urls")),
