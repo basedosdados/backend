@@ -5,7 +5,7 @@ from .models import (
 
 
 class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
-    text = indexes.CharField(document=True, use_template=False)
+    text = indexes.CharField(document=True, use_template=True)
     slug = indexes.CharField(model_attr='slug')
     name = indexes.CharField(model_attr='name')
     description = indexes.CharField(model_attr='description', null=True)
@@ -20,22 +20,3 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
 
     def index_queryset(self, using=None):
         return self.get_model().objects.all()
-
-    # id = indexes.CharField(model_attr='id')
-    # name = indexes.CharField(model_attr='name')
-    # description = indexes.CharField(model_attr='description')
-    # covered_by_dictionary = indexes.CharField(model_attr='covered_by_dictionary')
-    # measurement_unit = indexes.CharField(model_attr='measurement_unit')
-    # contains_sensitive_data = indexes.CharField(model_attr='contains_sensitive_data')
-    # observations = indexes.CharField(model_attr='observations')
-    # is_in_staging = indexes.CharField(model_attr='is_in_staging')
-    # is_partition = indexes.CharField(model_attr='is_partition')
-
-    # def prepare_text(self, obj):
-    #     return f"{obj.name} {obj.description}"
-
-    # def get_model(self):
-    #     return Column
-
-    # def index_queryset(self, using=None):
-    #     return self.get_model().objects.all()
