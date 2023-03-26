@@ -235,10 +235,17 @@ ALLOWED_UPLOAD_IMAGES = ["png"]
 # Haystack
 HAYSTACK_CONNECTIONS = {
     "default": {
-        "ENGINE": "haystack.backends.elasticsearch_backend.ElasticsearchSearchEngine",
+        "ENGINE": "haystack.backends.elasticsearch7_backend.Elasticsearch7SearchEngine",
         "URL": getenv("ELASTICSEARCH_URL", "http://0.0.0.0:9200"),
+        "TIMEOUT": 5,
         "INDEX_NAME": "default",
+        "BATCH_SIZE": 1000,
+        "INCLUDE_SPELLING": True,
     },
 }
-
+HAYSTACK_DEFAULT_OPERATOR = "OR"
+HAYSTACK_FUZZY_MIN_SIM = 0.25
+HAYSTACK_ITERATOR_LOAD_PER_QUERY = 200
+HAYSTACK_LIMIT_TO_REGISTERED_MODELS = True
+HAYSTACK_SEARCH_RESULTS_PER_PAGE = 100
 HAYSTACK_SIGNAL_PROCESSOR = "haystack.signals.RealtimeSignalProcessor"
