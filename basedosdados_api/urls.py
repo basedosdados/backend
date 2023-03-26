@@ -49,4 +49,5 @@ urlpatterns = [
     path("api/account/", include("basedosdados_api.account.urls")),
     path("schemas/", include("basedosdados_api.schemas.urls")),
     path("", include("basedosdados_api.core.urls")),
+    path("search/", include("haystack.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
