@@ -162,6 +162,9 @@ class License(BdmModel):
 
 class Key(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
+    dictionary = models.ForeignKey(
+        "Dictionary", on_delete=models.CASCADE, related_name="keys"
+    )
     name = models.CharField(max_length=255)
     value = models.CharField(max_length=255)
 
@@ -540,11 +543,8 @@ class Column(BdmModel):
 
 class Dictionary(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    column = models.OneToOneField(
-        "Column", on_delete=models.CASCADE, related_name="dictionary"
-    )
-    keys = models.ForeignKey(
-        "Key", on_delete=models.CASCADE, related_name="dictionaries"
+    column = models.ForeignKey(
+        "Column", on_delete=models.CASCADE, related_name="dictionaries"
     )
 
     graphql_nested_filter_fields_whitelist = ["id"]
