@@ -533,11 +533,17 @@ class Column(BdmModel):
         ordering = ["name"]
 
     def clean(self) -> None:
-        # If observation_level is not null, assert that its table is the same as the column's table
+        
         if self.observation_level and self.observation_level.table != self.table:
             raise ValidationError(
                 "Observation level is not in the same table as the column."
             )
+        
+        if self.directory_primary_key and self.directory_primary_key.table.is_directory == False:
+            raise ValidationError(
+                "Column indicated as a directory's primary key is not in a directory."
+            )
+
         return super().clean()
 
 
