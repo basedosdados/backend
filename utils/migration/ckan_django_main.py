@@ -1,5 +1,5 @@
 ### TODO rever observational_level, pede lista de id de colunas que atualmente n esta recebendo
-
+### DatetimeRange da coluna esta pegando o da tabela mae, mas deve pegar do proprio columns
 
 #  https://staging.api.basedosdados.org/api/v1/graphql
 #  https://staging.api.basedosdados.org/admin/
@@ -121,18 +121,6 @@ def main(
                     # "publishedBy":resource.get("published_by",{}).get("name",None),
                 }
 
-                if resource.get("update_frequency", None) not in [
-                    None,
-                    "unique",
-                    "recurring",
-                    "uncertain",
-                    "other",
-                ]:
-                    resource_to_table["update"] = m.create_update_frequency(
-                        observation_levels=resource.get("observation_level", None),
-                        update_frequency=resource.get("update_frequency", None),
-                    )
-
                 r, table_id = m.create_update(
                     mutation_class="CreateUpdateTable",
                     mutation_parameters=resource_to_table,
@@ -152,6 +140,19 @@ def main(
                         observation_levels=resource["observation_level"],
                         obs_resource={"table": table_id},
                     )
+
+                if resource.get("update_frequency", None) not in [
+                    None,
+                    "unique",
+                    "recurring",
+                    "uncertain",
+                    "other",
+                ]:
+                    m.create_update_frequency(
+                        resource_id={"table": table_id},
+                        update_frequency=resource.get("update_frequency", None),
+                    )
+
                 if "columns" in resource:
                     print("\nCreate Column")
 
@@ -235,17 +236,6 @@ def main(
                             }
                         ),
                     )
-                if resource.get("update_frequency", None) not in [
-                    None,
-                    "unique",
-                    "recurring",
-                    "uncertain",
-                    "other",
-                ]:
-                    resource_to_raw_data_source["Update"] = m.create_update_frequency(
-                        observation_levels=resource.get("observation_level", None),
-                        update_frequency=resource.get("update_frequency", None),
-                    )
 
                 r, raw_source_id = m.create_update(
                     mutation_class="CreateUpdateRawDataSource",
@@ -266,6 +256,20 @@ def main(
                         observation_levels=resource.get("observation_level", None),
                         obs_resource={"rawDataSource": raw_source_id},
                     )
+
+                if resource.get("update_frequency", None) not in [
+                    None,
+                    "unique",
+                    "recurring",
+                    "uncertain",
+                    "other",
+                ]:
+                    update_id = m.create_update_frequency(
+                        resource_id={"rawDataSource": raw_source_id},
+                        update_frequency=resource.get("update_frequency", None),
+                    )
+                    if update_id is not None:
+                        resource_to_raw_data_source["update"] = update_id
 
             elif resource_type == "information_request":
                 print("\nCreate InformationRequest: ", resource["name"])
@@ -297,21 +301,6 @@ def main(
                     "startedBy": 1,
                     # "entities": "",
                 }
-
-                if resource.get("update_frequency", None) not in [
-                    None,
-                    "unique",
-                    "recurring",
-                    "uncertain",
-                    "other",
-                ]:
-                    resource_to_information_request[
-                        "update"
-                    ] = m.create_update_frequency(
-                        observation_levels=resource.get("observation_level", None),
-                        update_frequency=resource.get("update_frequency", None),
-                    )
-
                 r, info_id = m.create_update(
                     mutation_class="CreateUpdateInformationRequest",
                     mutation_parameters=resource_to_information_request,
@@ -332,6 +321,19 @@ def main(
                         observation_levels=resource.get("observation_level"),
                         obs_resource={"informationRequest": info_id},
                     )
+                if resource.get("update_frequency", None) not in [
+                    None,
+                    "unique",
+                    "recurring",
+                    "uncertain",
+                    "other",
+                ]:
+                    update_id = m.create_update_frequency(
+                        resource_id={"informationRequest": info_id},
+                        update_frequency=resource.get("update_frequency", None),
+                    )
+                    if update_id is not None:
+                        resource_to_information_request["update"] = update_id
         print(
             "\n\n***********************************************************************************************\n\n"
         )
@@ -351,15 +353,15 @@ def main(
 
 if __name__ == "__main__":
     main(
-        mode="local",
+        mode="staging",
         migrate_enum={
-            "AvailabilityEnum": False,
-            "LicenseEnum": False,
-            "LanguageEnum": False,
-            "StatusEnum": False,
-            "BigQueryTypeEnum": False,
-            "EntityEnum": False,
-            "AreaEnum": False,
+            "AvailabilityEnum": True,
+            "LicenseEnum": True,
+            "LanguageEnum": True,
+            "StatusEnum": True,
+            "BigQueryTypeEnum": True,
+            "EntityEnum": True,
+            "AreaEnum": True,
         },
         migration_control=True,
         package_name_error=None,

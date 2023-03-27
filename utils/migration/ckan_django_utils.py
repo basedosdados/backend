@@ -412,12 +412,12 @@ class Migration:
 
     def create_entity(self, obj=None):
         if obj is None or obj.get("entity") is None:
+            category_id = self.create_category("unknown")
             default_parameters = {
                 "slug": "unknown",
                 "name": "Desconhecida",
-                "category": "unknown",
+                "category": category_id,
             }
-
             return self._create_update_entity(**default_parameters)
         else:
 
@@ -445,23 +445,32 @@ class Migration:
 
             return self._create_update_entity(**parameters)
 
-    def _create_update_frequency_for_entity(self, entity_id, update_frequency_number):
+    def _create_update_frequency_for_entity(
+        self, entity_id, resource_id, update_frequency_number
+    ):
+
+        mutation_parameters = {
+            "entity": entity_id,
+            "frequency": update_frequency_number,
+        }
+
+        resource_key = list(resource_id.keys())[0]
+        resource_value = list(resource_id.values())[0]
+        mutation_parameters[resource_key] = resource_value
+
         r, id = self.create_update(
             mutation_class="CreateUpdateUpdate",
-            mutation_parameters={
-                "entity": entity_id,
-                "number": update_frequency_number,
-            },
+            mutation_parameters=mutation_parameters,
             query_class="allUpdate",
             query_parameters={
-                "$number: Int": update_frequency_number,
+                "$frequency: Int": update_frequency_number,
                 "$entity_Id: ID": entity_id,
+                f"${resource_key}_Id: ID": resource_value,
             },
         )
-
         return id
 
-    def create_update_frequency(self, update_frequency=None, observation_levels=None):
+    def create_update_frequency(self, resource_id={}, update_frequency=None):
         update_frequency_dict = {
             "second": 1,
             "minute": 1,
@@ -484,40 +493,16 @@ class Migration:
             None: 0,
         }
 
-        update_frequency_entity_dict = {
-            "year": "",
-            "semester": "",
-            "quarter": "",
-            "bimester": "",
-            "month": "",
-            "week": "",
-            "day": "",
-            "hour": "",
-            "minute": "",
-            "second": "",
-            "date": "",
-            "time": "",
-        }
-
-        if observation_levels is None or len(observation_levels) == 0:
-            observation_levels = [{"entity": "unknown"}]
-
-        for ob in observation_levels:
-            entity_key = ob.get("entity") if ob else None
-            if (
-                entity_key in list(class_to_dict(EntityDateTimeEnum).keys())
-                and entity_key is not None
-            ):
-                entity_id = self.create_entity(obj=ob)
-                update_frequency_number = update_frequency_dict[update_frequency]
-            else:
-                update_frequency_number = 0
-                entity_id = self.create_entity(obj={"entity": "unknown"})
-            id = self._create_update_frequency_for_entity(
-                entity_id, update_frequency_number
+        if (
+            update_frequency in list(class_to_dict(EntityDateTimeEnum).keys())
+            and update_frequency is not None
+        ):
+            entity_id = self.create_entity(obj={"entity": update_frequency})
+            update_frequency_number = update_frequency_dict[update_frequency]
+            print("------------>", update_frequency)
+            self._create_update_frequency_for_entity(
+                entity_id, resource_id, update_frequency_number
             )
-
-        return id
 
     def _create_observation_level_for_entity(self, entity_id, obs_resource):
 
