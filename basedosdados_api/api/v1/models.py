@@ -539,7 +539,7 @@ class Column(BdmModel):
                 "Observation level is not in the same table as the column."
             )
         
-        if self.directory_primary_key and self.directory_primary_key.table.is_directory == False:
+        if self.directory_primary_key and self.directory_primary_key.table.is_directory is False:
             raise ValidationError(
                 "Column indicated as a directory's primary key is not in a directory."
             )
