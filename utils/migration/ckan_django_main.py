@@ -15,6 +15,7 @@ from ckan_django_utils import (
     Migration,
     class_to_dict,
     get_bd_packages,
+    get_package_model,
 )
 from data.enums.language import LanguageEnum
 
@@ -34,7 +35,7 @@ def main(
     m.create_enum(migrate_enum)
 
     # id = "br-sgp-informacao"
-    # id = "br-me-clima-organizacional"
+    # id = "br-tse-eleicoes"
     # df = get_package_model(name_or_id=id)
     df = get_bd_packages()
     # r = m.delete(classe="Dataset", id="77239376-6662-4d64-8950-2f57f1225e53")
@@ -353,15 +354,15 @@ def main(
 
 if __name__ == "__main__":
     main(
-        mode="staging",
+        mode="local",
         migrate_enum={
-            "AvailabilityEnum": True,
-            "LicenseEnum": True,
-            "LanguageEnum": True,
-            "StatusEnum": True,
-            "BigQueryTypeEnum": True,
-            "EntityEnum": True,
-            "AreaEnum": True,
+            "AvailabilityEnum": False,
+            "LicenseEnum": False,
+            "LanguageEnum": False,
+            "StatusEnum": False,
+            "BigQueryTypeEnum": False,
+            "EntityEnum": False,
+            "AreaEnum": False,
         },
         migration_control=True,
         package_name_error=None,

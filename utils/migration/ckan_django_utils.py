@@ -84,6 +84,7 @@ def pprint(msg):
 
 def parse_temporal_coverage(temporal_coverage):
     # Extrai as informações de data e intervalo da string
+    temporal_coverage = temporal_coverage.strip()
     if "(" in temporal_coverage:
         start_str, interval_str, end_str = re.split(r"[(|)]", temporal_coverage)
         # if start_str == "" and end_str != "":
@@ -92,13 +93,12 @@ def parse_temporal_coverage(temporal_coverage):
         #     end_str = start_str
     elif len(temporal_coverage) in {4, 7, 9}:
         start_str, interval_str, end_str = temporal_coverage, None, temporal_coverage
-
     start_len = 0 if start_str == "" else len(start_str.split("-"))
     end_len = 0 if end_str == "" else len(end_str.split("-"))
 
     def parse_date(position, date_str, date_len):
         result = {}
-
+        date_str = date_str.strip()
         if date_str != "":
             if date_len == 3:
                 date = datetime.strptime(date_str, "%Y-%m-%d")
@@ -499,7 +499,6 @@ class Migration:
         ):
             entity_id = self.create_entity(obj={"entity": update_frequency})
             update_frequency_number = update_frequency_dict[update_frequency]
-            print("------------>", update_frequency)
             self._create_update_frequency_for_entity(
                 entity_id, resource_id, update_frequency_number
             )
@@ -584,13 +583,21 @@ class Migration:
         else:
             return None
 
-    def create_temporal_coverage(self, resource, coverage_id):
-        temporal_temporal_coverages = (
-            [None]
-            if resource.get("temporal_coverage") == []
-            or resource.get("temporal_coverage") is None
-            else resource.get("temporal_coverage")
-        )
+    def create_temporal_coverage(self, resource, coverage_id, column=None):
+        if column is not None:
+            temporal_temporal_coverages = (
+                [None]
+                if column.get("temporal_coverage") == []
+                or column.get("temporal_coverage") is None
+                else column.get("temporal_coverage")
+            )
+        else:
+            temporal_temporal_coverages = (
+                [None]
+                if resource.get("temporal_coverage") == []
+                or resource.get("temporal_coverage") is None
+                else resource.get("temporal_coverage")
+            )
 
         if temporal_temporal_coverages != [None]:
             temporal_temporal_coverages_chain = [
@@ -601,7 +608,7 @@ class Migration:
             )
 
         for temporal_coverage in temporal_temporal_coverages:
-            if temporal_coverage is not None:
+            if temporal_coverage is not None and temporal_coverage != "":
                 resource_to_temporal_coverage = parse_temporal_coverage(
                     temporal_coverage
                 )
@@ -614,7 +621,7 @@ class Migration:
                     mutation_parameters=resource_to_temporal_coverage,
                 )
 
-    def _create_coverage_for_area(self, resource, coverage, area):
+    def _create_coverage_for_area(self, resource, coverage, area, column=None):
         coverage_type = list(coverage.keys())[0]
         coverage_value = list(coverage.values())[0]
         coverage_filter = f"{coverage_type}_Id"
@@ -629,18 +636,16 @@ class Migration:
             mutation_class="CreateUpdateCoverage",
             mutation_parameters=package_to_coverage,
         )
-
-        self.create_temporal_coverage(resource=resource, coverage_id=id)
+        self.create_temporal_coverage(resource=resource, coverage_id=id, column=column)
 
         return id
 
-    def create_coverage(self, resource, coverage):
+    def create_coverage(self, resource, coverage, column=None):
         area_slugs = resource.get("spatial_coverage") or ["desconhecida"]
-
         ids = []
 
         for area in area_slugs:
-            id = self._create_coverage_for_area(resource, coverage, area)
+            id = self._create_coverage_for_area(resource, coverage, area, column)
             ids.append(id)
 
         return ids[-1]
@@ -699,10 +704,9 @@ class Migration:
                 "$table_Id: ID": table_id,
             },
         )
-
         if r.get("r") == "mutation":
             coverage_id = self.create_coverage(
-                resource=resource, coverage={"column": id}
+                resource=resource, coverage={"column": id}, column=column
             )
 
         return id
@@ -737,7 +741,11 @@ class Migration:
 
         else:
             org_name = org_dict.get("title") or org_dict.get("name") or "desconhecida"
-            org_description = org_dict.get("description", "desconhecida")
+            org_description = (
+                org_dict.get("description", None)
+                or org_dict.get("notes", None)
+                or "desconhecida"
+            )
             org_id = org_dict.get("name") or org_dict.get("organization_id")
             org_slug = (
                 "desconhecida"
@@ -782,8 +790,15 @@ class Migration:
                 ),
                 "slug": org_slug,
                 "name": org_name,
-                "description": org_description,
             }
+            if (
+                org_description.startswith("http://")
+                or org_description.startswith("https://")
+                or org_description.startswith("www.")
+            ):
+                package_to_part_org["website"] = org_description
+            else:
+                package_to_part_org["description"] = org_description
 
             response, graphql_org_id = self.create_update(
                 query_class="allOrganization",
