@@ -1,6 +1,26 @@
 version: "3"
 
 services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.3
+    container_name: elasticsearch
+    environment:
+      - cluster.name=docker-cluster
+      - bootstrap.memory_lock=true
+      - discovery.type=single-node
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    volumes:
+      - esdata:/usr/share/elasticsearch/data
+    ports:
+      - "127.0.0.1:9200:9200"
+      - "127.0.0.1:9300:9300"
+    networks:
+      - esnet
+
   database:
     image: postgres:14
     container_name: database
@@ -39,3 +59,7 @@ services:
 
 volumes:
   vol_database:
+  esdata:
+
+networks:
+  esnet:
