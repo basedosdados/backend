@@ -262,7 +262,7 @@ class Organization(BdmModel):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    website = models.URLField(blank=True, null=True, max_length=1000)
+    website = models.URLField(blank=True, null=True, max_length=255)
     twitter = models.URLField(blank=True, null=True)
     facebook = models.URLField(blank=True, null=True)
     linkedin = models.URLField(blank=True, null=True)
