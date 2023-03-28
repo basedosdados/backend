@@ -533,12 +533,12 @@ class Column(BdmModel):
         ordering = ["name"]
 
     def clean(self) -> None:
-        
+
         if self.observation_level and self.observation_level.table != self.table:
             raise ValidationError(
                 "Observation level is not in the same table as the column."
             )
-        
+
         if self.directory_primary_key and self.directory_primary_key.table.is_directory is False:
             raise ValidationError(
                 "Column indicated as a directory's primary key is not in a directory."
@@ -554,6 +554,9 @@ class Dictionary(BdmModel):
     )
 
     graphql_nested_filter_fields_whitelist = ["id"]
+
+    def __str__(self):
+        return f"{str(self.column.table.dataset.slug)}.{self.column.table.slug}.{str(self.column.name)}"
 
 
 class CloudTable(BdmModel):
