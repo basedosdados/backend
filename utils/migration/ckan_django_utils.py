@@ -796,9 +796,16 @@ class Migration:
                 or org_description.startswith("https://")
                 or org_description.startswith("www.")
             ):
-                package_to_part_org["website"] = org_description
-            else:
-                package_to_part_org["description"] = org_description
+                org_description = org_description.strip().replace("www.", "https://")
+                org_url = re.search("(?P<url>https?://[^\s]+)", org_description).group(
+                    "url"
+                )
+
+                print("website: ", org_url)
+                package_to_part_org["website"] = org_url
+                org_description = org_description.replace(org_url, "")
+
+            package_to_part_org["description"] = org_description
 
             response, graphql_org_id = self.create_update(
                 query_class="allOrganization",
