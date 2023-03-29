@@ -43,9 +43,6 @@ class AsciifoldingElasticBackend(es_backend.Elasticsearch7SearchBackend, metacla
             if field_mapping['type'] == 'text' and field_class.indexed:
                 if not hasattr(field_class, 'facet_for') and not field_class.field_type in ('ngram', 'edge_ngram'):
                     field_mapping['analyzer'] = "ascii_analyser"
-            print(field_mapping)
-            print(field_class.indexed)
-            print(field_class.__dict__)
 
             mapping.update({field_class.index_fieldname: field_mapping})
         return (content_field_name, mapping)
