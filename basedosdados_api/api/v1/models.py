@@ -162,6 +162,9 @@ class License(BdmModel):
 
 class Key(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
+    dictionary = models.ForeignKey(
+        "Dictionary", on_delete=models.CASCADE, related_name="keys"
+    )
     name = models.CharField(max_length=255)
     value = models.CharField(max_length=255)
 
@@ -259,7 +262,7 @@ class Organization(BdmModel):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    website = models.URLField(blank=True, null=True)
+    website = models.URLField(blank=True, null=True, max_length=255)
     twitter = models.URLField(blank=True, null=True)
     facebook = models.URLField(blank=True, null=True)
     linkedin = models.URLField(blank=True, null=True)
@@ -530,24 +533,30 @@ class Column(BdmModel):
         ordering = ["name"]
 
     def clean(self) -> None:
-        # If observation_level is not null, assert that its table is the same as the column's table
+
         if self.observation_level and self.observation_level.table != self.table:
             raise ValidationError(
                 "Observation level is not in the same table as the column."
             )
+
+        if self.directory_primary_key and self.directory_primary_key.table.is_directory is False:
+            raise ValidationError(
+                "Column indicated as a directory's primary key is not in a directory."
+            )
+
         return super().clean()
 
 
 class Dictionary(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    column = models.OneToOneField(
-        "Column", on_delete=models.CASCADE, related_name="dictionary"
-    )
-    keys = models.ForeignKey(
-        "Key", on_delete=models.CASCADE, related_name="dictionaries"
+    column = models.ForeignKey(
+        "Column", on_delete=models.CASCADE, related_name="dictionaries"
     )
 
     graphql_nested_filter_fields_whitelist = ["id"]
+
+    def __str__(self):
+        return f"{str(self.column.table.dataset.slug)}.{self.column.table.slug}.{str(self.column.name)}"
 
 
 class CloudTable(BdmModel):
