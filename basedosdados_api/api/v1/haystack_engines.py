@@ -18,7 +18,7 @@ class AsciifoldingElasticBackend(es_backend.Elasticsearch7SearchBackend, metacla
         analyzer = {
             "ascii_analyser": {
                 "tokenizer": "standard",
-                "filter": ["standard", "asciifolding", "lowercase"]
+                "filter": ["asciifolding", "lowercase"]
             },
             "ngram_analyzer": {
                 "type": "custom",
