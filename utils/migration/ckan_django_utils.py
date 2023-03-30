@@ -22,12 +22,44 @@ import threading
 from unidecode import unidecode
 
 
-def request_bd_package(file_path):
+def fetch_package_list():
+    url = "https://basedosdados.org/api/3/action/package_list"
+    return requests.get(url, verify=False).json()["result"]
+
+
+def fetch_package_data(package_name):
+    url = (
+        f"https://basedosdados.org/api/3/action/package_show?name_or_id={package_name}"
+    )
+    return requests.get(url, verify=False).json()["result"]
+
+
+def request_bd_packages(file_path):
     url = "https://basedosdados.org"
     api_url = f"{url}/api/3/action/package_search?q=&rows=2000"
     packages = requests.get(api_url, verify=False).json()["result"]["results"]
-    df = pd.DataFrame(data={"packages": packages})
-    df["package_id"] = df["packages"].apply(lambda x: x["id"])
+
+    def create_dataframe(package_list):
+        df = pd.DataFrame({"packages": package_list})
+        df["package_id"] = df["packages"].apply(lambda x: x["id"])
+        return df
+
+    df = create_dataframe(packages)
+    existing_package_names = df["packages"].apply(lambda x: x["name"]).tolist()
+
+    package_list = fetch_package_list()
+    new_package_names = [
+        name for name in package_list if name not in existing_package_names
+    ]
+
+    for package_name in new_package_names:
+        print("get package:", package_name)
+        packages.append(fetch_package_data(package_name))
+
+    df = create_dataframe(packages)
+
+    print(len(df["package_id"]))
+
     df.to_json(file_path)
     return df
 
@@ -39,13 +71,18 @@ def get_bd_packages():
     file_path_migrated = path / "packages_migrated.csv"
 
     if not file_path.exists():
-        return request_bd_package(file_path)
+        return request_bd_packages(file_path)
+
     df = pd.read_json(file_path)
 
     if file_path_migrated.exists():
         df_migrated = pd.read_csv(file_path_migrated)
-        return df[~df["package_id"].isin(df_migrated["package_id"].tolist())]
+        to_migrate = df[~df["package_id"].isin(df_migrated["package_id"].tolist())]
+        print("Total number of packages: ", len(df["package_id"]))
+        print("Packages to migrate", len(to_migrate["package_id"]))
+        return to_migrate
     else:
+        print("Total number of packages:", len(df["package_id"]))
         return df
 
 
@@ -802,7 +839,9 @@ class Migration:
                 )
 
                 print("website: ", org_url)
-                package_to_part_org["website"] = org_url
+                package_to_part_org["website"] = org_url.replace(
+                    "https://https://", "https://"
+                )
                 org_description = org_description.replace(org_url, "")
 
             package_to_part_org["description"] = org_description

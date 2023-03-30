@@ -354,7 +354,7 @@ def main(
 
 if __name__ == "__main__":
     main(
-        mode="local",
+        mode="staging",
         migrate_enum={
             "AvailabilityEnum": False,
             "LicenseEnum": False,
