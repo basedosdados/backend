@@ -122,13 +122,14 @@ def pprint(msg):
 def parse_temporal_coverage(temporal_coverage):
     # Extrai as informações de data e intervalo da string
     temporal_coverage = temporal_coverage.strip()
+    # print("temporal coverage: ", temporal_coverage)
     if "(" in temporal_coverage:
         start_str, interval_str, end_str = re.split(r"[(|)]", temporal_coverage)
         # if start_str == "" and end_str != "":
         #     start_str = end_str
         # elif end_str == "" and start_str != "":
         #     end_str = start_str
-    elif len(temporal_coverage) in {4, 7, 9}:
+    elif len(temporal_coverage) in {4, 7, 9, 10}:
         start_str, interval_str, end_str = temporal_coverage, None, temporal_coverage
     start_len = 0 if start_str == "" else len(start_str.split("-"))
     end_len = 0 if end_str == "" else len(end_str.split("-"))

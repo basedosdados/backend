@@ -22,6 +22,29 @@ from data.enums.language import LanguageEnum
 
 from pathlib import Path
 import pandas as pd
+import urllib.parse
+
+
+def fix_broken_url(url: str) -> str:
+    parsed_url = urllib.parse.urlsplit(url)
+
+    # Verifique se o esquema está faltando ou quebrado
+    if parsed_url.scheme not in ("http", "https"):
+        fixed_scheme = "https"
+    else:
+        fixed_scheme = parsed_url.scheme
+
+    fixed_url = urllib.parse.urlunsplit(
+        (
+            fixed_scheme,
+            parsed_url.netloc,
+            parsed_url.path,
+            parsed_url.query,
+            parsed_url.fragment,
+        )
+    )
+
+    return fixed_url
 
 
 def main(
@@ -109,7 +132,9 @@ def main(
                     )[1],
                     "description": resource["description"],
                     "isDirectory": False,
-                    "dataCleaningDescription": resource["data_cleaning_description"],
+                    "dataCleaningDescription": fix_broken_url(
+                        resource["data_cleaning_description"]
+                    ),
                     "dataCleaningCodeUrl": resource["data_cleaning_code_url"],
                     "rawDataUrl": resource["raw_files_url"],
                     "auxiliaryFilesUrl": resource["auxiliary_files_url"],
