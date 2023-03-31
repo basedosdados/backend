@@ -46,7 +46,6 @@ urlpatterns = [
         csrf_exempt(FileUploadGraphQLView.as_view(graphiql=True)),
         name="graphiql",
     ),
-    path("api/account/", include("basedosdados_api.account.urls")),
     path("schemas/", include("basedosdados_api.schemas.urls")),
     path("", include("basedosdados_api.core.urls")),
     path("search/", include("haystack.urls")),

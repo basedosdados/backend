@@ -396,6 +396,7 @@ def generate_form_fields(model: BdmModel):
         models.OneToOneField,
         models.ManyToManyField,
         models.ImageField,
+        models.UUIDField,
     )
     blacklist_field_names = (
         "_field_status",
