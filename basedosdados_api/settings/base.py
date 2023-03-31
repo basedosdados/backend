@@ -235,7 +235,7 @@ ALLOWED_UPLOAD_IMAGES = ["png"]
 # Haystack
 HAYSTACK_CONNECTIONS = {
     "default": {
-        "ENGINE": "haystack.backends.elasticsearch7_backend.Elasticsearch7SearchEngine",
+        "ENGINE": "basedosdados_api.api.v1.haystack_engines.AsciifoldingElasticSearchEngine",
         "URL": getenv("ELASTICSEARCH_URL", "http://0.0.0.0:9200"),
         "TIMEOUT": 5,
         "INDEX_NAME": "default",
