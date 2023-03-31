@@ -622,6 +622,7 @@ class Migration:
             return None
 
     def create_temporal_coverage(self, resource, coverage_id, column=None):
+        # sourcery skip: raise-specific-error
         if column is not None:
             temporal_temporal_coverages = (
                 [None]
@@ -647,9 +648,15 @@ class Migration:
 
         for temporal_coverage in temporal_temporal_coverages:
             if temporal_coverage is not None and temporal_coverage != "":
-                resource_to_temporal_coverage = parse_temporal_coverage(
-                    temporal_coverage
-                )
+                try:
+                    resource_to_temporal_coverage = parse_temporal_coverage(
+                        temporal_coverage
+                    )
+                except Exception as e:
+                    print(e)
+                    print("temporal_coverage: ", temporal_coverage)
+                    raise (Exception("Error parsing temporal coverage"))
+
                 resource_to_temporal_coverage["coverage"] = coverage_id
 
                 r, id = self.create_update(

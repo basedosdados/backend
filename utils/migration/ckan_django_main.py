@@ -26,25 +26,27 @@ import urllib.parse
 
 
 def fix_broken_url(url: str) -> str:
-    parsed_url = urllib.parse.urlsplit(url)
 
-    # Verifique se o esquema está faltando ou quebrado
-    if parsed_url.scheme not in ("http", "https"):
-        fixed_scheme = "https"
-    else:
-        fixed_scheme = parsed_url.scheme
+    if url is not None:
+        parsed_url = urllib.parse.urlsplit(url)
 
-    fixed_url = urllib.parse.urlunsplit(
-        (
-            fixed_scheme,
-            parsed_url.netloc,
-            parsed_url.path,
-            parsed_url.query,
-            parsed_url.fragment,
+        # Verifique se o esquema está faltando ou quebrado
+        if parsed_url.scheme not in ("http", "https"):
+            fixed_scheme = "https"
+        else:
+            fixed_scheme = parsed_url.scheme
+
+        fixed_url = urllib.parse.urlunsplit(
+            (
+                fixed_scheme,
+                parsed_url.netloc,
+                parsed_url.path,
+                parsed_url.query,
+                parsed_url.fragment,
+            )
         )
-    )
 
-    return fixed_url
+        return fixed_url
 
 
 def main(
@@ -132,10 +134,10 @@ def main(
                     )[1],
                     "description": resource["description"],
                     "isDirectory": False,
-                    "dataCleaningDescription": fix_broken_url(
-                        resource["data_cleaning_description"]
+                    "dataCleaningDescription": resource["data_cleaning_description"],
+                    "dataCleaningCodeUrl": fix_broken_url(
+                        resource["data_cleaning_code_url"]
                     ),
-                    "dataCleaningCodeUrl": resource["data_cleaning_code_url"],
                     "rawDataUrl": resource["raw_files_url"],
                     "auxiliaryFilesUrl": resource["auxiliary_files_url"],
                     "architectureUrl": resource["architecture_url"],
