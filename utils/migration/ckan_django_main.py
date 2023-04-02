@@ -16,37 +16,13 @@ from ckan_django_utils import (
     class_to_dict,
     get_bd_packages,
     get_package_model,
+    fix_broken_url,
 )
 from data.enums.language import LanguageEnum
 
 
 from pathlib import Path
 import pandas as pd
-import urllib.parse
-
-
-def fix_broken_url(url: str) -> str:
-
-    if url is not None:
-        parsed_url = urllib.parse.urlsplit(url)
-
-        # Verifique se o esquema está faltando ou quebrado
-        if parsed_url.scheme not in ("http", "https"):
-            fixed_scheme = "https"
-        else:
-            fixed_scheme = parsed_url.scheme
-
-        fixed_url = urllib.parse.urlunsplit(
-            (
-                fixed_scheme,
-                parsed_url.netloc,
-                parsed_url.path,
-                parsed_url.query,
-                parsed_url.fragment,
-            )
-        )
-
-        return fixed_url
 
 
 def main(
@@ -138,9 +114,11 @@ def main(
                     "dataCleaningCodeUrl": fix_broken_url(
                         resource["data_cleaning_code_url"]
                     ),
-                    "rawDataUrl": resource["raw_files_url"],
-                    "auxiliaryFilesUrl": resource["auxiliary_files_url"],
-                    "architectureUrl": resource["architecture_url"],
+                    "rawDataUrl": fix_broken_url(resource["raw_files_url"]),
+                    "auxiliaryFilesUrl": fix_broken_url(
+                        resource["auxiliary_files_url"]
+                    ),
+                    "architectureUrl": fix_broken_url(resource["architecture_url"]),
                     "sourceBucketName": resource["source_bucket_name"],
                     "uncompressedFileSize": resource["uncompressed_file_size"],
                     "compressedFileSize": resource["compressed_file_size"],
@@ -239,7 +217,7 @@ def main(
                     ),
                     # "createdAt": "",
                     # "updatedAt": "",
-                    "url": resource["url"].replace(" ", ""),
+                    "url": fix_broken_url(resource["url"].replace(" ", "")),
                     "name": resource["name"],
                     "description": "TO DO"
                     if resource["description"] is None
@@ -270,7 +248,9 @@ def main(
                     mutation_parameters=resource_to_raw_data_source,
                     query_class="allRawdatasource",
                     query_parameters={
-                        "$url: String": resource["url"].replace(" ", ""),
+                        "$url: String": fix_broken_url(
+                            resource["url"].replace(" ", "")
+                        ),
                         "$dataset_Id: ID": dataset_id,
                     },
                 )
@@ -301,7 +281,8 @@ def main(
 
             elif resource_type == "information_request":
                 print("\nCreate InformationRequest: ", resource["name"])
-
+                url = fix_broken_url(resource.get("data_url", None))
+                data_url = fix_broken_url(resource.get("url", None))
                 resource_to_information_request = {
                     "dataset": dataset_id,
                     "status": m.create_update(
@@ -317,15 +298,15 @@ def main(
                     )[1],
                     "origin": resource["origin"],
                     "number": resource["name"],
-                    "url": resource.get("data_url", ""),
+                    "url": url,
                     "startedAt": datetime.strptime(
                         resource["opening_date"], "%d/%m/%Y"
                     ).strftime("%Y-%m-%d")
                     + "T00:00:00"
                     if "/" in resource["opening_date"]
                     else resource["opening_date"] + "T00:00:00",
-                    "dataUrl": resource["url"],
-                    "observations": resource.get("url", ""),
+                    "dataUrl": data_url,
+                    "observations": data_url,
                     "startedBy": 1,
                     # "entities": "",
                 }
@@ -334,7 +315,7 @@ def main(
                     mutation_parameters=resource_to_information_request,
                     query_class="allInformationrequest",
                     query_parameters={
-                        "$url: String": resource["url"],
+                        "$url: String": url,
                         "$dataset_Id: ID": dataset_id,
                     },
                     # update=True,

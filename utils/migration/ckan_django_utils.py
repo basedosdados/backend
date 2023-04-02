@@ -17,6 +17,7 @@ from data.enums.license import LicenseEnum
 from data.enums.status import StatusEnum
 
 import threading
+import urllib.parse
 
 
 from unidecode import unidecode
@@ -86,6 +87,17 @@ def get_bd_packages():
         return df
 
 
+def get_package_model(name_or_id):
+    url = f"https://basedosdados.org/api/3/action/package_show?name_or_id={name_or_id}"
+    packages = requests.get(url, verify=False).json()["result"]
+
+    df = pd.DataFrame(data={"packages": [packages]})
+
+    df["package_id"] = df["packages"].apply(lambda x: x["id"])
+
+    return df
+
+
 def build_areas_from_json():
 
     with open(
@@ -104,15 +116,39 @@ def class_to_dict(class_obj):
     }
 
 
-def get_package_model(name_or_id):
-    url = f"https://basedosdados.org/api/3/action/package_show?name_or_id={name_or_id}"
-    packages = requests.get(url, verify=False).json()["result"]
+def fix_broken_url(url: str) -> str:
+    if url is not None and url != "":
+        url = (
+            url.replace(" ", "")
+            .replace("http://https://", "https://")
+            .replace("https://https://", "https://")
+            .replace("https:///https://", "https://")
+        )
 
-    df = pd.DataFrame(data={"packages": [packages]})
+        if len(url) > 500:
+            parsed = urllib.parse.urlsplit(url)
+            url = parsed.scheme + "://" + parsed.netloc
 
-    df["package_id"] = df["packages"].apply(lambda x: x["id"])
+        parsed_url = urllib.parse.urlsplit(url)
 
-    return df
+        if parsed_url.netloc == "":
+            return None
+        if parsed_url.scheme not in ("http", "https"):
+            fixed_scheme = "https"
+        else:
+            fixed_scheme = parsed_url.scheme
+
+        fixed_url = urllib.parse.urlunsplit(
+            (
+                fixed_scheme,
+                parsed_url.netloc,
+                parsed_url.path,
+                parsed_url.query,
+                parsed_url.fragment,
+            )
+        )
+
+        return fixed_url
 
 
 def pprint(msg):
@@ -125,10 +161,10 @@ def parse_temporal_coverage(temporal_coverage):
     # print("temporal coverage: ", temporal_coverage)
     if "(" in temporal_coverage:
         start_str, interval_str, end_str = re.split(r"[(|)]", temporal_coverage)
-        # if start_str == "" and end_str != "":
-        #     start_str = end_str
-        # elif end_str == "" and start_str != "":
-        #     end_str = start_str
+
+        start_str = "" if len(start_str) < 3 else start_str
+        end_str = "" if len(end_str) < 3 else end_str
+
     elif len(temporal_coverage) in {4, 7, 9, 10}:
         start_str, interval_str, end_str = temporal_coverage, None, temporal_coverage
     start_len = 0 if start_str == "" else len(start_str.split("-"))
@@ -750,6 +786,8 @@ class Migration:
             },
         )
         if r.get("r") == "mutation":
+            # print(coverage)
+            
             coverage_id = self.create_coverage(
                 resource=resource, coverage={"column": id}, column=column
             )
@@ -846,10 +884,7 @@ class Migration:
                     "url"
                 )
 
-                print("website: ", org_url)
-                package_to_part_org["website"] = org_url.replace(
-                    "https://https://", "https://"
-                )
+                package_to_part_org["website"] = fix_broken_url(org_url)
                 org_description = org_description.replace(org_url, "")
 
             package_to_part_org["description"] = org_description
