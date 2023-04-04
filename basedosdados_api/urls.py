@@ -39,7 +39,7 @@ def redirect_to_v1_graphql(request):
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path("accounts/", include("django.contrib.auth.urls")),
+    path("account/", include("basedosdados_api.account.urls")),
     re_path(r"^healthcheck/", include("health_check.urls")),
     path("api/", redirect_to_v1, name="api"),
     path("api/v1/", redirect_to_v1_graphql),
@@ -48,7 +48,6 @@ urlpatterns = [
         csrf_exempt(FileUploadGraphQLView.as_view(graphiql=True)),
         name="graphiql",
     ),
-    path("api/account/", include("basedosdados_api.account.urls")),
     path("schemas/", include("basedosdados_api.schemas.urls")),
     path("", include("basedosdados_api.core.urls")),
     path("search/", DatasetSearchView.as_view(), name="search_view"),
