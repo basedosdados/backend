@@ -207,6 +207,8 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
         (COLABORADOR, "Colaborador"),
     )
 
+    ckan_id = models.UUIDField(primary_key=False, default=uuid4)
+
     email = models.EmailField("Email", unique=True)
     username = models.CharField(
         "Username", max_length=40, blank=True, null=True, unique=True
@@ -214,6 +216,7 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
 
     first_name = models.CharField("Nome", max_length=40, blank=True)
     last_name = models.CharField("Sobrenome", max_length=40, blank=True)
+    full_name = models.CharField("Nome Completo", max_length=100, blank=True, null=True)
     birth_date = models.DateField("Data de Nascimento", null=True, blank=True)
     picture = models.ImageField(
         "Imagem",

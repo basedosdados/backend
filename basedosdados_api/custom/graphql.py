@@ -41,7 +41,7 @@ from graphene_django.filter import DjangoFilterConnectionField
 from graphene_django.registry import get_global_registry
 from graphene_file_upload.scalars import Upload
 import graphql_jwt
-from graphql_jwt.decorators import login_required
+from graphql_jwt.decorators import login_required, staff_member_required, superuser_required
 
 from basedosdados_api.custom.model import BdmModel
 
@@ -234,7 +234,7 @@ def create_mutation_factory(model: BdmModel):
                 ),
             ),
             "mutate_and_get_payload": classmethod(
-                login_required(
+                staff_member_required(
                     lambda cls, root, info, **input: super(
                         cls, cls
                     ).mutate_and_get_payload(root, info, **input)
@@ -266,7 +266,7 @@ def delete_mutation_factory(model: BdmModel):
             ),
             "ok": Boolean(),
             "errors": List(String),
-            "mutate": classmethod(login_required(mutate)),
+            "mutate": classmethod(staff_member_required(mutate)),
         },
     )
 
@@ -396,6 +396,7 @@ def generate_form_fields(model: BdmModel):
         models.OneToOneField,
         models.ManyToManyField,
         models.ImageField,
+        models.UUIDField,
     )
     blacklist_field_names = (
         "_field_status",
