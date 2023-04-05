@@ -249,6 +249,5 @@ fabric.properties
 /basedosdados_api/media/
 
 # imported images
-/utils/migration/images/*.png
-/utils/migration/images/*.jpg
-/utils/migration/images/*.jpeg
+/utils/migration/images/
+/utils/migration/logs/
