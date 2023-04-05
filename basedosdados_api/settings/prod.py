@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from os import getenv
+from google.oauth2 import service_account
 
 from basedosdados_api.settings.base import *  # noqa
 
@@ -49,3 +50,10 @@ SERVER_EMAIL = nonull_getenv("EMAIL_HOST_USER")
 LOGGING["handlers"]["logfile"][  # noqa
     "filename"
 ] = "/var/log/django/basedosdados_api.log"
+
+# Google Cloud Storage
+GS_CREDENTIALS = service_account.Credentials.from_service_account_file(
+    nonull_getenv("GS_CREDENTIALS")
+)
+DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
+GS_BUCKET_NAME = nonull_getenv("GS_BUCKET_NAME")
