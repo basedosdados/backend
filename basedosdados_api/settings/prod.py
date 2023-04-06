@@ -53,7 +53,7 @@ LOGGING["handlers"]["logfile"][  # noqa
 
 # Google Cloud Storage
 GS_CREDENTIALS = service_account.Credentials.from_service_account_file(
-    nonull_getenv("GS_CREDENTIALS")
+    nonull_getenv("GCP_SA")
 )
 DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
-GS_BUCKET_NAME = nonull_getenv("GS_BUCKET_NAME")
+GS_BUCKET_NAME = nonull_getenv("GCP_BUCKET_NAME")
