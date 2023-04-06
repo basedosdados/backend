@@ -4,21 +4,14 @@
 
 <h1>Dataset View</h1>
 
-<p>Olá, {{ name }}!</p>
-
 {% if not user.is_authenticated %}
 <p>Your account doesn't have access to this page. To proceed,
 please login with an account that has access.</p>
 
 {% else %}
-<p>Visualização autorizada.</p>
-
-{% for field in form %}
-<p>{{ field }}</p>
-{% endfor %}
+<p>Olá,{% if user.first_name %}{{ user.first_name }}{% else %}}{{ user.email }}{% endif %}!</p>
 
 {% endif %}
-
 
 <a href="{% url 'logout' %}">Logout</a>
 
@@ -27,6 +20,5 @@ please login with an account that has access.</p>
 {{ form.as_p }}
 <button type="submit" class="btn btn-primary">Submit</button>
 </form>
-
 
 {% endblock %}
