@@ -26,7 +26,7 @@ def image_path_and_rename(instance, filename):
     upload_to = instance.__class__.__name__.lower()
     ext = filename.split(".")[-1]
     # get filename
-    filename = f"{instance.slug}.{ext}"
+    filename = f"{instance.pk}.{ext}"
     return os.path.join(upload_to, filename)
 
 
