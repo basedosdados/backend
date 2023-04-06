@@ -3,6 +3,7 @@ from os import getenv
 from google.oauth2 import service_account
 
 from basedosdados_api.settings.base import *  # noqa
+import json
 
 
 def nonull_getenv(var):
@@ -52,8 +53,8 @@ LOGGING["handlers"]["logfile"][  # noqa
 ] = "/var/log/django/basedosdados_api.log"
 
 # Google Cloud Storage
-GS_CREDENTIALS = service_account.Credentials.from_service_account_file(
-    nonull_getenv("GCP_SA")
+GS_CREDENTIALS = service_account.Credentials.from_service_account_info(
+    json.loads(nonull_getenv("GCP_SA"))
 )
 DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
 GS_BUCKET_NAME = nonull_getenv("GCP_BUCKET_NAME")
