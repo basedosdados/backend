@@ -13,6 +13,9 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 
 from datetime import timedelta
 from pathlib import Path
+from os import getenv
+import os
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -44,6 +47,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "corsheaders",
     "graphene_django",
+    "haystack",
     "health_check",
     "health_check.db",
     "health_check.cache",
@@ -72,7 +76,7 @@ ROOT_URLCONF = "basedosdados_api.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [os.path.join(BASE_DIR, "templates")],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -227,3 +231,21 @@ MODELTRANSLATION_AUTO_POPULATE = True
 GRAPHENE_SCHEMAS_CACHE = {}
 
 ALLOWED_UPLOAD_IMAGES = ["png"]
+
+# Haystack
+HAYSTACK_CONNECTIONS = {
+    "default": {
+        "ENGINE": "basedosdados_api.api.v1.haystack_engines.AsciifoldingElasticSearchEngine",
+        "URL": getenv("ELASTICSEARCH_URL", "http://0.0.0.0:9200"),
+        "TIMEOUT": 5,
+        "INDEX_NAME": "default",
+        "BATCH_SIZE": 1000,
+        "INCLUDE_SPELLING": True,
+    },
+}
+HAYSTACK_DEFAULT_OPERATOR = "OR"
+HAYSTACK_FUZZY_MIN_SIM = 0.25
+HAYSTACK_ITERATOR_LOAD_PER_QUERY = 200
+HAYSTACK_LIMIT_TO_REGISTERED_MODELS = True
+HAYSTACK_SEARCH_RESULTS_PER_PAGE = 100
+HAYSTACK_SIGNAL_PROCESSOR = "haystack.signals.RealtimeSignalProcessor"

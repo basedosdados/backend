@@ -29,7 +29,8 @@
 </tr>
 </table>
 
-<input type="submit" value="login">
+<input type="submit" value="login"><br><br>
+    <a href="{% url 'account-register' %}">Criar uma nova conta</a><br><br>
 <input type="hidden" name="next" value="{{ next }}">
 </form>
 {% else %}
@@ -37,7 +38,6 @@
 {% endif %}
 
 
-{# Assumes you setup the password_reset view in your URLconf #}
-<!--p><a href="{% url 'password_reset' %}">Lost password?</a></p-->
+<a href="{% url 'password_reset' %}">Esqueci minha senha</a>
 
 {% endblock %}

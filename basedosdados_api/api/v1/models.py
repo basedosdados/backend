@@ -26,7 +26,7 @@ def image_path_and_rename(instance, filename):
     upload_to = instance.__class__.__name__.lower()
     ext = filename.split(".")[-1]
     # get filename
-    filename = f"{instance.slug}.{ext}"
+    filename = f"{instance.pk}.{ext}"
     return os.path.join(upload_to, filename)
 
 
@@ -162,6 +162,9 @@ class License(BdmModel):
 
 class Key(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
+    dictionary = models.ForeignKey(
+        "Dictionary", on_delete=models.CASCADE, related_name="keys"
+    )
     name = models.CharField(max_length=255)
     value = models.CharField(max_length=255)
 
@@ -259,7 +262,7 @@ class Organization(BdmModel):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    website = models.URLField(blank=True, null=True)
+    website = models.URLField(blank=True, null=True, max_length=255)
     twitter = models.URLField(blank=True, null=True)
     facebook = models.URLField(blank=True, null=True)
     linkedin = models.URLField(blank=True, null=True)
@@ -331,7 +334,10 @@ class Dataset(BdmModel):
 
     @property
     def full_slug(self):
-        return f"{self.organization.area.slug}_{self.organization.slug}_{self.slug}"
+        if self.organization.area.slug != "unknown":
+            return f"{self.organization.area.slug}_{self.organization.slug}_{self.slug}"
+        else:
+            return f"{self.organization.slug}_{self.slug}"
 
     @property
     def get_graphql_full_slug(self):
@@ -345,6 +351,27 @@ class Update(BdmModel):
     frequency = models.IntegerField()
     lag = models.IntegerField(blank=True, null=True)
     latest = models.DateTimeField(blank=True, null=True)
+    table = models.ForeignKey(
+        "Table",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="updates",
+    )
+    raw_data_source = models.ForeignKey(
+        "RawDataSource",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="updates",
+    )
+    information_request = models.ForeignKey(
+        "InformationRequest",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="updates",
+    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -358,10 +385,25 @@ class Update(BdmModel):
         ordering = ["frequency"]
 
     def clean(self) -> None:
+
+        # Assert that only one of "table", "raw_data_source", "information_request" is set
+        count = 0
+        if self.table:
+            count += 1
+        if self.raw_data_source:
+            count += 1
+        if self.information_request:
+            count += 1
+        if count != 1:
+            raise ValidationError(
+                "One and only one of 'table', 'raw_data_source', or 'information_request' must be set."  # noqa
+            )
+
         if self.entity.category.slug != "datetime":
             raise ValidationError(
                 "Entity's category is not in category.slug = `datetime`."
             )
+
         return super().clean()
 
 
@@ -385,13 +427,6 @@ class Table(BdmModel):
     )
     partner_organization = models.ForeignKey(
         "Organization", on_delete=models.CASCADE, related_name="partner_tables"
-    )
-    update = models.ForeignKey(
-        "Update",
-        on_delete=models.CASCADE,
-        related_name="tables",
-        null=True,
-        blank=True,
     )
     pipeline = models.ForeignKey(
         "Pipeline", on_delete=models.CASCADE, related_name="tables"
@@ -498,24 +533,30 @@ class Column(BdmModel):
         ordering = ["name"]
 
     def clean(self) -> None:
-        # If observation_level is not null, assert that its table is the same as the column's table
+
         if self.observation_level and self.observation_level.table != self.table:
             raise ValidationError(
                 "Observation level is not in the same table as the column."
             )
+
+        if self.directory_primary_key and self.directory_primary_key.table.is_directory is False:
+            raise ValidationError(
+                "Column indicated as a directory's primary key is not in a directory."
+            )
+
         return super().clean()
 
 
 class Dictionary(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    column = models.OneToOneField(
-        "Column", on_delete=models.CASCADE, related_name="dictionary"
-    )
-    keys = models.ForeignKey(
-        "Key", on_delete=models.CASCADE, related_name="dictionaries"
+    column = models.ForeignKey(
+        "Column", on_delete=models.CASCADE, related_name="dictionaries"
     )
 
     graphql_nested_filter_fields_whitelist = ["id"]
+
+    def __str__(self):
+        return f"{str(self.column.table.dataset.slug)}.{self.column.table.slug}.{str(self.column.name)}"
 
 
 class CloudTable(BdmModel):
@@ -609,13 +650,6 @@ class RawDataSource(BdmModel):
     license = models.ForeignKey(
         "License", on_delete=models.CASCADE, related_name="raw_data_sources"
     )
-    update = models.ForeignKey(
-        "Update",
-        on_delete=models.CASCADE,
-        related_name="raw_data_sources",
-        null=True,
-        blank=True,
-    )
     area_ip_address_required = models.ManyToManyField(
         "Area", related_name="raw_data_sources", blank=True
     )
@@ -634,6 +668,9 @@ class RawDataSource(BdmModel):
         verbose_name_plural = "Raw Data Sources"
         ordering = ["url"]
 
+    def __str__(self):
+        return self.name
+
 
 class InformationRequest(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -642,13 +679,6 @@ class InformationRequest(BdmModel):
     )
     status = models.ForeignKey(
         "Status", on_delete=models.CASCADE, related_name="information_requests"
-    )
-    update = models.ForeignKey(
-        "Update",
-        on_delete=models.CASCADE,
-        related_name="information_requests",
-        null=True,
-        blank=True,
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

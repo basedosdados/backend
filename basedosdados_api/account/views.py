@@ -1,101 +1,76 @@
 # -*- coding: utf-8 -*-
-from django.contrib.auth.models import User
-from rest_framework import permissions, status
-from rest_framework.response import Response
-from rest_framework.views import APIView
+from django.contrib.auth import get_user_model, authenticate, login
+from django.urls import reverse_lazy as r
 
-from basedosdados_api.account.models import RegistrationToken
-from basedosdados_api.account.serializers import UserSerializer
+from django.contrib.auth.views import (
+    LoginView,
+    LogoutView,
+    PasswordChangeView,
+    PasswordChangeDoneView,
+    PasswordResetView,
+    PasswordResetDoneView,
+    PasswordResetConfirmView,
+    PasswordResetCompleteView,
+)
+from django.contrib.messages.views import SuccessMessageMixin
+from django.views.generic import CreateView
 
-
-class RegisterView(APIView):
-
-    permission_classes = (permissions.AllowAny,)
-
-    def post(self, request):
-        try:
-            data = request.data
-
-            first_name = data["first_name"]
-            last_name = data["last_name"]
-            username = data["username"]
-            email = data["email"]
-            password = data["password"]
-            re_password = data["re_password"]
-            registration_token = data["registration_token"]
-
-            try:
-                token: RegistrationToken = RegistrationToken.objects.get(
-                    token=registration_token
-                )
-                if not token.active:
-                    return Response(
-                        {"error": "Token is not active"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-            except RegistrationToken.DoesNotExist:
-                return Response(
-                    {"error": "Token is not valid"}, status=status.HTTP_400_BAD_REQUEST
-                )
-
-            if password != re_password:
-                return Response(
-                    {"error": "Passwords do not match"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            if len(password) < 8:
-                return Response(
-                    {"error": "Password must be at least 8 characters long"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            if User.objects.filter(username=username).exists():
-                return Response(
-                    {"error": "Username already exists"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            user: User = User.objects.create_user(
-                username=username,
-                password=password,
-                email=email,
-                first_name=first_name,
-                last_name=last_name,
-            )
-            user.save()
-
-            token.active = False
-            token.save()
-
-            if User.objects.filter(username=username).exists():
-                return Response(
-                    {"success": "User created successfully"},
-                    status=status.HTTP_201_CREATED,
-                )
-
-            return Response(
-                {"error": "Something went wrong when trying to create a new user."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-        except:  # noqa
-            return Response(
-                {"error": "Something went wrong when trying to create a new user."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+from basedosdados_api.account.forms import RegisterForm
 
 
-class LoadUserView(APIView):
-    def get(self, request, format=None):
-        try:
-            user = request.user
-            user = UserSerializer(user)
+class LoadUserView:
+    pass
 
-            return Response({"user": user.data}, status=status.HTTP_200_OK)
 
-        except:  # noqa
-            return Response(
-                {"error": "Something went wrong when trying to load the user."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+class LoginView(SuccessMessageMixin, LoginView):
+    template_name = "account/login.html"
+    success_message = "Você está logado como %(username)s."
+    success_url = r("home")
+
+
+class LogoutView(SuccessMessageMixin, LogoutView):
+    success_message = "Você saiu com sucesso."
+    success_url = r("home")
+
+
+class PasswordChangeView(SuccessMessageMixin, PasswordChangeView):
+    template_name = "account/password_change.html"
+    success_message = "Sua senha foi alterada com sucesso."
+    success_url = r("home")
+
+
+class PasswordResetView(SuccessMessageMixin, PasswordResetView):
+    template_name = "account/password_reset.html"
+    success_message = "Enviamos um email com as istruções para você configurar uma nova senha, " \
+                      "caso exista uma conta com o email formecido. Você deve recebê-lo em breve." \
+                      " Se você não receber o email, " \
+                      "verifique se você digitou o endereço correto e verifique sua caixa de spam."
+    success_url = r("home")
+
+
+class PasswordResetConfirmView(SuccessMessageMixin, PasswordResetConfirmView):
+    template_name = "account/password_reset_confirm.html"
+    success_message = "Sua senha foi alterada com sucesso."
+    success_url = r("home")
+
+
+class PasswordResetCompleteView(SuccessMessageMixin, PasswordResetCompleteView):
+    template_name = "account/password_reset_complete.html"
+    success_message = "Sua senha foi alterada com sucesso."
+    success_url = r("home")
+
+
+class RegisterView(SuccessMessageMixin, CreateView):
+    form_class = RegisterForm
+    model = get_user_model()
+    template_name = "account/register.html"
+    success_message = "Sua conta foi criada com sucesso."
+    success_url = r("home")
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        username = form.cleaned_data.get("username")
+        password = form.cleaned_data.get("password1")
+        user = form.save()
+        login(self.request, user, backend="django.contrib.auth.backends.ModelBackend")
+        return response

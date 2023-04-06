@@ -1,0 +1,8 @@
+{{ object.slug }}
+{{ object.name }}
+{{ object.description }}
+{{ object.organization }}
+{{ object.themes }}
+{{ object.tags }}
+{{ object.created_at }}
+{{ object.updated_at }}

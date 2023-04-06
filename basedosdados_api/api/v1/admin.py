@@ -26,6 +26,7 @@ from basedosdados_api.api.v1.models import (
     Pipeline,
     AnalysisType,
     DateTimeRange,
+    Key,
 )
 
 
@@ -72,3 +73,4 @@ admin.site.register(Dictionary)
 admin.site.register(Pipeline)
 admin.site.register(AnalysisType)
 admin.site.register(DateTimeRange, DateTimeRangeAdmin)
+admin.site.register(Key)

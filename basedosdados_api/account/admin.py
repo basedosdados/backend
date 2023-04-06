@@ -62,6 +62,7 @@ class UserChangeForm(forms.ModelForm):
             "password",
             "first_name",
             "last_name",
+            "full_name",
             "birth_date",
             "picture",
             "twitter",
@@ -116,8 +117,10 @@ class UserAdmin(BaseUserAdmin):
             "Personal info",
             {
                 "fields": (
+                    "ckan_id",
                     "first_name",
                     "last_name",
+                    "full_name",
                     "birth_date",
                     "picture",
                     "twitter",
