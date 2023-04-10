@@ -287,6 +287,15 @@ class Organization(BdmModel):
         verbose_name_plural = "Organizations"
         ordering = ["slug"]
 
+    def has_picture(self):
+        try:
+            hasattr(self.picture, "url")
+        except Exception as e:
+            return False
+        return self.picture is not None
+    has_picture.short_description = "Has Picture"
+    has_picture.boolean = True
+
 
 class Status(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)

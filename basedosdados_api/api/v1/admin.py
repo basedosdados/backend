@@ -35,6 +35,30 @@ class DatasetAdmin(admin.ModelAdmin):
     list_display = ["__str__", "full_slug", "organization"]
 
 
+class OrganizationImageFilter(admin.SimpleListFilter):
+    title = "has_picture"
+    parameter_name = "has_picture"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("True", "Yes"),
+            ("False", "No"),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == "True":
+            return queryset.exclude(picture="")
+        if self.value() == "False":
+            return queryset.filter(picture="")
+
+
+class OrganizationAdmin(admin.ModelAdmin):
+    readonly_fields = ["id", "created_at", "updated_at"]
+    list_display = ["name", "has_picture"]
+    search_fields = ["name", "slug"]
+    list_filter = [OrganizationImageFilter, "created_at", "updated_at"]
+
+
 class TableAdmin(admin.ModelAdmin):
     readonly_fields = ["id", "created_at", "updated_at"]
 
@@ -49,7 +73,7 @@ class DateTimeRangeAdmin(admin.ModelAdmin):
     list_display = ["__str__", "coverage"]
 
 
-admin.site.register(Organization)
+admin.site.register(Organization, OrganizationAdmin)
 admin.site.register(Dataset, DatasetAdmin)
 admin.site.register(Table, TableAdmin)
 admin.site.register(InformationRequest)
