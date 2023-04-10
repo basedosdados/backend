@@ -1,12 +1,14 @@
 from datetime import datetime
 
 import json
+from typing import Any, Optional, Union
+
 import requests
 from pathlib import Path
 
 import urllib3
 
-from utils.migration.ckan_org_utils import load_token, get_url
+from utils.migration.ckan_org_utils import load_token, get_url, convert_svg_to_png
 
 CKAN_ALL_ORGS_URL = "https://basedosdados.org/api/3/action/organization_list"
 CKAN_ORG_URL = "https://basedosdados.org/api/3/action/organization_show?id={org_id}"
@@ -38,7 +40,7 @@ def get_org_data(org_id: str) -> tuple:
     org_image = org_data.get("image_url")
     org_name = org_data.get("name")
     prefix = org_name.split("-")[0] + "-"
-    prefixes_to_remove = ["al", "br", "brasil", "ca", "ch", "de", "es", "eu", "hm", "mundo", "nl", "se", "tv", "uk", "us", "world",]
+    prefixes_to_remove = ["al-", "br-", "brasil-", "ca-", "ch-", "de-", "es-", "eu-", "hm-", "mundo-", "nl-", "se-", "tv-", "uk-", "us-", "world-",]
     if org_name.startswith(prefix) and prefix in prefixes_to_remove:
         org_name = org_name.replace(prefix, "")
     org_name = org_name.replace("-", "_")
@@ -51,7 +53,7 @@ def get_ckan_orgs() -> list:
     return r.json()["result"]
 
 
-def rename_image(slug: str, image: str) -> Path:
+def rename_image(slug: str, image: str) -> Union[Path, str]:
     """Rename image to match new slug"""
     if image is None:
         return None
@@ -59,7 +61,7 @@ def rename_image(slug: str, image: str) -> Path:
         print("Downloading image from org:", slug)
         ext = image.split(".")[-1]
         if ext not in ["png", "jpg", "jpeg", "gif", "svg"]:
-            ext = "jpg"
+            return "Invalid format"
         # salvar a imagem com o novo nome
         new_image = f"{slug}.{ext}"
         if (IMG_PATH / new_image).exists():
@@ -83,6 +85,7 @@ def get_org_uuid(org: tuple) -> tuple:
                     node{{
                         _id
                         slug
+                        hasPicture
                     }}
                 }}
             }}
@@ -92,9 +95,10 @@ def get_org_uuid(org: tuple) -> tuple:
         r = requests.post("https://staging.api.basedosdados.org/api/v1/graphql", json={"query": query})
         r.raise_for_status()
         uuid = r.json()["data"]["allOrganization"]["edges"][0]["node"]["_id"]
-        return uuid, rename_image(slug, image)
+        has_image = r.json()["data"]["allOrganization"]["edges"][0]["node"]["hasPicture"]
+        return uuid, rename_image(slug, image), has_image
     except IndexError as e:
-        return None, None
+        return None, None, None
 
 
 def upload_image(uuid, image, slug, mode="local"):
@@ -159,20 +163,22 @@ def main():
             if (LOG_PATH / "upload_log.csv").exists():
                 (LOG_PATH / "upload_log.csv").unlink()
 
-            # count = 0
             for line in f:
-                uuid, slug, image = line.split(",")
-                status, msg = upload_image(uuid, image, slug, mode=mode)
-                with open(LOG_PATH / "upload_log.csv", "a") as f:
-                    f.write(f"{msg}\n")
-                # count += 1
-                # if count == 10:
-                #     break
+                uuid, slug, image, has_picture = line.split(",")
+                flist = image.split(".")
+                ext = flist.pop()
+                if has_picture.strip() == "false":
+                    if ext == "svg":
+                        filename = ".".join(flist)
+                        image = convert_svg_to_png(image, f"{filename}.png")
+                    print("Uploading image:", image)
+                    status, msg = upload_image(uuid, image, slug, mode=mode)
+                    with open(LOG_PATH / "upload_log.csv", "a") as f:
+                        f.write(f"{msg}\n")
     else:
         print("Downloading CKAN organization images")
         errors = []
         all_orgs = get_ckan_orgs()  # lists current slugs of all orgs
-        # orgs_data = [get_org_data(org) for org in all_orgs]
 
         if (LOG_PATH / "errors.txt").exists():
             (LOG_PATH / "errors.txt").unlink()
@@ -181,7 +187,7 @@ def main():
 
         for slug in all_orgs:
             org_data = get_org_data(slug)
-            uuid, image = get_org_uuid(org_data)
+            uuid, image, has_image = get_org_uuid(org_data)
             if uuid is None:
                 print("Não encontrado:", slug)
                 errors.append(slug)
@@ -190,7 +196,7 @@ def main():
             else:
                 found.append(slug)
                 with open(LOG_PATH / "orgs.csv", "a") as f:
-                    f.write(f"{uuid},{slug},{image}\n")
+                    f.write(f"{uuid},{slug},{image},{has_image}\n")
 
         print("Encontrados: ", len(found))
         print("Não encontrados: ", len(errors))

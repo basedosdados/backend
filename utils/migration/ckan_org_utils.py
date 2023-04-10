@@ -1,4 +1,5 @@
 from datetime import datetime
+import cairosvg
 
 import requests
 import json
@@ -116,3 +117,11 @@ def get_url(mode="local"):
         url = json.load(f)[mode]["url"]
 
     return url
+
+
+def convert_svg_to_png(svg_file, png_file):
+    print(f"Converting {svg_file} to {png_file}")
+    with open(svg_file, "rb") as f:
+        svg_file = f.read()
+    cairosvg.svg2png(bytestring=svg_file, write_to=png_file)
+    return png_file
