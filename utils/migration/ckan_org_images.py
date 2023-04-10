@@ -37,10 +37,10 @@ def get_org_data(org_id: str) -> tuple:
     org_data = r.json()["result"]
     org_image = org_data.get("image_url")
     org_name = org_data.get("name")
-    if org_name.startswith("br-"):
-        org_name = org_name.replace("br-", "")
-    if org_name.startswith("world-"):
-        org_name = org_name.replace("world-", "")
+    prefix = org_name.split("-")[0] + "-"
+    prefixes_to_remove = ["al", "br", "brasil", "ca", "ch", "de", "es", "eu", "hm", "mundo", "nl", "se", "tv", "uk", "us", "world",]
+    if org_name.startswith(prefix) and prefix in prefixes_to_remove:
+        org_name = org_name.replace(prefix, "")
     org_name = org_name.replace("-", "_")
     return org_name, org_image
 
