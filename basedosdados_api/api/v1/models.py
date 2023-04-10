@@ -296,6 +296,10 @@ class Organization(BdmModel):
     has_picture.short_description = "Has Picture"
     has_picture.boolean = True
 
+    @property
+    def get_graphql_has_picture(self):
+        return self.has_picture()
+
 
 class Status(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
