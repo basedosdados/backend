@@ -2,6 +2,7 @@
 import os
 from uuid import uuid4
 
+from django.core.mail import send_mail
 from django.db import models
 from django.contrib.auth.models import (
     AbstractBaseUser,
@@ -298,3 +299,12 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
     @property
     def is_staff(self):
         return self.is_admin
+
+    def email_user(self, *args, **kwargs):
+        send_mail(
+            '{}'.format(args[0]),
+            '{}'.format(args[1]),
+            '{}'.format(args[2]),
+            [self.email],
+            fail_silently=False,
+        )
