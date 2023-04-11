@@ -84,7 +84,7 @@ class RegisterView(SuccessMessageMixin, CreateView):
         user.is_active = False
         user.save()
 
-        subject = "Bem vindo(a) à BasedosDados! Ative sua conta."
+        subject = "Bem vindo(a) à Base dos Dados! Ative sua conta."
         message = render_to_string("account/activation_email.html", {
             "user": user,
             "domain": get_current_site(self.request).domain,
