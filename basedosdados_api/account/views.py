@@ -50,8 +50,8 @@ class PasswordChangeView(SuccessMessageMixin, PasswordChangeView):
 
 class PasswordResetView(SuccessMessageMixin, PasswordResetView):
     template_name = "account/password_reset.html"
-    success_message = "Enviamos um email com as istruções para você configurar uma nova senha, " \
-                      "caso exista uma conta com o email formecido. Você deve recebê-lo em breve." \
+    success_message = "Enviamos um email com as instruções para você configurar uma nova senha, " \
+                      "caso exista uma conta com o email fornecido. Você deve recebê-lo em breve." \
                       " Se você não receber o email, " \
                       "verifique se você digitou o endereço correto e verifique sua caixa de spam."
     success_url = r("home")
@@ -96,8 +96,8 @@ class RegisterView(SuccessMessageMixin, CreateView):
         messages.add_message(
             self.request,
             messages.SUCCESS,
-            "Sua conta foi criada com sucesso. Enviamos um email com as istruções para você ativar sua conta, "
-            "caso exista uma conta com o email formecido. Você deve recebê-lo em breve. "
+            "Sua conta foi criada com sucesso. Enviamos um email com as instruções para você ativar sua conta, "
+            "caso exista uma conta com o email fornecido. Você deve recebê-lo em breve. "
             "Se você não receber o email, verifique se você digitou o endereço correto e verifique sua caixa de spam."
         )
         return response
