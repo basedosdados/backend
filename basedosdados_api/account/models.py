@@ -41,9 +41,9 @@ class RegistrationToken(BdmModel):
         verbose_name_plural = "Registration Tokens"
 
 
-class BDRoleManager(models.Manager):
+class RoleManager(models.Manager):
     """
-    The manager for the BD Role model.
+    The manager for the Role model.
     """
 
     use_in_migrations = True
@@ -52,14 +52,14 @@ class BDRoleManager(models.Manager):
         return self.get(name=name)
 
 
-class BDRole(BdmModel):
+class Role(BdmModel):
     """
     Roles is a way to group permissions. Based on roles from IAM,
     a role is a collection of permissions that can be assigned to a group.
     A role can be assigned to multiple groups and a group can have multiple roles.
     It does not have a user field because it is not meant to be assigned to a user,
     and does not hold credentials, as these belong to the user.
-    The relationship between roles and groups is defined in the BDGroupRole model,
+    The relationship between roles and groups is defined in the GroupRole model,
     which also holds the organization to which the role is related.
     """
 
@@ -75,19 +75,19 @@ class BDRole(BdmModel):
 
     graphql_nested_filter_fields_whitelist = ["name"]
 
-    objects = BDRoleManager()
+    objects = RoleManager()
 
     class Meta:
-        verbose_name = "BD Role"
-        verbose_name_plural = "BD Roles"
+        verbose_name = "Role"
+        verbose_name_plural = "Roles"
 
     def __str__(self):
         return self.name
 
 
-class BDGroupManager(models.Manager):
+class GroupManager(models.Manager):
     """
-    The manager for the BD Group model.
+    The manager for the Group model.
     """
 
     use_in_migrations = True
@@ -96,16 +96,15 @@ class BDGroupManager(models.Manager):
         return self.get(name=name)
 
 
-class BDGroup(BdmModel):
+class Group(BdmModel):
     """
     Based on Group model from django.contrib.auth.models
-    To avoid clashes with django.contrib.auth.models.Group
-    we use BDGroup instead of Group. Users can be assigned
+    Users can be assigned
     to multiple groups and groups can have multiple roles,
     each one with a set of permissions. They must also be
     related to an organization, as an user can be part of
     multiple organizations with different roles and
-    permissions. We use the through model BDGroupRole to
+    permissions. We use the through model GroupRole to
     link groups to roles.
 
     """
@@ -113,21 +112,21 @@ class BDGroup(BdmModel):
     name = models.CharField(max_length=255, unique=True)
     description = models.TextField(null=True, blank=True)
     roles = models.ManyToManyField(
-        BDRole,
-        through="BDGroupRole",
+        Role,
+        through="GroupRole",
         related_name="groups",
         verbose_name="Roles",
         related_query_name="group",
         blank=True,
     )
 
-    objects = BDGroupManager()
+    objects = GroupManager()
 
     graphql_nested_filter_fields_whitelist = ["name"]
 
     class Meta:
-        verbose_name = "BD Group"
-        verbose_name_plural = "BD Groups"
+        verbose_name = "Group"
+        verbose_name_plural = "Groups"
 
     def __str__(self):
         return self.name
@@ -136,13 +135,13 @@ class BDGroup(BdmModel):
         return (self.name,)
 
 
-class BDGroupRole(BdmModel):
+class GroupRole(BdmModel):
     """
     The model that links groups to roles.
     """
 
-    group = models.ForeignKey(BDGroup, on_delete=models.CASCADE)
-    role = models.ForeignKey(BDRole, on_delete=models.CASCADE)
+    group = models.ForeignKey(Group, on_delete=models.CASCADE)
+    role = models.ForeignKey(Role, on_delete=models.CASCADE)
     organization = models.ForeignKey(
         "v1.Organization",
         on_delete=models.PROTECT,
@@ -151,8 +150,8 @@ class BDGroupRole(BdmModel):
     )
 
     class Meta:
-        verbose_name = "BD Group Role"
-        verbose_name_plural = "BD Group Roles"
+        verbose_name = "Group Role"
+        verbose_name_plural = "Group Roles"
         constraints = [
             models.UniqueConstraint(
                 fields=["group", "role", "organization"],
@@ -257,7 +256,7 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
     )
 
     groups = models.ManyToManyField(
-        BDGroup,
+        Group,
         related_name="users",
         verbose_name="Grupos",
         related_query_name="user",
