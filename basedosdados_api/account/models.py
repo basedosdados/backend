@@ -78,8 +78,8 @@ class BDRole(BdmModel):
     objects = BDRoleManager()
 
     class Meta:
-        verbose_name = "BD role"
-        verbose_name_plural = "BD roles"
+        verbose_name = "BD Role"
+        verbose_name_plural = "BD Roles"
 
     def __str__(self):
         return self.name
@@ -126,8 +126,8 @@ class BDGroup(BdmModel):
     graphql_nested_filter_fields_whitelist = ["name"]
 
     class Meta:
-        verbose_name = "BD group"
-        verbose_name_plural = "BD groups"
+        verbose_name = "BD Group"
+        verbose_name_plural = "BD Groups"
 
     def __str__(self):
         return self.name
@@ -151,8 +151,8 @@ class BDGroupRole(BdmModel):
     )
 
     class Meta:
-        verbose_name = "BD group role"
-        verbose_name_plural = "BD group roles"
+        verbose_name = "BD Group Role"
+        verbose_name_plural = "BD Group Roles"
         constraints = [
             models.UniqueConstraint(
                 fields=["group", "role", "organization"],
@@ -276,8 +276,8 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
 
     class Meta:
         db_table = "account"
-        verbose_name = "account"
-        verbose_name_plural = "accounts"
+        verbose_name = "Account"
+        verbose_name_plural = "Accounts"
         ordering = ["first_name", "last_name"]
 
     def __str__(self):
