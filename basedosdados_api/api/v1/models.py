@@ -570,6 +570,12 @@ class Dictionary(BdmModel):
 
     def __str__(self):
         return f"{str(self.column.table.dataset.slug)}.{self.column.table.slug}.{str(self.column.name)}"
+    
+    class Meta:
+        db_table = "dictionary"
+        verbose_name = "Dictionary"
+        verbose_name_plural = "Dictionaries"
+        ordering = ["id"]
 
 
 class CloudTable(BdmModel):
