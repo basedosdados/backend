@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 import json
-from typing import List
+from typing import Dict, List
 
-from django.http import HttpResponse, HttpResponseBadRequest
+from django.http import HttpResponse, HttpResponseBadRequest, QueryDict
 from haystack.generic_views import SearchView
 
-from basedosdados_api.api.v1.models import Dataset
+from basedosdados_api.api.v1.models import Coverage, Dataset
 
 
 class DatasetSearchView(SearchView):
@@ -14,7 +14,7 @@ class DatasetSearchView(SearchView):
         Handles GET requests and instantiates a blank version of the form.
         """
         # Get request arguments
-        req_args = request.GET.copy()
+        req_args: QueryDict = request.GET.copy()
         form_class = self.get_form_class()
         form = self.get_form(form_class)
 
@@ -30,25 +30,138 @@ class DatasetSearchView(SearchView):
             # Raw dataset list
             dataset_list: List[Dataset] = [obj.object for obj in context["object_list"]]
             # Filtering
-            # TODO: filter by other stuff
             if "group" in req_args:
-                # TODO: filter by theme
-                ...
+                # Filter by theme slugs
+                theme_slugs = req_args.getlist("group")
+                new_dataset_list = []
+                for dataset in dataset_list:
+                    for theme in dataset.themes.all():
+                        if theme.slug in theme_slugs:
+                            new_dataset_list.append(dataset)
+                            break
+                dataset_list = new_dataset_list
             if "organization" in req_args:
-                # TODO: filter by organization
-                ...
+                # Filter by organization slugs
+                organization_slugs = req_args.getlist("organization")
+                dataset_list = [
+                    ds
+                    for ds in dataset_list
+                    if ds.organization.slug in organization_slugs
+                ]
             if "tag" in req_args:
-                # TODO: filter by tag
-                ...
+                # Filter by tag slugs
+                tag_slugs = req_args.getlist("tag")
+                new_dataset_list = []
+                for dataset in dataset_list:
+                    for tag in dataset.tags.all():
+                        if tag.slug in tag_slugs:
+                            new_dataset_list.append(dataset)
+                            break
+                dataset_list = new_dataset_list
+            if "spatial_coverage" in req_args or "temporal_coverage" in req_args:
+                # Collect all coverage objects
+                coverages: Dict[str, List[Coverage]] = {}
+                added_coverages = set()
+                for dataset in dataset_list:
+                    for table in dataset.tables.all():
+                        for coverage in table.coverages.all():
+                            if coverage.id not in added_coverages:
+                                if dataset.slug not in coverages:
+                                    coverages[dataset.slug] = []
+                                coverages[dataset.slug].append(coverage)
+                                added_coverages.add(coverage.id)
+                    for raw_data_source in dataset.raw_data_sources.all():
+                        for coverage in raw_data_source.coverages.all():
+                            if coverage.id not in added_coverages:
+                                if dataset.slug not in coverages:
+                                    coverages[dataset.slug] = []
+                                coverages[dataset.slug].append(coverage)
+                                added_coverages.add(coverage.id)
+                    for information_request in dataset.information_requests.all():
+                        for coverage in information_request.coverages.all():
+                            if coverage.id not in added_coverages:
+                                if dataset.slug not in coverages:
+                                    coverages[dataset.slug] = []
+                                coverages[dataset.slug].append(coverage)
+                                added_coverages.add(coverage.id)
             if "spatial_coverage" in req_args:
-                # TODO: filter by spatial coverage
-                ...
+                # Filter by spatial coverages
+                spatial_coverages = req_args.getlist("spatial_coverage")
+                new_dataset_list = []
+                added_datasets = set()
+                for dataset in dataset_list:
+                    for coverage in coverages[dataset.slug]:
+                        for spatial_coverage in spatial_coverages:
+                            if coverage.area.slug.startswith(spatial_coverage):
+                                new_dataset_list.append(dataset)
+                                added_datasets.add(dataset.slug)
+                                break
+                        if dataset.slug in added_datasets:
+                            break
+                dataset_list = new_dataset_list
             if "temporal_coverage" in req_args:
-                # TODO: filter by temporal coverage
-                ...
+                # Filter by temporal coverage
+                temporal_coverage = req_args["temporal_coverage"]
+                start_year, end_year = temporal_coverage.split("-")
+                start_year = int(start_year)
+                end_year = int(end_year)
+                new_dataset_list = []
+                added_datasets = set()
+                for dataset in dataset_list:
+                    for coverage in coverages[dataset.slug]:
+                        for datetime_range in coverage.datetime_ranges.all():
+                            if (
+                                datetime_range.start_year <= start_year
+                                and datetime_range.end_year >= end_year
+                            ):
+                                new_dataset_list.append(dataset)
+                                added_datasets.add(dataset.slug)
+                                break
+                        if dataset.slug in added_datasets:
+                            break
+                dataset_list = new_dataset_list
             if "entity" in req_args:
-                # TODO: filter by observation level / entity
-                ...
+                # Collect all entities
+                entities: Dict[str, List[str]] = {}
+                added_entities = set()
+                for dataset in dataset_list:
+                    for table in dataset.tables.all():
+                        for observation_level in table.observation_levels.all():
+                            for entity in observation_level.entities.all():
+                                if entity.id not in added_entities:
+                                    if dataset.slug not in entities:
+                                        entities[dataset.slug] = []
+                                    entities[dataset.slug].append(entity.slug)
+                                    added_entities.add(entity.id)
+                    for raw_data_source in dataset.raw_data_sources.all():
+                        for (
+                            observation_level
+                        ) in raw_data_source.observation_levels.all():
+                            for entity in observation_level.entities.all():
+                                if entity.id not in added_entities:
+                                    if dataset.slug not in entities:
+                                        entities[dataset.slug] = []
+                                    entities[dataset.slug].append(entity.slug)
+                                    added_entities.add(entity.id)
+                    for information_request in dataset.information_requests.all():
+                        for (
+                            observation_level
+                        ) in information_request.observation_levels.all():
+                            for entity in observation_level.entities.all():
+                                if entity.id not in added_entities:
+                                    if dataset.slug not in entities:
+                                        entities[dataset.slug] = []
+                                    entities[dataset.slug].append(entity.slug)
+                                    added_entities.add(entity.id)
+                # Filter by entity slugs
+                entity_slugs = req_args.getlist("entity")
+                new_dataset_list = []
+                for dataset in dataset_list:
+                    for entity_slug in entity_slugs:
+                        if entity_slug in entities[dataset.slug]:
+                            new_dataset_list.append(dataset)
+                            break
+                dataset_list = new_dataset_list
             if "update_frequency" in req_args:
                 # TODO: filter by update frequency
                 ...
@@ -92,17 +205,52 @@ class DatasetSearchView(SearchView):
         else:
             return HttpResponseBadRequest(json.dumps({"error": "Invalid form"}))
 
-    def serialize_dataset(self, dataset):
+    def serialize_dataset(self, dataset: Dataset):
+        def get_temporal_coverage(dataset: Dataset) -> str:
+            min_year = float("inf")
+            max_year = float("-inf")
+            datetimes = []
+            added_datetime_ids = set()
+            added_coverages = set()
+            for table in dataset.tables.all():
+                for coverage in table.coverages.all():
+                    if coverage.id not in added_coverages:
+                        for datetime_range in coverage.datetime_ranges.all():
+                            if datetime_range.id not in added_datetime_ids:
+                                datetimes.append(datetime_range)
+                                added_datetime_ids.add(datetime_range.id)
+            for raw_data_source in dataset.raw_data_sources.all():
+                for coverage in raw_data_source.coverages.all():
+                    if coverage.id not in added_coverages:
+                        for datetime_range in coverage.datetime_ranges.all():
+                            if datetime_range.id not in added_datetime_ids:
+                                datetimes.append(datetime_range)
+                                added_datetime_ids.add(datetime_range.id)
+            for information_request in dataset.information_requests.all():
+                for coverage in information_request.coverages.all():
+                    if coverage.id not in added_coverages:
+                        for datetime_range in coverage.datetime_ranges.all():
+                            if datetime_range.id not in added_datetime_ids:
+                                datetimes.append(datetime_range)
+                                added_datetime_ids.add(datetime_range.id)
+            for datetime_range in datetimes:
+                min_year = min(min_year, datetime_range.start_year)
+                max_year = max(max_year, datetime_range.end_year)
+
+            if min_year == max_year:
+                return f"{min_year}"
+            return f"{min_year}-{max_year}"
+
         return {
             "id": str(dataset.id),
             "slug": dataset.slug,
             "full_slug": dataset.full_slug,
             "name": dataset.name,
             "organization": dataset.organization.name,
-            "temporal_coverage": "TODO.",  # TODO
-            "n_bdm_tables": "TODO.",  # TODO
-            "n_original_sources": "TODO.",  # TODO
-            "n_lais": "TODO.",  # TODO
+            "temporal_coverage": get_temporal_coverage(dataset),
+            "n_bdm_tables": dataset.tables.count(),
+            "n_original_sources": dataset.raw_data_sources.count(),
+            "n_lais": dataset.information_requests.count(),
         }
 
     def get_context_data(self, **kwargs):
