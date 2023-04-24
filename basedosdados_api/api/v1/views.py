@@ -90,14 +90,15 @@ class DatasetSearchView(SearchView):
                 new_dataset_list = []
                 added_datasets = set()
                 for dataset in dataset_list:
-                    for coverage in coverages[dataset.slug]:
-                        for spatial_coverage in spatial_coverages:
-                            if coverage.area.slug.startswith(spatial_coverage):
-                                new_dataset_list.append(dataset)
-                                added_datasets.add(dataset.slug)
+                    if dataset.slug in coverages:
+                        for coverage in coverages[dataset.slug]:
+                            for spatial_coverage in spatial_coverages:
+                                if coverage.area.slug.startswith(spatial_coverage):
+                                    new_dataset_list.append(dataset)
+                                    added_datasets.add(dataset.slug)
+                                    break
+                            if dataset.slug in added_datasets:
                                 break
-                        if dataset.slug in added_datasets:
-                            break
                 dataset_list = new_dataset_list
             if "temporal_coverage" in req_args:
                 # Filter by temporal coverage
@@ -108,17 +109,18 @@ class DatasetSearchView(SearchView):
                 new_dataset_list = []
                 added_datasets = set()
                 for dataset in dataset_list:
-                    for coverage in coverages[dataset.slug]:
-                        for datetime_range in coverage.datetime_ranges.all():
-                            if (
-                                datetime_range.start_year <= start_year
-                                and datetime_range.end_year >= end_year
-                            ):
-                                new_dataset_list.append(dataset)
-                                added_datasets.add(dataset.slug)
+                    if dataset.slug in coverages:
+                        for coverage in coverages[dataset.slug]:
+                            for datetime_range in coverage.datetime_ranges.all():
+                                if (
+                                    datetime_range.start_year <= start_year
+                                    and datetime_range.end_year >= end_year
+                                ):
+                                    new_dataset_list.append(dataset)
+                                    added_datasets.add(dataset.slug)
+                                    break
+                            if dataset.slug in added_datasets:
                                 break
-                        if dataset.slug in added_datasets:
-                            break
                 dataset_list = new_dataset_list
             if "entity" in req_args:
                 # Collect all entities
@@ -127,38 +129,41 @@ class DatasetSearchView(SearchView):
                 for dataset in dataset_list:
                     for table in dataset.tables.all():
                         for observation_level in table.observation_levels.all():
-                            for entity in observation_level.entities.all():
-                                if entity.id not in added_entities:
-                                    if dataset.slug not in entities:
-                                        entities[dataset.slug] = []
-                                    entities[dataset.slug].append(entity.slug)
-                                    added_entities.add(entity.id)
+                            entity = observation_level.entity
+                            if entity.id not in added_entities:
+                                if dataset.slug not in entities:
+                                    entities[dataset.slug] = []
+                                entities[dataset.slug].append(entity.slug)
+                                added_entities.add(entity.id)
                     for raw_data_source in dataset.raw_data_sources.all():
                         for (
                             observation_level
                         ) in raw_data_source.observation_levels.all():
-                            for entity in observation_level.entities.all():
-                                if entity.id not in added_entities:
-                                    if dataset.slug not in entities:
-                                        entities[dataset.slug] = []
-                                    entities[dataset.slug].append(entity.slug)
-                                    added_entities.add(entity.id)
+                            entity = observation_level.entity
+                            if entity.id not in added_entities:
+                                if dataset.slug not in entities:
+                                    entities[dataset.slug] = []
+                                entities[dataset.slug].append(entity.slug)
+                                added_entities.add(entity.id)
                     for information_request in dataset.information_requests.all():
                         for (
                             observation_level
                         ) in information_request.observation_levels.all():
-                            for entity in observation_level.entities.all():
-                                if entity.id not in added_entities:
-                                    if dataset.slug not in entities:
-                                        entities[dataset.slug] = []
-                                    entities[dataset.slug].append(entity.slug)
-                                    added_entities.add(entity.id)
+                            entity = observation_level.entity
+                            if entity.id not in added_entities:
+                                if dataset.slug not in entities:
+                                    entities[dataset.slug] = []
+                                entities[dataset.slug].append(entity.slug)
+                                added_entities.add(entity.id)
                 # Filter by entity slugs
                 entity_slugs = req_args.getlist("entity")
                 new_dataset_list = []
                 for dataset in dataset_list:
                     for entity_slug in entity_slugs:
-                        if entity_slug in entities[dataset.slug]:
+                        if (
+                            dataset.slug in entities
+                            and entity_slug in entities[dataset.slug]
+                        ):
                             new_dataset_list.append(dataset)
                             break
                 dataset_list = new_dataset_list
