@@ -30,9 +30,9 @@ class DatasetSearchView(SearchView):
             # Raw dataset list
             dataset_list: List[Dataset] = [obj.object for obj in context["object_list"]]
             # Filtering
-            if "group" in req_args:
+            if "theme" in req_args:
                 # Filter by theme slugs
-                theme_slugs = req_args.getlist("group")
+                theme_slugs = req_args.getlist("theme")
                 new_dataset_list = []
                 for dataset in dataset_list:
                     for theme in dataset.themes.all():
