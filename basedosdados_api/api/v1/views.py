@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 from django.http import HttpResponse, HttpResponseBadRequest, QueryDict
 from haystack.generic_views import SearchView
@@ -168,8 +168,52 @@ class DatasetSearchView(SearchView):
                             break
                 dataset_list = new_dataset_list
             if "update_frequency" in req_args:
-                # TODO: filter by update frequency
-                ...
+                update_frequencies: List[Tuple[int, str]] = [
+                    self.split_number_text(frequency)
+                    for frequency in req_args.getlist("update_frequency")
+                ]
+                # Collect all updates
+                updates: Dict[str, List[Tuple[int, str]]] = {}
+                added_updates = set()
+                for dataset in dataset_list:
+                    for table in dataset.tables.all():
+                        for update in table.updates.all():
+                            if update.id not in added_updates:
+                                if dataset.slug not in updates:
+                                    updates[dataset.slug] = []
+                                updates[dataset.slug].append(
+                                    (update.frequency, update.entity.slug)
+                                )
+                                added_updates.add(update.id)
+                    for raw_data_source in dataset.raw_data_sources.all():
+                        for update in raw_data_source.updates.all():
+                            if update.id not in added_updates:
+                                if dataset.slug not in updates:
+                                    updates[dataset.slug] = []
+                                updates[dataset.slug].append(
+                                    (update.frequency, update.entity.slug)
+                                )
+                                added_updates.add(update.id)
+                    for information_request in dataset.information_requests.all():
+                        for update in information_request.updates.all():
+                            if update.id not in added_updates:
+                                if dataset.slug not in updates:
+                                    updates[dataset.slug] = []
+                                updates[dataset.slug].append(
+                                    (update.frequency, update.entity.slug)
+                                )
+                                added_updates.add(update.id)
+                # Filter by update frequencies
+                new_dataset_list = []
+                for dataset in dataset_list:
+                    for update_frequency in update_frequencies:
+                        if (
+                            dataset.slug in updates
+                            and update_frequency in updates[dataset.slug]
+                        ):
+                            new_dataset_list.append(dataset)
+                            break
+                dataset_list = new_dataset_list
             if "raw_quality_tier" in req_args:
                 # TODO: filter by raw quality tier
                 ...
@@ -263,3 +307,23 @@ class DatasetSearchView(SearchView):
         if self.extra_context is not None:
             kwargs.update(self.extra_context)
         return kwargs
+
+    def split_number_text(self, text: str) -> Tuple[int, str]:
+        """
+        Splits a string into a number and text part. Examples:
+        >>> split_number_text("1year")
+        (1, 'year')
+        >>> split_number_text("2 month")
+        (2, 'month')
+        >>> split_number_text("3minute")
+        (3, 'minute')
+        """
+        number = ""
+        for c in text:
+            if c.isdigit():
+                number += c
+            else:
+                break
+        if number == "":
+            return None, text
+        return int(number), (text[len(number) :]).strip()  # noqa
