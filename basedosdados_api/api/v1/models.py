@@ -330,6 +330,7 @@ class Dataset(BdmModel):
     tags = models.ManyToManyField("Tag", related_name="datasets")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    is_closed = models.BooleanField(default=False)
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -471,6 +472,7 @@ class Table(BdmModel):
     compressed_file_size = models.BigIntegerField(blank=True, null=True)
     number_rows = models.BigIntegerField(blank=True, null=True)
     number_columns = models.BigIntegerField(blank=True, null=True)
+    is_closed = models.BooleanField(default=False)
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -533,6 +535,7 @@ class Column(BdmModel):
         null=True,
         blank=True,
     )
+    is_closed = models.BooleanField(default=False)
 
     graphql_nested_filter_fields_whitelist = ["id", "name"]
 
