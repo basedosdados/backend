@@ -330,7 +330,7 @@ class Dataset(BdmModel):
     tags = models.ManyToManyField("Tag", related_name="datasets")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    is_closed = models.BooleanField(default=False)
+    is_closed = models.BooleanField(default=False, help_text="Dataset is for Pro subscribers only")
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -472,7 +472,7 @@ class Table(BdmModel):
     compressed_file_size = models.BigIntegerField(blank=True, null=True)
     number_rows = models.BigIntegerField(blank=True, null=True)
     number_columns = models.BigIntegerField(blank=True, null=True)
-    is_closed = models.BooleanField(default=False)
+    is_closed = models.BooleanField(default=False, help_text="Table is for Pro subscribers only")
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -490,6 +490,16 @@ class Table(BdmModel):
             )
         ]
 
+    def clean(self):
+        """Table cannot be closed if dataset is opened"""
+        errors = {}
+        if self.is_closed and not self.dataset.is_closed:
+            errors["is_closed"] = "Table cannot be closed if dataset is opened"
+
+        if errors:
+            raise ValidationError(errors)
+
+        return super().clean()
 
 class BigQueryType(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -535,7 +545,7 @@ class Column(BdmModel):
         null=True,
         blank=True,
     )
-    is_closed = models.BooleanField(default=False)
+    is_closed = models.BooleanField(default=False, help_text="Column is for Pro subscribers only")
 
     graphql_nested_filter_fields_whitelist = ["id", "name"]
 
@@ -550,15 +560,18 @@ class Column(BdmModel):
 
     def clean(self) -> None:
 
+        errors = {}
         if self.observation_level and self.observation_level.table != self.table:
-            raise ValidationError(
-                "Observation level is not in the same table as the column."
-            )
+            errors["observation_level"] = "Observation level is not in the same table as the column."
 
         if self.directory_primary_key and self.directory_primary_key.table.is_directory is False:
-            raise ValidationError(
-                "Column indicated as a directory's primary key is not in a directory."
-            )
+            errors["directory_primary_key"] = "Column indicated as a directory's primary key is not in a directory."
+
+        if self.is_closed and not self.table.is_closed:
+            errors["is_closed"] = "Column cannot be closed if table is opened."
+
+        if errors:
+            raise ValidationError(errors)
 
         return super().clean()
 
