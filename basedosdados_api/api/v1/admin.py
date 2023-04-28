@@ -111,6 +111,14 @@ class ColumnAdmin(admin.ModelAdmin):
 class ObservationLevelAdmin(admin.ModelAdmin):
     readonly_fields = ["id",]
     search_fields = ["name", "entity__name"]
+    autocomplete_fields = [
+        "entity",
+        "table",
+        "raw_data_source",
+        "information_request",
+    ]
+    list_filter = ["entity__category__name", ]
+    list_display = ["__str__", "table", "raw_data_source", "information_request", ]
 
 
 class RawDataSourceAdmin(admin.ModelAdmin):
