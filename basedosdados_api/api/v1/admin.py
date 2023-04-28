@@ -30,9 +30,35 @@ from basedosdados_api.api.v1.models import (
 )
 
 
+class ColumnInline(admin.StackedInline):
+    model = Column
+    extra = 0
+    show_change_link = True
+    show_full_result_count = True
+    autocomplete_fields = [
+        "directory_primary_key",
+        "observation_level",
+    ]
+    fields = [
+        "name",
+        "description",
+        "bigquery_type",
+        "is_closed",
+    ]
+
+
+class TableInline(admin.StackedInline):
+    model = Table
+    extra = 0
+    show_change_link = True
+
+
 class DatasetAdmin(admin.ModelAdmin):
     readonly_fields = ["id", "full_slug", "created_at", "updated_at"]
-    list_display = ["__str__", "full_slug", "organization"]
+    list_display = ["name", "full_slug", "organization"]
+    search_fields = ["name", "slug", "organization__name"]
+    inlines = [TableInline, ]
+
 
 
 class OrganizationImageFilter(admin.SimpleListFilter):
@@ -62,13 +88,24 @@ class OrganizationAdmin(admin.ModelAdmin):
 class TableAdmin(admin.ModelAdmin):
     readonly_fields = ["id", "created_at", "updated_at"]
     search_fields = ["name", "dataset__name"]
+    inlines = [ColumnInline, ]
+    autocomplete_fields = [
+        "dataset",
+        "partner_organization",
+        "published_by",
+        "data_cleaned_by",
+    ]
 
 
 class ColumnAdmin(admin.ModelAdmin):
     readonly_fields = ["id", ]
     list_display = ["__str__", "table", ]
     search_fields = ["name", "table__name"]
-    autocomplete_fields = ["table", "observation_level", "directory_primary_key"]
+    autocomplete_fields = [
+        "table",
+        "observation_level",
+        "directory_primary_key"
+    ]
 
 
 class ObservationLevelAdmin(admin.ModelAdmin):
