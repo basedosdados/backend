@@ -68,13 +68,24 @@ class ColumnAdmin(admin.ModelAdmin):
     readonly_fields = ["id", ]
     list_display = ["__str__", "table", ]
     search_fields = ["name", "table__name"]
-    # raw_id_fields = ["observation_level", "directory_primary_key"]
     autocomplete_fields = ["table", "observation_level", "directory_primary_key"]
 
 
 class ObservationLevelAdmin(admin.ModelAdmin):
     readonly_fields = ["id",]
     search_fields = ["name", "entity__name"]
+
+
+class RawDataSourceAdmin(admin.ModelAdmin):
+    readonly_fields = ["id", "created_at", "updated_at"]
+    list_display = ["name", "dataset", "created_at", "updated_at"]
+    search_fields = ["name", "dataset__name"]
+
+
+class InformationRequestAdmin(admin.ModelAdmin):
+    readonly_fields = ["id", "created_at", "updated_at"]
+    list_display = ["__str__", "dataset", "created_at", "updated_at"]
+    search_fields = ["__str__", "dataset__name"]
 
 
 class CoverageTypeAdminFilter(admin.SimpleListFilter):
@@ -107,6 +118,7 @@ class CoverageAdmin(admin.ModelAdmin):
     readonly_fields = ["id"]
     list_display = ["area", "coverage_type", "table"]
     list_filter = [CoverageTypeAdminFilter,]
+    autocomplete_fields = ["table", "raw_data_source", "information_request", "column", ]
 
 
 class DateTimeRangeAdmin(admin.ModelAdmin):
@@ -114,28 +126,28 @@ class DateTimeRangeAdmin(admin.ModelAdmin):
     list_display = ["__str__", "coverage"]
 
 
-admin.site.register(Organization, OrganizationAdmin)
-admin.site.register(Dataset, DatasetAdmin)
-admin.site.register(Table, TableAdmin)
-admin.site.register(Column, ColumnAdmin)
-admin.site.register(InformationRequest)
-admin.site.register(RawDataSource)
+admin.site.register(AnalysisType)
+admin.site.register(Area)
+admin.site.register(Availability)
 admin.site.register(BigQueryType)
 admin.site.register(CloudTable)
-admin.site.register(Area)
-admin.site.register(Theme)
-admin.site.register(Tag)
+admin.site.register(Column, ColumnAdmin)
 admin.site.register(Coverage, CoverageAdmin)
-admin.site.register(Status)
-admin.site.register(Update)
-admin.site.register(Availability)
-admin.site.register(License)
-admin.site.register(Language)
-admin.site.register(ObservationLevel, ObservationLevelAdmin)
+admin.site.register(Dataset, DatasetAdmin)
+admin.site.register(DateTimeRange, DateTimeRangeAdmin)
+admin.site.register(Dictionary)
 admin.site.register(Entity)
 admin.site.register(EntityCategory)
-admin.site.register(Dictionary)
-admin.site.register(Pipeline)
-admin.site.register(AnalysisType)
-admin.site.register(DateTimeRange, DateTimeRangeAdmin)
+admin.site.register(InformationRequest, InformationRequestAdmin)
 admin.site.register(Key)
+admin.site.register(Language)
+admin.site.register(License)
+admin.site.register(ObservationLevel, ObservationLevelAdmin)
+admin.site.register(Organization, OrganizationAdmin)
+admin.site.register(Pipeline)
+admin.site.register(RawDataSource, RawDataSourceAdmin)
+admin.site.register(Status)
+admin.site.register(Table, TableAdmin)
+admin.site.register(Tag)
+admin.site.register(Theme)
+admin.site.register(Update)
