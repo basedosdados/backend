@@ -584,6 +584,12 @@ class Dictionary(BdmModel):
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
+
+    class Meta:
+        verbose_name = "Dictionary"
+        verbose_name_plural = "Dictionaries"
+        ordering = ["column"]
+
     def __str__(self):
         return f"{str(self.column.table.dataset.slug)}.{self.column.table.slug}.{str(self.column.name)}"
 
