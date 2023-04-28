@@ -698,7 +698,7 @@ class RawDataSource(BdmModel):
         ordering = ["url"]
 
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.dataset.name})"
 
 
 class InformationRequest(BdmModel):
@@ -728,7 +728,7 @@ class InformationRequest(BdmModel):
     graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
-        return str(self.number)
+        return str(f"{self.dataset.name}({self.number})")
 
     class Meta:
         db_table = "information_request"

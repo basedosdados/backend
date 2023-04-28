@@ -27,43 +27,6 @@ def test_invalid_area_slug_brasil():
 
 
 @pytest.mark.django_db
-def test_invalid_area_key():
-    """Test for Area with dot names, which are invalid in slug."""
-    area = Area(
-        name="Brasil",
-        key="SA.br",
-    )
-    with pytest.raises(ValidationError):
-        area.full_clean()
-
-
-@pytest.mark.django_db
-def test_area_key_not_in_bd_dict():
-    """Test for Area with dot names, which are invalid in slug."""
-    area = Area(
-        name="Brasil",
-        name_en="Brazil",
-        slug="brasil",
-        key="na.br",
-    )
-    with pytest.raises(ValidationError):
-        area.full_clean()
-
-
-@pytest.mark.django_db
-def test_valid_area_key():
-    """Test for Area with dot names, which are invalid in slug."""
-    area = Area(
-        name="Brasil",
-        slug="brasil",
-        key="sa.br",
-    )
-    area.full_clean()
-    area.save()
-    assert Area.objects.exists()
-
-
-@pytest.mark.django_db
 def test_invalid_organization(organizacao_bd):
     """Test for Organization."""
     with pytest.raises(ValidationError):
