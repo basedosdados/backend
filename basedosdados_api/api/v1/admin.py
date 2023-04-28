@@ -172,6 +172,20 @@ class CoverageAdmin(admin.ModelAdmin):
     inlines = [DateTimeRangeInline, ]
 
 
+class EntityCategoryAdmin(admin.ModelAdmin):
+    readonly_fields = ["id", ]
+    list_display = ["name", "slug", ]
+    search_fields = ["name", "slug", ]
+
+
+class EntityAdmin(admin.ModelAdmin):
+    readonly_fields = ["id", ]
+    list_display = ["name", "category", ]
+    search_fields = ["name", "category__name"]
+    list_filter = ["category", ]
+    autocomplete_fields = ["category", ]
+
+
 admin.site.register(AnalysisType)
 admin.site.register(Area)
 admin.site.register(Availability)
@@ -182,8 +196,8 @@ admin.site.register(Coverage, CoverageAdmin)
 admin.site.register(Dataset, DatasetAdmin)
 admin.site.register(DateTimeRange, DateTimeRangeAdmin)
 admin.site.register(Dictionary)
-admin.site.register(Entity)
-admin.site.register(EntityCategory)
+admin.site.register(Entity, EntityAdmin)
+admin.site.register(EntityCategory, EntityCategoryAdmin)
 admin.site.register(InformationRequest, InformationRequestAdmin)
 admin.site.register(Key)
 admin.site.register(Language)
