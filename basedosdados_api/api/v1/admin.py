@@ -217,6 +217,13 @@ class UpdateAdmin(admin.ModelAdmin):
         "information_request",
     ]
 
+
+class LicenseAdmin(admin.ModelAdmin):
+    readonly_fields = ["id", ]
+    list_display = ["name", "slug", ]
+    search_fields = ["name", "slug", ]
+
+
 admin.site.register(AnalysisType)
 admin.site.register(Area)
 admin.site.register(Availability)
@@ -232,7 +239,7 @@ admin.site.register(EntityCategory, EntityCategoryAdmin)
 admin.site.register(InformationRequest, InformationRequestAdmin)
 admin.site.register(Key)
 admin.site.register(Language, LanguageAdmin)
-admin.site.register(License)
+admin.site.register(License, LicenseAdmin)
 admin.site.register(ObservationLevel, ObservationLevelAdmin)
 admin.site.register(Organization, OrganizationAdmin)
 admin.site.register(Pipeline)
