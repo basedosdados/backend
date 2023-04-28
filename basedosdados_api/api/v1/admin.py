@@ -192,6 +192,23 @@ class LanguageAdmin(admin.ModelAdmin):
     search_fields = ["name", "slug", ]
 
 
+class UpdateAdmin(admin.ModelAdmin):
+    readonly_fields = ["id", ]
+    list_display = ["__str__",]
+    search_fields = [
+        "entity",
+        "table",
+        "raw_data_source",
+        "information_request",
+        "column",
+    ]
+    autocomplete_fields = [
+        "entity",
+        "table",
+        "raw_data_source",
+        "information_request",
+    ]
+
 admin.site.register(AnalysisType)
 admin.site.register(Area)
 admin.site.register(Availability)
@@ -216,4 +233,4 @@ admin.site.register(Status)
 admin.site.register(Table, TableAdmin)
 admin.site.register(Tag)
 admin.site.register(Theme)
-admin.site.register(Update)
+admin.site.register(Update, UpdateAdmin)
