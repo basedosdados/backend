@@ -114,16 +114,25 @@ class CoverageTypeAdminFilter(admin.SimpleListFilter):
             return queryset.filter(key__isnull=False)
 
 
-class CoverageAdmin(admin.ModelAdmin):
-    readonly_fields = ["id"]
-    list_display = ["area", "coverage_type", "table"]
-    list_filter = [CoverageTypeAdminFilter,]
-    autocomplete_fields = ["table", "raw_data_source", "information_request", "column", ]
+class DateTimeRangeInline(admin.StackedInline):
+    model = DateTimeRange
+    extra = 0
+    show_change_link = True
 
 
 class DateTimeRangeAdmin(admin.ModelAdmin):
     readonly_fields = ["id"]
     list_display = ["__str__", "coverage"]
+    autocomplete_fields = ["coverage", ]
+
+
+class CoverageAdmin(admin.ModelAdmin):
+    readonly_fields = ["id"]
+    list_display = ["area", "coverage_type", "table"]
+    list_filter = [CoverageTypeAdminFilter,]
+    autocomplete_fields = ["table", "raw_data_source", "information_request", "column", ]
+    search_fields = ["table__name", "raw_data_source__name", "information_request__dataset__name", "column__name", ]
+    inlines = [DateTimeRangeInline, ]
 
 
 admin.site.register(AnalysisType)
