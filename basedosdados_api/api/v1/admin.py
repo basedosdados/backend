@@ -125,6 +125,7 @@ class ObservationLevelAdmin(admin.ModelAdmin):
     ]
     list_filter = ["entity__category__name", ]
     list_display = ["__str__", "table", "raw_data_source", "information_request", ]
+    inlines = [ColumnInline, ]
 
 
 class RawDataSourceAdmin(admin.ModelAdmin):
