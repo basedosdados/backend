@@ -30,9 +30,35 @@ from basedosdados_api.api.v1.models import (
 )
 
 
+class ColumnInline(admin.StackedInline):
+    model = Column
+    extra = 0
+    show_change_link = True
+    show_full_result_count = True
+    autocomplete_fields = [
+        "directory_primary_key",
+        "observation_level",
+    ]
+    fields = [
+        "name",
+        "description",
+        "bigquery_type",
+        "is_closed",
+    ]
+
+
+class TableInline(admin.StackedInline):
+    model = Table
+    extra = 0
+    show_change_link = True
+
+
 class DatasetAdmin(admin.ModelAdmin):
     readonly_fields = ["id", "full_slug", "created_at", "updated_at"]
-    list_display = ["__str__", "full_slug", "organization"]
+    list_display = ["name", "full_slug", "organization"]
+    search_fields = ["name", "slug", "organization__name"]
+    inlines = [TableInline, ]
+
 
 
 class OrganizationImageFilter(admin.SimpleListFilter):
@@ -62,18 +88,37 @@ class OrganizationAdmin(admin.ModelAdmin):
 class TableAdmin(admin.ModelAdmin):
     readonly_fields = ["id", "created_at", "updated_at"]
     search_fields = ["name", "dataset__name"]
+    inlines = [ColumnInline, ]
+    autocomplete_fields = [
+        "dataset",
+        "partner_organization",
+        "published_by",
+        "data_cleaned_by",
+    ]
 
 
 class ColumnAdmin(admin.ModelAdmin):
     readonly_fields = ["id", ]
     list_display = ["__str__", "table", ]
     search_fields = ["name", "table__name"]
-    autocomplete_fields = ["table", "observation_level", "directory_primary_key"]
+    autocomplete_fields = [
+        "table",
+        "observation_level",
+        "directory_primary_key"
+    ]
 
 
 class ObservationLevelAdmin(admin.ModelAdmin):
     readonly_fields = ["id",]
     search_fields = ["name", "entity__name"]
+    autocomplete_fields = [
+        "entity",
+        "table",
+        "raw_data_source",
+        "information_request",
+    ]
+    list_filter = ["entity__category__name", ]
+    list_display = ["__str__", "table", "raw_data_source", "information_request", ]
 
 
 class RawDataSourceAdmin(admin.ModelAdmin):
@@ -114,16 +159,69 @@ class CoverageTypeAdminFilter(admin.SimpleListFilter):
             return queryset.filter(key__isnull=False)
 
 
-class CoverageAdmin(admin.ModelAdmin):
-    readonly_fields = ["id"]
-    list_display = ["area", "coverage_type", "table"]
-    list_filter = [CoverageTypeAdminFilter,]
-    autocomplete_fields = ["table", "raw_data_source", "information_request", "column", ]
+class DateTimeRangeInline(admin.StackedInline):
+    model = DateTimeRange
+    extra = 0
+    show_change_link = True
 
 
 class DateTimeRangeAdmin(admin.ModelAdmin):
     readonly_fields = ["id"]
     list_display = ["__str__", "coverage"]
+    autocomplete_fields = ["coverage", ]
+
+
+class CoverageAdmin(admin.ModelAdmin):
+    readonly_fields = ["id"]
+    list_display = ["area", "coverage_type", "table"]
+    list_filter = [CoverageTypeAdminFilter,]
+    autocomplete_fields = ["table", "raw_data_source", "information_request", "column", ]
+    search_fields = ["table__name", "raw_data_source__name", "information_request__dataset__name", "column__name", ]
+    inlines = [DateTimeRangeInline, ]
+
+
+class EntityCategoryAdmin(admin.ModelAdmin):
+    readonly_fields = ["id", ]
+    list_display = ["name", "slug", ]
+    search_fields = ["name", "slug", ]
+
+
+class EntityAdmin(admin.ModelAdmin):
+    readonly_fields = ["id", ]
+    list_display = ["name", "category", ]
+    search_fields = ["name", "category__name"]
+    list_filter = ["category", ]
+    autocomplete_fields = ["category", ]
+
+
+class LanguageAdmin(admin.ModelAdmin):
+    readonly_fields = ["id", ]
+    list_display = ["name", "slug", ]
+    search_fields = ["name", "slug", ]
+
+
+class UpdateAdmin(admin.ModelAdmin):
+    readonly_fields = ["id", ]
+    list_display = ["__str__",]
+    search_fields = [
+        "entity",
+        "table",
+        "raw_data_source",
+        "information_request",
+        "column",
+    ]
+    autocomplete_fields = [
+        "entity",
+        "table",
+        "raw_data_source",
+        "information_request",
+    ]
+
+
+class LicenseAdmin(admin.ModelAdmin):
+    readonly_fields = ["id", ]
+    list_display = ["name", "slug", ]
+    search_fields = ["name", "slug", ]
 
 
 admin.site.register(AnalysisType)
@@ -136,12 +234,12 @@ admin.site.register(Coverage, CoverageAdmin)
 admin.site.register(Dataset, DatasetAdmin)
 admin.site.register(DateTimeRange, DateTimeRangeAdmin)
 admin.site.register(Dictionary)
-admin.site.register(Entity)
-admin.site.register(EntityCategory)
+admin.site.register(Entity, EntityAdmin)
+admin.site.register(EntityCategory, EntityCategoryAdmin)
 admin.site.register(InformationRequest, InformationRequestAdmin)
 admin.site.register(Key)
-admin.site.register(Language)
-admin.site.register(License)
+admin.site.register(Language, LanguageAdmin)
+admin.site.register(License, LicenseAdmin)
 admin.site.register(ObservationLevel, ObservationLevelAdmin)
 admin.site.register(Organization, OrganizationAdmin)
 admin.site.register(Pipeline)
@@ -150,4 +248,4 @@ admin.site.register(Status)
 admin.site.register(Table, TableAdmin)
 admin.site.register(Tag)
 admin.site.register(Theme)
-admin.site.register(Update)
+admin.site.register(Update, UpdateAdmin)
