@@ -53,6 +53,12 @@ class TableInline(admin.StackedInline):
     show_change_link = True
 
 
+class AreaAdmin(admin.ModelAdmin):
+    readonly_fields = ["id", ]
+    list_display = ["name", "slug", ]
+    search_fields = ["name", "slug", ]
+
+
 class DatasetAdmin(admin.ModelAdmin):
     readonly_fields = ["id", "full_slug", "created_at", "updated_at"]
     list_display = ["name", "full_slug", "organization"]
@@ -225,7 +231,7 @@ class LicenseAdmin(admin.ModelAdmin):
 
 
 admin.site.register(AnalysisType)
-admin.site.register(Area)
+admin.site.register(Area, AreaAdmin)
 admin.site.register(Availability)
 admin.site.register(BigQueryType)
 admin.site.register(CloudTable)
