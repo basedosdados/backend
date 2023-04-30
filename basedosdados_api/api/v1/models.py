@@ -6,6 +6,7 @@ from datetime import datetime
 
 import os
 from django.core.exceptions import ValidationError
+from django import forms
 from django.db import models
 from django.urls import reverse
 
@@ -28,6 +29,13 @@ def image_path_and_rename(instance, filename):
     # get filename
     filename = f"{instance.pk}.{ext}"
     return os.path.join(upload_to, filename)
+
+
+class UUIDHIddenIdForm(forms.ModelForm):
+    id = forms.UUIDField(widget=forms.HiddenInput(), required=False)
+
+    class Meta:
+        abstract = True
 
 
 class Area(BdmModel):
@@ -324,13 +332,27 @@ class Dataset(BdmModel):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     organization = models.ForeignKey(
-        "Organization", on_delete=models.CASCADE, related_name="datasets"
+        "Organization",
+        on_delete=models.CASCADE,
+        related_name="datasets"
     )
-    themes = models.ManyToManyField("Theme", related_name="datasets")
-    tags = models.ManyToManyField("Tag", related_name="datasets")
+    themes = models.ManyToManyField(
+        "Theme",
+        related_name="datasets",
+        help_text="Themes are used to group datasets by topic",
+    )
+    tags = models.ManyToManyField(
+        "Tag",
+        related_name="datasets",
+        blank=True,
+        help_text="Tags are used to group datasets by topic",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    is_closed = models.BooleanField(default=False, help_text="Dataset is for Pro subscribers only")
+    is_closed = models.BooleanField(
+        default=False,
+        help_text="Dataset is for Pro subscribers only"
+    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
