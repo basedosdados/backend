@@ -46,7 +46,7 @@ class Area(BdmModel):
     graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
-        return str(self.name)
+        return f"{str(self.name)} ({str(self.slug)})"
 
     class Meta:
         db_table = "area"
