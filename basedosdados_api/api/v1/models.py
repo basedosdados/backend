@@ -434,16 +434,28 @@ class Table(BdmModel):
         on_delete=models.PROTECT,
         related_name="tables",
         null=True,
-        blank=True,
+        blank=True
     )
     license = models.ForeignKey(
-        "License", on_delete=models.CASCADE, related_name="tables"
+        "License",
+        on_delete=models.CASCADE,
+        related_name="tables",
+        blank=True,
+        null=True
     )
     partner_organization = models.ForeignKey(
-        "Organization", on_delete=models.CASCADE, related_name="partner_tables"
+        "Organization",
+        on_delete=models.CASCADE,
+        related_name="partner_tables",
+        blank=True,
+        null=True
     )
     pipeline = models.ForeignKey(
-        "Pipeline", on_delete=models.CASCADE, related_name="tables"
+        "Pipeline",
+        on_delete=models.CASCADE,
+        related_name="tables",
+        blank=True,
+        null=True
     )
     is_directory = models.BooleanField(default=False, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
