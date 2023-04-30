@@ -6,6 +6,7 @@ from datetime import datetime
 
 import os
 from django.core.exceptions import ValidationError
+from django import forms
 from django.db import models
 from django.urls import reverse
 
@@ -28,6 +29,13 @@ def image_path_and_rename(instance, filename):
     # get filename
     filename = f"{instance.pk}.{ext}"
     return os.path.join(upload_to, filename)
+
+
+class UUIDHIddenIdForm(forms.ModelForm):
+    id = forms.UUIDField(widget=forms.HiddenInput(), required=False)
+
+    class Meta:
+        abstract = True
 
 
 class Area(BdmModel):

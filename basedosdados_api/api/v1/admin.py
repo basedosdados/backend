@@ -26,12 +26,25 @@ from basedosdados_api.api.v1.models import (
     Pipeline,
     AnalysisType,
     DateTimeRange,
-    Key,
+    Key, UUIDHIddenIdForm,
 )
 
 
+class ColumnInlineForm(UUIDHIddenIdForm):
+    class Meta(UUIDHIddenIdForm.Meta):
+        model = Column
+        fields = [
+            "id",
+            "name",
+            "description",
+            "bigquery_type",
+            "is_closed",
+            "table",
+        ]
+
 class ColumnInline(admin.StackedInline):
     model = Column
+    form = ColumnInlineForm
     extra = 0
     show_change_link = True
     show_full_result_count = True
@@ -39,16 +52,39 @@ class ColumnInline(admin.StackedInline):
         "directory_primary_key",
         "observation_level",
     ]
-    fields = [
-        "name",
-        "description",
-        "bigquery_type",
-        "is_closed",
-    ]
 
+
+class TableInlineForm(UUIDHIddenIdForm):
+    class Meta(UUIDHIddenIdForm):
+        model = Table
+        fields = [
+            "id",
+            "slug",
+            "name",
+            "description",
+            "status",
+            "license",
+            "partner_organization",
+            "pipeline",
+            "is_directory",
+            "published_by",
+            "data_cleaned_by",
+            "data_cleaning_description",
+            "data_cleaning_code_url",
+            "raw_data_url",
+            "auxiliary_files_url",
+            "architecture_url",
+            "source_bucket_name",
+            "uncompressed_file_size",
+            "compressed_file_size",
+            "number_rows",
+            "number_columns",
+            "is_closed"
+        ]
 
 class TableInline(admin.StackedInline):
     model = Table
+    form = TableInlineForm
     extra = 0
     show_change_link = True
 
@@ -64,6 +100,7 @@ class DatasetAdmin(admin.ModelAdmin):
     list_display = ["name", "full_slug", "organization"]
     search_fields = ["name", "slug", "organization__name"]
     inlines = [TableInline, ]
+    filter_horizontal = ["tags", "themes", ]
 
 
 
