@@ -39,6 +39,7 @@ CORS_ORIGIN_ALLOW_ALL = True
 
 INSTALLED_APPS = [
     "modeltranslation",
+    "jazzmin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -249,3 +250,7 @@ HAYSTACK_ITERATOR_LOAD_PER_QUERY = 200
 HAYSTACK_LIMIT_TO_REGISTERED_MODELS = True
 HAYSTACK_SEARCH_RESULTS_PER_PAGE = 100
 HAYSTACK_SIGNAL_PROCESSOR = "haystack.signals.RealtimeSignalProcessor"
+
+JAZZMIN_SETTINGS = {
+    "changeform_format": "carousel",
+}
