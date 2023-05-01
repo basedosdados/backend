@@ -815,8 +815,8 @@ class EntityCategory(BdmModel):
 
     class Meta:
         db_table = "entity_category"
-        verbose_name = "EntityCategory"
-        verbose_name_plural = "EntityCategories"
+        verbose_name = "Entity Category"
+        verbose_name_plural = "Entity Categories"
         ordering = ["slug"]
 
 
@@ -886,6 +886,12 @@ class ObservationLevel(BdmModel):
                 "One and only one of 'table', 'raw_data_source', 'information_request' must be set."  # noqa
             )
         return super().clean()
+
+    class Meta:
+        db_table = "observation_level"
+        verbose_name = "Observation Level"
+        verbose_name_plural = "Observation Levels"
+        ordering = ["id"]
 
 
 class DateTimeRange(BdmModel):
