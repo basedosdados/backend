@@ -151,6 +151,7 @@ class DatasetAdmin(TabbedTranslationAdmin):
     search_fields = ["name", "slug", "organization__name"]
     inlines = [TableInline, ]
     filter_horizontal = ["tags", "themes", ]
+    list_filter = ["organization__name", ]
 
 
 class TableAdmin(TabbedTranslationAdmin):

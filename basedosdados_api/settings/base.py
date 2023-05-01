@@ -251,6 +251,13 @@ HAYSTACK_LIMIT_TO_REGISTERED_MODELS = True
 HAYSTACK_SEARCH_RESULTS_PER_PAGE = 100
 HAYSTACK_SIGNAL_PROCESSOR = "haystack.signals.RealtimeSignalProcessor"
 
+X_FRAME_OPTIONS = "SAMEORIGIN"
+
 JAZZMIN_SETTINGS = {
-    "changeform_format": "carousel",
+    "changeform_format": "horizontal_tabs",
+    "related_modal_active": True,
+    "topmenu_links": [
+        {"name": "Metadados", "app": "v1"},
+        {"model": "v1.dataset"},
+    ],
 }
