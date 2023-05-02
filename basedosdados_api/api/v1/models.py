@@ -872,6 +872,12 @@ class ObservationLevel(BdmModel):
     def __str__(self):
         return str(self.entity)
 
+    class Meta:
+        db_table = "observation_level"
+        verbose_name = "Observation Level"
+        verbose_name_plural = "Observation Levels"
+        ordering = ["id"]
+
     def clean(self) -> None:
         # Assert that only one of "table", "raw_data_source", "information_request" is set
         count = 0
@@ -886,12 +892,6 @@ class ObservationLevel(BdmModel):
                 "One and only one of 'table', 'raw_data_source', 'information_request' must be set."  # noqa
             )
         return super().clean()
-
-    class Meta:
-        db_table = "observation_level"
-        verbose_name = "Observation Level"
-        verbose_name_plural = "Observation Levels"
-        ordering = ["id"]
 
 
 class DateTimeRange(BdmModel):
@@ -935,6 +935,14 @@ class DateTimeRange(BdmModel):
         interval = f"({self.interval})" if self.interval else "()"
         return f"{start_year}{start_month}{start_day}{start_hour}{start_minute}{start_second}{interval}\
            {end_year}{end_month}{end_day}{end_hour}{end_minute}{end_second}"
+
+
+    class Meta:
+        db_table = "datetime_range"
+        verbose_name = "DateTime Range"
+        verbose_name_plural = "DateTime Ranges"
+        ordering = ["id"]
+
 
     def clean(self) -> None:
         errors = {}
@@ -1010,9 +1018,3 @@ class DateTimeRange(BdmModel):
             raise ValidationError(errors)
 
         return super().clean()
-
-    class Meta:
-        db_table = "datetime_range"
-        verbose_name = "DateTime Range"
-        verbose_name_plural = "DateTime Ranges"
-        ordering = ["id"]
