@@ -260,4 +260,5 @@ JAZZMIN_SETTINGS = {
         {"name": "Metadados", "app": "v1"},
         {"model": "v1.dataset"},
     ],
+    "show_ui_builder": True,
 }

@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
+from django.utils.html import format_html
 from modeltranslation.admin import (
     TabbedTranslationAdmin,
     TranslationStackedInline,
@@ -146,8 +147,17 @@ class TagAdmin(TabbedTranslationAdmin):
 
 
 class DatasetAdmin(TabbedTranslationAdmin):
-    readonly_fields = ["id", "full_slug", "created_at", "updated_at"]
-    list_display = ["name", "full_slug", "organization"]
+    # http: // localhost: 8001 / admin / v1 / organization / add /?_to_field = id & _popup = 1
+    def related_objects(self, obj):
+        return format_html(
+            "<a href='/admin/v1/table/add/?dataset={0}'>{1} {2}</a>",
+            obj.id,
+            obj.tables.count(),
+            "tables" if obj.tables.count() > 1 else "table (click to add)",
+        )
+    related_objects.short_description = "Tables"
+    readonly_fields = ["id", "full_slug", "created_at", "updated_at", "related_objects"]
+    list_display = ["name", "full_slug", "organization", "related_objects"]
     search_fields = ["name", "slug", "organization__name"]
     inlines = [TableInline, ]
     filter_horizontal = ["tags", "themes", ]
@@ -155,6 +165,23 @@ class DatasetAdmin(TabbedTranslationAdmin):
 
 
 class TableAdmin(TabbedTranslationAdmin):
+    def add_view(self, request, *args, **kwargs):
+        parent_model_id = request.GET.get("dataset")
+        if parent_model_id:
+            # If a parent model ID is provided, add the parent model field to the form
+            fields = self.get_related_fields
+            initial = {'parent_model': parent_model_id}
+            self.initial = initial
+        return super().add_view(request, *args, **kwargs)
+
+    def get_related_fields(self, request, obj=None):
+        fields = self.model._meta.fields
+        parent_model_id = request.GET.get("dataset")
+        if parent_model_id:
+            parent_model = Dataset.objects.get(id=parent_model_id)
+            fields += parent_model._meta.fields
+        return fields
+
     readonly_fields = ["id", "created_at", "updated_at"]
     search_fields = ["name", "dataset__name"]
     inlines = [ColumnInline, ]
