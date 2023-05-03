@@ -105,6 +105,7 @@ class TableInline(TranslationStackedInline):
 
 # Filters
 
+
 class OrganizationImageFilter(admin.SimpleListFilter):
     title = "has_picture"
     parameter_name = "has_picture"
@@ -172,30 +173,51 @@ class TagAdmin(TabbedTranslationAdmin):
 
 
 class DatasetAdmin(TabbedTranslationAdmin):
-    # http: // localhost: 8001 / admin / v1 / organization / add /?_to_field = id & _popup = 1
     def related_objects(self, obj):
         return format_html(
             "<a href='/admin/v1/table/add/?dataset={0}'>{1} {2}</a>",
             obj.id,
             obj.tables.count(),
-            "tables" if obj.tables.count() > 1 else "table (click to add)",
+            " ".join(
+                ["tables" if obj.tables.count() > 1 else "table", "(click to add)"]
+            ),
         )
+
     related_objects.short_description = "Tables"
     readonly_fields = ["id", "full_slug", "created_at", "updated_at", "related_objects"]
     list_display = ["name", "full_slug", "organization", "related_objects"]
     search_fields = ["name", "slug", "organization__name"]
-    inlines = [TableInline, ]
-    filter_horizontal = ["tags", "themes", ]
-    list_filter = ["organization__name", ]
+    inlines = [
+        TableInline,
+    ]
+    filter_horizontal = [
+        "tags",
+        "themes",
+    ]
+    list_filter = [
+        "organization__name",
+    ]
 
 
 class TableAdmin(TabbedTranslationAdmin):
+    def related_objects(self, obj):
+        return format_html(
+            "<a href='/admin/v1/column/add/?table={0}'>{1} {2}</a>",
+            obj.id,
+            obj.columns.count(),
+            " ".join(
+                ["columns" if obj.columns.count() > 1 else "column", "(click to add)"]
+            ),
+        )
+
+    related_objects.short_description = "Columns"
+
     def add_view(self, request, *args, **kwargs):
         parent_model_id = request.GET.get("dataset")
         if parent_model_id:
             # If a parent model ID is provided, add the parent model field to the form
-            fields = self.get_related_fields
-            initial = {'parent_model': parent_model_id}
+            # fields = self.get_related_fields
+            initial = {"parent_model": parent_model_id}
             self.initial = initial
         return super().add_view(request, *args, **kwargs)
 
@@ -207,7 +229,7 @@ class TableAdmin(TabbedTranslationAdmin):
             fields += parent_model._meta.fields
         return fields
 
-    readonly_fields = ["id", "created_at", "updated_at"]
+    readonly_fields = ["id", "created_at", "updated_at", "related_objects"]
     search_fields = ["name", "dataset__name"]
     inlines = [
         ColumnInline,
