@@ -22,6 +22,8 @@ from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from graphene_file_upload.django import FileUploadGraphQLView
 
+from basedosdados_api.api.v1.views import DatasetSearchView
+
 
 def home_redirect(request):
     return HttpResponseRedirect("/api")
@@ -48,5 +50,5 @@ urlpatterns = [
     ),
     path("schemas/", include("basedosdados_api.schemas.urls")),
     path("", include("basedosdados_api.core.urls")),
-    path("search/", include("haystack.urls")),
+    path("search/", DatasetSearchView.as_view(), name="search_view"),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

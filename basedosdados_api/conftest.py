@@ -17,7 +17,6 @@ from basedosdados_api.api.v1.models import (
     License,
     Theme,
     Tag,
-    UpdateFrequency,
     Entity,
     Pipeline,
     ObservationLevel,
@@ -27,7 +26,7 @@ from basedosdados_api.api.v1.models import (
     Availability,
     InformationRequest,
     Status,
-    Coverage,
+    Coverage, EntityCategory,
 )
 
 
@@ -121,9 +120,15 @@ def fixture_licenca_mit():
 @pytest.mark.django_db
 def fixture_entity_anual():
     """Fixture for Entity."""
+    entity_time = EntityCategory.objects.create(
+        slug="time",
+        name="Time",
+    )
+
     return Entity.objects.create(
         slug="anual",
         name="Anual",
+        category=entity_time,
     )
 
 

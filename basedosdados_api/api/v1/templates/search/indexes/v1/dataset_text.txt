@@ -1,8 +1,13 @@
 {{ object.slug }}
 {{ object.name }}
 {{ object.description }}
-{{ object.organization }}
+{{ object.organization_slug }}
+{{ object.organization_name }}
+{{ object.organization_description }}
+{{ object.table_slugs }}
+{{ object.table_names }}
+{{ object.table_descriptions }}
+{{ object.column_names }}
+{{ object.column_descriptions }}
 {{ object.themes }}
 {{ object.tags }}
-{{ object.created_at }}
-{{ object.updated_at }}
