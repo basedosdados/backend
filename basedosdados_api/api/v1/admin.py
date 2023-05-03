@@ -31,11 +31,13 @@ from basedosdados_api.api.v1.models import (
     Pipeline,
     AnalysisType,
     DateTimeRange,
-    Key, UUIDHIddenIdForm,
+    Key,
+    UUIDHIddenIdForm,
 )
 
 
 # Forms
+
 
 class TableInlineForm(UUIDHIddenIdForm):
     class Meta(UUIDHIddenIdForm):
@@ -62,7 +64,7 @@ class TableInlineForm(UUIDHIddenIdForm):
             "compressed_file_size",
             "number_rows",
             "number_columns",
-            "is_closed"
+            "is_closed",
         ]
 
 
@@ -80,6 +82,7 @@ class ColumnInlineForm(UUIDHIddenIdForm):
 
 
 # Inlines
+
 
 class ColumnInline(TranslationStackedInline):
     model = Column
@@ -121,29 +124,51 @@ class OrganizationImageFilter(admin.SimpleListFilter):
 
 # Model Admins
 class AreaAdmin(TabbedTranslationAdmin):
-    readonly_fields = ["id", ]
-    list_display = ["name", "slug", ]
-    search_fields = ["name", "slug", ]
+    readonly_fields = [
+        "id",
+    ]
+    list_display = [
+        "name",
+        "slug",
+    ]
+    search_fields = [
+        "name",
+        "slug",
+    ]
 
 
 class OrganizationAdmin(TabbedTranslationAdmin):
-    readonly_fields = ["id", "created_at", "updated_at"]
-    list_display = ["name", "has_picture"]
+    readonly_fields = ["id", "full_slug", "created_at", "updated_at"]
+    list_display = ["name", "full_slug", "has_picture"]
     search_fields = ["name", "slug"]
     list_filter = [OrganizationImageFilter, "created_at", "updated_at"]
-    autocomplete_fields = ["area", ]
+    autocomplete_fields = [
+        "area",
+    ]
 
 
 class ThemeAdmin(TabbedTranslationAdmin):
     readonly_fields = ["id", "created_at", "updated_at"]
-    list_display = ["name", "slug", ]
-    search_fields = ["name", "slug", ]
+    list_display = [
+        "name",
+        "slug",
+    ]
+    search_fields = [
+        "name",
+        "slug",
+    ]
 
 
 class TagAdmin(TabbedTranslationAdmin):
     readonly_fields = ["id", "created_at", "updated_at"]
-    list_display = ["name", "slug", ]
-    search_fields = ["name", "slug", ]
+    list_display = [
+        "name",
+        "slug",
+    ]
+    search_fields = [
+        "name",
+        "slug",
+    ]
 
 
 class DatasetAdmin(TabbedTranslationAdmin):
@@ -184,7 +209,9 @@ class TableAdmin(TabbedTranslationAdmin):
 
     readonly_fields = ["id", "created_at", "updated_at"]
     search_fields = ["name", "dataset__name"]
-    inlines = [ColumnInline, ]
+    inlines = [
+        ColumnInline,
+    ]
     autocomplete_fields = [
         "dataset",
         "partner_organization",
@@ -194,18 +221,21 @@ class TableAdmin(TabbedTranslationAdmin):
 
 
 class ColumnAdmin(TabbedTranslationAdmin):
-    readonly_fields = ["id", ]
-    list_display = ["__str__", "table", ]
-    search_fields = ["name", "table__name"]
-    autocomplete_fields = [
-        "table",
-        "observation_level",
-        "directory_primary_key"
+    readonly_fields = [
+        "id",
     ]
+    list_display = [
+        "__str__",
+        "table",
+    ]
+    search_fields = ["name", "table__name"]
+    autocomplete_fields = ["table", "observation_level", "directory_primary_key"]
 
 
 class ObservationLevelAdmin(admin.ModelAdmin):
-    readonly_fields = ["id",]
+    readonly_fields = [
+        "id",
+    ]
     search_fields = ["name", "entity__name"]
     autocomplete_fields = [
         "entity",
@@ -213,24 +243,41 @@ class ObservationLevelAdmin(admin.ModelAdmin):
         "raw_data_source",
         "information_request",
     ]
-    list_filter = ["entity__category__name", ]
-    list_display = ["__str__", "table", "raw_data_source", "information_request", ]
-    inlines = [ColumnInline, ]
+    list_filter = [
+        "entity__category__name",
+    ]
+    list_display = [
+        "__str__",
+        "table",
+        "raw_data_source",
+        "information_request",
+    ]
+    inlines = [
+        ColumnInline,
+    ]
 
 
 class RawDataSourceAdmin(admin.ModelAdmin):
     readonly_fields = ["id", "created_at", "updated_at"]
     list_display = ["name", "dataset", "created_at", "updated_at"]
     search_fields = ["name", "dataset__name"]
-    autocomplete_fields = ["dataset", "languages", ]
-    filter_horizontal = ["languages", "area_ip_address_required", ]
+    autocomplete_fields = [
+        "dataset",
+        "languages",
+    ]
+    filter_horizontal = [
+        "languages",
+        "area_ip_address_required",
+    ]
 
 
 class InformationRequestAdmin(TabbedTranslationAdmin):
     readonly_fields = ["id", "created_at", "updated_at"]
     list_display = ["__str__", "dataset", "created_at", "updated_at"]
     search_fields = ["__str__", "dataset__name"]
-    autocomplete_fields = ["dataset", ]
+    autocomplete_fields = [
+        "dataset",
+    ]
 
 
 class CoverageTypeAdminFilter(admin.SimpleListFilter):
@@ -268,41 +315,86 @@ class DateTimeRangeInline(admin.StackedInline):
 class DateTimeRangeAdmin(admin.ModelAdmin):
     readonly_fields = ["id"]
     list_display = ["__str__", "coverage"]
-    autocomplete_fields = ["coverage", ]
+    autocomplete_fields = [
+        "coverage",
+    ]
 
 
 class CoverageAdmin(admin.ModelAdmin):
     readonly_fields = ["id"]
     list_display = ["area", "coverage_type", "table"]
-    list_filter = [CoverageTypeAdminFilter,]
-    autocomplete_fields = ["table", "raw_data_source", "information_request", "column", ]
-    search_fields = ["table__name", "raw_data_source__name", "information_request__dataset__name", "column__name", ]
-    inlines = [DateTimeRangeInline, ]
+    list_filter = [
+        CoverageTypeAdminFilter,
+    ]
+    autocomplete_fields = [
+        "table",
+        "raw_data_source",
+        "information_request",
+        "column",
+    ]
+    search_fields = [
+        "table__name",
+        "raw_data_source__name",
+        "information_request__dataset__name",
+        "column__name",
+    ]
+    inlines = [
+        DateTimeRangeInline,
+    ]
 
 
 class EntityCategoryAdmin(TabbedTranslationAdmin):
-    readonly_fields = ["id", ]
-    list_display = ["name", "slug", ]
-    search_fields = ["name", "slug", ]
+    readonly_fields = [
+        "id",
+    ]
+    list_display = [
+        "name",
+        "slug",
+    ]
+    search_fields = [
+        "name",
+        "slug",
+    ]
 
 
 class EntityAdmin(TabbedTranslationAdmin):
-    readonly_fields = ["id", ]
-    list_display = ["name", "category", ]
+    readonly_fields = [
+        "id",
+    ]
+    list_display = [
+        "name",
+        "category",
+    ]
     search_fields = ["name", "category__name"]
-    list_filter = ["category", ]
-    autocomplete_fields = ["category", ]
+    list_filter = [
+        "category",
+    ]
+    autocomplete_fields = [
+        "category",
+    ]
 
 
 class LanguageAdmin(TabbedTranslationAdmin):
-    readonly_fields = ["id", ]
-    list_display = ["name", "slug", ]
-    search_fields = ["name", "slug", ]
+    readonly_fields = [
+        "id",
+    ]
+    list_display = [
+        "name",
+        "slug",
+    ]
+    search_fields = [
+        "name",
+        "slug",
+    ]
 
 
 class UpdateAdmin(admin.ModelAdmin):
-    readonly_fields = ["id", ]
-    list_display = ["__str__",]
+    readonly_fields = [
+        "id",
+    ]
+    list_display = [
+        "__str__",
+    ]
     search_fields = [
         "entity",
         "table",
@@ -319,29 +411,64 @@ class UpdateAdmin(admin.ModelAdmin):
 
 
 class LicenseAdmin(TabbedTranslationAdmin):
-    readonly_fields = ["id", ]
-    list_display = ["name", "slug", ]
-    search_fields = ["name", "slug", ]
+    readonly_fields = [
+        "id",
+    ]
+    list_display = [
+        "name",
+        "slug",
+    ]
+    search_fields = [
+        "name",
+        "slug",
+    ]
 
 
 class AvailabilityAdmin(TabbedTranslationAdmin):
-    readonly_fields = ["id", ]
-    list_display = ["name", "slug", ]
-    search_fields = ["name", "slug", ]
+    readonly_fields = [
+        "id",
+    ]
+    list_display = [
+        "name",
+        "slug",
+    ]
+    search_fields = [
+        "name",
+        "slug",
+    ]
 
 
 class CloudTableAdmin(admin.ModelAdmin):
-    readonly_fields = ["id", ]
-    list_display = ["__str__", ]
-    search_fields = ["table", "gcp_project_id", "gcp_dataset_id", "gcp_table_id", ]
+    readonly_fields = [
+        "id",
+    ]
+    list_display = [
+        "__str__",
+    ]
+    search_fields = [
+        "table",
+        "gcp_project_id",
+        "gcp_dataset_id",
+        "gcp_table_id",
+    ]
     autocomplete_fields = ["table", "columns"]
-    filter_horizontal = ["columns", ]
+    filter_horizontal = [
+        "columns",
+    ]
 
 
 class StatusAdmin(TabbedTranslationAdmin):
-    readonly_fields = ["id", ]
-    list_display = ["name", "slug", ]
-    search_fields = ["name", "slug", ]
+    readonly_fields = [
+        "id",
+    ]
+    list_display = [
+        "name",
+        "slug",
+    ]
+    search_fields = [
+        "name",
+        "slug",
+    ]
 
 
 admin.site.register(AnalysisType)

@@ -301,12 +301,24 @@ class Organization(BdmModel):
         except Exception as e:
             return False
         return self.picture is not None
+
     has_picture.short_description = "Has Picture"
     has_picture.boolean = True
 
     @property
     def get_graphql_has_picture(self):
         return self.has_picture()
+
+    @property
+    def full_slug(self):
+        if self.area.slug != "unknown":
+            return f"{self.area.slug}_{self.slug}"
+        else:
+            return f"{self.slug}"
+
+    @property
+    def get_graphql_full_slug(self):
+        return self.full_slug
 
 
 class Status(BdmModel):
@@ -332,9 +344,7 @@ class Dataset(BdmModel):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     organization = models.ForeignKey(
-        "Organization",
-        on_delete=models.CASCADE,
-        related_name="datasets"
+        "Organization", on_delete=models.CASCADE, related_name="datasets"
     )
     themes = models.ManyToManyField(
         "Theme",
@@ -350,8 +360,7 @@ class Dataset(BdmModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_closed = models.BooleanField(
-        default=False,
-        help_text="Dataset is for Pro subscribers only"
+        default=False, help_text="Dataset is for Pro subscribers only"
     )
 
     graphql_nested_filter_fields_whitelist = ["id"]
@@ -378,6 +387,7 @@ class Dataset(BdmModel):
     @property
     def get_graphql_full_slug(self):
         return self.full_slug
+
 
 class Update(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -452,32 +462,28 @@ class Table(BdmModel):
         "Dataset", on_delete=models.CASCADE, related_name="tables"
     )
     status = models.ForeignKey(
-        "Status",
-        on_delete=models.PROTECT,
-        related_name="tables",
-        null=True,
-        blank=True
+        "Status", on_delete=models.PROTECT, related_name="tables", null=True, blank=True
     )
     license = models.ForeignKey(
         "License",
         on_delete=models.CASCADE,
         related_name="tables",
         blank=True,
-        null=True
+        null=True,
     )
     partner_organization = models.ForeignKey(
         "Organization",
         on_delete=models.CASCADE,
         related_name="partner_tables",
         blank=True,
-        null=True
+        null=True,
     )
     pipeline = models.ForeignKey(
         "Pipeline",
         on_delete=models.CASCADE,
         related_name="tables",
         blank=True,
-        null=True
+        null=True,
     )
     is_directory = models.BooleanField(default=False, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -506,7 +512,9 @@ class Table(BdmModel):
     compressed_file_size = models.BigIntegerField(blank=True, null=True)
     number_rows = models.BigIntegerField(blank=True, null=True)
     number_columns = models.BigIntegerField(blank=True, null=True)
-    is_closed = models.BooleanField(default=False, help_text="Table is for Pro subscribers only")
+    is_closed = models.BooleanField(
+        default=False, help_text="Table is for Pro subscribers only"
+    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -534,6 +542,7 @@ class Table(BdmModel):
             raise ValidationError(errors)
 
         return super().clean()
+
 
 class BigQueryType(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -579,7 +588,9 @@ class Column(BdmModel):
         null=True,
         blank=True,
     )
-    is_closed = models.BooleanField(default=False, help_text="Column is for Pro subscribers only")
+    is_closed = models.BooleanField(
+        default=False, help_text="Column is for Pro subscribers only"
+    )
 
     graphql_nested_filter_fields_whitelist = ["id", "name"]
 
@@ -596,10 +607,17 @@ class Column(BdmModel):
 
         errors = {}
         if self.observation_level and self.observation_level.table != self.table:
-            errors["observation_level"] = "Observation level is not in the same table as the column."
+            errors[
+                "observation_level"
+            ] = "Observation level is not in the same table as the column."
 
-        if self.directory_primary_key and self.directory_primary_key.table.is_directory is False:
-            errors["directory_primary_key"] = "Column indicated as a directory's primary key is not in a directory."
+        if (
+            self.directory_primary_key
+            and self.directory_primary_key.table.is_directory is False
+        ):
+            errors[
+                "directory_primary_key"
+            ] = "Column indicated as a directory's primary key is not in a directory."
 
         if not self.is_closed and self.table.dataset.is_closed:
             errors["is_closed"] = "Column cannot be opened if dataset is closed."
@@ -617,7 +635,6 @@ class Dictionary(BdmModel):
     )
 
     graphql_nested_filter_fields_whitelist = ["id"]
-
 
     class Meta:
         verbose_name = "Dictionary"
@@ -798,8 +815,8 @@ class EntityCategory(BdmModel):
 
     class Meta:
         db_table = "entity_category"
-        verbose_name = "EntityCategory"
-        verbose_name_plural = "EntityCategories"
+        verbose_name = "Entity Category"
+        verbose_name_plural = "Entity Categories"
         ordering = ["slug"]
 
 
@@ -854,6 +871,12 @@ class ObservationLevel(BdmModel):
 
     def __str__(self):
         return str(self.entity)
+
+    class Meta:
+        db_table = "observation_level"
+        verbose_name = "Observation Level"
+        verbose_name_plural = "Observation Levels"
+        ordering = ["id"]
 
     def clean(self) -> None:
         # Assert that only one of "table", "raw_data_source", "information_request" is set
@@ -912,6 +935,14 @@ class DateTimeRange(BdmModel):
         interval = f"({self.interval})" if self.interval else "()"
         return f"{start_year}{start_month}{start_day}{start_hour}{start_minute}{start_second}{interval}\
            {end_year}{end_month}{end_day}{end_hour}{end_minute}{end_second}"
+
+
+    class Meta:
+        db_table = "datetime_range"
+        verbose_name = "DateTime Range"
+        verbose_name_plural = "DateTime Ranges"
+        ordering = ["id"]
+
 
     def clean(self) -> None:
         errors = {}
@@ -987,9 +1018,3 @@ class DateTimeRange(BdmModel):
             raise ValidationError(errors)
 
         return super().clean()
-
-    class Meta:
-        db_table = "datetime_range"
-        verbose_name = "DateTime Range"
-        verbose_name_plural = "DateTime Ranges"
-        ordering = ["id"]
