@@ -111,14 +111,26 @@ class UserAdmin(BaseUserAdmin):
         "get_organization",
         "is_admin",
     )
+    readonly_fields = ("uuid", "created_at", "updated_at")
     list_filter = ("is_admin",)
     fieldsets = (
-        (None, {"fields": ("username", "email", "password")}),
+        (
+            None,
+            {
+                "fields": (
+                    "uuid",
+                    "username",
+                    "email",
+                    "password",
+                    "created_at",
+                    "updated_at",
+                )
+            },
+        ),
         (
             "Personal info",
             {
                 "fields": (
-                    "uuid",
                     "first_name",
                     "last_name",
                     "full_name",
