@@ -9,6 +9,7 @@ from django.contrib.auth.models import (
     BaseUserManager,
     PermissionsMixin,
     Permission,
+    Group,
 )
 
 from basedosdados_api.account.storage import OverwriteStorage
@@ -208,7 +209,7 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
         (COLABORADOR, "Colaborador"),
     )
 
-    ckan_id = models.UUIDField(primary_key=False, default=uuid4)
+    uuid = models.UUIDField(primary_key=False, default=uuid4)
 
     email = models.EmailField("Email", unique=True)
     username = models.CharField(
@@ -225,7 +226,7 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
         null=True,
         blank=True,
         validators=[validate_is_valid_image_format],
-        storage=OverwriteStorage()
+        storage=OverwriteStorage(),
     )
     twitter = models.CharField("Twitter", max_length=255, null=True, blank=True)
     linkedin = models.CharField("Linkedin", max_length=255, null=True, blank=True)
@@ -259,9 +260,19 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
     groups = models.ManyToManyField(
         BDGroup,
         related_name="users",
-        verbose_name="Grupos",
+        verbose_name="Grupos Externos",
         related_query_name="user",
         blank=True,
+        help_text="Grupos de acesso ao app externo da BD",
+    )
+
+    staff_groups = models.ManyToManyField(
+        Group,
+        related_name="users",
+        verbose_name="Grupos Internos",
+        related_query_name="user",
+        blank=True,
+        help_text="Grupos de acesso ao admin",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -302,9 +313,9 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
 
     def email_user(self, *args, **kwargs):
         send_mail(
-            '{}'.format(args[0]),
-            '{}'.format(args[1]),
-            '{}'.format(args[2]),
+            "{}".format(args[0]),
+            "{}".format(args[1]),
+            "{}".format(args[2]),
             [self.email],
             fail_silently=False,
         )
