@@ -26,6 +26,7 @@ django-haystack = {extras = ["elasticsearch"], version = "^3.2.1"}
 graphene = "3.2.1"
 django-storages = {extras = ["google"], version = "^1.13.2"}
 google-api-python-client = "^2.83.0"
+django-jazzmin = "^2.6.0"
 
 [tool.poetry.dev-dependencies]
 black = "^22.3.0"
