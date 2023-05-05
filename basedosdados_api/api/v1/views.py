@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Union
 
 from django.http import HttpResponse, HttpResponseBadRequest, QueryDict
 from haystack.forms import ModelSearchForm
@@ -356,16 +356,59 @@ class DatasetSearchView(SearchView):
                 return f"{min_year}"
             return f"{min_year}-{max_year}"
 
+        def get_themes(dataset: Dataset) -> List[Dict[str, str]]:
+            themes = []
+            for theme in dataset.themes.all():
+                themes.append(
+                    {
+                        "name": theme.name,
+                        "slug": theme.slug,
+                    }
+                )
+            return themes
+
+        def get_tags(dataset: Dataset) -> List[Dict[str, str]]:
+            tags = []
+            for tag in dataset.tags.all():
+                tags.append(
+                    {
+                        "name": tag.name,
+                        "slug": tag.slug,
+                    }
+                )
+            return tags
+
+        def get_first_table_id(dataset: Dataset) -> Union[str, None]:
+            if dataset.tables.count() > 0:
+                return str(dataset.tables.first().id)
+            return None
+
+        def get_first_original_source_id(dataset: Dataset) -> Union[str, None]:
+            if dataset.raw_data_sources.count() > 0:
+                return str(dataset.raw_data_sources.first().id)
+            return None
+
+        def get_first_lai_id(dataset: Dataset) -> Union[str, None]:
+            if dataset.information_requests.count() > 0:
+                return str(dataset.information_requests.first().id)
+            return None
+
         return {
             "id": str(dataset.id),
             "slug": dataset.slug,
             "full_slug": dataset.full_slug,
             "name": dataset.name,
             "organization": dataset.organization.name,
+            "organization_slug": dataset.organization.slug,
+            "themes": get_themes(dataset),
+            "tags": get_tags(dataset),
             "temporal_coverage": get_temporal_coverage(dataset),
             "n_bdm_tables": dataset.tables.count(),
+            "first_table_id": get_first_table_id(dataset),
             "n_original_sources": dataset.raw_data_sources.count(),
+            "first_original_source_id": get_first_original_source_id(dataset),
             "n_lais": dataset.information_requests.count(),
+            "first_lai_id": get_first_lai_id(dataset),
         }
 
     def get_context_data(self, **kwargs):
