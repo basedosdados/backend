@@ -39,32 +39,62 @@ class DatasetSearchView(SearchView):
             # Raw dataset list
             dataset_list: List[Dataset] = [obj.object for obj in context["object_list"]]
 
+        # Try to get filter method from request arguments
+        filter_method = req_args.get("filter_method", "and")
+        if filter_method not in ["and", "or"]:
+            return HttpResponseBadRequest(
+                json.dumps({"error": "Invalid filter method"})
+            )
+
         # Filtering
         if "theme" in req_args:
             # Filter by theme slugs
             theme_slugs = req_args.getlist("theme")
             new_dataset_list = []
-            for dataset in dataset_list:
-                for theme in dataset.themes.all():
-                    if theme.slug in theme_slugs:
+            if filter_method == "or":
+                for dataset in dataset_list:
+                    for theme in dataset.themes.all():
+                        if theme.slug in theme_slugs:
+                            new_dataset_list.append(dataset)
+                            break
+            elif filter_method == "and":
+                for dataset in dataset_list:
+                    themes = [theme.slug for theme in dataset.themes.all()]
+                    if all([theme in themes for theme in theme_slugs]):
                         new_dataset_list.append(dataset)
-                        break
             dataset_list = new_dataset_list
         if "organization" in req_args:
             # Filter by organization slugs
             organization_slugs = req_args.getlist("organization")
-            dataset_list = [
-                ds for ds in dataset_list if ds.organization.slug in organization_slugs
-            ]
+            if filter_method == "or":
+                dataset_list = [
+                    ds
+                    for ds in dataset_list
+                    if ds.organization.slug in organization_slugs
+                ]
+            elif filter_method == "and":
+                return HttpResponseBadRequest(
+                    json.dumps(
+                        {
+                            "error": "Invalid filter method: 'and' not supported for 'organization'"
+                        }
+                    )
+                )
         if "tag" in req_args:
             # Filter by tag slugs
             tag_slugs = req_args.getlist("tag")
             new_dataset_list = []
-            for dataset in dataset_list:
-                for tag in dataset.tags.all():
-                    if tag.slug in tag_slugs:
+            if filter_method == "or":
+                for dataset in dataset_list:
+                    for tag in dataset.tags.all():
+                        if tag.slug in tag_slugs:
+                            new_dataset_list.append(dataset)
+                            break
+            elif filter_method == "and":
+                for dataset in dataset_list:
+                    tags = [tag.slug for tag in dataset.tags.all()]
+                    if all([tag in tags for tag in tag_slugs]):
                         new_dataset_list.append(dataset)
-                        break
             dataset_list = new_dataset_list
         if "spatial_coverage" in req_args or "temporal_coverage" in req_args:
             # Collect all coverage objects
@@ -97,16 +127,29 @@ class DatasetSearchView(SearchView):
             spatial_coverages = req_args.getlist("spatial_coverage")
             new_dataset_list = []
             added_datasets = set()
-            for dataset in dataset_list:
-                if dataset.slug in coverages:
-                    for coverage in coverages[dataset.slug]:
-                        for spatial_coverage in spatial_coverages:
-                            if coverage.area.slug.startswith(spatial_coverage):
-                                new_dataset_list.append(dataset)
-                                added_datasets.add(dataset.slug)
+            if filter_method == "or":
+                for dataset in dataset_list:
+                    if dataset.slug in coverages:
+                        for coverage in coverages[dataset.slug]:
+                            for spatial_coverage in spatial_coverages:
+                                if coverage.area.slug.startswith(spatial_coverage):
+                                    new_dataset_list.append(dataset)
+                                    added_datasets.add(dataset.slug)
+                                    break
+                            if dataset.slug in added_datasets:
                                 break
-                        if dataset.slug in added_datasets:
-                            break
+            elif filter_method == "and":
+                for dataset in dataset_list:
+                    if dataset.slug in coverages:
+                        spatial_coverages_found = 0
+                        for coverage in coverages[dataset.slug]:
+                            for spatial_coverage in spatial_coverages:
+                                if coverage.area.slug.startswith(spatial_coverage):
+                                    spatial_coverages_found += 1
+                                    break
+                            if spatial_coverages_found == len(spatial_coverages):
+                                new_dataset_list.append(dataset)
+                                break
             dataset_list = new_dataset_list
         if "temporal_coverage" in req_args:
             # Filter by temporal coverage
@@ -164,14 +207,26 @@ class DatasetSearchView(SearchView):
             # Filter by entity slugs
             entity_slugs = req_args.getlist("entity")
             new_dataset_list = []
-            for dataset in dataset_list:
-                for entity_slug in entity_slugs:
-                    if (
-                        dataset.slug in entities
-                        and entity_slug in entities[dataset.slug]
-                    ):
+            if filter_method == "or":
+                for dataset in dataset_list:
+                    for entity_slug in entity_slugs:
+                        if (
+                            dataset.slug in entities
+                            and entity_slug in entities[dataset.slug]
+                        ):
+                            new_dataset_list.append(dataset)
+                            break
+            elif filter_method == "and":
+                for dataset in dataset_list:
+                    entities_found = 0
+                    for entity_slug in entity_slugs:
+                        if (
+                            dataset.slug in entities
+                            and entity_slug in entities[dataset.slug]
+                        ):
+                            entities_found += 1
+                    if entities_found == len(entity_slugs):
                         new_dataset_list.append(dataset)
-                        break
             dataset_list = new_dataset_list
         if "update_frequency" in req_args:
             update_frequencies: List[Tuple[int, str]] = [
@@ -211,14 +266,23 @@ class DatasetSearchView(SearchView):
                             added_updates.add(update.id)
             # Filter by update frequencies
             new_dataset_list = []
-            for dataset in dataset_list:
-                for update_frequency in update_frequencies:
-                    if (
-                        dataset.slug in updates
-                        and update_frequency in updates[dataset.slug]
-                    ):
-                        new_dataset_list.append(dataset)
-                        break
+            if filter_method == "or":
+                for dataset in dataset_list:
+                    for update_frequency in update_frequencies:
+                        if (
+                            dataset.slug in updates
+                            and update_frequency in updates[dataset.slug]
+                        ):
+                            new_dataset_list.append(dataset)
+                            break
+            elif filter_method == "and":
+                return HttpResponseBadRequest(
+                    json.dumps(
+                        {
+                            "error": "Invalid filter method: 'and' not supported for 'update_frequency'"
+                        }
+                    )
+                )
             dataset_list = new_dataset_list
         if "raw_quality_tier" in req_args:
             # TODO: filter by raw quality tier
