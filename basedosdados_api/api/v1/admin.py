@@ -123,6 +123,30 @@ class OrganizationImageFilter(admin.SimpleListFilter):
             return queryset.filter(picture="")
 
 
+class TableCoverageFilter(admin.SimpleListFilter):
+    title = "table_coverage"
+    parameter_name = "table_coverage"
+
+    def lookups(self, request, model_admin):
+        distinct_values = (
+            Coverage.objects.filter(table__id__isnull=False)
+            .order_by("area__name")
+            .distinct()
+            .values("area__name", "area__slug")
+        )
+        # Create a tuple of tuples with the format (value, label).
+        return [
+            (value.get("area__slug"), value.get("area__name"))
+            for value in distinct_values
+        ]
+
+        # return Coverage.objects.order_by().values("area__name").distinct()
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(coverages__area__slug=self.value())
+
+
 # Model Admins
 class AreaAdmin(TabbedTranslationAdmin):
     readonly_fields = [
@@ -229,7 +253,12 @@ class TableAdmin(TabbedTranslationAdmin):
             fields += parent_model._meta.fields
         return fields
 
-    readonly_fields = ["id", "created_at", "updated_at", "related_objects"]
+    readonly_fields = [
+        "id",
+        "created_at",
+        "updated_at",
+        "related_objects",
+    ]
     search_fields = ["name", "dataset__name"]
     inlines = [
         ColumnInline,
@@ -239,6 +268,10 @@ class TableAdmin(TabbedTranslationAdmin):
         "partner_organization",
         "published_by",
         "data_cleaned_by",
+    ]
+    list_filter = [
+        "dataset__organization__name",
+        TableCoverageFilter,
     ]
 
 
