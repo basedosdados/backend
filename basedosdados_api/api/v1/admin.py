@@ -29,6 +29,7 @@ from basedosdados_api.api.v1.models import (
     EntityCategory,
     Dictionary,
     Pipeline,
+    Analysis,
     AnalysisType,
     DateTimeRange,
     Key,
@@ -526,6 +527,7 @@ class StatusAdmin(TabbedTranslationAdmin):
     ]
 
 
+admin.site.register(Analysis)
 admin.site.register(AnalysisType)
 admin.site.register(Area, AreaAdmin)
 admin.site.register(Availability, AvailabilityAdmin)

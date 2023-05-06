@@ -16,15 +16,13 @@ from .models import (
     Table,
     Tag,
     Theme,
-    Area, EntityCategory,
+    Area,
+    EntityCategory,
 )
 
 
 class AnalysisTypeTranslationOptions(TranslationOptions):
-    fields = (
-        "name",
-        "tag",
-    )
+    fields = ("name",)
 
 
 class AreaTranslationOptions(TranslationOptions):
