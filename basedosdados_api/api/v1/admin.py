@@ -33,6 +33,7 @@ from basedosdados_api.api.v1.models import (
     AnalysisType,
     DateTimeRange,
     Key,
+    QualityCheck,
     UUIDHIddenIdForm,
 )
 
@@ -553,3 +554,4 @@ admin.site.register(Table, TableAdmin)
 admin.site.register(Tag, TagAdmin)
 admin.site.register(Theme, ThemeAdmin)
 admin.site.register(Update, UpdateAdmin)
+admin.site.register(QualityCheck)
