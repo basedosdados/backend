@@ -245,19 +245,12 @@ class Analysis(BdmModel):
         blank=True,
         help_text="Tags are used to group analyses by topic",
     )
-    published_by = models.ForeignKey(
+    authors = models.ManyToManyField(
         Account,
-        on_delete=models.CASCADE,
-        related_name="analyses_published",
+        related_name="analyses",
         blank=True,
-        null=True,
+        help_text="People who performed and/or wrote the analysis",
     )
-    # accounts = models.ManyToManyField(
-    #    "Account",
-    #    related_name="analyses",
-    #    blank=True,
-    #    help_text="People who performed and/or wrote the analysis",
-    # )
     url = models.URLField(blank=True, null=True, max_length=255)
 
     graphql_nested_filter_fields_whitelist = ["id"]
