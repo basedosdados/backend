@@ -136,18 +136,15 @@ def fixture_entity_anual():
 @pytest.mark.django_db
 def fixture_entity_escola():
     """Fixture for Entity."""
+    entity_education = EntityCategory.objects.create(
+        slug="education",
+        name="Educação",
+    )
+
     return Entity.objects.create(
         slug="escola",
         name="Escola",
-    )
-
-
-@pytest.fixture(name="frequencia_anual")
-def fixture_frequencia_anual(entity_anual):
-    """Fixture for UpdateFrequency."""
-    return UpdateFrequency.objects.create(
-        entity=entity_anual,
-        number=1,
+        category=entity_education,
     )
 
 
@@ -245,16 +242,13 @@ def fixture_tabela_bairros(
     dataset_dados_mestres,
     licenca_mit,
     organizacao_parceira,
-    frequencia_anual,
     pipeline,
-    observation_level_anual,
 ):
     """Fixture for Table."""
     return Table.objects.create(
         dataset=dataset_dados_mestres,
         license=licenca_mit,
         partner_organization=organizacao_parceira,
-        update_frequency=frequencia_anual,
         pipeline=pipeline,
         slug="bairros",
         name="Tabela de bairros do Rio de Janeiro",
@@ -279,7 +273,6 @@ def fixture_tabela_diretorios_brasil_uf(
     dataset_dados_mestres,
     licenca_mit,
     organizacao_parceira,
-    frequencia_anual,
     pipeline,
     observation_level_anual,
 ):
@@ -288,7 +281,6 @@ def fixture_tabela_diretorios_brasil_uf(
         dataset=dataset_dados_mestres,
         license=licenca_mit,
         partner_organization=organizacao_parceira,
-        update_frequency=frequencia_anual,
         pipeline=pipeline,
         slug="brasil_uf",
         name="Tabela de estados do Brasil",
@@ -391,14 +383,12 @@ def fixture_raw_data_source(
     dataset_dados_mestres,
     disponibilidade_online,
     licenca_mit,
-    frequencia_anual,
 ):
     """Fixture for RawData."""
     return RawDataSource.objects.create(
         dataset=dataset_dados_mestres,
         availability=disponibilidade_online,
         license=licenca_mit,
-        update_frequency=frequencia_anual,
         name="Fonte de dados",
     )
 
@@ -429,13 +419,11 @@ def fixture_pedido_informacao(
     coluna_nome_bairros,
     coluna_populacao_bairros,
     status_em_processamento,
-    frequencia_anual,
     usuario_inicio,
 ):
     """Fixture for InformationRequest."""
     return InformationRequest.objects.create(
         dataset=dataset_dados_mestres,
         status=status_em_processamento,
-        update_frequency=frequencia_anual,
         started_by=usuario_inicio,
     )

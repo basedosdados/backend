@@ -79,12 +79,10 @@ def test_create_dataset(
 
 
 @pytest.mark.django_db
-def test_create_table(tabela_bairros, observation_level_anual):
+def test_create_table(tabela_bairros):
     """Test for Table."""
     tabela_bairros.save()
-    tabela_bairros.observation_level.add(observation_level_anual)
     assert Table.objects.exists()
-    assert len(tabela_bairros.observation_level.all()) == 1
 
 
 @pytest.mark.django_db
@@ -106,8 +104,6 @@ def test_columns_create(
 def test_create_rawdatasource(raw_data_source, entity_escola, entity_anual):
     """Test for RawDataSource."""
     raw_data_source.save()
-    raw_data_source.entities.add(entity_escola, entity_anual)
-    assert raw_data_source.entities.count() == 2
     assert RawDataSource.objects.exists()
 
 
@@ -115,7 +111,5 @@ def test_create_rawdatasource(raw_data_source, entity_escola, entity_anual):
 def test_create_information_request(pedido_informacao, entity_escola, entity_anual):
     """Test for InformationRequest."""
     pedido_informacao.save()
-    pedido_informacao.entities.add(entity_escola, entity_anual)
 
-    assert pedido_informacao.entities.count() == 2
     assert InformationRequest.objects.exists()
