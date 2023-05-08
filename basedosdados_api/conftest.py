@@ -2,14 +2,13 @@
 import pytest
 import uuid
 
-from django.contrib.auth.models import User
 
 from basedosdados_api.account.models import Account
 
 # from django.core.exceptions import ValidationError
 
 from basedosdados_api.api.v1.models import (
-    # AnalysisType,
+    AnalysisType,
     Table,
     Dataset,
     Organization,
@@ -26,7 +25,12 @@ from basedosdados_api.api.v1.models import (
     Availability,
     InformationRequest,
     Status,
-    Coverage, EntityCategory,
+    Coverage,
+    EntityCategory,
+    Analysis,
+    Dictionary,
+    Key,
+    QualityCheck,
 )
 
 
@@ -427,3 +431,84 @@ def fixture_pedido_informacao(
         status=status_em_processamento,
         started_by=usuario_inicio,
     )
+
+
+#############################################################################################
+# Analysis fixtures
+#############################################################################################
+
+
+@pytest.fixture(name="analise_tipo1")
+@pytest.mark.django_db
+def fixture_analise_tipo1():
+    return AnalysisType.objects.create(
+        name="Análise tipo 1",
+        slug="analise-tipo-1",
+    )
+
+
+@pytest.fixture(name="analise_bairros")
+@pytest.mark.django_db
+def fixture_analise_bairros(
+    analise_tipo1,
+    dataset_dados_mestres,
+    tema_saude,
+    tema_educacao,
+    tag_aborto,
+    tag_covid,
+):
+    """Fixture for Analysis."""
+    analysis = Analysis.objects.create(
+        name="Análise de bairros",
+        description="Descrição da análise de bairros",
+        analysis_type=analise_tipo1,
+        url="https://analise.com/bairros",
+    )
+    return analysis
+
+
+@pytest.fixture(name="dicionario_1")
+@pytest.mark.django_db
+def test_dictionary(
+    coluna_nome_bairros,
+):
+    """Fixture for Dictionary."""
+    return Dictionary.objects.create(
+        column=coluna_nome_bairros,
+    )
+
+
+@pytest.fixture(name="chave_1")
+@pytest.mark.django_db
+def fixture_chave_1(dicionario_1):
+    chave = Key.objects.create(dictionary=dicionario_1, name="Chave 1", value="Valor 1")
+
+    return chave
+
+
+@pytest.fixture(name="teste_qualidade")
+@pytest.mark.django_db
+def fixture_teste_qualidade(
+    pipeline,
+    analise_bairros,
+    dataset_dados_mestres,
+    tabela_bairros,
+    coluna_nome_bairros,
+    chave_1,
+    raw_data_source,
+    pedido_informacao,
+):
+    teste_qualidade = QualityCheck.objects.create(
+        name="Teste de qualidade",
+        description="Descrição do teste de qualidade",
+        passed=True,
+        pipeline=pipeline,
+        analysis=analise_bairros,
+        dataset=dataset_dados_mestres,
+        table=tabela_bairros,
+        column=coluna_nome_bairros,
+        key=chave_1,
+        raw_data_source=raw_data_source,
+        information_request=pedido_informacao,
+    )
+    return teste_qualidade

@@ -12,6 +12,7 @@ from basedosdados_api.api.v1.models import (
     RawDataSource,
     InformationRequest,
     DateTimeRange,
+    Analysis,
 )
 
 
@@ -113,3 +114,23 @@ def test_create_information_request(pedido_informacao, entity_escola, entity_anu
     pedido_informacao.save()
 
     assert InformationRequest.objects.exists()
+
+
+@pytest.mark.django_db
+def test_create_analysis(
+    analise_bairros,
+    dataset_dados_mestres,
+    tema_saude,
+    tema_educacao,
+    tag_aborto,
+    tag_covid,
+    usuario_inicio,
+):
+    """Test for Analysis."""
+    analise_bairros.datasets.add(dataset_dados_mestres)
+    analise_bairros.themes.add(tema_saude, tema_educacao)
+    analise_bairros.tags.add(tag_aborto, tag_covid)
+    analise_bairros.authors.add(usuario_inicio)
+    analise_bairros.save()
+
+    assert Analysis.objects.exists()
