@@ -86,7 +86,18 @@ class Coverage(BdmModel):
         related_name="coverages",
     )
     key = models.ForeignKey(
-        "Key", blank=True, null=True, on_delete=models.CASCADE, related_name="coverages"
+        "Key",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="coverages",
+    )
+    analysis = models.ForeignKey(
+        "Analysis",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="coverages",
     )
     area = models.ForeignKey("Area", on_delete=models.CASCADE, related_name="coverages")
 
@@ -109,6 +120,8 @@ class Coverage(BdmModel):
             return f"Column: {self.column} - {self.area}"
         if self.coverage_type() == "key":
             return f"Key: {self.key} - {self.area}"
+        if self.coverage_type() == "analysis":
+            return f"Key: {self.key} - {self.area}"
 
         return str(self.id)
 
@@ -128,6 +141,9 @@ class Coverage(BdmModel):
         if self.key:
             return "key"
 
+        if self.analysis:
+            return "analysis"
+
     coverage_type.short_description = "Coverage Type"
 
     def clean(self) -> None:
@@ -144,9 +160,11 @@ class Coverage(BdmModel):
             count += 1
         if self.key:
             count += 1
+        if self.analysis:
+            count += 1
         if count != 1:
             raise ValidationError(
-                "One and only one of 'table', 'raw_data_source', 'information_request', 'column' or 'key' must be set."  # noqa
+                "One and only one of 'table', 'raw_data_source', 'information_request', 'column', 'key', 'analysis' must be set."  # noqa
             )
 
 
@@ -204,11 +222,53 @@ class Pipeline(BdmModel):
         ordering = ["github_url"]
 
 
+class Analysis(BdmModel):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    name = models.CharField(null=True, blank=True, max_length=255)
+    description = models.TextField(null=True, blank=True)
+    analysis_type = models.ForeignKey(
+        "AnalysisType", on_delete=models.CASCADE, related_name="analyses"
+    )
+    datasets = models.ManyToManyField(
+        "Dataset",
+        related_name="analyses",
+        help_text="Datasets used in the analysis",
+    )
+    themes = models.ManyToManyField(
+        "Theme",
+        related_name="analyses",
+        help_text="Themes are used to group analyses by topic",
+    )
+    tags = models.ManyToManyField(
+        "Tag",
+        related_name="analyses",
+        blank=True,
+        help_text="Tags are used to group analyses by topic",
+    )
+    authors = models.ManyToManyField(
+        Account,
+        related_name="analyses",
+        blank=True,
+        help_text="People who performed and/or wrote the analysis",
+    )
+    url = models.URLField(blank=True, null=True, max_length=255)
+
+    graphql_nested_filter_fields_whitelist = ["id"]
+
+    def __str__(self):
+        return str(self.name)
+
+    class Meta:
+        db_table = "analysis"
+        verbose_name = "Analysis"
+        verbose_name_plural = "Analyses"
+        ordering = ["name"]
+
+
 class AnalysisType(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
-    tag = models.CharField(max_length=255)
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -866,6 +926,13 @@ class ObservationLevel(BdmModel):
         on_delete=models.CASCADE,
         related_name="observation_levels",
     )
+    analysis = models.ForeignKey(
+        "Analysis",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="observation_levels",
+    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -887,9 +954,11 @@ class ObservationLevel(BdmModel):
             count += 1
         if self.information_request:
             count += 1
+        if self.analysis:
+            count += 1
         if count != 1:
             raise ValidationError(
-                "One and only one of 'table', 'raw_data_source', 'information_request' must be set."  # noqa
+                "One and only one of 'table', 'raw_data_source', 'information_request', 'analysis' must be set."  # noqa
             )
         return super().clean()
 
@@ -936,13 +1005,11 @@ class DateTimeRange(BdmModel):
         return f"{start_year}{start_month}{start_day}{start_hour}{start_minute}{start_second}{interval}\
            {end_year}{end_month}{end_day}{end_hour}{end_minute}{end_second}"
 
-
     class Meta:
         db_table = "datetime_range"
         verbose_name = "DateTime Range"
         verbose_name_plural = "DateTime Ranges"
         ordering = ["id"]
-
 
     def clean(self) -> None:
         errors = {}
@@ -1018,3 +1085,103 @@ class DateTimeRange(BdmModel):
             raise ValidationError(errors)
 
         return super().clean()
+
+class QualityCheck(BdmModel):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    name = models.CharField(null=True, blank=True, max_length=255)
+    description = models.TextField(null=True, blank=True)
+    passed = models.BooleanField(
+        default=False, help_text="Passed the quality check"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    pipeline = models.ForeignKey(
+        "Pipeline",
+        on_delete=models.CASCADE,
+        related_name="quality_checks",
+        blank=True,
+        null=True,
+    )
+    analysis = models.ForeignKey(
+        "Analysis",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="quality_checks",
+    )
+    dataset = models.ForeignKey(
+        "Dataset",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="quality_checks",
+    )
+    table = models.ForeignKey(
+        "Table",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="quality_checks",
+    )
+    column = models.ForeignKey(
+        "Column",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="quality_checks",
+    )
+    key = models.ForeignKey(
+        "Key",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="quality_checks",
+    )
+    raw_data_source = models.ForeignKey(
+        "RawDataSource",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="quality_checks",
+    )
+    information_request = models.ForeignKey(
+        "InformationRequest",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="quality_checks",
+    )
+
+    graphql_nested_filter_fields_whitelist = ["id"]
+
+    def __str__(self):
+        return str(self.name)
+
+    class Meta:
+        db_table = "quality_check"
+        verbose_name = "Quality Check"
+        verbose_name_plural = "Quality Checks"
+        ordering = ["id"]
+
+    def clean(self) -> None:
+        count = 0
+        if self.analysis:
+            count += 1
+        if self.dataset:
+            count += 1
+        if self.table:
+            count += 1
+        if self.column:
+            count += 1
+        if self.key:
+            count += 1
+        if self.raw_data_source:
+            count += 1
+        if self.information_request:
+            count += 1
+        if count != 1:
+            raise ValidationError(
+                "One and only one of 'analysis', 'dataset, 'table', 'column', 'key, 'raw_data_source', 'information_request' must be set."  # noqa
+            )
+        return super().clean()
+    
