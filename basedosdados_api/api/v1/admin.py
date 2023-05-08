@@ -29,9 +29,11 @@ from basedosdados_api.api.v1.models import (
     EntityCategory,
     Dictionary,
     Pipeline,
+    Analysis,
     AnalysisType,
     DateTimeRange,
     Key,
+    QualityCheck,
     UUIDHIddenIdForm,
 )
 
@@ -526,7 +528,77 @@ class StatusAdmin(TabbedTranslationAdmin):
     ]
 
 
-admin.site.register(AnalysisType)
+class AnalysisTypeAdmin(TabbedTranslationAdmin):
+    readonly_fields = [
+        "id",
+    ]
+    list_display = [
+        "name",
+        "slug",
+    ]
+    search_fields = [
+        "name",
+        "slug",
+    ]
+
+
+class AnalysisAdmin(TabbedTranslationAdmin):
+    readonly_fields = [
+        "id",
+    ]
+    list_display = [
+        "name",
+        "analysis_type",
+    ]
+    search_fields = [
+        "name",
+        "description",
+    ]
+    autocomplete_fields = ["analysis_type", "datasets", "themes", "tags"]
+    filter_horizontal = ["datasets", "themes", "tags"]
+
+
+class KeyAdmin(admin.ModelAdmin):
+    readonly_fields = [
+        "id",
+    ]
+    list_display = [
+        "name",
+        "value",
+    ]
+    search_fields = [
+        "name",
+        "value",
+    ]
+
+
+class QualityCheckAdmin(TabbedTranslationAdmin):
+    readonly_fields = [
+        "id",
+    ]
+    list_display = [
+        "name",
+        "analysis",
+        "dataset",
+        "passed",
+    ]
+    search_fields = [
+        "name",
+        "descriptiion",
+    ]
+    autocomplete_fields = [
+        "analysis",
+        "dataset",
+        "table",
+        "column",
+        "key",
+        "raw_data_source",
+        "information_request",
+    ]
+
+
+admin.site.register(Analysis, AnalysisAdmin)
+admin.site.register(AnalysisType, AnalysisTypeAdmin)
 admin.site.register(Area, AreaAdmin)
 admin.site.register(Availability, AvailabilityAdmin)
 admin.site.register(BigQueryType)
@@ -539,7 +611,7 @@ admin.site.register(Dictionary)
 admin.site.register(Entity, EntityAdmin)
 admin.site.register(EntityCategory, EntityCategoryAdmin)
 admin.site.register(InformationRequest, InformationRequestAdmin)
-admin.site.register(Key)
+admin.site.register(Key, KeyAdmin)
 admin.site.register(Language, LanguageAdmin)
 admin.site.register(License, LicenseAdmin)
 admin.site.register(ObservationLevel, ObservationLevelAdmin)
@@ -551,3 +623,4 @@ admin.site.register(Table, TableAdmin)
 admin.site.register(Tag, TagAdmin)
 admin.site.register(Theme, ThemeAdmin)
 admin.site.register(Update, UpdateAdmin)
+admin.site.register(QualityCheck, QualityCheckAdmin)

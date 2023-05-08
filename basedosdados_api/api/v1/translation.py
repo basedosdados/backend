@@ -2,11 +2,14 @@
 from modeltranslation.translator import translator, TranslationOptions
 
 from .models import (
+    Analysis,
     AnalysisType,
+    Area,
     Availability,
     Column,
     Dataset,
     Entity,
+    EntityCategory,
     InformationRequest,
     Language,
     License,
@@ -16,14 +19,20 @@ from .models import (
     Table,
     Tag,
     Theme,
-    Area, EntityCategory,
+    QualityCheck,
 )
+
+
+class AnalysisTranslationOptions(TranslationOptions):
+    fields = (
+        "name",
+        "description",
+    )
 
 
 class AnalysisTypeTranslationOptions(TranslationOptions):
     fields = (
         "name",
-        "tag",
     )
 
 
@@ -67,6 +76,13 @@ class OrganizationTranslationOptions(TranslationOptions):
     fields = ("name", "description")
 
 
+class QualityCheckTranslationOptions(TranslationOptions):
+    fields = (
+        "name",
+        "description",
+    )
+
+
 class RawDataSourceTranslationOptions(TranslationOptions):
     fields = (
         "name",
@@ -93,6 +109,7 @@ class ThemeTranslationOptions(TranslationOptions):
     fields = ("name",)
 
 
+translator.register(Analysis, AnalysisTranslationOptions)
 translator.register(AnalysisType, AnalysisTypeTranslationOptions)
 translator.register(Area, AreaTranslationOptions)
 translator.register(Availability, AvailabilityTranslationOptions)
@@ -104,6 +121,7 @@ translator.register(InformationRequest, InformationRequestTranslationOptions)
 translator.register(Language, LanguageTranslationOptions)
 translator.register(License, LicenseTranslationOptions)
 translator.register(Organization, OrganizationTranslationOptions)
+translator.register(QualityCheck, QualityCheckTranslationOptions)
 translator.register(RawDataSource, RawDataSourceTranslationOptions)
 translator.register(Status, StatusTranslationOptions)
 translator.register(Table, TableTranslationOptions)
