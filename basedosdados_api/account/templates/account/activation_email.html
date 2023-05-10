@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% block content %}
-Hi {{ user.username }},
-Please click on the link to confirm your registration,
+Olá, {{ user.username }},
+Por favor, clique no link abaixo para confirmar seu cadastro na Base dos Dados:
+{% autoescape off %}
 http://{{ domain }}{% url 'activate' uidb64=uid token=token %}
-
+{% endautoescape %}
 {% endblock %}
