@@ -13,6 +13,8 @@ def nonull_getenv(var):
     return value
 
 
+CSRF_TRUSTED_ORIGINS = ["http://localhost:3000", "http://localhost:8000"]
+
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
 

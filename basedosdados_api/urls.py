@@ -39,6 +39,7 @@ def redirect_to_v1_graphql(request):
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("martor/", include("martor.urls")),
     path("account/", include("basedosdados_api.account.urls")),
     re_path(r"^healthcheck/", include("health_check.urls")),
     path("api/", redirect_to_v1, name="api"),
