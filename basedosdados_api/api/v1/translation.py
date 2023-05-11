@@ -31,9 +31,7 @@ class AnalysisTranslationOptions(TranslationOptions):
 
 
 class AnalysisTypeTranslationOptions(TranslationOptions):
-    fields = (
-        "name",
-    )
+    fields = ("name",)
 
 
 class AreaTranslationOptions(TranslationOptions):
@@ -45,7 +43,7 @@ class AvailabilityTranslationOptions(TranslationOptions):
 
 
 class ColumnTranslationOptions(TranslationOptions):
-    fields = ("name", "description", "observations")
+    fields = ("name", "name_staging", "description", "observations")
 
 
 class DatasetTranslationOptions(TranslationOptions):
