@@ -76,6 +76,7 @@ class ColumnInlineForm(UUIDHIddenIdForm):
         fields = [
             "id",
             "name",
+            "name_staging",
             "description",
             "bigquery_type",
             "is_closed",

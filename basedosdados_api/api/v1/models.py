@@ -358,7 +358,7 @@ class Organization(BdmModel):
     def has_picture(self):
         try:
             hasattr(self.picture, "url")
-        except Exception as e:
+        except Exception as e:  # noqa
             return False
         return self.picture is not None
 
@@ -624,6 +624,7 @@ class Column(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     table = models.ForeignKey("Table", on_delete=models.CASCADE, related_name="columns")
     name = models.CharField(max_length=255)
+    name_staging = models.CharField(max_length=255, blank=True, null=True)
     bigquery_type = models.ForeignKey(
         "BigQueryType", on_delete=models.CASCADE, related_name="columns"
     )
@@ -1086,13 +1087,12 @@ class DateTimeRange(BdmModel):
 
         return super().clean()
 
+
 class QualityCheck(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     name = models.CharField(null=True, blank=True, max_length=255)
     description = models.TextField(null=True, blank=True)
-    passed = models.BooleanField(
-        default=False, help_text="Passed the quality check"
-    )
+    passed = models.BooleanField(default=False, help_text="Passed the quality check")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     pipeline = models.ForeignKey(
@@ -1184,4 +1184,3 @@ class QualityCheck(BdmModel):
                 "One and only one of 'analysis', 'dataset, 'table', 'column', 'key, 'raw_data_source', 'information_request' must be set."  # noqa
             )
         return super().clean()
-    
