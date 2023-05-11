@@ -352,6 +352,7 @@ def fixture_coluna_nome_bairros(
     return Column.objects.create(
         table=tabela_bairros,
         name="Nome do bairro",
+        name_staging="Nome do bairro",
         description="Descrição da coluna nome",
         bigquery_type=bigquery_type_string,
         is_in_staging=True,
