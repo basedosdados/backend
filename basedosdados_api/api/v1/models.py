@@ -358,7 +358,7 @@ class Organization(BdmModel):
     def has_picture(self):
         try:
             hasattr(self.picture, "url")
-        except Exception as e:
+        except Exception:
             return False
         return self.picture is not None
 
@@ -602,6 +602,16 @@ class Table(BdmModel):
             raise ValidationError(errors)
 
         return super().clean()
+
+    def save(self):
+        super().save()
+        # TODO: update queries repository
+        # - check to which GCP projects it's related
+        # - for each GCP project, check if the repository `queries-<project_id>` exists
+        #   * if it doesn't, skip
+        #   * get the repository and overwrite files related to this table
+        #   * if the status is OK, commit directly to the main branch
+        #   * if the status is not OK (to be reviewed), create a new branch and open a PR
 
 
 class BigQueryType(BdmModel):
@@ -1086,13 +1096,12 @@ class DateTimeRange(BdmModel):
 
         return super().clean()
 
+
 class QualityCheck(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     name = models.CharField(null=True, blank=True, max_length=255)
     description = models.TextField(null=True, blank=True)
-    passed = models.BooleanField(
-        default=False, help_text="Passed the quality check"
-    )
+    passed = models.BooleanField(default=False, help_text="Passed the quality check")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     pipeline = models.ForeignKey(
@@ -1184,4 +1193,3 @@ class QualityCheck(BdmModel):
                 "One and only one of 'analysis', 'dataset, 'table', 'column', 'key, 'raw_data_source', 'information_request' must be set."  # noqa
             )
         return super().clean()
-    
