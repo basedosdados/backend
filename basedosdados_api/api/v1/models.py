@@ -448,6 +448,67 @@ class Dataset(BdmModel):
     def get_graphql_full_slug(self):
         return self.full_slug
 
+    @property
+    def coverage(self):
+        tables = self.tables.all()
+        start_year, start_month, start_day = False, False, False
+        # start_semester, star_quarter = False, False
+        # start_hour, start_minute, start_second = False, False, False
+        end_year, end_month, end_day = False, False, False
+        # end_semester, end_quarter = False, False
+        # end_hour, end_minute, end_second = False, False, False
+
+        start_date, end_date = datetime(3000, 1, 1, 0, 0, 0), datetime(1, 1, 1, 0, 0, 0)
+
+        for table in tables:
+            for coverage in table.coverages.all():
+                try:
+                    date_time = DateTimeRange.objects.get(coverage=coverage.pk)
+                except DateTimeRange.DoesNotExist:
+                    return ""
+                start_year = date_time.start_year is not None or start_year
+                start_month = date_time.start_month is not None or start_month
+                start_day = date_time.start_day is not None or start_day
+                end_year = date_time.end_year is not None or end_year
+                end_month = date_time.end_month is not None or end_month
+                end_day = date_time.end_day is not None or end_day
+
+                new_start_date = datetime(
+                    date_time.start_year,
+                    date_time.start_month or 1,
+                    date_time.start_day or 1,
+                )
+                start_date = (
+                    new_start_date if new_start_date < start_date else start_date
+                )
+                new_end_date = datetime(
+                    date_time.end_year, date_time.end_month or 1, date_time.end_day or 1
+                )
+                end_date = new_end_date if new_end_date > end_date else end_date
+
+        start = []
+        end = []
+
+        if start_year and start_date.year:
+            start.append(str(start_date.year))
+            if start_month and start_date.month:
+                start.append(str(start_date.month).zfill(2))
+                if start_day and start_date.day:
+                    start.append(str(start_date.day).zfill(2))
+
+        if end_year and end_date.year:
+            end.append(str(end_date.year))
+            if end_month and end_date.month:
+                end.append(str(end_date.month).zfill(2))
+                if end_day and end_date.day:
+                    end.append(str(end_date.day).zfill(2))
+
+        return "-".join(start) + " - " + "-".join(end)
+
+    @property
+    def get_graphql_coverage(self):
+        return self.coverage
+
 
 class Update(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
