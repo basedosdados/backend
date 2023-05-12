@@ -400,6 +400,8 @@ class DatasetSearchView(SearchView):
             "name": dataset.name,
             "organization": dataset.organization.name,
             "organization_slug": dataset.organization.slug,
+            "organization_picture": dataset.organization.picture.url,
+            "organization_website": dataset.organization.website,
             "themes": get_themes(dataset),
             "tags": get_tags(dataset),
             "temporal_coverage": get_temporal_coverage(dataset),
