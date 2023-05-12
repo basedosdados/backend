@@ -393,6 +393,12 @@ class DatasetSearchView(SearchView):
                 return str(dataset.information_requests.first().id)
             return None
 
+        organization_picture = dataset.organization.picture
+        if organization_picture:
+            organization_picture = organization_picture.url
+        else:
+            organization_picture = None
+
         return {
             "id": str(dataset.id),
             "slug": dataset.slug,
@@ -400,7 +406,7 @@ class DatasetSearchView(SearchView):
             "name": dataset.name,
             "organization": dataset.organization.name,
             "organization_slug": dataset.organization.slug,
-            "organization_picture": dataset.organization.picture.url,
+            "organization_picture": organization_picture,
             "organization_website": dataset.organization.website,
             "themes": get_themes(dataset),
             "tags": get_tags(dataset),
