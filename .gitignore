@@ -247,3 +247,4 @@ fabric.properties
 .vscode/
 .DS_Store
 /basedosdados_api/media/
+/basedosdados_api/notebooks/
