@@ -211,8 +211,15 @@ class DatasetAdmin(TabbedTranslationAdmin):
         )
 
     related_objects.short_description = "Tables"
-    readonly_fields = ["id", "full_slug", "created_at", "updated_at", "related_objects"]
-    list_display = ["name", "full_slug", "organization", "related_objects"]
+    readonly_fields = [
+        "id",
+        "full_slug",
+        "coverage",
+        "created_at",
+        "updated_at",
+        "related_objects",
+    ]
+    list_display = ["name", "full_slug", "coverage", "organization", "related_objects"]
     search_fields = ["name", "slug", "organization__name"]
     inlines = [
         TableInline,
