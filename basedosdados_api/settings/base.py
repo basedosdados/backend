@@ -255,10 +255,20 @@ X_FRAME_OPTIONS = "SAMEORIGIN"
 
 JAZZMIN_SETTINGS = {
     "site_title": "Base dos Dados",
-    # Title on the login screen (19 chars max) (defaults to current_admin_site.site_header if absent or None)
+    # Title on the login screen (19 chars max) (defaults to
+    # current_admin_site.site_header if absent or None)
     "site_header": "Base dos Dados Admin",
-    # Title on the brand (19 chars max) (defaults to current_admin_site.site_header if absent or None)
+    # Title on the brand (19 chars max) (defaults to
+    # current_admin_site.site_header if absent or None)
     "site_brand": "Base dos Dados Admin",
+    # Logo to use for your site, must be present in static files,
+    # used for brand on top left
+    "site_logo": "core/img/bd.png",
+    # Logo to use for your site, must be present in static files,
+    # used for login form logo (defaults to site_logo)
+    "login_logo": None,
+    # CSS classes that are applied to the admin
+    "custom_css": "core/css/main.css",
     "changeform_format": "horizontal_tabs",
     "related_modal_active": True,
     "topmenu_links": [
