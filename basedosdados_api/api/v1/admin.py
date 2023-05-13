@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
+from django import forms
 from django.utils.html import format_html
 from modeltranslation.admin import (
     TabbedTranslationAdmin,
@@ -285,7 +286,43 @@ class TableAdmin(TabbedTranslationAdmin):
     ]
 
 
+class DirectoryPrimaryKeyAdminFilter(admin.SimpleListFilter):
+    title = "directory_primary_key"
+    parameter_name = "directory_primary_key"
+
+    def lookups(self, request, model_admin):
+        distinct_values = (
+            Column.objects.filter(directory_primary_key__id__isnull=False)
+            .order_by("directory_primary_key__name")
+            .distinct()
+            .values(
+                "directory_primary_key__name",
+            )
+        )
+        # Create a tuple of tuples with the format (value, label).
+        return [
+            (value.get("directory_primary_key__name"),) for value in distinct_values
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(directory_primary_key__name=self.value())
+
+
+class ColumnForm(forms.ModelForm):
+    class Meta:
+        model = Column
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["directory_primary_key"].queryset = Column.objects.filter(
+            table__is_directory=True
+        )
+
+
 class ColumnAdmin(TabbedTranslationAdmin):
+    form = ColumnForm
     readonly_fields = [
         "id",
     ]
@@ -294,7 +331,13 @@ class ColumnAdmin(TabbedTranslationAdmin):
         "table",
     ]
     search_fields = ["name", "table__name"]
-    autocomplete_fields = ["table", "observation_level", "directory_primary_key"]
+    autocomplete_fields = [
+        "table",
+        "observation_level",
+    ]
+    list_filter = [
+        "table__dataset__organization__name",
+    ]
 
 
 class ObservationLevelAdmin(admin.ModelAdmin):
