@@ -86,6 +86,16 @@ class ColumnInlineForm(UUIDHIddenIdForm):
         ]
 
 
+class CoverageInlineForm(UUIDHIddenIdForm):
+    class Meta(UUIDHIddenIdForm.Meta):
+        model = Coverage
+        fields = [
+            "id",
+            "area",
+            "table",
+        ]
+
+
 # Inlines
 
 
@@ -108,7 +118,39 @@ class TableInline(TranslationStackedInline):
     show_change_link = True
 
 
-# Filters
+class CoverageInline(admin.StackedInline):
+    # def related_objects(self, obj):
+    #     qs = DateTimeRange.objects.filter(coverage=obj)
+    #     lines = []
+    #     for datetimerange in qs:
+    #         lines.append(
+    #         '<a href="/admin/api/v1/datetimerange/{0}/change/" target="_blank">Date Time Range</a>',
+    #         datetimerange.pk
+    #         )
+    #     return format_html(
+    #         '<a href="/admin/api/v1/datetimerange/{}/change/" target="_blank">Date Time Range</a>',
+    #         'http://localhost:8001/admin/v1/datetimerange/00004e41-a4f8-48eb-b39c-f353d872d7c7/change/'
+    #         obj.datetimerange.slug,
+    #     )
+    model = Coverage
+    form = CoverageInlineForm
+    extra = 0
+    show_change_link = True
+    exclude = [
+        "raw_data_source",
+        "information_request",
+        "column",
+        "key",
+        "analysis",
+    ]
+    readonly_fields = [
+        "id",
+        "area",
+        "table",
+    ]
+    inlines = [
+        TableCoverageFilter,
+    ]
 
 
 # Model Admins
@@ -232,6 +274,7 @@ class TableAdmin(TabbedTranslationAdmin):
     ]
     search_fields = ["name", "dataset__name"]
     inlines = [
+        CoverageInline,
         ColumnInline,
     ]
     autocomplete_fields = [
@@ -244,29 +287,6 @@ class TableAdmin(TabbedTranslationAdmin):
         "dataset__organization__name",
         TableCoverageFilter,
     ]
-
-
-class DirectoryPrimaryKeyAdminFilter(admin.SimpleListFilter):
-    title = "directory_primary_key"
-    parameter_name = "directory_primary_key"
-
-    def lookups(self, request, model_admin):
-        distinct_values = (
-            Column.objects.filter(directory_primary_key__id__isnull=False)
-            .order_by("directory_primary_key__name")
-            .distinct()
-            .values(
-                "directory_primary_key__name",
-            )
-        )
-        # Create a tuple of tuples with the format (value, label).
-        return [
-            (value.get("directory_primary_key__name"),) for value in distinct_values
-        ]
-
-    def queryset(self, request, queryset):
-        if self.value():
-            return queryset.filter(directory_primary_key__name=self.value())
 
 
 class ColumnForm(forms.ModelForm):
