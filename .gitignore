@@ -248,3 +248,4 @@ fabric.properties
 .DS_Store
 /basedosdados_api/media/
 /basedosdados_api/notebooks/
+/basedosdados_api/staticfiles/

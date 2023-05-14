@@ -11,3 +11,4 @@
 {{ object.column_descriptions }}
 {{ object.themes }}
 {{ object.tags }}
+{{ object.is_closed }}

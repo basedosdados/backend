@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
+from django import forms
 from django.utils.html import format_html
 from modeltranslation.admin import (
     TabbedTranslationAdmin,
     TranslationStackedInline,
 )
 
+from basedosdados_api.api.v1.filters import OrganizationImageFilter, TableCoverageFilter
 from basedosdados_api.api.v1.models import (
     Organization,
     Dataset,
@@ -107,47 +109,6 @@ class TableInline(TranslationStackedInline):
 
 
 # Filters
-
-
-class OrganizationImageFilter(admin.SimpleListFilter):
-    title = "has_picture"
-    parameter_name = "has_picture"
-
-    def lookups(self, request, model_admin):
-        return (
-            ("True", "Yes"),
-            ("False", "No"),
-        )
-
-    def queryset(self, request, queryset):
-        if self.value() == "True":
-            return queryset.exclude(picture="")
-        if self.value() == "False":
-            return queryset.filter(picture="")
-
-
-class TableCoverageFilter(admin.SimpleListFilter):
-    title = "table_coverage"
-    parameter_name = "table_coverage"
-
-    def lookups(self, request, model_admin):
-        distinct_values = (
-            Coverage.objects.filter(table__id__isnull=False)
-            .order_by("area__name")
-            .distinct()
-            .values("area__name", "area__slug")
-        )
-        # Create a tuple of tuples with the format (value, label).
-        return [
-            (value.get("area__slug"), value.get("area__name"))
-            for value in distinct_values
-        ]
-
-        # return Coverage.objects.order_by().values("area__name").distinct()
-
-    def queryset(self, request, queryset):
-        if self.value():
-            return queryset.filter(coverages__area__slug=self.value())
 
 
 # Model Admins
@@ -252,15 +213,15 @@ class TableAdmin(TabbedTranslationAdmin):
             # If a parent model ID is provided, add the parent model field to the form
             # fields = self.get_related_fields
             initial = {"parent_model": parent_model_id}
-            self.initial = initial
+            self.initial = initial  # noqa
         return super().add_view(request, *args, **kwargs)
 
-    def get_related_fields(self, request, obj=None):
-        fields = self.model._meta.fields
+    def get_related_fields(self, request, obj=None):  # noqa
+        fields = self.model._meta.fields  # noqa
         parent_model_id = request.GET.get("dataset")
         if parent_model_id:
             parent_model = Dataset.objects.get(id=parent_model_id)
-            fields += parent_model._meta.fields
+            fields += parent_model._meta.fields  # noqa
         return fields
 
     readonly_fields = [
@@ -285,7 +246,43 @@ class TableAdmin(TabbedTranslationAdmin):
     ]
 
 
+class DirectoryPrimaryKeyAdminFilter(admin.SimpleListFilter):
+    title = "directory_primary_key"
+    parameter_name = "directory_primary_key"
+
+    def lookups(self, request, model_admin):
+        distinct_values = (
+            Column.objects.filter(directory_primary_key__id__isnull=False)
+            .order_by("directory_primary_key__name")
+            .distinct()
+            .values(
+                "directory_primary_key__name",
+            )
+        )
+        # Create a tuple of tuples with the format (value, label).
+        return [
+            (value.get("directory_primary_key__name"),) for value in distinct_values
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(directory_primary_key__name=self.value())
+
+
+class ColumnForm(forms.ModelForm):
+    class Meta:
+        model = Column
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["directory_primary_key"].queryset = Column.objects.filter(
+            table__is_directory=True
+        )
+
+
 class ColumnAdmin(TabbedTranslationAdmin):
+    form = ColumnForm
     readonly_fields = [
         "id",
     ]
@@ -294,7 +291,13 @@ class ColumnAdmin(TabbedTranslationAdmin):
         "table",
     ]
     search_fields = ["name", "table__name"]
-    autocomplete_fields = ["table", "observation_level", "directory_primary_key"]
+    autocomplete_fields = [
+        "table",
+        "observation_level",
+    ]
+    list_filter = [
+        "table__dataset__organization__name",
+    ]
 
 
 class ObservationLevelAdmin(admin.ModelAdmin):
@@ -592,7 +595,7 @@ class QualityCheckAdmin(TabbedTranslationAdmin):
     ]
     search_fields = [
         "name",
-        "descriptiion",
+        "description",
     ]
     autocomplete_fields = [
         "analysis",
