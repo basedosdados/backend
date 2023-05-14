@@ -333,9 +333,10 @@ class DatasetSearchView(SearchView):
         )
 
     def serialize_dataset(self, dataset: Dataset):
+        
         def get_organizations(dataset: Dataset) -> List[Dict[str, str]]:
             organizations = []
-            for organization in dataset.organization.all():
+            for organization in dataset.organization: # .all()
                 organizations.append(
                     {
                         "name": organization.name,
