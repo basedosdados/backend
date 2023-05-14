@@ -7,11 +7,12 @@ from basedosdados_api.account.views import (
     LoginView,
     LogoutView,
     PasswordResetConfirmView,
-    PasswordResetCompleteView,
+    PasswordResetCompleteView, ActivateAccount,
 )
 
 urlpatterns = [
     # path("user", LoadUserView.as_view(), name="user"),
+    path("activate/<uidb64>/<token>/", ActivateAccount.as_view(), name="activate"),
     path("register", RegisterView.as_view(), name="account-register"),
     path("login/", LoginView.as_view(), name="login"),
     path("logout/", LogoutView.as_view(), name="logout"),

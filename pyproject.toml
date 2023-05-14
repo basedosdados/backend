@@ -15,17 +15,18 @@ psycopg2-binary = "^2.9.5"
 django-cors-headers = "^3.13.0"
 gunicorn = "^20.1.0"
 django-health-check = "^3.17.0"
-graphene-django = "^3.0.0"
+graphene-django = "3.0.0"
 django-filter = "^22.1"
 django-graphql-jwt = "^0.3.4"
 django-modeltranslation = "^0.18.8"
 pylint = "^2.16.1"
 pillow = "^9.4.0"
-graphene-file-upload = "^1.3.0"
+graphene-file-upload = "1.3.0"
 django-haystack = {extras = ["elasticsearch"], version = "^3.2.1"}
+graphene = "3.2.1"
 django-storages = {extras = ["google"], version = "^1.13.2"}
 google-api-python-client = "^2.83.0"
-cairosvg = "^2.7.0"
+django-jazzmin = "^2.6.0"
 
 [tool.poetry.dev-dependencies]
 black = "^22.3.0"

@@ -12,6 +12,7 @@ from basedosdados_api.api.v1.models import (
     RawDataSource,
     InformationRequest,
     DateTimeRange,
+    Analysis,
 )
 
 
@@ -24,43 +25,6 @@ def test_invalid_area_slug_brasil():
     )
     with pytest.raises(ValidationError):
         area.full_clean()
-
-
-@pytest.mark.django_db
-def test_invalid_area_key():
-    """Test for Area with dot names, which are invalid in slug."""
-    area = Area(
-        name="Brasil",
-        key="SA.br",
-    )
-    with pytest.raises(ValidationError):
-        area.full_clean()
-
-
-@pytest.mark.django_db
-def test_area_key_not_in_bd_dict():
-    """Test for Area with dot names, which are invalid in slug."""
-    area = Area(
-        name="Brasil",
-        name_en="Brazil",
-        slug="brasil",
-        key="na.br",
-    )
-    with pytest.raises(ValidationError):
-        area.full_clean()
-
-
-@pytest.mark.django_db
-def test_valid_area_key():
-    """Test for Area with dot names, which are invalid in slug."""
-    area = Area(
-        name="Brasil",
-        slug="brasil",
-        key="sa.br",
-    )
-    area.full_clean()
-    area.save()
-    assert Area.objects.exists()
 
 
 @pytest.mark.django_db
@@ -116,12 +80,10 @@ def test_create_dataset(
 
 
 @pytest.mark.django_db
-def test_create_table(tabela_bairros, observation_level_anual):
+def test_create_table(tabela_bairros):
     """Test for Table."""
     tabela_bairros.save()
-    tabela_bairros.observation_level.add(observation_level_anual)
     assert Table.objects.exists()
-    assert len(tabela_bairros.observation_level.all()) == 1
 
 
 @pytest.mark.django_db
@@ -143,8 +105,6 @@ def test_columns_create(
 def test_create_rawdatasource(raw_data_source, entity_escola, entity_anual):
     """Test for RawDataSource."""
     raw_data_source.save()
-    raw_data_source.entities.add(entity_escola, entity_anual)
-    assert raw_data_source.entities.count() == 2
     assert RawDataSource.objects.exists()
 
 
@@ -152,7 +112,25 @@ def test_create_rawdatasource(raw_data_source, entity_escola, entity_anual):
 def test_create_information_request(pedido_informacao, entity_escola, entity_anual):
     """Test for InformationRequest."""
     pedido_informacao.save()
-    pedido_informacao.entities.add(entity_escola, entity_anual)
 
-    assert pedido_informacao.entities.count() == 2
     assert InformationRequest.objects.exists()
+
+
+@pytest.mark.django_db
+def test_create_analysis(
+    analise_bairros,
+    dataset_dados_mestres,
+    tema_saude,
+    tema_educacao,
+    tag_aborto,
+    tag_covid,
+    usuario_inicio,
+):
+    """Test for Analysis."""
+    analise_bairros.datasets.add(dataset_dados_mestres)
+    analise_bairros.themes.add(tema_saude, tema_educacao)
+    analise_bairros.tags.add(tag_aborto, tag_covid)
+    analise_bairros.authors.add(usuario_inicio)
+    analise_bairros.save()
+
+    assert Analysis.objects.exists()

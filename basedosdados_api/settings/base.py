@@ -39,6 +39,7 @@ CORS_ORIGIN_ALLOW_ALL = True
 
 INSTALLED_APPS = [
     "modeltranslation",
+    "jazzmin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -215,7 +216,7 @@ GRAPHQL_JWT = {
     "JWT_EXPIRATION_DELTA": timedelta(minutes=30),
     "JWT_REFRESH_EXPIRATION_DELTA": timedelta(days=1),
     "JWT_VERIFY_EXPIRATION": True,
-    'JWT_ALLOW_ANY_HANDLER': 'basedosdados_api.custom.allow_any.allow_any',
+    "JWT_ALLOW_ANY_HANDLER": "basedosdados_api.custom.allow_any.allow_any",
 }
 
 # Translations
@@ -249,3 +250,48 @@ HAYSTACK_ITERATOR_LOAD_PER_QUERY = 200
 HAYSTACK_LIMIT_TO_REGISTERED_MODELS = True
 HAYSTACK_SEARCH_RESULTS_PER_PAGE = 100
 HAYSTACK_SIGNAL_PROCESSOR = "haystack.signals.RealtimeSignalProcessor"
+
+X_FRAME_OPTIONS = "SAMEORIGIN"
+
+JAZZMIN_SETTINGS = {
+    "changeform_format": "horizontal_tabs",
+    "related_modal_active": True,
+    "topmenu_links": [
+        {"name": "Metadados", "app": "v1"},
+        {"model": "v1.dataset"},
+    ],
+    "show_ui_builder": True,
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "navbar_small_text": True,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": True,
+    "brand_colour": "navbar-success",
+    "accent": "accent-success",
+    "navbar": "navbar-white navbar-light",
+    "no_navbar_border": False,
+    "navbar_fixed": True,
+    "layout_boxed": False,
+    "footer_fixed": False,
+    "sidebar_fixed": True,
+    "sidebar": "sidebar-dark-success",
+    "sidebar_nav_small_text": True,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": False,
+    "sidebar_nav_compact_style": False,
+    "sidebar_nav_legacy_style": False,
+    "sidebar_nav_flat_style": False,
+    "theme": "default",
+    "dark_mode_theme": "darkly",
+    "button_classes": {
+        "primary": "btn-primary",
+        "secondary": "btn-secondary",
+        "info": "btn-info",
+        "warning": "btn-warning",
+        "danger": "btn-danger",
+        "success": "btn-success",
+    },
+    "actions_sticky_top": True,
+}

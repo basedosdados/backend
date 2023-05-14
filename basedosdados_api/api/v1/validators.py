@@ -38,6 +38,6 @@ def validate_is_valid_area_key(value):  # outdated because it assumes separators
 def validate_is_valid_image_format(value):
     """Validate image file."""
     validate_image_file_extension = FileExtensionValidator(
-        allowed_extensions=["jpg", "jpeg", "png"]
+        allowed_extensions=["jpg", "jpeg", "png", "gif"]
     )
     validate_image_file_extension(value)

@@ -247,7 +247,4 @@ fabric.properties
 .vscode/
 .DS_Store
 /basedosdados_api/media/
-
-# imported images
-/utils/migration/images/
-/utils/migration/logs/
+/basedosdados_api/notebooks/
