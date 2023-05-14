@@ -333,6 +333,19 @@ class DatasetSearchView(SearchView):
         )
 
     def serialize_dataset(self, dataset: Dataset):
+        def get_organizations(dataset: Dataset) -> List[Dict[str, str]]:
+            organizations = []
+            for organization in dataset.organization.all():
+                organizations.append(
+                    {
+                        "name": organization.name,
+                        "slug": organization.slug,
+                        "picture": organization.picture,
+                        "website": organization.website,
+                    }
+                )
+            return organizations
+
         def get_temporal_coverage(dataset: Dataset) -> str:
             min_year = float("inf")
             max_year = float("-inf")
@@ -395,40 +408,31 @@ class DatasetSearchView(SearchView):
                 return str(dataset.tables.first().id)
             return None
 
-        def get_first_original_source_id(dataset: Dataset) -> Union[str, None]:
+        def get_first_raw_data_source_id(dataset: Dataset) -> Union[str, None]:
             if dataset.raw_data_sources.count() > 0:
                 return str(dataset.raw_data_sources.first().id)
             return None
 
-        def get_first_lai_id(dataset: Dataset) -> Union[str, None]:
+        def get_first_information_request_id(dataset: Dataset) -> Union[str, None]:
             if dataset.information_requests.count() > 0:
                 return str(dataset.information_requests.first().id)
             return None
-
-        organization_picture = dataset.organization.picture
-        if organization_picture:
-            organization_picture = organization_picture.url
-        else:
-            organization_picture = None
 
         return {
             "id": str(dataset.id),
             "slug": dataset.slug,
             "full_slug": dataset.full_slug,
             "name": dataset.name,
-            "organization": dataset.organization.name,
-            "organization_slug": dataset.organization.slug,
-            "organization_picture": organization_picture,
-            "organization_website": dataset.organization.website,
+            "organizations": get_organizations(dataset),
             "themes": get_themes(dataset),
             "tags": get_tags(dataset),
             "temporal_coverage": get_temporal_coverage(dataset),
-            "n_bdm_tables": dataset.tables.count(),
+            "n_tables": dataset.tables.count(),
             "first_table_id": get_first_table_id(dataset),
-            "n_original_sources": dataset.raw_data_sources.count(),
-            "first_original_source_id": get_first_original_source_id(dataset),
-            "n_lais": dataset.information_requests.count(),
-            "first_lai_id": get_first_lai_id(dataset),
+            "n_raw_data_sources": dataset.raw_data_sources.count(),
+            "first_raw_data_source_id": get_first_raw_data_source_id(dataset),
+            "n_information_requests": dataset.information_requests.count(),
+            "first_information_request_id": get_first_information_request_id(dataset),
             "is_closed": dataset.is_closed,
         }
 
