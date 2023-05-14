@@ -1,7 +1,7 @@
-from datetime import datetime
+# -*- coding: utf-8 -*-
 
 import json
-from typing import Any, Optional, Union
+from typing import Union
 
 import requests
 from pathlib import Path
@@ -40,7 +40,24 @@ def get_org_data(org_id: str) -> tuple:
     org_image = org_data.get("image_url")
     org_name = org_data.get("name")
     prefix = org_name.split("-")[0] + "-"
-    prefixes_to_remove = ["al-", "br-", "brasil-", "ca-", "ch-", "de-", "es-", "eu-", "hm-", "mundo-", "nl-", "se-", "tv-", "uk-", "us-", "world-",]
+    prefixes_to_remove = [
+        "al-",
+        "br-",
+        "brasil-",
+        "ca-",
+        "ch-",
+        "de-",
+        "es-",
+        "eu-",
+        "hm-",
+        "mundo-",
+        "nl-",
+        "se-",
+        "tv-",
+        "uk-",
+        "us-",
+        "world-",
+    ]
     if org_name.startswith(prefix) and prefix in prefixes_to_remove:
         org_name = org_name.replace(prefix, "")
     org_name = org_name.replace("-", "_")
@@ -92,19 +109,23 @@ def get_org_uuid(org: tuple) -> tuple:
         }}
     """
     try:
-        r = requests.post("https://staging.api.basedosdados.org/api/v1/graphql", json={"query": query})
+        r = requests.post(
+            "https://staging.api.basedosdados.org/api/v1/graphql", json={"query": query}
+        )
         r.raise_for_status()
         uuid = r.json()["data"]["allOrganization"]["edges"][0]["node"]["_id"]
-        has_image = r.json()["data"]["allOrganization"]["edges"][0]["node"]["hasPicture"]
+        has_image = r.json()["data"]["allOrganization"]["edges"][0]["node"][
+            "hasPicture"
+        ]
         return uuid, rename_image(slug, image), has_image
-    except IndexError as e:
+    except IndexError as e:  # noqa
         return None, None, None
 
 
 def upload_image(uuid, image, slug, mode="local"):
     token = load_token(mode=mode)
     url = get_url(mode=mode)
-    picture_fname = image.strip('\n')
+    picture_fname = image.strip("\n")
 
     query = f"""
         mutation ($picture: Upload){{
@@ -140,14 +161,19 @@ def upload_image(uuid, image, slug, mode="local"):
 
     try:
         response = requests.post(url, data=body, headers=headers)
-        err = response.json().get("data", {}).get("CreateUpdateOrganization", {}).get("errors")
+        err = (
+            response.json()
+            .get("data", {})
+            .get("CreateUpdateOrganization", {})
+            .get("errors")
+        )
         print(response.text)
         print(uuid, image, url)
 
         if not err:
             return True, f"{uuid}, {slug}, OK"
         else:
-            return False, f'{uuid}, {slug}, {err}'
+            return False, f"{uuid}, {slug}, {err}"
     except Exception as e:
         return False, f"{uuid}, {slug}, {e}"
 
@@ -172,9 +198,14 @@ def main():
                         filename = ".".join(flist)
                         image = convert_svg_to_png(image, f"{filename}.png")
                     print("Uploading image:", image)
-                    status, msg = upload_image(uuid, image, slug, mode=mode)
-                    with open(LOG_PATH / "upload_log.csv", "a") as f:
-                        f.write(f"{msg}\n")
+                    try:
+                        status, msg = upload_image(uuid, image, slug, mode=mode)
+                        with open(LOG_PATH / "upload_log.csv", "a") as f:
+                            f.write(f"{msg}\n")
+                    except FileNotFoundError as e:
+                        print(e)
+                        with open(LOG_PATH / "upload_log.csv", "a") as f:
+                            f.write(f"{uuid}, {slug}, {e}\n")
     else:
         print("Downloading CKAN organization images")
         errors = []
