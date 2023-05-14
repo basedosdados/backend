@@ -333,15 +333,16 @@ class DatasetSearchView(SearchView):
         )
 
     def serialize_dataset(self, dataset: Dataset):
-        
         def get_organizations(dataset: Dataset) -> List[Dict[str, str]]:
             organizations = []
-            for organization in dataset.organization: # .all()
+            # for organization in dataset.organizations.all()
+            # In the future, we may want to support multiple organizations per dataset
+            for organization in [dataset.organization]:
                 organizations.append(
                     {
                         "name": organization.name,
                         "slug": organization.slug,
-                        "picture": organization.picture,
+                        "picture": organization.picture.url,
                         "website": organization.website,
                     }
                 )
