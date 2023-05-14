@@ -32,13 +32,14 @@ def main(
     package_name_error=None,
     tables_error=[],
 ):
+    df = get_bd_packages()
     m = Migration(mode=mode)
     m.create_enum(migrate_enum)
 
     # id = "br-sgp-informacao"
     # id = "br-tse-eleicoes"
     # df = get_package_model(name_or_id=id)
-    df = get_bd_packages()
+
     # r = m.delete(classe="Dataset", id="77239376-6662-4d64-8950-2f57f1225e53")
     count = 1
     for p, package_id in zip(df["packages"].tolist(), df["package_id"].tolist()):
@@ -88,7 +89,6 @@ def main(
                 resource_type == "bdm_table"
                 and resource["table_id"] not in tables_error
             ):
-
                 print("\nCreate Table:", resource["table_id"])
                 resource_to_table = {
                     "dataset": dataset_id,

@@ -99,7 +99,6 @@ def get_package_model(name_or_id):
 
 
 def build_areas_from_json():
-
     with open(
         "./basedosdados_api/schemas/repository/bd_spatial_coverage_tree.json"
     ) as f:
@@ -317,7 +316,6 @@ class Migration:
         query_parameters,
         update=False,
     ):
-
         response, node_id = self.get_id(
             query_class=query_class, query_parameters=query_parameters
         )
@@ -494,7 +492,6 @@ class Migration:
             }
             return self._create_update_entity(**default_parameters)
         else:
-
             entity_dict = {
                 key: value
                 for entity in EntityEnum
@@ -522,7 +519,6 @@ class Migration:
     def _create_update_frequency_for_entity(
         self, entity_id, resource_id, update_frequency_number
     ):
-
         mutation_parameters = {
             "entity": entity_id,
             "frequency": update_frequency_number,
@@ -578,7 +574,6 @@ class Migration:
             )
 
     def _create_observation_level_for_entity(self, entity_id, obs_resource):
-
         resource_type = list(obs_resource.keys())[0]
         resource_id = list(obs_resource.values())[0]
         resource_filter = f"{resource_type}_Id"
@@ -601,7 +596,6 @@ class Migration:
         return id
 
     def create_observation_level(self, observation_levels=None, obs_resource=None):
-
         if observation_levels is None or len(observation_levels) == 0:
             observation_levels = [{"entity": "unknown"}]
         ids = []
@@ -636,10 +630,12 @@ class Migration:
         r, id = self.create_update(
             mutation_class="CreateUpdateBigQueryType",
             mutation_parameters={
-                "name": obj,
+                "name": obj.upper() if type(obj) == str else "desconhecida",
             },
             query_class="allBigquerytype",
-            query_parameters={"$name: String": obj},
+            query_parameters={
+                "$name: String": obj.upper() if type(obj) == str else "desconhecida"
+            },
         )
 
         return id
@@ -744,6 +740,7 @@ class Migration:
                 column.get("bigquery_type", "desconhecida")
             ),
             "name": column_name,
+            "nameStaging": column_name,
             "isInStaging": column.get("is_in_staging"),
             "isPartition": column.get("is_partition"),
             "description": column.get("description"),
@@ -787,7 +784,7 @@ class Migration:
         )
         if r.get("r") == "mutation":
             # print(coverage)
-            
+
             coverage_id = self.create_coverage(
                 resource=resource, coverage={"column": id}, column=column
             )
@@ -898,7 +895,6 @@ class Migration:
         return graphql_org_id, dataset_remove_prefix
 
     def create_area(self, obj):
-
         if obj == "desconhecida":
             obj = {
                 "key": "unknown",
@@ -928,7 +924,6 @@ class Migration:
         return id
 
     def create_language(self, obj):
-
         slug = obj.get("slug", "unknown")
         name = obj.get("name", 'Desconhecida"')
 
@@ -944,7 +939,6 @@ class Migration:
         return id
 
     def create_status(self, obj):
-
         slug = obj.get("slug")
         name = obj.get("name")
 
@@ -974,7 +968,6 @@ class Migration:
         return id
 
     def create_enum(self, migrate_enum={}):
-
         if migrate_enum["AvailabilityEnum"]:
             availabilities = class_to_dict(AvailabilityEnum())
             for key in availabilities:
@@ -1037,7 +1030,6 @@ class Migration:
             print("EntityEnum Done")
 
         if migrate_enum["AreaEnum"]:
-
             areas = self.df_area["id"].to_list()
             name_pt = self.df_area["label__pt"].to_list()
             name_en = self.df_area["label__en"].to_list()
