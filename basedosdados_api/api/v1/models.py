@@ -417,6 +417,13 @@ class Dataset(BdmModel):
         blank=True,
         help_text="Tags are used to group datasets by topic",
     )
+    status = models.ForeignKey(
+        "Status",
+        on_delete=models.PROTECT,
+        related_name="datasets",
+        null=True,
+        help_text="Status is used to indicate if the dataset is still being updated",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_closed = models.BooleanField(
@@ -710,6 +717,9 @@ class Column(BdmModel):
         null=True,
         blank=True,
     )
+    status = models.ForeignKey(
+        "Status", on_delete=models.PROTECT, related_name="columns", null=True
+    )
     is_closed = models.BooleanField(
         default=False, help_text="Column is for Pro subscribers only"
     )
@@ -867,6 +877,9 @@ class RawDataSource(BdmModel):
     contains_api = models.BooleanField(default=False)
     is_free = models.BooleanField(default=False)
     required_registration = models.BooleanField(default=False)
+    status = models.ForeignKey(
+        "Status", null=True, on_delete=models.PROTECT, related_name="raw_data_sources"
+    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
