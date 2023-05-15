@@ -47,11 +47,44 @@ EMAIL_USE_TLS = True
 DEFAULT_FROM_EMAIL = nonull_getenv("EMAIL_HOST_USER")
 SERVER_EMAIL = nonull_getenv("EMAIL_HOST_USER")
 
-# Set logging path for production
-LOGGING["handlers"]["logfile"][  # noqa
-    "filename"
-] = "/var/log/django/basedosdados_api.log"
+# Set logging for production
 
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "formatters": {
+        "standard": {
+            "format": "%(levelname)s %(asctime)s %(message)s",
+        },
+    },
+    "handlers": {
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+        },
+        "logfile": {
+            "level": "DEBUG",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": "/var/log/django/basedosdados_api.log",
+            "maxBytes": 1024 * 1024 * 5,  # 5MB
+            "backupCount": 5,
+            "formatter": "standard",
+        },
+    },
+    "loggers": {
+        "": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": True,
+        },
+        "django.request": {
+            "handlers": ["console", "logfile"],
+            "level": "DEBUG",
+            "propagate": True,
+        },
+    },
+}
 # Google Cloud Storage
 GS_CREDENTIALS = service_account.Credentials.from_service_account_info(
     json.loads(nonull_getenv("GCP_SA"))
