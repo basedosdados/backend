@@ -224,7 +224,12 @@ def fixture_coverage_tabela(tabela_bairros, area_br):
 @pytest.fixture(name="dataset_dados_mestres")
 @pytest.mark.django_db
 def fixture_dataset_dados_mestres(
-    organizacao_bd, tema_saude, tema_educacao, tag_aborto, tag_covid
+    organizacao_bd,
+    tema_saude,
+    tema_educacao,
+    tag_aborto,
+    tag_covid,
+    status_em_processamento,
 ):
     """Test for Dataset."""
     return Dataset.objects.create(
@@ -232,6 +237,7 @@ def fixture_dataset_dados_mestres(
         slug="dados_mestres",
         name="Dados Mestres",
         description="Descrição dos dados mestres",
+        status=status_em_processamento,
     )
 
 
@@ -345,8 +351,7 @@ def fixture_coluna_state_id_bairros(
 @pytest.fixture(name="coluna_nome_bairros")
 @pytest.mark.django_db
 def fixture_coluna_nome_bairros(
-    tabela_bairros,
-    bigquery_type_string,
+    tabela_bairros, bigquery_type_string, status_em_processamento
 ):
     """Fixture for name column."""
     return Column.objects.create(
@@ -357,6 +362,7 @@ def fixture_coluna_nome_bairros(
         bigquery_type=bigquery_type_string,
         is_in_staging=True,
         is_partition=False,
+        status=status_em_processamento,
     )
 
 
@@ -385,9 +391,7 @@ def fixture_coluna_populacao_bairros(
 @pytest.fixture(name="raw_data_source")
 @pytest.mark.django_db
 def fixture_raw_data_source(
-    dataset_dados_mestres,
-    disponibilidade_online,
-    licenca_mit,
+    dataset_dados_mestres, disponibilidade_online, licenca_mit, status_em_processamento
 ):
     """Fixture for RawData."""
     return RawDataSource.objects.create(
@@ -395,6 +399,7 @@ def fixture_raw_data_source(
         availability=disponibilidade_online,
         license=licenca_mit,
         name="Fonte de dados",
+        status=status_em_processamento,
     )
 
 
