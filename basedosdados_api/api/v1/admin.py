@@ -119,20 +119,13 @@ class TableInline(TranslationStackedInline):
     show_change_link = True
 
 
-class CoverageInline(admin.StackedInline):
-    # def related_objects(self, obj):
-    #     qs = DateTimeRange.objects.filter(coverage=obj)
-    #     lines = []
-    #     for datetimerange in qs:
-    #         lines.append(
-    #         '<a href="/admin/api/v1/datetimerange/{0}/change/" target="_blank">Date Time Range</a>',
-    #         datetimerange.pk
-    #         )
-    #     return format_html(
-    #         '<a href="/admin/api/v1/datetimerange/{}/change/" target="_blank">Date Time Range</a>',
-    #         'http://localhost:8001/admin/v1/datetimerange/00004e41-a4f8-48eb-b39c-f353d872d7c7/change/'
-    #         obj.datetimerange.slug,
-    #     )
+class DateTimeRangeInline(admin.StackedInline):
+    model = DateTimeRange
+    extra = 0
+    show_change_link = True
+
+
+class CoverageTableInline(admin.StackedInline):
     model = Coverage
     form = CoverageInlineForm
     extra = 0
@@ -147,11 +140,15 @@ class CoverageInline(admin.StackedInline):
     readonly_fields = [
         "id",
         "area",
-        "table",
+        # "table",
     ]
     inlines = [
-        TableCoverageFilter,
+        DateTimeRangeInline,
     ]
+    # template = "admin/edit_inline/custom_coverage_model_inline.html"
+    # inlines = [
+    #     TableCoverageFilter,
+    # ]
 
 
 # Model Admins
@@ -206,7 +203,7 @@ class TagAdmin(TabbedTranslationAdmin):
 class DatasetAdmin(TabbedTranslationAdmin):
     def related_objects(self, obj):
         return format_html(
-            "<a href='/admin/v1/table/add/?dataset={0}'>{1} {2}</a>",
+            "<a class='related-widget-wrapper-link add-related' href='/admin/v1/table/add/?dataset={0}&_to_field=id&_popup=1'>{1} {2}</a>",  # noqa
             obj.id,
             obj.tables.count(),
             " ".join(
@@ -238,7 +235,9 @@ class DatasetAdmin(TabbedTranslationAdmin):
 
 
 class TableAdmin(TabbedTranslationAdmin):
-    def related_objects(self, obj):
+    change_form_template = "admin/table_change_form.html"
+
+    def related_columns(self, obj):
         return format_html(
             "<a href='/admin/v1/column/add/?table={0}'>{1} {2}</a>",
             obj.id,
@@ -248,7 +247,23 @@ class TableAdmin(TabbedTranslationAdmin):
             ),
         )
 
-    related_objects.short_description = "Columns"
+    related_columns.short_description = "Columns"
+
+    def related_coverages(self, obj):
+        qs = DateTimeRange.objects.filter(coverage=obj)
+        lines = []
+        for datetimerange in qs:
+            lines.append(
+                '<a href="/admin/api/v1/datetimerange/{0}/change/" target="_blank">Date Time Range</a>',
+                datetimerange.pk,
+            )
+        return format_html(
+            '<a href="/admin/api/v1/datetimerange/{}/change/" target="_blank">Date Time Range</a>',
+            # 'http://localhost:8001/admin/v1/datetimerange/00004e41-a4f8-48eb-b39c-f353d872d7c7/change/'
+            obj.datetimerange.slug,
+        )
+
+    related_coverages.short_description = "Coverages"
 
     def add_view(self, request, *args, **kwargs):
         parent_model_id = request.GET.get("dataset")
@@ -271,11 +286,10 @@ class TableAdmin(TabbedTranslationAdmin):
         "id",
         "created_at",
         "updated_at",
-        "related_objects",
+        "related_columns",
     ]
     search_fields = ["name", "dataset__name"]
     inlines = [
-        CoverageInline,
         ColumnInline,
     ]
     autocomplete_fields = [
