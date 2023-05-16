@@ -430,7 +430,7 @@ class Dataset(BdmModel):
         default=False, help_text="Dataset is for Pro subscribers only"
     )
 
-    graphql_nested_filter_fields_whitelist = ["id"]
+    graphql_nested_filter_fields_whitelist = ["id", "slug"]
 
     def __str__(self):
         return str(self.slug)
@@ -644,7 +644,7 @@ class Table(BdmModel):
         default=False, help_text="Table is for Pro subscribers only"
     )
 
-    graphql_nested_filter_fields_whitelist = ["id"]
+    graphql_nested_filter_fields_whitelist = ["id", "dataset"]
 
     def __str__(self):
         return f"{str(self.dataset.slug)}.{str(self.slug)}"
@@ -787,7 +787,12 @@ class CloudTable(BdmModel):
     gcp_dataset_id = models.CharField(max_length=255)
     gcp_table_id = models.CharField(max_length=255)
 
-    graphql_nested_filter_fields_whitelist = ["id"]
+    graphql_nested_filter_fields_whitelist = [
+        "id",
+        "gcp_project_id",
+        "gcp_dataset_id",
+        "gcp_table_id",
+    ]
 
     def __str__(self):
         return f"{self.gcp_project_id}.{self.gcp_dataset_id}.{self.gcp_table_id}"
