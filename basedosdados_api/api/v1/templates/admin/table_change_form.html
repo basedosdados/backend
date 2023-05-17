@@ -1,15 +1,12 @@
-{% extends "admin/change_form.html" %}
+{% extends "admin/table/change_form.html" %}
 {% load i18n admin_urls %}
 
-{% block inline_field_sets %}
+{% block extra_field_sets %}
     {{ block.super }}
-    <div class="col-12 col-lg-9">
-        <div class="card">
-            <div class="card-body">
                 <div class="tab-content">
                     <div class="tab-pane active" id="coverages_tab">
                         <fieldset class="module">
-                            <h2>{% trans "Coverages" %}</h2>
+                            <h3>{% trans "Table Coverages" %}</h3>
                             <ul>
                                 {% for coverage in original.coverages.all %}
                                     <li>
@@ -23,7 +20,4 @@
                         </fieldset>
                     </div>
                 </div>
-            </div>
-        </div>
-    </div>
 {% endblock %}
