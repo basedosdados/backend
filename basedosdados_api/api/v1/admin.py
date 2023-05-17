@@ -83,6 +83,7 @@ class ColumnInlineForm(UUIDHIddenIdForm):
             "bigquery_type",
             "is_closed",
             "status",
+            "is_primary_key",
             "table",
         ]
 
