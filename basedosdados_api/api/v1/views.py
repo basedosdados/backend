@@ -47,6 +47,18 @@ class DatasetSearchView(SearchView):
             )
 
         # Filtering
+        if "is_closed" in req_args:
+            # Filter by is_closed
+            is_closed = req_args.get("is_closed")
+            if is_closed == "true":
+                dataset_list = [ds for ds in dataset_list if ds.is_closed]
+            elif is_closed == "false":
+                dataset_list = [ds for ds in dataset_list if not ds.is_closed]
+            else:
+                return HttpResponseBadRequest(
+                    json.dumps({"error": "Invalid value for 'is_closed'"})
+                )
+
         if "theme" in req_args:
             # Filter by theme slugs
             theme_slugs = req_args.getlist("theme")
@@ -393,6 +405,12 @@ class DatasetSearchView(SearchView):
                 return str(dataset.information_requests.first().id)
             return None
 
+        organization_picture = dataset.organization.picture
+        if organization_picture:
+            organization_picture = organization_picture.url
+        else:
+            organization_picture = None
+
         return {
             "id": str(dataset.id),
             "slug": dataset.slug,
@@ -400,6 +418,8 @@ class DatasetSearchView(SearchView):
             "name": dataset.name,
             "organization": dataset.organization.name,
             "organization_slug": dataset.organization.slug,
+            "organization_picture": organization_picture,
+            "organization_website": dataset.organization.website,
             "themes": get_themes(dataset),
             "tags": get_tags(dataset),
             "temporal_coverage": get_temporal_coverage(dataset),
@@ -409,6 +429,7 @@ class DatasetSearchView(SearchView):
             "first_original_source_id": get_first_original_source_id(dataset),
             "n_lais": dataset.information_requests.count(),
             "first_lai_id": get_first_lai_id(dataset),
+            "is_closed": dataset.is_closed,
         }
 
     def get_context_data(self, **kwargs):

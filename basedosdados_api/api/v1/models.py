@@ -417,13 +417,22 @@ class Dataset(BdmModel):
         blank=True,
         help_text="Tags are used to group datasets by topic",
     )
+    version = models.IntegerField(null=True, blank=True)
+    status = models.ForeignKey(
+        "Status",
+        on_delete=models.PROTECT,
+        related_name="datasets",
+        null=True,
+        blank=True,
+        help_text="Status is used to indicate at what stage of development or publishing the dataset is.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_closed = models.BooleanField(
         default=False, help_text="Dataset is for Pro subscribers only"
     )
 
-    graphql_nested_filter_fields_whitelist = ["id"]
+    graphql_nested_filter_fields_whitelist = ["id", "slug"]
 
     def __str__(self):
         return str(self.slug)
@@ -447,6 +456,67 @@ class Dataset(BdmModel):
     @property
     def get_graphql_full_slug(self):
         return self.full_slug
+
+    @property
+    def coverage(self):
+        tables = self.tables.all()
+        start_year, start_month, start_day = False, False, False
+        # start_semester, star_quarter = False, False
+        # start_hour, start_minute, start_second = False, False, False
+        end_year, end_month, end_day = False, False, False
+        # end_semester, end_quarter = False, False
+        # end_hour, end_minute, end_second = False, False, False
+
+        start_date, end_date = datetime(3000, 1, 1, 0, 0, 0), datetime(1, 1, 1, 0, 0, 0)
+
+        for table in tables:
+            for coverage in table.coverages.all():
+                try:
+                    date_time = DateTimeRange.objects.get(coverage=coverage.pk)
+                except DateTimeRange.DoesNotExist:
+                    return ""
+                start_year = date_time.start_year is not None or start_year
+                start_month = date_time.start_month is not None or start_month
+                start_day = date_time.start_day is not None or start_day
+                end_year = date_time.end_year is not None or end_year
+                end_month = date_time.end_month is not None or end_month
+                end_day = date_time.end_day is not None or end_day
+
+                new_start_date = datetime(
+                    date_time.start_year,
+                    date_time.start_month or 1,
+                    date_time.start_day or 1,
+                )
+                start_date = (
+                    new_start_date if new_start_date < start_date else start_date
+                )
+                new_end_date = datetime(
+                    date_time.end_year, date_time.end_month or 1, date_time.end_day or 1
+                )
+                end_date = new_end_date if new_end_date > end_date else end_date
+
+        start = []
+        end = []
+
+        if start_year and start_date.year:
+            start.append(str(start_date.year))
+            if start_month and start_date.month:
+                start.append(str(start_date.month).zfill(2))
+                if start_day and start_date.day:
+                    start.append(str(start_date.day).zfill(2))
+
+        if end_year and end_date.year:
+            end.append(str(end_date.year))
+            if end_month and end_date.month:
+                end.append(str(end_date.month).zfill(2))
+                if end_day and end_date.day:
+                    end.append(str(end_date.day).zfill(2))
+
+        return "-".join(start) + " - " + "-".join(end)
+
+    @property
+    def get_graphql_coverage(self):
+        return self.coverage
 
 
 class Update(BdmModel):
@@ -521,6 +591,7 @@ class Table(BdmModel):
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="tables"
     )
+    version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
         "Status", on_delete=models.PROTECT, related_name="tables", null=True, blank=True
     )
@@ -576,7 +647,7 @@ class Table(BdmModel):
         default=False, help_text="Table is for Pro subscribers only"
     )
 
-    graphql_nested_filter_fields_whitelist = ["id"]
+    graphql_nested_filter_fields_whitelist = ["id", "dataset"]
 
     def __str__(self):
         return f"{str(self.dataset.slug)}.{str(self.slug)}"
@@ -630,6 +701,7 @@ class Column(BdmModel):
     )
     description = models.TextField(blank=True, null=True)
     covered_by_dictionary = models.BooleanField(default=False, blank=True, null=True)
+    is_primary_key = models.BooleanField(default=False, blank=True, null=True)
     directory_primary_key = models.ForeignKey(
         "Column",
         on_delete=models.PROTECT,
@@ -648,6 +720,10 @@ class Column(BdmModel):
         related_name="columns",
         null=True,
         blank=True,
+    )
+    version = models.IntegerField(null=True, blank=True)
+    status = models.ForeignKey(
+        "Status", on_delete=models.PROTECT, related_name="columns", null=True, blank=True
     )
     is_closed = models.BooleanField(
         default=False, help_text="Column is for Pro subscribers only"
@@ -716,7 +792,12 @@ class CloudTable(BdmModel):
     gcp_dataset_id = models.CharField(max_length=255)
     gcp_table_id = models.CharField(max_length=255)
 
-    graphql_nested_filter_fields_whitelist = ["id"]
+    graphql_nested_filter_fields_whitelist = [
+        "id",
+        "gcp_project_id",
+        "gcp_dataset_id",
+        "gcp_table_id",
+    ]
 
     def __str__(self):
         return f"{self.gcp_project_id}.{self.gcp_dataset_id}.{self.gcp_table_id}"
@@ -806,6 +887,10 @@ class RawDataSource(BdmModel):
     contains_api = models.BooleanField(default=False)
     is_free = models.BooleanField(default=False)
     required_registration = models.BooleanField(default=False)
+    version = models.IntegerField(null=True, blank=True)
+    status = models.ForeignKey(
+        "Status", on_delete=models.PROTECT, related_name="raw_data_sources", null=True, blank=True
+    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -824,8 +909,9 @@ class InformationRequest(BdmModel):
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="information_requests"
     )
+    version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
-        "Status", on_delete=models.CASCADE, related_name="information_requests"
+        "Status", on_delete=models.CASCADE, related_name="information_requests", null=True, blank=True
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
