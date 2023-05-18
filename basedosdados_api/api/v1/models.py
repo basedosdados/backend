@@ -417,12 +417,14 @@ class Dataset(BdmModel):
         blank=True,
         help_text="Tags are used to group datasets by topic",
     )
+    version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
         "Status",
         on_delete=models.PROTECT,
         related_name="datasets",
         null=True,
-        help_text="Status is used to indicate if the dataset is still being updated",
+        blank=True,
+        help_text="Status is used to indicate at what stage of development or publishing the dataset is.",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -430,7 +432,7 @@ class Dataset(BdmModel):
         default=False, help_text="Dataset is for Pro subscribers only"
     )
 
-    graphql_nested_filter_fields_whitelist = ["id"]
+    graphql_nested_filter_fields_whitelist = ["id", "slug"]
 
     def __str__(self):
         return str(self.slug)
@@ -589,6 +591,7 @@ class Table(BdmModel):
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="tables"
     )
+    version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
         "Status", on_delete=models.PROTECT, related_name="tables", null=True, blank=True
     )
@@ -644,7 +647,7 @@ class Table(BdmModel):
         default=False, help_text="Table is for Pro subscribers only"
     )
 
-    graphql_nested_filter_fields_whitelist = ["id"]
+    graphql_nested_filter_fields_whitelist = ["id", "dataset"]
 
     def __str__(self):
         return f"{str(self.dataset.slug)}.{str(self.slug)}"
@@ -698,6 +701,7 @@ class Column(BdmModel):
     )
     description = models.TextField(blank=True, null=True)
     covered_by_dictionary = models.BooleanField(default=False, blank=True, null=True)
+    is_primary_key = models.BooleanField(default=False, blank=True, null=True)
     directory_primary_key = models.ForeignKey(
         "Column",
         on_delete=models.PROTECT,
@@ -717,8 +721,9 @@ class Column(BdmModel):
         null=True,
         blank=True,
     )
+    version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
-        "Status", on_delete=models.PROTECT, related_name="columns", null=True
+        "Status", on_delete=models.PROTECT, related_name="columns", null=True, blank=True
     )
     is_closed = models.BooleanField(
         default=False, help_text="Column is for Pro subscribers only"
@@ -787,7 +792,12 @@ class CloudTable(BdmModel):
     gcp_dataset_id = models.CharField(max_length=255)
     gcp_table_id = models.CharField(max_length=255)
 
-    graphql_nested_filter_fields_whitelist = ["id"]
+    graphql_nested_filter_fields_whitelist = [
+        "id",
+        "gcp_project_id",
+        "gcp_dataset_id",
+        "gcp_table_id",
+    ]
 
     def __str__(self):
         return f"{self.gcp_project_id}.{self.gcp_dataset_id}.{self.gcp_table_id}"
@@ -877,8 +887,9 @@ class RawDataSource(BdmModel):
     contains_api = models.BooleanField(default=False)
     is_free = models.BooleanField(default=False)
     required_registration = models.BooleanField(default=False)
+    version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
-        "Status", null=True, on_delete=models.PROTECT, related_name="raw_data_sources"
+        "Status", on_delete=models.PROTECT, related_name="raw_data_sources", null=True, blank=True
     )
 
     graphql_nested_filter_fields_whitelist = ["id"]
@@ -898,8 +909,9 @@ class InformationRequest(BdmModel):
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="information_requests"
     )
+    version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
-        "Status", on_delete=models.CASCADE, related_name="information_requests"
+        "Status", on_delete=models.CASCADE, related_name="information_requests", null=True, blank=True
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

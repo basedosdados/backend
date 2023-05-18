@@ -238,6 +238,7 @@ def fixture_dataset_dados_mestres(
         name="Dados Mestres",
         description="Descrição dos dados mestres",
         status=status_em_processamento,
+        version=1,
     )
 
 
@@ -274,6 +275,7 @@ def fixture_tabela_bairros(
         compressed_file_size=20,
         number_rows=100,
         number_columns=10,
+        version=1,
     )
 
 
@@ -363,6 +365,7 @@ def fixture_coluna_nome_bairros(
         is_in_staging=True,
         is_partition=False,
         status=status_em_processamento,
+        is_primary_key=True,
     )
 
 
@@ -380,6 +383,8 @@ def fixture_coluna_populacao_bairros(
         bigquery_type=bigquery_type_int64,
         is_in_staging=True,
         is_partition=False,
+        version=1,
+        is_primary_key=False,
     )
 
 
@@ -400,6 +405,7 @@ def fixture_raw_data_source(
         license=licenca_mit,
         name="Fonte de dados",
         status=status_em_processamento,
+        version=1,
     )
 
 
@@ -436,6 +442,7 @@ def fixture_pedido_informacao(
         dataset=dataset_dados_mestres,
         status=status_em_processamento,
         started_by=usuario_inicio,
+        version=1,
     )
 
 

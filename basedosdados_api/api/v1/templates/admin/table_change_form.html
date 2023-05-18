@@ -1,0 +1,23 @@
+{% extends "admin/table/change_form.html" %}
+{% load i18n admin_urls %}
+
+{% block extra_field_sets %}
+    {{ block.super }}
+                <div class="tab-content">
+                    <div class="tab-pane active" id="coverages_tab">
+                        <fieldset class="module">
+                            <h3>{% trans "Table Coverages" %}</h3>
+                            <ul>
+                                {% for coverage in original.coverages.all %}
+                                    <li>
+                                        <a class="related-widget-wrapper-link change-related" href="{% url 'admin:v1_coverage_change' coverage.id %}?_to_field=id&_popup=1">{{ coverage.area }} (id: {{ coverage.pk }})</a>
+                                    </li>
+                                {% empty %}
+                                    <li>{% trans "No related coverages." %}</li>
+                                {% endfor %}
+                            </ul>
+                            <a class="related-widget-wrapper-link add-related" href="{% url 'admin:v1_coverage_add' %}?table={{ original.id }}&_to_field=id&_popup=1">{% trans "Add new coverage" %}</a>
+                        </fieldset>
+                    </div>
+                </div>
+{% endblock %}
