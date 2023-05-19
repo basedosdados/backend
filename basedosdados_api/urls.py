@@ -51,4 +51,5 @@ urlpatterns = [
     path("schemas/", include("basedosdados_api.schemas.urls")),
     path("", include("basedosdados_api.core.urls")),
     path("search/", DatasetSearchView.as_view(), name="search_view"),
+    path("busca/", include("haystack.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
