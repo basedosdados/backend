@@ -1270,3 +1270,38 @@ class QualityCheck(BdmModel):
                 "One and only one of 'analysis', 'dataset, 'table', 'column', 'key, 'raw_data_source', 'information_request' must be set."  # noqa
             )
         return super().clean()
+
+class MeasurementUnit(BdmModel):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    slug = models.SlugField(unique=True)
+    name = models.CharField(max_length=255)
+    category = models.ForeignKey(
+        "MeasurementUnitCategory", on_delete=models.CASCADE, related_name="measurement_units"
+    )
+
+    def __str__(self) -> str:
+        return str(self.slug)
+
+    graphql_nested_filter_fields_whitelist = ["id"]
+
+    class Meta:
+        db_table = "measurement_unit"
+        verbose_name = "Measurement Unit"
+        verbose_name_plural = "Measurement Units"
+        ordering = ["slug"]
+
+class MeasurementUnitCategory(BdmModel):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    slug = models.SlugField(unique=True)
+    name = models.CharField(max_length=255)
+    
+    def __str__(self) -> str:
+        return str(self.slug)
+
+    graphql_nested_filter_fields_whitelist = ["id"]
+
+    class Meta:
+        db_table = "measurement_unit_category"
+        verbose_name = "Measurement Unit Category"
+        verbose_name_plural = "Measurement Unit Categories"
+        ordering = ["slug"]
