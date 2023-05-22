@@ -86,7 +86,18 @@ class Coverage(BdmModel):
         related_name="coverages",
     )
     key = models.ForeignKey(
-        "Key", blank=True, null=True, on_delete=models.CASCADE, related_name="coverages"
+        "Key",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="coverages",
+    )
+    analysis = models.ForeignKey(
+        "Analysis",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="coverages",
     )
     area = models.ForeignKey("Area", on_delete=models.CASCADE, related_name="coverages")
 
@@ -109,6 +120,8 @@ class Coverage(BdmModel):
             return f"Column: {self.column} - {self.area}"
         if self.coverage_type() == "key":
             return f"Key: {self.key} - {self.area}"
+        if self.coverage_type() == "analysis":
+            return f"Key: {self.key} - {self.area}"
 
         return str(self.id)
 
@@ -128,6 +141,9 @@ class Coverage(BdmModel):
         if self.key:
             return "key"
 
+        if self.analysis:
+            return "analysis"
+
     coverage_type.short_description = "Coverage Type"
 
     def clean(self) -> None:
@@ -144,9 +160,11 @@ class Coverage(BdmModel):
             count += 1
         if self.key:
             count += 1
+        if self.analysis:
+            count += 1
         if count != 1:
             raise ValidationError(
-                "One and only one of 'table', 'raw_data_source', 'information_request', 'column' or 'key' must be set."  # noqa
+                "One and only one of 'table', 'raw_data_source', 'information_request', 'column', 'key', 'analysis' must be set."  # noqa
             )
 
 
@@ -204,11 +222,53 @@ class Pipeline(BdmModel):
         ordering = ["github_url"]
 
 
+class Analysis(BdmModel):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    name = models.CharField(null=True, blank=True, max_length=255)
+    description = models.TextField(null=True, blank=True)
+    analysis_type = models.ForeignKey(
+        "AnalysisType", on_delete=models.CASCADE, related_name="analyses"
+    )
+    datasets = models.ManyToManyField(
+        "Dataset",
+        related_name="analyses",
+        help_text="Datasets used in the analysis",
+    )
+    themes = models.ManyToManyField(
+        "Theme",
+        related_name="analyses",
+        help_text="Themes are used to group analyses by topic",
+    )
+    tags = models.ManyToManyField(
+        "Tag",
+        related_name="analyses",
+        blank=True,
+        help_text="Tags are used to group analyses by topic",
+    )
+    authors = models.ManyToManyField(
+        Account,
+        related_name="analyses",
+        blank=True,
+        help_text="People who performed and/or wrote the analysis",
+    )
+    url = models.URLField(blank=True, null=True, max_length=255)
+
+    graphql_nested_filter_fields_whitelist = ["id"]
+
+    def __str__(self):
+        return str(self.name)
+
+    class Meta:
+        db_table = "analysis"
+        verbose_name = "Analysis"
+        verbose_name_plural = "Analyses"
+        ordering = ["name"]
+
+
 class AnalysisType(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
-    tag = models.CharField(max_length=255)
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -298,7 +358,7 @@ class Organization(BdmModel):
     def has_picture(self):
         try:
             hasattr(self.picture, "url")
-        except Exception as e:
+        except Exception as e:  # noqa
             return False
         return self.picture is not None
 
@@ -357,13 +417,22 @@ class Dataset(BdmModel):
         blank=True,
         help_text="Tags are used to group datasets by topic",
     )
+    version = models.IntegerField(null=True, blank=True)
+    status = models.ForeignKey(
+        "Status",
+        on_delete=models.PROTECT,
+        related_name="datasets",
+        null=True,
+        blank=True,
+        help_text="Status is used to indicate at what stage of development or publishing the dataset is.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_closed = models.BooleanField(
         default=False, help_text="Dataset is for Pro subscribers only"
     )
 
-    graphql_nested_filter_fields_whitelist = ["id"]
+    graphql_nested_filter_fields_whitelist = ["id", "slug"]
 
     def __str__(self):
         return str(self.slug)
@@ -387,6 +456,67 @@ class Dataset(BdmModel):
     @property
     def get_graphql_full_slug(self):
         return self.full_slug
+
+    @property
+    def coverage(self):
+        tables = self.tables.all()
+        start_year, start_month, start_day = False, False, False
+        # start_semester, star_quarter = False, False
+        # start_hour, start_minute, start_second = False, False, False
+        end_year, end_month, end_day = False, False, False
+        # end_semester, end_quarter = False, False
+        # end_hour, end_minute, end_second = False, False, False
+
+        start_date, end_date = datetime(3000, 1, 1, 0, 0, 0), datetime(1, 1, 1, 0, 0, 0)
+
+        for table in tables:
+            for coverage in table.coverages.all():
+                try:
+                    date_time = DateTimeRange.objects.get(coverage=coverage.pk)
+                except DateTimeRange.DoesNotExist:
+                    return ""
+                start_year = date_time.start_year is not None or start_year
+                start_month = date_time.start_month is not None or start_month
+                start_day = date_time.start_day is not None or start_day
+                end_year = date_time.end_year is not None or end_year
+                end_month = date_time.end_month is not None or end_month
+                end_day = date_time.end_day is not None or end_day
+
+                new_start_date = datetime(
+                    date_time.start_year,
+                    date_time.start_month or 1,
+                    date_time.start_day or 1,
+                )
+                start_date = (
+                    new_start_date if new_start_date < start_date else start_date
+                )
+                new_end_date = datetime(
+                    date_time.end_year, date_time.end_month or 1, date_time.end_day or 1
+                )
+                end_date = new_end_date if new_end_date > end_date else end_date
+
+        start = []
+        end = []
+
+        if start_year and start_date.year:
+            start.append(str(start_date.year))
+            if start_month and start_date.month:
+                start.append(str(start_date.month).zfill(2))
+                if start_day and start_date.day:
+                    start.append(str(start_date.day).zfill(2))
+
+        if end_year and end_date.year:
+            end.append(str(end_date.year))
+            if end_month and end_date.month:
+                end.append(str(end_date.month).zfill(2))
+                if end_day and end_date.day:
+                    end.append(str(end_date.day).zfill(2))
+
+        return "-".join(start) + " - " + "-".join(end)
+
+    @property
+    def get_graphql_coverage(self):
+        return self.coverage
 
 
 class Update(BdmModel):
@@ -461,6 +591,7 @@ class Table(BdmModel):
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="tables"
     )
+    version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
         "Status", on_delete=models.PROTECT, related_name="tables", null=True, blank=True
     )
@@ -516,7 +647,7 @@ class Table(BdmModel):
         default=False, help_text="Table is for Pro subscribers only"
     )
 
-    graphql_nested_filter_fields_whitelist = ["id"]
+    graphql_nested_filter_fields_whitelist = ["id", "dataset"]
 
     def __str__(self):
         return f"{str(self.dataset.slug)}.{str(self.slug)}"
@@ -564,11 +695,13 @@ class Column(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     table = models.ForeignKey("Table", on_delete=models.CASCADE, related_name="columns")
     name = models.CharField(max_length=255)
+    name_staging = models.CharField(max_length=255, blank=True, null=True)
     bigquery_type = models.ForeignKey(
         "BigQueryType", on_delete=models.CASCADE, related_name="columns"
     )
     description = models.TextField(blank=True, null=True)
     covered_by_dictionary = models.BooleanField(default=False, blank=True, null=True)
+    is_primary_key = models.BooleanField(default=False, blank=True, null=True)
     directory_primary_key = models.ForeignKey(
         "Column",
         on_delete=models.PROTECT,
@@ -587,6 +720,10 @@ class Column(BdmModel):
         related_name="columns",
         null=True,
         blank=True,
+    )
+    version = models.IntegerField(null=True, blank=True)
+    status = models.ForeignKey(
+        "Status", on_delete=models.PROTECT, related_name="columns", null=True, blank=True
     )
     is_closed = models.BooleanField(
         default=False, help_text="Column is for Pro subscribers only"
@@ -655,7 +792,12 @@ class CloudTable(BdmModel):
     gcp_dataset_id = models.CharField(max_length=255)
     gcp_table_id = models.CharField(max_length=255)
 
-    graphql_nested_filter_fields_whitelist = ["id"]
+    graphql_nested_filter_fields_whitelist = [
+        "id",
+        "gcp_project_id",
+        "gcp_dataset_id",
+        "gcp_table_id",
+    ]
 
     def __str__(self):
         return f"{self.gcp_project_id}.{self.gcp_dataset_id}.{self.gcp_table_id}"
@@ -745,6 +887,10 @@ class RawDataSource(BdmModel):
     contains_api = models.BooleanField(default=False)
     is_free = models.BooleanField(default=False)
     required_registration = models.BooleanField(default=False)
+    version = models.IntegerField(null=True, blank=True)
+    status = models.ForeignKey(
+        "Status", on_delete=models.PROTECT, related_name="raw_data_sources", null=True, blank=True
+    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -763,8 +909,9 @@ class InformationRequest(BdmModel):
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="information_requests"
     )
+    version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
-        "Status", on_delete=models.CASCADE, related_name="information_requests"
+        "Status", on_delete=models.CASCADE, related_name="information_requests", null=True, blank=True
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -866,6 +1013,13 @@ class ObservationLevel(BdmModel):
         on_delete=models.CASCADE,
         related_name="observation_levels",
     )
+    analysis = models.ForeignKey(
+        "Analysis",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="observation_levels",
+    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -887,9 +1041,11 @@ class ObservationLevel(BdmModel):
             count += 1
         if self.information_request:
             count += 1
+        if self.analysis:
+            count += 1
         if count != 1:
             raise ValidationError(
-                "One and only one of 'table', 'raw_data_source', 'information_request' must be set."  # noqa
+                "One and only one of 'table', 'raw_data_source', 'information_request', 'analysis' must be set."  # noqa
             )
         return super().clean()
 
@@ -936,13 +1092,11 @@ class DateTimeRange(BdmModel):
         return f"{start_year}{start_month}{start_day}{start_hour}{start_minute}{start_second}{interval}\
            {end_year}{end_month}{end_day}{end_hour}{end_minute}{end_second}"
 
-
     class Meta:
         db_table = "datetime_range"
         verbose_name = "DateTime Range"
         verbose_name_plural = "DateTime Ranges"
         ordering = ["id"]
-
 
     def clean(self) -> None:
         errors = {}
@@ -1017,4 +1171,102 @@ class DateTimeRange(BdmModel):
         if errors:
             raise ValidationError(errors)
 
+        return super().clean()
+
+
+class QualityCheck(BdmModel):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    name = models.CharField(null=True, blank=True, max_length=255)
+    description = models.TextField(null=True, blank=True)
+    passed = models.BooleanField(default=False, help_text="Passed the quality check")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    pipeline = models.ForeignKey(
+        "Pipeline",
+        on_delete=models.CASCADE,
+        related_name="quality_checks",
+        blank=True,
+        null=True,
+    )
+    analysis = models.ForeignKey(
+        "Analysis",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="quality_checks",
+    )
+    dataset = models.ForeignKey(
+        "Dataset",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="quality_checks",
+    )
+    table = models.ForeignKey(
+        "Table",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="quality_checks",
+    )
+    column = models.ForeignKey(
+        "Column",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="quality_checks",
+    )
+    key = models.ForeignKey(
+        "Key",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="quality_checks",
+    )
+    raw_data_source = models.ForeignKey(
+        "RawDataSource",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="quality_checks",
+    )
+    information_request = models.ForeignKey(
+        "InformationRequest",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="quality_checks",
+    )
+
+    graphql_nested_filter_fields_whitelist = ["id"]
+
+    def __str__(self):
+        return str(self.name)
+
+    class Meta:
+        db_table = "quality_check"
+        verbose_name = "Quality Check"
+        verbose_name_plural = "Quality Checks"
+        ordering = ["id"]
+
+    def clean(self) -> None:
+        count = 0
+        if self.analysis:
+            count += 1
+        if self.dataset:
+            count += 1
+        if self.table:
+            count += 1
+        if self.column:
+            count += 1
+        if self.key:
+            count += 1
+        if self.raw_data_source:
+            count += 1
+        if self.information_request:
+            count += 1
+        if count != 1:
+            raise ValidationError(
+                "One and only one of 'analysis', 'dataset, 'table', 'column', 'key, 'raw_data_source', 'information_request' must be set."  # noqa
+            )
         return super().clean()

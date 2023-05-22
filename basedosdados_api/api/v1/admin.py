@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
+from django import forms
 from django.utils.html import format_html
 from modeltranslation.admin import (
     TabbedTranslationAdmin,
     TranslationStackedInline,
 )
 
+from basedosdados_api.api.v1.filters import OrganizationImageFilter, TableCoverageFilter
 from basedosdados_api.api.v1.models import (
     Organization,
     Dataset,
@@ -29,9 +31,11 @@ from basedosdados_api.api.v1.models import (
     EntityCategory,
     Dictionary,
     Pipeline,
+    Analysis,
     AnalysisType,
     DateTimeRange,
     Key,
+    QualityCheck,
     UUIDHIddenIdForm,
 )
 
@@ -74,9 +78,22 @@ class ColumnInlineForm(UUIDHIddenIdForm):
         fields = [
             "id",
             "name",
+            "name_staging",
             "description",
             "bigquery_type",
             "is_closed",
+            "status",
+            "is_primary_key",
+            "table",
+        ]
+
+
+class CoverageInlineForm(UUIDHIddenIdForm):
+    class Meta(UUIDHIddenIdForm.Meta):
+        model = Coverage
+        fields = [
+            "id",
+            "area",
             "table",
         ]
 
@@ -103,48 +120,36 @@ class TableInline(TranslationStackedInline):
     show_change_link = True
 
 
-# Filters
+class DateTimeRangeInline(admin.StackedInline):
+    model = DateTimeRange
+    extra = 0
+    show_change_link = True
 
 
-class OrganizationImageFilter(admin.SimpleListFilter):
-    title = "has_picture"
-    parameter_name = "has_picture"
-
-    def lookups(self, request, model_admin):
-        return (
-            ("True", "Yes"),
-            ("False", "No"),
-        )
-
-    def queryset(self, request, queryset):
-        if self.value() == "True":
-            return queryset.exclude(picture="")
-        if self.value() == "False":
-            return queryset.filter(picture="")
-
-
-class TableCoverageFilter(admin.SimpleListFilter):
-    title = "table_coverage"
-    parameter_name = "table_coverage"
-
-    def lookups(self, request, model_admin):
-        distinct_values = (
-            Coverage.objects.filter(table__id__isnull=False)
-            .order_by("area__name")
-            .distinct()
-            .values("area__name", "area__slug")
-        )
-        # Create a tuple of tuples with the format (value, label).
-        return [
-            (value.get("area__slug"), value.get("area__name"))
-            for value in distinct_values
-        ]
-
-        # return Coverage.objects.order_by().values("area__name").distinct()
-
-    def queryset(self, request, queryset):
-        if self.value():
-            return queryset.filter(coverages__area__slug=self.value())
+class CoverageTableInline(admin.StackedInline):
+    model = Coverage
+    form = CoverageInlineForm
+    extra = 0
+    show_change_link = True
+    exclude = [
+        "raw_data_source",
+        "information_request",
+        "column",
+        "key",
+        "analysis",
+    ]
+    readonly_fields = [
+        "id",
+        "area",
+        # "table",
+    ]
+    inlines = [
+        DateTimeRangeInline,
+    ]
+    # template = "admin/edit_inline/custom_coverage_model_inline.html"
+    # inlines = [
+    #     TableCoverageFilter,
+    # ]
 
 
 # Model Admins
@@ -199,7 +204,7 @@ class TagAdmin(TabbedTranslationAdmin):
 class DatasetAdmin(TabbedTranslationAdmin):
     def related_objects(self, obj):
         return format_html(
-            "<a href='/admin/v1/table/add/?dataset={0}'>{1} {2}</a>",
+            "<a class='related-widget-wrapper-link add-related' href='/admin/v1/table/add/?dataset={0}&_to_field=id&_popup=1'>{1} {2}</a>",  # noqa
             obj.id,
             obj.tables.count(),
             " ".join(
@@ -208,8 +213,15 @@ class DatasetAdmin(TabbedTranslationAdmin):
         )
 
     related_objects.short_description = "Tables"
-    readonly_fields = ["id", "full_slug", "created_at", "updated_at", "related_objects"]
-    list_display = ["name", "full_slug", "organization", "related_objects"]
+    readonly_fields = [
+        "id",
+        "full_slug",
+        "coverage",
+        "created_at",
+        "updated_at",
+        "related_objects",
+    ]
+    list_display = ["name", "full_slug", "coverage", "organization", "related_objects"]
     search_fields = ["name", "slug", "organization__name"]
     inlines = [
         TableInline,
@@ -224,7 +236,9 @@ class DatasetAdmin(TabbedTranslationAdmin):
 
 
 class TableAdmin(TabbedTranslationAdmin):
-    def related_objects(self, obj):
+    change_form_template = "admin/table_change_form.html"
+
+    def related_columns(self, obj):
         return format_html(
             "<a href='/admin/v1/column/add/?table={0}'>{1} {2}</a>",
             obj.id,
@@ -234,7 +248,23 @@ class TableAdmin(TabbedTranslationAdmin):
             ),
         )
 
-    related_objects.short_description = "Columns"
+    related_columns.short_description = "Columns"
+
+    def related_coverages(self, obj):
+        qs = DateTimeRange.objects.filter(coverage=obj)
+        lines = []
+        for datetimerange in qs:
+            lines.append(
+                '<a href="/admin/api/v1/datetimerange/{0}/change/" target="_blank">Date Time Range</a>',
+                datetimerange.pk,
+            )
+        return format_html(
+            '<a href="/admin/api/v1/datetimerange/{}/change/" target="_blank">Date Time Range</a>',
+            # 'http://localhost:8001/admin/v1/datetimerange/00004e41-a4f8-48eb-b39c-f353d872d7c7/change/'
+            obj.datetimerange.slug,
+        )
+
+    related_coverages.short_description = "Coverages"
 
     def add_view(self, request, *args, **kwargs):
         parent_model_id = request.GET.get("dataset")
@@ -242,22 +272,22 @@ class TableAdmin(TabbedTranslationAdmin):
             # If a parent model ID is provided, add the parent model field to the form
             # fields = self.get_related_fields
             initial = {"parent_model": parent_model_id}
-            self.initial = initial
+            self.initial = initial  # noqa
         return super().add_view(request, *args, **kwargs)
 
-    def get_related_fields(self, request, obj=None):
-        fields = self.model._meta.fields
+    def get_related_fields(self, request, obj=None):  # noqa
+        fields = self.model._meta.fields  # noqa
         parent_model_id = request.GET.get("dataset")
         if parent_model_id:
             parent_model = Dataset.objects.get(id=parent_model_id)
-            fields += parent_model._meta.fields
+            fields += parent_model._meta.fields  # noqa
         return fields
 
     readonly_fields = [
         "id",
         "created_at",
         "updated_at",
-        "related_objects",
+        "related_columns",
     ]
     search_fields = ["name", "dataset__name"]
     inlines = [
@@ -275,7 +305,20 @@ class TableAdmin(TabbedTranslationAdmin):
     ]
 
 
+class ColumnForm(forms.ModelForm):
+    class Meta:
+        model = Column
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["directory_primary_key"].queryset = Column.objects.filter(
+            table__is_directory=True
+        )
+
+
 class ColumnAdmin(TabbedTranslationAdmin):
+    form = ColumnForm
     readonly_fields = [
         "id",
     ]
@@ -284,7 +327,13 @@ class ColumnAdmin(TabbedTranslationAdmin):
         "table",
     ]
     search_fields = ["name", "table__name"]
-    autocomplete_fields = ["table", "observation_level", "directory_primary_key"]
+    autocomplete_fields = [
+        "table",
+        "observation_level",
+    ]
+    list_filter = [
+        "table__dataset__organization__name",
+    ]
 
 
 class ObservationLevelAdmin(admin.ModelAdmin):
@@ -526,7 +575,77 @@ class StatusAdmin(TabbedTranslationAdmin):
     ]
 
 
-admin.site.register(AnalysisType)
+class AnalysisTypeAdmin(TabbedTranslationAdmin):
+    readonly_fields = [
+        "id",
+    ]
+    list_display = [
+        "name",
+        "slug",
+    ]
+    search_fields = [
+        "name",
+        "slug",
+    ]
+
+
+class AnalysisAdmin(TabbedTranslationAdmin):
+    readonly_fields = [
+        "id",
+    ]
+    list_display = [
+        "name",
+        "analysis_type",
+    ]
+    search_fields = [
+        "name",
+        "description",
+    ]
+    autocomplete_fields = ["analysis_type", "datasets", "themes", "tags"]
+    filter_horizontal = ["datasets", "themes", "tags"]
+
+
+class KeyAdmin(admin.ModelAdmin):
+    readonly_fields = [
+        "id",
+    ]
+    list_display = [
+        "name",
+        "value",
+    ]
+    search_fields = [
+        "name",
+        "value",
+    ]
+
+
+class QualityCheckAdmin(TabbedTranslationAdmin):
+    readonly_fields = [
+        "id",
+    ]
+    list_display = [
+        "name",
+        "analysis",
+        "dataset",
+        "passed",
+    ]
+    search_fields = [
+        "name",
+        "description",
+    ]
+    autocomplete_fields = [
+        "analysis",
+        "dataset",
+        "table",
+        "column",
+        "key",
+        "raw_data_source",
+        "information_request",
+    ]
+
+
+admin.site.register(Analysis, AnalysisAdmin)
+admin.site.register(AnalysisType, AnalysisTypeAdmin)
 admin.site.register(Area, AreaAdmin)
 admin.site.register(Availability, AvailabilityAdmin)
 admin.site.register(BigQueryType)
@@ -539,7 +658,7 @@ admin.site.register(Dictionary)
 admin.site.register(Entity, EntityAdmin)
 admin.site.register(EntityCategory, EntityCategoryAdmin)
 admin.site.register(InformationRequest, InformationRequestAdmin)
-admin.site.register(Key)
+admin.site.register(Key, KeyAdmin)
 admin.site.register(Language, LanguageAdmin)
 admin.site.register(License, LicenseAdmin)
 admin.site.register(ObservationLevel, ObservationLevelAdmin)
@@ -551,3 +670,4 @@ admin.site.register(Table, TableAdmin)
 admin.site.register(Tag, TagAdmin)
 admin.site.register(Theme, ThemeAdmin)
 admin.site.register(Update, UpdateAdmin)
+admin.site.register(QualityCheck, QualityCheckAdmin)

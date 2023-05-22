@@ -202,6 +202,7 @@ GRAPHENE = {
     "MIDDLEWARE": [
         "graphql_jwt.middleware.JSONWebTokenMiddleware",
     ],
+    "RELAY_CONNECTION_MAX_LIMIT": 1500,
 }
 
 # Authentication backends
@@ -256,6 +257,21 @@ HAYSTACK_SIGNAL_PROCESSOR = "haystack.signals.RealtimeSignalProcessor"
 X_FRAME_OPTIONS = "SAMEORIGIN"
 
 JAZZMIN_SETTINGS = {
+    "site_title": "Base dos Dados",
+    # Title on the login screen (19 chars max) (defaults to
+    # current_admin_site.site_header if absent or None)
+    "site_header": "Base dos Dados Admin",
+    # Title on the brand (19 chars max) (defaults to
+    # current_admin_site.site_header if absent or None)
+    "site_brand": "Base dos Dados Admin",
+    # Logo to use for your site, must be present in static files,
+    # used for brand on top left
+    "site_logo": "core/img/bd.png",
+    # Logo to use for your site, must be present in static files,
+    # used for login form logo (defaults to site_logo)
+    "login_logo": None,
+    # CSS classes that are applied to the admin
+    "custom_css": "core/css/main.css",
     "changeform_format": "horizontal_tabs",
     "related_modal_active": True,
     "topmenu_links": [
@@ -265,56 +281,159 @@ JAZZMIN_SETTINGS = {
     "show_ui_builder": True,
 }
 
+JAZZMIN_UI_TWEAKS = {
+    "navbar_small_text": True,
+    "footer_small_text": False,
+    "body_small_text": False,
+    "brand_small_text": True,
+    "brand_colour": "navbar-success",
+    "accent": "accent-success",
+    "navbar": "navbar-white navbar-light",
+    "no_navbar_border": False,
+    "navbar_fixed": True,
+    "layout_boxed": False,
+    "footer_fixed": False,
+    "sidebar_fixed": True,
+    "sidebar": "sidebar-dark-success",
+    "sidebar_nav_small_text": True,
+    "sidebar_disable_expand": False,
+    "sidebar_nav_child_indent": False,
+    "sidebar_nav_compact_style": False,
+    "sidebar_nav_legacy_style": False,
+    "sidebar_nav_flat_style": False,
+    "theme": "default",
+    "dark_mode_theme": "darkly",
+    "button_classes": {
+        "primary": "btn-primary",
+        "secondary": "btn-secondary",
+        "info": "btn-info",
+        "warning": "btn-warning",
+        "danger": "btn-danger",
+        "success": "btn-success",
+    },
+    "actions_sticky_top": True,
+}
 
-MARTOR_THEME = 'bootstrap'
+
+MARTOR_THEME = "bootstrap"
 MARTOR_ENABLE_CONFIGS = {
-    'emoji': 'true',        # to enable/disable emoji icons.
-    'imgur': 'false',       # to enable/disable imgur/custom uploader.
-    'mention': 'false',     # to enable/disable mention
-    'jquery': 'true',       # to include/revoke jquery (require for admin default django)
-    'living': 'false',      # to enable/disable live updates in preview
-    'spellcheck': 'false',  # to enable/disable spellcheck in form textareas
-    'hljs': 'true',         # to enable/disable hljs highlighting in preview
+    "emoji": "true",  # to enable/disable emoji icons.
+    "imgur": "false",  # to enable/disable imgur/custom uploader.
+    "mention": "false",  # to enable/disable mention
+    "jquery": "true",  # to include/revoke jquery (require for admin default django)
+    "living": "false",  # to enable/disable live updates in preview
+    "spellcheck": "false",  # to enable/disable spellcheck in form textareas
+    "hljs": "true",  # to enable/disable hljs highlighting in preview
 }
 MARTOR_TOOLBAR_BUTTONS = [
-    'bold', 'italic', 'horizontal', 'heading', 'pre-code',
-    'blockquote', 'unordered-list', 'ordered-list',
-    'link', 'image-link', 'image-upload', 'emoji',
-    'direct-mention', 'toggle-maximize', 'help'
+    "bold",
+    "italic",
+    "horizontal",
+    "heading",
+    "pre-code",
+    "blockquote",
+    "unordered-list",
+    "ordered-list",
+    "link",
+    "image-link",
+    "image-upload",
+    "emoji",
+    "direct-mention",
+    "toggle-maximize",
+    "help",
 ]
-MARTOR_MARKDOWNIFY_FUNCTION = 'martor.utils.markdownify' # default
-MARTOR_MARKDOWNIFY_URL = '/martor/markdownify/' # default
+MARTOR_MARKDOWNIFY_FUNCTION = "martor.utils.markdownify"  # default
+MARTOR_MARKDOWNIFY_URL = "/martor/markdownify/"  # default
 MARTOR_MARKDOWN_EXTENSIONS = [
-    'markdown.extensions.extra',
-    'markdown.extensions.nl2br',
-    'markdown.extensions.smarty',
-    'markdown.extensions.fenced_code',
-
+    "markdown.extensions.extra",
+    "markdown.extensions.nl2br",
+    "markdown.extensions.smarty",
+    "markdown.extensions.fenced_code",
     # Custom markdown extensions.
-    'martor.extensions.urlize',
-    'martor.extensions.del_ins',      # ~~strikethrough~~ and ++underscores++
-    'martor.extensions.mention',      # to parse markdown mention
-    'martor.extensions.emoji',        # to parse markdown emoji
-    'martor.extensions.mdx_video',    # to parse embed/iframe video
-    'martor.extensions.escape_html',  # to handle the XSS vulnerabilities
+    "martor.extensions.urlize",
+    "martor.extensions.del_ins",  # ~~strikethrough~~ and ++underscores++
+    "martor.extensions.mention",  # to parse markdown mention
+    "martor.extensions.emoji",  # to parse markdown emoji
+    "martor.extensions.mdx_video",  # to parse embed/iframe video
+    "martor.extensions.escape_html",  # to handle the XSS vulnerabilities
 ]
 MARTOR_MARKDOWN_EXTENSION_CONFIGS = {}
-MARTOR_UPLOAD_URL = '' # Completely disable the endpoint
-MARTOR_SEARCH_USERS_URL = '' # Completely disables the endpoint
-MARTOR_MARKDOWN_BASE_EMOJI_URL = 'https://github.githubassets.com/images/icons/emoji/'                  # default from github
+MARTOR_UPLOAD_URL = ""  # Completely disable the endpoint
+MARTOR_SEARCH_USERS_URL = ""  # Completely disables the endpoint
+MARTOR_MARKDOWN_BASE_EMOJI_URL = (
+    "https://github.githubassets.com/images/icons/emoji/"  # default from github
+)
 ALLOWED_HTML_TAGS = [
-    "a", "abbr", "b", "blockquote", "br", "cite", "code", "command",
-    "dd", "del", "dl", "dt", "em", "fieldset", "h1", "h2", "h3", "h4", "h5", "h6",
-    "hr", "i", "iframe", "img", "input", "ins", "kbd", "label", "legend",
-    "li", "ol", "optgroup", "option", "p", "pre", "small", "span", "strong",
-    "sub", "sup", "table", "tbody", "td", "tfoot", "th", "thead", "tr", "u", "ul"
+    "a",
+    "abbr",
+    "b",
+    "blockquote",
+    "br",
+    "cite",
+    "code",
+    "command",
+    "dd",
+    "del",
+    "dl",
+    "dt",
+    "em",
+    "fieldset",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "hr",
+    "i",
+    "iframe",
+    "img",
+    "input",
+    "ins",
+    "kbd",
+    "label",
+    "legend",
+    "li",
+    "ol",
+    "optgroup",
+    "option",
+    "p",
+    "pre",
+    "small",
+    "span",
+    "strong",
+    "sub",
+    "sup",
+    "table",
+    "tbody",
+    "td",
+    "tfoot",
+    "th",
+    "thead",
+    "tr",
+    "u",
+    "ul",
 ]
 
 # https://github.com/decal/werdlists/blob/master/html-words/html-attributes-list.txt
 ALLOWED_HTML_ATTRIBUTES = [
-    "alt", "class", "color", "colspan", "datetime",  # "data",
-    "height", "href", "id", "name", "reversed", "rowspan",
-    "scope", "src", "style", "title", "type", "width"
+    "alt",
+    "class",
+    "color",
+    "colspan",
+    "datetime",  # "data",
+    "height",
+    "href",
+    "id",
+    "name",
+    "reversed",
+    "rowspan",
+    "scope",
+    "src",
+    "style",
+    "title",
+    "type",
+    "width",
 ]
 
 CSRF_COOKIE_HTTPONLY = False
