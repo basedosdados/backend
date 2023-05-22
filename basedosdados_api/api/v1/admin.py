@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
 from django import forms
+from django.db import models
 from django.utils.html import format_html
+
+from martor.widgets import AdminMartorWidget
 from modeltranslation.admin import (
     TabbedTranslationAdmin,
     TranslationStackedInline,
@@ -213,6 +216,7 @@ class DatasetAdmin(TabbedTranslationAdmin):
         )
 
     related_objects.short_description = "Tables"
+    formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
     readonly_fields = [
         "id",
         "full_slug",
