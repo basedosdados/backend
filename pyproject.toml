@@ -39,6 +39,10 @@ flake8 = "^4.0.1"
 pytest = "^7.2.1"
 pytest-django = "^4.5.2"
 
+
+[tool.poetry.group.dev.dependencies]
+django-extensions = "^3.2.1"
+
 [tool.poetry.scripts]
 lint = "scripts.lint:main"
 

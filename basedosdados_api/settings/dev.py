@@ -45,3 +45,5 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 DEFAULT_FROM_EMAIL = os.getenv("EMAIL_HOST_USER", "NOT SET")
 SERVER_EMAIL = os.getenv("EMAIL_HOST_USER", "NOT SET")
+
+INSTALLED_APPS += ["django_extensions"]  # noqa: F405
