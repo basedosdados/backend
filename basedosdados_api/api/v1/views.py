@@ -6,7 +6,7 @@ from django.http import HttpResponse, HttpResponseBadRequest, QueryDict
 from haystack.forms import ModelSearchForm
 from haystack.generic_views import SearchView
 
-from basedosdados_api.api.v1.models import Coverage, Dataset, Entity
+from basedosdados_api.api.v1.models import Coverage, Dataset
 
 
 class DatasetSearchView(SearchView):
@@ -184,36 +184,38 @@ class DatasetSearchView(SearchView):
                             break
             dataset_list = new_dataset_list
 
-        # Collect all entities
-        entities: Dict[str, List[str]] = {}
-        added_entities = set()
-        for dataset in dataset_list:
-            for table in dataset.tables.all():
-                for observation_level in table.observation_levels.all():
-                    entity = observation_level.entity
-                    if entity.id not in added_entities:
-                        if dataset.slug not in entities:
-                            entities[dataset.slug] = []
-                        entities[dataset.slug].append(entity.slug)
-                        added_entities.add(entity.id)
-            for raw_data_source in dataset.raw_data_sources.all():
-                for observation_level in raw_data_source.observation_levels.all():
-                    entity = observation_level.entity
-                    if entity.id not in added_entities:
-                        if dataset.slug not in entities:
-                            entities[dataset.slug] = []
-                        entities[dataset.slug].append(entity.slug)
-                        added_entities.add(entity.id)
-            for information_request in dataset.information_requests.all():
-                for observation_level in information_request.observation_levels.all():
-                    entity = observation_level.entity
-                    if entity.id not in added_entities:
-                        if dataset.slug not in entities:
-                            entities[dataset.slug] = []
-                        entities[dataset.slug].append(entity.slug)
-                        added_entities.add(entity.id)
-
         if "entity" in req_args:
+            # Collect all entities
+            entities: Dict[str, List[str]] = {}
+            added_entities = set()
+            for dataset in dataset_list:
+                for table in dataset.tables.all():
+                    for observation_level in table.observation_levels.all():
+                        entity = observation_level.entity
+                        if entity.id not in added_entities:
+                            if dataset.slug not in entities:
+                                entities[dataset.slug] = []
+                            entities[dataset.slug].append(entity.slug)
+                            added_entities.add(entity.id)
+                for raw_data_source in dataset.raw_data_sources.all():
+                    for observation_level in raw_data_source.observation_levels.all():
+                        entity = observation_level.entity
+                        if entity.id not in added_entities:
+                            if dataset.slug not in entities:
+                                entities[dataset.slug] = []
+                            entities[dataset.slug].append(entity.slug)
+                            added_entities.add(entity.id)
+                for information_request in dataset.information_requests.all():
+                    for (
+                        observation_level
+                    ) in information_request.observation_levels.all():
+                        entity = observation_level.entity
+                        if entity.id not in added_entities:
+                            if dataset.slug not in entities:
+                                entities[dataset.slug] = []
+                            entities[dataset.slug].append(entity.slug)
+                            added_entities.add(entity.id)
+
             # Filter by entity slugs
             entity_slugs = req_args.getlist("entity")
             new_dataset_list = []
@@ -381,15 +383,53 @@ class DatasetSearchView(SearchView):
                             else:
                                 remaining_temporal_coverages[year]["count"] += 1
             # Add entity counts
-            if dataset.slug in entities:
-                for entity in entities[dataset.slug]:
-                    if entity not in remaining_entities:
-                        remaining_entities[entity] = {
-                            "name": Entity.objects.get(slug=entity).name,
+            used_datasets = set()
+            for table in ds.tables.all():
+                if ds.slug in used_datasets:
+                    break
+                for observation_level in table.observation_levels.all():
+                    if ds.slug in used_datasets:
+                        break
+                    entity = observation_level.entity
+                    if entity.slug not in remaining_entities:
+                        remaining_entities[entity.slug] = {
+                            "name": entity.name,
                             "count": 1,
                         }
                     else:
-                        remaining_entities[entity]["count"] += 1
+                        remaining_entities[entity.slug]["count"] += 1
+                    used_datasets.add(dataset.slug)
+            for raw_data_source in ds.raw_data_sources.all():
+                if ds.slug in used_datasets:
+                    break
+                for observation_level in raw_data_source.observation_levels.all():
+                    if ds.slug in used_datasets:
+                        break
+                    entity = observation_level.entity
+                    if entity.slug not in remaining_entities:
+                        remaining_entities[entity.slug] = {
+                            "name": entity.name,
+                            "count": 1,
+                        }
+                    else:
+                        remaining_entities[entity.slug]["count"] += 1
+                    used_datasets.add(dataset.slug)
+            for information_request in dataset.information_requests.all():
+                if ds.slug in used_datasets:
+                    break
+                for observation_level in information_request.observation_levels.all():
+                    if ds.slug in used_datasets:
+                        break
+                    entity = observation_level.entity
+                    if entity.slug not in remaining_entities:
+                        remaining_entities[entity.slug] = {
+                            "name": entity.name,
+                            "count": 1,
+                        }
+                    else:
+                        remaining_entities[entity.slug]["count"] += 1
+                    used_datasets.add(dataset.slug)
+
             # Add update frequency counts
             if dataset.slug in updates:
                 for update in updates[dataset.slug]:
