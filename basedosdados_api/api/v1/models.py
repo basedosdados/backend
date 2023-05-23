@@ -723,7 +723,11 @@ class Column(BdmModel):
     )
     version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
-        "Status", on_delete=models.PROTECT, related_name="columns", null=True, blank=True
+        "Status",
+        on_delete=models.PROTECT,
+        related_name="columns",
+        null=True,
+        blank=True,
     )
     is_closed = models.BooleanField(
         default=False, help_text="Column is for Pro subscribers only"
@@ -787,7 +791,11 @@ class CloudTable(BdmModel):
     table = models.ForeignKey(
         "Table", on_delete=models.CASCADE, related_name="cloud_tables"
     )
-    columns = models.ManyToManyField("Column", related_name="cloud_tables")
+    columns = models.ManyToManyField(
+        "Column",
+        related_name="cloud_tables",
+        blank=True,
+    )
     gcp_project_id = models.CharField(max_length=255)
     gcp_dataset_id = models.CharField(max_length=255)
     gcp_table_id = models.CharField(max_length=255)
@@ -889,7 +897,11 @@ class RawDataSource(BdmModel):
     required_registration = models.BooleanField(default=False)
     version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
-        "Status", on_delete=models.PROTECT, related_name="raw_data_sources", null=True, blank=True
+        "Status",
+        on_delete=models.PROTECT,
+        related_name="raw_data_sources",
+        null=True,
+        blank=True,
     )
 
     graphql_nested_filter_fields_whitelist = ["id"]
@@ -911,7 +923,11 @@ class InformationRequest(BdmModel):
     )
     version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
-        "Status", on_delete=models.CASCADE, related_name="information_requests", null=True, blank=True
+        "Status",
+        on_delete=models.CASCADE,
+        related_name="information_requests",
+        null=True,
+        blank=True,
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
