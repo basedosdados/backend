@@ -6,7 +6,7 @@ from django.http import HttpResponse, HttpResponseBadRequest, QueryDict
 from haystack.forms import ModelSearchForm
 from haystack.generic_views import SearchView
 
-from basedosdados_api.api.v1.models import Coverage, Dataset
+from basedosdados_api.api.v1.models import Coverage, Dataset, Entity
 
 
 class DatasetSearchView(SearchView):
@@ -47,17 +47,15 @@ class DatasetSearchView(SearchView):
             )
 
         # Filtering
-        if "is_closed" in req_args:
-            # Filter by is_closed
-            is_closed = req_args.get("is_closed")
-            if is_closed == "true":
-                dataset_list = [ds for ds in dataset_list if ds.is_closed]
-            elif is_closed == "false":
-                dataset_list = [ds for ds in dataset_list if not ds.is_closed]
-            else:
-                return HttpResponseBadRequest(
-                    json.dumps({"error": "Invalid value for 'is_closed'"})
-                )
+        is_closed = req_args.get("is_closed", "false")
+        if is_closed not in ["true", "false"]:
+            return HttpResponseBadRequest(
+                json.dumps({"error": "Invalid value for 'is_closed'"})
+            )
+        if is_closed == "true":
+            dataset_list = [ds for ds in dataset_list if ds.is_closed]
+        else:
+            dataset_list = [ds for ds in dataset_list if not ds.is_closed]
 
         if "theme" in req_args:
             # Filter by theme slugs
@@ -108,32 +106,32 @@ class DatasetSearchView(SearchView):
                     if all([tag in tags for tag in tag_slugs]):
                         new_dataset_list.append(dataset)
             dataset_list = new_dataset_list
-        if "spatial_coverage" in req_args or "temporal_coverage" in req_args:
-            # Collect all coverage objects
-            coverages: Dict[str, List[Coverage]] = {}
-            added_coverages = set()
-            for dataset in dataset_list:
-                for table in dataset.tables.all():
-                    for coverage in table.coverages.all():
-                        if coverage.id not in added_coverages:
-                            if dataset.slug not in coverages:
-                                coverages[dataset.slug] = []
-                            coverages[dataset.slug].append(coverage)
-                            added_coverages.add(coverage.id)
-                for raw_data_source in dataset.raw_data_sources.all():
-                    for coverage in raw_data_source.coverages.all():
-                        if coverage.id not in added_coverages:
-                            if dataset.slug not in coverages:
-                                coverages[dataset.slug] = []
-                            coverages[dataset.slug].append(coverage)
-                            added_coverages.add(coverage.id)
-                for information_request in dataset.information_requests.all():
-                    for coverage in information_request.coverages.all():
-                        if coverage.id not in added_coverages:
-                            if dataset.slug not in coverages:
-                                coverages[dataset.slug] = []
-                            coverages[dataset.slug].append(coverage)
-                            added_coverages.add(coverage.id)
+
+        # Collect all coverage objects
+        coverages: Dict[str, List[Coverage]] = {}
+        added_coverages = set()
+        for dataset in dataset_list:
+            for table in dataset.tables.all():
+                for coverage in table.coverages.all():
+                    if coverage.id not in added_coverages:
+                        if dataset.slug not in coverages:
+                            coverages[dataset.slug] = []
+                        coverages[dataset.slug].append(coverage)
+                        added_coverages.add(coverage.id)
+            for raw_data_source in dataset.raw_data_sources.all():
+                for coverage in raw_data_source.coverages.all():
+                    if coverage.id not in added_coverages:
+                        if dataset.slug not in coverages:
+                            coverages[dataset.slug] = []
+                        coverages[dataset.slug].append(coverage)
+                        added_coverages.add(coverage.id)
+            for information_request in dataset.information_requests.all():
+                for coverage in information_request.coverages.all():
+                    if coverage.id not in added_coverages:
+                        if dataset.slug not in coverages:
+                            coverages[dataset.slug] = []
+                        coverages[dataset.slug].append(coverage)
+                        added_coverages.add(coverage.id)
         if "spatial_coverage" in req_args:
             # Filter by spatial coverages
             spatial_coverages = req_args.getlist("spatial_coverage")
@@ -185,37 +183,37 @@ class DatasetSearchView(SearchView):
                         if dataset.slug in added_datasets:
                             break
             dataset_list = new_dataset_list
+
+        # Collect all entities
+        entities: Dict[str, List[str]] = {}
+        added_entities = set()
+        for dataset in dataset_list:
+            for table in dataset.tables.all():
+                for observation_level in table.observation_levels.all():
+                    entity = observation_level.entity
+                    if entity.id not in added_entities:
+                        if dataset.slug not in entities:
+                            entities[dataset.slug] = []
+                        entities[dataset.slug].append(entity.slug)
+                        added_entities.add(entity.id)
+            for raw_data_source in dataset.raw_data_sources.all():
+                for observation_level in raw_data_source.observation_levels.all():
+                    entity = observation_level.entity
+                    if entity.id not in added_entities:
+                        if dataset.slug not in entities:
+                            entities[dataset.slug] = []
+                        entities[dataset.slug].append(entity.slug)
+                        added_entities.add(entity.id)
+            for information_request in dataset.information_requests.all():
+                for observation_level in information_request.observation_levels.all():
+                    entity = observation_level.entity
+                    if entity.id not in added_entities:
+                        if dataset.slug not in entities:
+                            entities[dataset.slug] = []
+                        entities[dataset.slug].append(entity.slug)
+                        added_entities.add(entity.id)
+
         if "entity" in req_args:
-            # Collect all entities
-            entities: Dict[str, List[str]] = {}
-            added_entities = set()
-            for dataset in dataset_list:
-                for table in dataset.tables.all():
-                    for observation_level in table.observation_levels.all():
-                        entity = observation_level.entity
-                        if entity.id not in added_entities:
-                            if dataset.slug not in entities:
-                                entities[dataset.slug] = []
-                            entities[dataset.slug].append(entity.slug)
-                            added_entities.add(entity.id)
-                for raw_data_source in dataset.raw_data_sources.all():
-                    for observation_level in raw_data_source.observation_levels.all():
-                        entity = observation_level.entity
-                        if entity.id not in added_entities:
-                            if dataset.slug not in entities:
-                                entities[dataset.slug] = []
-                            entities[dataset.slug].append(entity.slug)
-                            added_entities.add(entity.id)
-                for information_request in dataset.information_requests.all():
-                    for (
-                        observation_level
-                    ) in information_request.observation_levels.all():
-                        entity = observation_level.entity
-                        if entity.id not in added_entities:
-                            if dataset.slug not in entities:
-                                entities[dataset.slug] = []
-                            entities[dataset.slug].append(entity.slug)
-                            added_entities.add(entity.id)
             # Filter by entity slugs
             entity_slugs = req_args.getlist("entity")
             new_dataset_list = []
@@ -240,42 +238,44 @@ class DatasetSearchView(SearchView):
                     if entities_found == len(entity_slugs):
                         new_dataset_list.append(dataset)
             dataset_list = new_dataset_list
+
+        # Collect all updates
+        updates: Dict[str, List[Tuple[int, str]]] = {}
+        added_updates = set()
+        for dataset in dataset_list:
+            for table in dataset.tables.all():
+                for update in table.updates.all():
+                    if update.id not in added_updates:
+                        if dataset.slug not in updates:
+                            updates[dataset.slug] = []
+                        updates[dataset.slug].append(
+                            (update.frequency, update.entity.slug)
+                        )
+                        added_updates.add(update.id)
+            for raw_data_source in dataset.raw_data_sources.all():
+                for update in raw_data_source.updates.all():
+                    if update.id not in added_updates:
+                        if dataset.slug not in updates:
+                            updates[dataset.slug] = []
+                        updates[dataset.slug].append(
+                            (update.frequency, update.entity.slug)
+                        )
+                        added_updates.add(update.id)
+            for information_request in dataset.information_requests.all():
+                for update in information_request.updates.all():
+                    if update.id not in added_updates:
+                        if dataset.slug not in updates:
+                            updates[dataset.slug] = []
+                        updates[dataset.slug].append(
+                            (update.frequency, update.entity.slug)
+                        )
+                        added_updates.add(update.id)
+
         if "update_frequency" in req_args:
             update_frequencies: List[Tuple[int, str]] = [
                 self.split_number_text(frequency)
                 for frequency in req_args.getlist("update_frequency")
             ]
-            # Collect all updates
-            updates: Dict[str, List[Tuple[int, str]]] = {}
-            added_updates = set()
-            for dataset in dataset_list:
-                for table in dataset.tables.all():
-                    for update in table.updates.all():
-                        if update.id not in added_updates:
-                            if dataset.slug not in updates:
-                                updates[dataset.slug] = []
-                            updates[dataset.slug].append(
-                                (update.frequency, update.entity.slug)
-                            )
-                            added_updates.add(update.id)
-                for raw_data_source in dataset.raw_data_sources.all():
-                    for update in raw_data_source.updates.all():
-                        if update.id not in added_updates:
-                            if dataset.slug not in updates:
-                                updates[dataset.slug] = []
-                            updates[dataset.slug].append(
-                                (update.frequency, update.entity.slug)
-                            )
-                            added_updates.add(update.id)
-                for information_request in dataset.information_requests.all():
-                    for update in information_request.updates.all():
-                        if update.id not in added_updates:
-                            if dataset.slug not in updates:
-                                updates[dataset.slug] = []
-                            updates[dataset.slug].append(
-                                (update.frequency, update.entity.slug)
-                            )
-                            added_updates.add(update.id)
             # Filter by update frequencies
             new_dataset_list = []
             if filter_method == "or":
@@ -299,6 +299,7 @@ class DatasetSearchView(SearchView):
         if "raw_quality_tier" in req_args:
             # TODO: filter by raw quality tier
             ...
+
         # Pagination
         try:
             if "page_size" in req_args:
@@ -321,12 +322,102 @@ class DatasetSearchView(SearchView):
         page_dataset_list = dataset_list[
             (page - 1) * page_size : page * page_size  # noqa
         ]
+
+        # Collect remaining filters
+        remaining_themes: Dict[str, Dict[str, Union[str, int]]] = {}
+        remaining_organizations: Dict[str, Dict[str, Union[str, int]]] = {}
+        remaining_tags: Dict[str, Dict[str, Union[str, int]]] = {}
+        remaining_spatial_coverages: Dict[str, Dict[str, Union[str, int]]] = {}
+        remaining_temporal_coverages: Dict[str, Dict[str, Union[str, int]]] = {}
+        remaining_entities: Dict[str, Dict[str, Union[str, int]]] = {}
+        remaining_update_frequencies: Dict[str, Dict[str, Union[str, int]]] = {}
+        for ds in dataset_list:
+            # Add theme counts
+            for theme in ds.themes.all():
+                if theme.slug not in remaining_themes:
+                    remaining_themes[theme.slug] = {
+                        "name": theme.name,
+                        "count": 1,
+                    }
+                else:
+                    remaining_themes[theme.slug]["count"] += 1
+            # Add organization counts
+            if ds.organization.slug not in remaining_organizations:
+                remaining_organizations[ds.organization.slug] = {
+                    "name": ds.organization.name,
+                    "count": 1,
+                }
+            else:
+                remaining_organizations[ds.organization.slug]["count"] += 1
+            # Add tag counts
+            for tag in ds.tags.all():
+                if tag.slug not in remaining_tags:
+                    remaining_tags[tag.slug] = {
+                        "name": tag.name,
+                        "count": 1,
+                    }
+                else:
+                    remaining_tags[tag.slug]["count"] += 1
+            # Add spatial and temporal coverage counts
+            if dataset.slug in coverages:
+                for coverage in coverages[dataset.slug]:
+                    if coverage.area.slug not in remaining_spatial_coverages:
+                        remaining_spatial_coverages[coverage.area.slug] = {
+                            "name": coverage.area.name,
+                            "count": 1,
+                        }
+                    else:
+                        remaining_spatial_coverages[coverage.area.slug]["count"] += 1
+                    for datetime_range in coverage.datetime_ranges.all():
+                        # Add each year in the range
+                        for year in range(
+                            datetime_range.start_year, datetime_range.end_year + 1
+                        ):
+                            if year not in remaining_temporal_coverages:
+                                remaining_temporal_coverages[year] = {
+                                    "name": str(year),
+                                    "count": 1,
+                                }
+                            else:
+                                remaining_temporal_coverages[year]["count"] += 1
+            # Add entity counts
+            if dataset.slug in entities:
+                for entity in entities[dataset.slug]:
+                    if entity not in remaining_entities:
+                        remaining_entities[entity] = {
+                            "name": Entity.objects.get(slug=entity).name,
+                            "count": 1,
+                        }
+                    else:
+                        remaining_entities[entity]["count"] += 1
+            # Add update frequency counts
+            if dataset.slug in updates:
+                for update in updates[dataset.slug]:
+                    update_text = f"{update[0]}{update[1]}"
+                    if update_text not in remaining_update_frequencies:
+                        remaining_update_frequencies[update_text] = {
+                            "name": update_text,
+                            "count": 1,
+                        }
+                    else:
+                        remaining_update_frequencies[update_text]["count"] += 1
+
+        # Serialize results
         results = [self.serialize_dataset(ds) for ds in page_dataset_list]
+
         return HttpResponse(
             json.dumps(
                 {
                     "count": len(dataset_list),
                     "results": results,
+                    "themes": remaining_themes,
+                    "organizations": remaining_organizations,
+                    "tags": remaining_tags,
+                    "spatial_coverages": remaining_spatial_coverages,
+                    "temporal_coverages": remaining_temporal_coverages,
+                    "entities": remaining_entities,
+                    "update_frequencies": remaining_update_frequencies,
+                    "raw_quality_tiers": [],  # TODO: add raw quality tiers
                 }
             ),
             status=200 if len(results) > 0 else 204,
