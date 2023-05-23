@@ -1,12 +1,13 @@
 # -*- coding: utf-8 -*-
+from datetime import datetime
 import json
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Set, Tuple, Union
 
 from django.http import HttpResponse, HttpResponseBadRequest, QueryDict
 from haystack.forms import ModelSearchForm
 from haystack.generic_views import SearchView
 
-from basedosdados_api.api.v1.models import Coverage, Dataset
+from basedosdados_api.api.v1.models import Coverage, Dataset, Entity
 
 
 class DatasetSearchView(SearchView):
@@ -107,31 +108,33 @@ class DatasetSearchView(SearchView):
                         new_dataset_list.append(dataset)
             dataset_list = new_dataset_list
 
-        # Collect all coverage objects
-        coverages: Dict[str, List[Coverage]] = {}
-        added_coverages = set()
-        for dataset in dataset_list:
-            for table in dataset.tables.all():
-                for coverage in table.coverages.all():
-                    if coverage.id not in added_coverages:
-                        if dataset.slug not in coverages:
-                            coverages[dataset.slug] = []
-                        coverages[dataset.slug].append(coverage)
-                        added_coverages.add(coverage.id)
-            for raw_data_source in dataset.raw_data_sources.all():
-                for coverage in raw_data_source.coverages.all():
-                    if coverage.id not in added_coverages:
-                        if dataset.slug not in coverages:
-                            coverages[dataset.slug] = []
-                        coverages[dataset.slug].append(coverage)
-                        added_coverages.add(coverage.id)
-            for information_request in dataset.information_requests.all():
-                for coverage in information_request.coverages.all():
-                    if coverage.id not in added_coverages:
-                        if dataset.slug not in coverages:
-                            coverages[dataset.slug] = []
-                        coverages[dataset.slug].append(coverage)
-                        added_coverages.add(coverage.id)
+        if "spatial_coverage" in req_args or "temporal_coverage" in req_args:
+            # Collect all coverage objects
+            coverages: Dict[str, List[Coverage]] = {}
+            added_coverages = set()
+            for dataset in dataset_list:
+                for table in dataset.tables.all():
+                    for coverage in table.coverages.all():
+                        if coverage.id not in added_coverages:
+                            if dataset.slug not in coverages:
+                                coverages[dataset.slug] = []
+                            coverages[dataset.slug].append(coverage)
+                            added_coverages.add(coverage.id)
+                for raw_data_source in dataset.raw_data_sources.all():
+                    for coverage in raw_data_source.coverages.all():
+                        if coverage.id not in added_coverages:
+                            if dataset.slug not in coverages:
+                                coverages[dataset.slug] = []
+                            coverages[dataset.slug].append(coverage)
+                            added_coverages.add(coverage.id)
+                for information_request in dataset.information_requests.all():
+                    for coverage in information_request.coverages.all():
+                        if coverage.id not in added_coverages:
+                            if dataset.slug not in coverages:
+                                coverages[dataset.slug] = []
+                            coverages[dataset.slug].append(coverage)
+                            added_coverages.add(coverage.id)
+
         if "spatial_coverage" in req_args:
             # Filter by spatial coverages
             spatial_coverages = req_args.getlist("spatial_coverage")
@@ -343,6 +346,7 @@ class DatasetSearchView(SearchView):
                     }
                 else:
                     remaining_themes[theme.slug]["count"] += 1
+
             # Add organization counts
             if ds.organization.slug not in remaining_organizations:
                 remaining_organizations[ds.organization.slug] = {
@@ -351,6 +355,7 @@ class DatasetSearchView(SearchView):
                 }
             else:
                 remaining_organizations[ds.organization.slug]["count"] += 1
+
             # Add tag counts
             for tag in ds.tags.all():
                 if tag.slug not in remaining_tags:
@@ -360,87 +365,111 @@ class DatasetSearchView(SearchView):
                     }
                 else:
                     remaining_tags[tag.slug]["count"] += 1
+
             # Add spatial and temporal coverage counts
-            if dataset.slug in coverages:
-                for coverage in coverages[dataset.slug]:
-                    if coverage.area.slug not in remaining_spatial_coverages:
-                        remaining_spatial_coverages[coverage.area.slug] = {
-                            "name": coverage.area.name,
-                            "count": 1,
-                        }
-                    else:
-                        remaining_spatial_coverages[coverage.area.slug]["count"] += 1
-                    for datetime_range in coverage.datetime_ranges.all():
-                        # Add each year in the range
-                        for year in range(
-                            datetime_range.start_year, datetime_range.end_year + 1
-                        ):
-                            if year not in remaining_temporal_coverages:
-                                remaining_temporal_coverages[year] = {
-                                    "name": str(year),
-                                    "count": 1,
-                                }
-                            else:
-                                remaining_temporal_coverages[year]["count"] += 1
-            # Add entity counts
-            used_datasets = set()
+            def add_spatial_and_temporal_coverage_counts(
+                coverage: Coverage,
+                ds: Dataset,
+                remaining_spatial_coverages: Dict[str, Dict[str, Union[str, int]]],
+                remaining_temporal_coverages: Dict[str, Dict[str, Union[str, int]]],
+                used_spatial_combos: Set[Tuple[str, str]],
+                used_temporal_combos: Set[Tuple[str, str]],
+            ) -> None:
+                # Add temporal coverage counts
+                for datetime_range in coverage.datetime_ranges.all():
+                    start_year = datetime_range.start_year
+                    end_year = datetime_range.end_year
+                    # If we have only the start year, end year is this year
+                    if end_year is None:
+                        end_year = datetime.now().year
+                    # Build the year range
+                    year_range = range(start_year, end_year + 1)
+                    for year in year_range:
+                        if (ds.slug, year) in used_temporal_combos:
+                            continue
+                        if year not in remaining_temporal_coverages:
+                            remaining_temporal_coverages[year] = {
+                                "name": str(year),
+                                "count": 1,
+                            }
+                        else:
+                            remaining_temporal_coverages[year]["count"] += 1
+                        used_temporal_combos.add((ds.slug, year))
+                # Add spatial coverage counts
+                if (ds.slug, coverage.area.slug) in used_spatial_combos:
+                    return
+                if coverage.area.slug not in remaining_spatial_coverages:
+                    remaining_spatial_coverages[coverage.area.slug] = {
+                        "name": coverage.area.name,
+                        "count": 1,
+                    }
+                else:
+                    remaining_spatial_coverages[coverage.area.slug]["count"] += 1
+
+            used_spatial_combos = set()
+            used_temporal_combos = set()
             for table in ds.tables.all():
-                if ds.slug in used_datasets:
-                    break
-                for observation_level in table.observation_levels.all():
-                    if ds.slug in used_datasets:
-                        break
-                    entity = observation_level.entity
-                    if entity.slug not in remaining_entities:
-                        remaining_entities[entity.slug] = {
-                            "name": entity.name,
-                            "count": 1,
-                        }
-                    else:
-                        remaining_entities[entity.slug]["count"] += 1
-                    used_datasets.add(dataset.slug)
+                for coverage in table.coverages.all():
+                    add_spatial_and_temporal_coverage_counts(
+                        coverage,
+                        ds,
+                        remaining_spatial_coverages,
+                        remaining_temporal_coverages,
+                        used_spatial_combos,
+                        used_temporal_combos,
+                    )
             for raw_data_source in ds.raw_data_sources.all():
-                if ds.slug in used_datasets:
-                    break
+                for coverage in raw_data_source.coverages.all():
+                    add_spatial_and_temporal_coverage_counts(
+                        coverage,
+                        ds,
+                        remaining_spatial_coverages,
+                        remaining_temporal_coverages,
+                        used_spatial_combos,
+                        used_temporal_combos,
+                    )
+            for information_request in ds.information_requests.all():
+                for coverage in information_request.coverages.all():
+                    add_spatial_and_temporal_coverage_counts(
+                        coverage,
+                        ds,
+                        remaining_spatial_coverages,
+                        remaining_temporal_coverages,
+                        used_spatial_combos,
+                        used_temporal_combos,
+                    )
+
+            # Add entity counts
+            def add_entity_counts(
+                entity: Entity, ds: Dataset, used_combos: Set[Tuple[str, str]]
+            ) -> None:
+                if (ds.slug, entity.slug) in used_combos:
+                    return
+                if entity.slug not in remaining_entities:
+                    remaining_entities[entity.slug] = {
+                        "name": entity.name,
+                        "count": 1,
+                    }
+                else:
+                    remaining_entities[entity.slug]["count"] += 1
+                used_combos.add((ds.slug, entity.slug))
+
+            used_combos = set()
+            for table in ds.tables.all():
+                for observation_level in table.observation_levels.all():
+                    entity = observation_level.entity
+                    add_entity_counts(entity, ds, used_combos)
+            for raw_data_source in ds.raw_data_sources.all():
                 for observation_level in raw_data_source.observation_levels.all():
-                    if ds.slug in used_datasets:
-                        break
                     entity = observation_level.entity
-                    if entity.slug not in remaining_entities:
-                        remaining_entities[entity.slug] = {
-                            "name": entity.name,
-                            "count": 1,
-                        }
-                    else:
-                        remaining_entities[entity.slug]["count"] += 1
-                    used_datasets.add(dataset.slug)
+                    add_entity_counts(entity, ds, used_combos)
             for information_request in dataset.information_requests.all():
-                if ds.slug in used_datasets:
-                    break
                 for observation_level in information_request.observation_levels.all():
-                    if ds.slug in used_datasets:
-                        break
                     entity = observation_level.entity
-                    if entity.slug not in remaining_entities:
-                        remaining_entities[entity.slug] = {
-                            "name": entity.name,
-                            "count": 1,
-                        }
-                    else:
-                        remaining_entities[entity.slug]["count"] += 1
-                    used_datasets.add(dataset.slug)
+                    add_entity_counts(entity, ds, used_combos)
 
             # Add update frequency counts
-            if dataset.slug in updates:
-                for update in updates[dataset.slug]:
-                    update_text = f"{update[0]}{update[1]}"
-                    if update_text not in remaining_update_frequencies:
-                        remaining_update_frequencies[update_text] = {
-                            "name": update_text,
-                            "count": 1,
-                        }
-                    else:
-                        remaining_update_frequencies[update_text]["count"] += 1
+            # TODO: add remaining update frequency counts
 
         # Serialize results
         results = [self.serialize_dataset(ds) for ds in page_dataset_list]
