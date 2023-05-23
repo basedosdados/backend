@@ -7,7 +7,7 @@ from django.http import HttpResponse, HttpResponseBadRequest, QueryDict
 from haystack.forms import ModelSearchForm
 from haystack.generic_views import SearchView
 
-from basedosdados_api.api.v1.models import Coverage, Dataset, Entity
+from basedosdados_api.api.v1.models import Coverage, Dataset, Entity, Update
 
 
 class DatasetSearchView(SearchView):
@@ -244,39 +244,40 @@ class DatasetSearchView(SearchView):
                         new_dataset_list.append(dataset)
             dataset_list = new_dataset_list
 
-        # Collect all updates
-        updates: Dict[str, List[Tuple[int, str]]] = {}
-        added_updates = set()
-        for dataset in dataset_list:
-            for table in dataset.tables.all():
-                for update in table.updates.all():
-                    if update.id not in added_updates:
-                        if dataset.slug not in updates:
-                            updates[dataset.slug] = []
-                        updates[dataset.slug].append(
-                            (update.frequency, update.entity.slug)
-                        )
-                        added_updates.add(update.id)
-            for raw_data_source in dataset.raw_data_sources.all():
-                for update in raw_data_source.updates.all():
-                    if update.id not in added_updates:
-                        if dataset.slug not in updates:
-                            updates[dataset.slug] = []
-                        updates[dataset.slug].append(
-                            (update.frequency, update.entity.slug)
-                        )
-                        added_updates.add(update.id)
-            for information_request in dataset.information_requests.all():
-                for update in information_request.updates.all():
-                    if update.id not in added_updates:
-                        if dataset.slug not in updates:
-                            updates[dataset.slug] = []
-                        updates[dataset.slug].append(
-                            (update.frequency, update.entity.slug)
-                        )
-                        added_updates.add(update.id)
-
         if "update_frequency" in req_args:
+            # Collect all updates
+            updates: Dict[str, List[Tuple[int, str]]] = {}
+            added_updates = set()
+            for dataset in dataset_list:
+                for table in dataset.tables.all():
+                    for update in table.updates.all():
+                        if update.id not in added_updates:
+                            if dataset.slug not in updates:
+                                updates[dataset.slug] = []
+                            updates[dataset.slug].append(
+                                (update.frequency, update.entity.slug)
+                            )
+                            added_updates.add(update.id)
+                for raw_data_source in dataset.raw_data_sources.all():
+                    for update in raw_data_source.updates.all():
+                        if update.id not in added_updates:
+                            if dataset.slug not in updates:
+                                updates[dataset.slug] = []
+                            updates[dataset.slug].append(
+                                (update.frequency, update.entity.slug)
+                            )
+                            added_updates.add(update.id)
+                for information_request in dataset.information_requests.all():
+                    for update in information_request.updates.all():
+                        if update.id not in added_updates:
+                            if dataset.slug not in updates:
+                                updates[dataset.slug] = []
+                            updates[dataset.slug].append(
+                                (update.frequency, update.entity.slug)
+                            )
+                            added_updates.add(update.id)
+
+            # Filter by update frequencies
             update_frequencies: List[Tuple[int, str]] = [
                 self.split_number_text(frequency)
                 for frequency in req_args.getlist("update_frequency")
@@ -378,6 +379,8 @@ class DatasetSearchView(SearchView):
                 # Add temporal coverage counts
                 for datetime_range in coverage.datetime_ranges.all():
                     start_year = datetime_range.start_year
+                    if not start_year:
+                        continue
                     end_year = datetime_range.end_year
                     # If we have only the start year, end year is this year
                     if end_year is None:
@@ -463,13 +466,37 @@ class DatasetSearchView(SearchView):
                 for observation_level in raw_data_source.observation_levels.all():
                     entity = observation_level.entity
                     add_entity_counts(entity, ds, used_combos)
-            for information_request in dataset.information_requests.all():
+            for information_request in ds.information_requests.all():
                 for observation_level in information_request.observation_levels.all():
                     entity = observation_level.entity
                     add_entity_counts(entity, ds, used_combos)
 
             # Add update frequency counts
-            # TODO: add remaining update frequency counts
+            def add_update_frequency_counts(
+                update: Update, ds: Dataset, used_combos: Set[Tuple[str, str]]
+            ) -> None:
+                stringified_update = f"{update.frequency}{update.entity.slug}"
+                if (ds.slug, stringified_update) in used_combos:
+                    return
+                if stringified_update not in remaining_update_frequencies:
+                    remaining_update_frequencies[stringified_update] = {
+                        "name": f"{update.frequency} {update.entity.name}",
+                        "count": 1,
+                    }
+                else:
+                    remaining_update_frequencies[stringified_update]["count"] += 1
+                used_combos.add((ds.slug, stringified_update))
+
+            used_combos = set()
+            for table in ds.tables.all():
+                for update in table.updates.all():
+                    add_update_frequency_counts(update, ds, used_combos)
+            for raw_data_source in ds.raw_data_sources.all():
+                for update in raw_data_source.updates.all():
+                    add_update_frequency_counts(update, ds, used_combos)
+            for information_request in ds.information_requests.all():
+                for update in information_request.updates.all():
+                    add_update_frequency_counts(update, ds, used_combos)
 
         # Serialize results
         results = [self.serialize_dataset(ds) for ds in page_dataset_list]
