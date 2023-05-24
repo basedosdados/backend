@@ -12,7 +12,7 @@ on:
 jobs:
   deploy-prod:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' }} || ${{ github.event_name == 'workflow_dispatch' }}
     environment:
       name: production
       url: https://api.basedosdados.org
