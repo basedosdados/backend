@@ -244,3 +244,4 @@ fabric.properties
 Dockerfile
 Makefile
 README.md
+*sqlite3

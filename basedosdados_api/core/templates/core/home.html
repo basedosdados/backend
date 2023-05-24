@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Home View</title>
+</head>
+{% block content %}
+<body>
+{% if messages %}
+  <div class="alert alert-dismissible" role="alert">
+    {% for message in messages %}
+      <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+    {% endfor %}
+    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+      <span aria-hidden="true">&times;</span>
+    </button>
+  </div>
+{% endif %}
+
+    <h1>Home View</h1>
+    {% if user.is_authenticated %}
+    <p>Olá, {{ name }}!</p>
+    <p>Organização: {{ organization }}</p>
+    {% endif %}
+</body>
+{% endblock %}
+</html>

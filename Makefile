@@ -1,49 +1,105 @@
-#####################################################
-# Makefile containing shortcut commands for project #
-#####################################################
+# Get the executables we're using
+POETRY=$(shell which poetry)
+PYTHON=$(shell poetry run which python)
 
-# MACOS USERS:
-#  Make should be installed with XCode dev tools.
-#  If not, run `xcode-select --install` in Terminal to install.
+# `make install`: installs dependencies
+.PHONY: install
+install:
+	$(POETRY) install
 
-# WINDOWS USERS:
-#  1. Install Chocolately package manager: https://chocolatey.org/
-#  2. Open Command Prompt in administrator mode
-#  3. Run `choco install make`
-#  4. Restart all Git Bash/Terminal windows.
+# `make add`: adds a new dependency
+ifeq (add,$(firstword $(MAKECMDGOALS)))
+	ADD_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+	$(eval $(ADD_ARGS):;@:)
+endif
 
-.PHONY: create-dev update-dev
+.PHONY: add
+add:
+	$(POETRY) add $(ADD_ARGS)
 
-create-dev:
-	python3 -m venv .venv; \
-	. .venv/bin/activate; \
-	pip install --upgrade poetry; \
-	poetry install; \
-	pre-commit install;
+# `make remove`: removes a dependency
+ifeq (remove,$(firstword $(MAKECMDGOALS)))
+	REMOVE_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+	$(eval $(REMOVE_ARGS):;@:)
+endif
 
-update-dev:
-	. .venv/bin/activate; \
-	poetry update;
+.PHONY: remove
+remove:
+	$(POETRY) remove $(REMOVE_ARGS)
 
-.PHONY: docker-clean docker-down docker-force docker-logs docker-start docker-stop docker-up
+# `make lint`: runs linters
+.PHONY: lint
+lint:
+	$(POETRY) run lint
 
-docker-clean:
-	docker-compose down --rmi all --volumes
+# `make migrations`: checks for model changes and generates migrations
+.PHONY: migrations
+migrations:
+	$(PYTHON) manage.py makemigrations
 
-docker-down:
-	docker-compose down --remove-orphans
+# `make migrations_docker`: checks for model changes and generates migrations using docker-compose
+.PHONY: migrations_docker
+migrations_docker:
+	docker-compose exec api python manage.py makemigrations
 
-docker-force:
-	docker-compose up --force-recreate
+# `make migrate`: applies migrations
+.PHONY: migrate
+migrate:
+	$(PYTHON) manage.py migrate
 
-docker-logs:
-	docker-compose logs -f
+# `make migrate_docker`: applies migrations using docker-compose
+.PHONY: migrate_docker
+migrate_docker:
+	docker-compose exec api python manage.py migrate
 
-docker-start:
-	docker-compose start
+# `make superuser`: creates a superuser
+.PHONY: superuser
+superuser:
+	$(PYTHON) manage.py createsuperuser
 
-docker-stop:
+# `make superuser_docker`: creates a superuser using docker-compose
+.PHONY: superuser_docker
+superuser_docker:
+	docker-compose exec api python manage.py createsuperuser
+
+# `make run_local`: runs the server using manage.py
+.PHONY: run_local
+run_local:
+	@echo "Touching the log file to ensure it exists..."
+	@touch basedosdados_api/django.log
+	@echo "Checking for model changes..."
+	@make migrations
+	@echo "Applying migrations..."
+	@make migrate
+	@echo "Running the server at http://0.0.0.0:8080/..."
+	$(PYTHON) manage.py runserver 0.0.0.0:8080
+
+# `make run_docker`: runs the server using docker-compose
+.PHONY: run_docker
+run_docker:
+	docker-compose up --build --force-recreate --detach
+
+# `make stop_docker`: stops the server using docker-compose
+.PHONY: stop_docker
+stop_docker:
 	docker-compose stop
 
-docker-up:
-	docker-compose up
+# `make clean_docker`: removes the server using docker-compose and delete all volumes
+.PHONY: clean_docker
+clean_docker:
+	docker-compose down --volumes
+
+# `make shell_docker`: runs a shell in the server using docker-compose
+.PHONY: shell_docker
+shell_docker:
+	docker-compose exec api bash
+
+# `make logs_docker`: shows the logs of the server using docker-compose
+.PHONY: logs_docker
+logs_docker:
+	docker-compose logs --tail=500 -f
+
+# `make status_docker`: shows the status of the server using docker-compose
+.PHONY: status_docker
+status_docker:
+	docker-compose ps
