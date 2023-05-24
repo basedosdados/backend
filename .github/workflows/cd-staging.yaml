@@ -31,7 +31,8 @@ jobs:
             secret/data/github_actions_deployment_secrets  GH_PAT           | GH_PAT ;
             secret/data/github_actions_deployment_secrets  GKE_CLUSTER      | GKE_CLUSTER ;
             secret/data/github_actions_deployment_secrets  GKE_ZONE         | GKE_ZONE ;
-      - name: Setup Google Cloud CLI
+
+- name: Setup Google Cloud CLI
         uses: google-github-actions/setup-gcloud@v0.2.1
         with:
           service_account_key: ${{ steps.import_secrets.outputs.GCP_SA_KEY }}
@@ -86,9 +87,11 @@ jobs:
                   - staging.backend.dados.rio
                 secretName: staging-backend-dados-rio-tls
           EOF
+
       - name: Deploy using Helm
         run: |
           helm upgrade --install staging-backend charts/basedosdados-api/. -n staging-backend-dados-rio -f values.yaml --wait
+
   deploy-staging:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
@@ -113,7 +116,8 @@ jobs:
             secret/data/gcp_credentials/basedosdados-dev GH_ACTIONS_SA    | GCP_SA ;
             secret/data/gcp_credentials/basedosdados-dev GKE_CLUSTER_NAME | GKE_CLUSTER_NAME ;
             secret/data/gcp_credentials/basedosdados-dev GKE_CLUSTER_ZONE | GKE_CLUSTER_ZONE ;
-      - name: Setup Google Cloud CLI
+
+- name: Setup Google Cloud CLI
         uses: google-github-actions/setup-gcloud@v0.2.1
         with:
           service_account_key: ${{ steps.import_secrets.outputs.GCP_SA }}
@@ -168,6 +172,7 @@ jobs:
                   - staging.api.basedosdados.org
                 secretName: staging-api-basedosdados-org-tls
           EOF
-      - name: Deploy using Helm
+
+- name: Deploy using Helm
         run: |
           helm upgrade --install api-staging charts/basedosdados-api/. -n website -f values.yaml --wait
