@@ -23,6 +23,11 @@ class AsciifoldingElasticBackend(
                 "tokenizer": "standard",
                 "filter": ["asciifolding", "lowercase", "haystack_ngram"],
             },
+            "standard_analyzer": {
+                "type": "custom",
+                "tokenizer": "standard",
+                "filter": ["asciifolding", "lowercase"],
+            },
             "ngram_analyzer": {
                 "type": "custom",
                 "tokenizer": "lowercase",
@@ -49,6 +54,12 @@ class AsciifoldingElasticBackend(
                     field_class, "facet_for"
                 ) and field_class.field_type not in ("ngram", "edge_ngram"):
                     field_mapping["analyzer"] = "ascii_ngram_analyser"
+                    field_mapping["fields"] = {
+                        "exact": {
+                            "type": "text",
+                            "analyzer": "standard_analyzer",
+                        }
+                    }
 
             mapping.update({field_class.index_fieldname: field_mapping})
         return (content_field_name, mapping)
