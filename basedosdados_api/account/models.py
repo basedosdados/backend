@@ -319,3 +319,8 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
             [self.email],
             fail_silently=False,
         )
+
+    def save(self, *args, **kwargs) -> None:
+        if self.password:
+            self.set_password(self.password)
+        super().save(*args, **kwargs)
