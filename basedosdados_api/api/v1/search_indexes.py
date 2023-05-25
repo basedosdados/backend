@@ -16,6 +16,7 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         model_attr="organization__description", null=True
     )
     organization_picture = indexes.CharField(model_attr="organization__picture")
+    table_ids = indexes.MultiValueField(model_attr="tables__id", null=True)
     table_slugs = indexes.MultiValueField(model_attr="tables__slug", null=True)
     table_names = indexes.MultiValueField(model_attr="tables__name", null=True)
     table_descriptions = indexes.MultiValueField(
@@ -39,3 +40,9 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
 
     def index_queryset(self, using=None):
         return self.get_model().objects.all()
+
+    def prepare(self, obj):
+        data = super().prepare(obj)
+        table_ids = data.get("table_ids", [])
+        data["first_table_id"] = table_ids[0] if table_ids else ""
+        return data
