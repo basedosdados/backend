@@ -475,18 +475,15 @@ class DatasetESSearchView(SearchView):
         page_size = 10
         page = int(req_args.get("page", 1))
 
-        # If query is empty, build dataset_list with all datasets
+        # If query is empty, query all datasets
         if not query:
-            # dataset_list: List[Dataset] = list(Dataset.objects.all())
             raw_query = {
                 "from": (page - 1) * page_size,
                 "size": page_size,
                 "query": {"match_all": {}},
             }
-
         # If query is not empty, search for datasets
         else:
-            # Build raw query
             raw_query = {
                 "from": (page - 1) * page_size,
                 "size": page_size,
@@ -504,8 +501,6 @@ class DatasetESSearchView(SearchView):
                 },
             }
 
-        # sqs = es.search(index="default", body=raw_query)
-
         form_class = self.get_form_class()
         form: ModelSearchForm = self.get_form(form_class)
         if not form.is_valid():
@@ -518,12 +513,14 @@ class DatasetESSearchView(SearchView):
                 "object_list": self.queryset,
             }
         )
-        # Raw dataset list
-        # dataset_list: List[Dataset] = [obj.object for obj in context["object_list"]]
+
+        # Get total number of results
         count = context["object_list"].get("hits").get("total").get("value")
 
+        # Get results from elasticsearch
         es_results = context["object_list"].get("hits").get("hits")
 
+        # Clean results
         res = []
         for idx, r in enumerate(es_results):
             r_dict = r.get("_source")
@@ -556,22 +553,11 @@ class DatasetESSearchView(SearchView):
 
         results = {"count": count, "results": res}
         max_score = context["object_list"].get("hits").get("max_score")  # noqa
-        # dataset_list = [result["_source"] for result in context["object_list"]["hits"]["hits"] if result["_score"] * 10 > max_score]  # noqa
 
         return JsonResponse(
             results,
             status=200 if len(results) > 0 else 204,
         )
-
-        # return HttpResponse(
-        #     json.dumps(
-        #         {
-        #             'count': len(results),
-        #             'results': results,
-        #         }
-        #     ),
-        #     status=200 if len(results) > 0 else 204,
-        # )
 
     def filtered_results(
         self, dataset_list: List, req_args: QueryDict
