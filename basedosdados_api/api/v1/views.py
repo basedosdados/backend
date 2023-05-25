@@ -542,6 +542,14 @@ class DatasetESSearchView(SearchView):
                     d = {"name": name, "slug": r_dict.get("tags_slug")[idx]}
                     r_dict["tags"].append(d)
             r_dict["n_bdm_tables"] = len(r_dict.get("table_slugs", []))
+            coverage = r_dict.get("coverage")[0]
+            if coverage:
+                if coverage == " - ":
+                    coverage = ""
+                if "inf" in coverage:
+                    coverage = coverage.replace("inf", "")
+            r_dict["temporal_coverage"] = coverage
+            del r_dict["coverage"]
             res.append(r_dict)
 
         res = sorted(res, key=lambda x: x["n_bdm_tables"], reverse=True)

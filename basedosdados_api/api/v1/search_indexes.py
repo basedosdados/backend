@@ -31,6 +31,7 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
     themes_slug = indexes.MultiValueField(model_attr="themes__slug", null=True)
     tags_name = indexes.MultiValueField(model_attr="tags__name", null=True)
     tags_slug = indexes.MultiValueField(model_attr="tags__slug", null=True)
+    coverage = indexes.MultiValueField(model_attr="coverage", null=True)
     is_closed = indexes.BooleanField(model_attr="is_closed")
 
     def get_model(self):
