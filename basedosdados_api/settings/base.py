@@ -240,7 +240,7 @@ HAYSTACK_CONNECTIONS = {
         "ENGINE": "basedosdados_api.api.v1.haystack_engines.AsciifoldingElasticSearchEngine",
         "URL": getenv("ELASTICSEARCH_URL", "http://0.0.0.0:9200"),
         "TIMEOUT": 5,
-        "INDEX_NAME": "default",
+        "INDEX_NAME": getenv("ELASTICSEARCH_INDEX_NAME", "default"),
         "BATCH_SIZE": 1000,
         "INCLUDE_SPELLING": True,
     },
