@@ -33,6 +33,12 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
     tags_name = indexes.MultiValueField(model_attr="tags__name", null=True)
     tags_slug = indexes.MultiValueField(model_attr="tags__slug", null=True)
     coverage = indexes.MultiValueField(model_attr="coverage", null=True)
+    raw_data_sources = indexes.MultiValueField(
+        model_attr="raw_data_sources__id", null=True
+    )
+    information_requests = indexes.MultiValueField(
+        model_attr="information_requests__id", null=True
+    )
     is_closed = indexes.BooleanField(model_attr="is_closed")
 
     def get_model(self):
@@ -45,4 +51,20 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         data = super().prepare(obj)
         table_ids = data.get("table_ids", [])
         data["first_table_id"] = table_ids[0] if table_ids else ""
+        # Raw data sources (renamed to "original sources")
+        raw_data_sources = data.get("raw_data_sources", [])
+        data["first_original_source_id"] = (
+            raw_data_sources[0] if raw_data_sources else ""
+        )
+        if raw_data_sources:
+            data["n_original_sources"] = len(raw_data_sources)
+        else:
+            data["n_original_sources"] = 0
+        # Information requests (renamed to "lai")
+        information_requests = data.get("information_requests", [])
+        data["first_lai_id"] = information_requests[0] if information_requests else ""
+        if information_requests:
+            data["n_lais"] = len(information_requests)
+        else:
+            data["n_lais"] = 0
         return data

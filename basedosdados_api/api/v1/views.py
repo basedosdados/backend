@@ -520,12 +520,6 @@ class DatasetESSearchView(SearchView):
         # Get results from elasticsearch
         es_results = context["object_list"].get("hits").get("hits")
 
-        # first_table_id
-        # n_original_sources
-        # first_original_source_id
-        # n_lais
-        # first_lai_id
-
         # Clean results
         res = []
         for idx, r in enumerate(es_results):
