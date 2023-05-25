@@ -541,7 +541,10 @@ class DatasetESSearchView(SearchView):
                 for idx, name in enumerate(r_dict.get("tags_name")):
                     d = {"name": name, "slug": r_dict.get("tags_slug")[idx]}
                     r_dict["tags"].append(d)
-            res.append(r.get("_source"))
+            r_dict["n_bdm_tables"] = len(r_dict.get("table_slugs", []))
+            res.append(r_dict)
+
+        res = sorted(res, key=lambda x: x["n_bdm_tables"], reverse=True)
 
         results = {"count": count, "results": res}
         max_score = context["object_list"].get("hits").get("max_score")  # noqa
