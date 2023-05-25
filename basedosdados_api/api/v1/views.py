@@ -482,6 +482,7 @@ class DatasetESSearchView(SearchView):
                 "from": (page - 1) * page_size,
                 "size": page_size,
                 "query": {"match_all": {}},
+                "sort": [{"n_bdm_tables": {"order": "desc"}}],
             }
         # If query is not empty, search for datasets
         else:
@@ -500,6 +501,7 @@ class DatasetESSearchView(SearchView):
                         ]
                     }
                 },
+                "sort": [{"n_bdm_tables": {"order": "desc"}}],
             }
 
         form_class = self.get_form_class()
@@ -541,7 +543,7 @@ class DatasetESSearchView(SearchView):
                 for idx, name in enumerate(r_dict.get("tags_name")):
                     d = {"name": name, "slug": r_dict.get("tags_slug")[idx]}
                     r_dict["tags"].append(d)
-            r_dict["n_bdm_tables"] = len(r_dict.get("table_slugs", []))
+            r_dict["n_bdm_tables"] = r_dict.get("n_bdm_tables", 0)
             coverage = r_dict.get("coverage")[0]
             if coverage:
                 if coverage == " - ":
@@ -551,8 +553,6 @@ class DatasetESSearchView(SearchView):
             r_dict["temporal_coverage"] = coverage
             del r_dict["coverage"]
             res.append(r_dict)
-
-        res = sorted(res, key=lambda x: x["n_bdm_tables"], reverse=True)
 
         results = {"count": count, "results": res}
         max_score = context["object_list"].get("hits").get("max_score")  # noqa

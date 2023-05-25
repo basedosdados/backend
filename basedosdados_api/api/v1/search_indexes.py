@@ -49,8 +49,12 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
 
     def prepare(self, obj):
         data = super().prepare(obj)
+        # table ids
         table_ids = data.get("table_ids", [])
         data["first_table_id"] = table_ids[0] if table_ids else ""
+        if table_ids:
+            data["n_bdm_tables"] = len(table_ids)
+
         # Raw data sources (renamed to "original sources")
         raw_data_sources = data.get("raw_data_sources", [])
         data["first_original_source_id"] = (
