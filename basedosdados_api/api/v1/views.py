@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 from typing import Dict, List, Tuple, Union
 
+from django.conf import settings
 from django.http import HttpResponse, HttpResponseBadRequest, QueryDict, JsonResponse
 from haystack.forms import ModelSearchForm
 from haystack.generic_views import SearchView
@@ -471,7 +472,7 @@ class DatasetESSearchView(SearchView):
         # Get request arguments
         req_args: QueryDict = request.GET.copy()
         query = req_args.get("q", None)
-        es = Elasticsearch()
+        es = Elasticsearch(settings.HAYSTACK_CONNECTIONS["default"]["URL"])
         page_size = 10
         page = int(req_args.get("page", 1))
 
@@ -505,7 +506,9 @@ class DatasetESSearchView(SearchView):
         form: ModelSearchForm = self.get_form(form_class)
         if not form.is_valid():
             return HttpResponseBadRequest(json.dumps({"error": "Invalid form"}))
-        self.queryset = es.search(index="default", body=raw_query)
+        self.queryset = es.search(
+            index=settings.HAYSTACK_CONNECTIONS["default"]["INDEX_NAME"], body=raw_query
+        )
         context = self.get_context_data(
             **{
                 self.form_name: form,
