@@ -481,8 +481,19 @@ class DatasetESSearchView(SearchView):
             raw_query = {
                 "from": (page - 1) * page_size,
                 "size": page_size,
-                "query": {"match_all": {}},
-                "sort": [{"n_bdm_tables": {"order": "desc"}}],
+                "query": {
+                    "function_score": {
+                        "query": {"match_all": {}},
+                        "field_value_factor": {
+                            "field": "n_bdm_tables",
+                            "modifier": "square",
+                            "factor": 2,
+                            "missing": 0,
+                        },
+                        "boost_mode": "sum",
+                    }
+                },
+                "sort": [{"_score": {"order": "desc"}}],
             }
         # If query is not empty, search for datasets
         else:
@@ -490,18 +501,32 @@ class DatasetESSearchView(SearchView):
                 "from": (page - 1) * page_size,
                 "size": page_size,
                 "query": {
-                    "bool": {
-                        "should": [
-                            {
-                                "match": {
-                                    "description.exact": {"query": query, "boost": 10}
-                                }
-                            },
-                            {"match": {"name": query}},
-                        ]
+                    "function_score": {
+                        "query": {
+                            "bool": {
+                                "should": [
+                                    {
+                                        "match": {
+                                            "description.exact": {
+                                                "query": query,
+                                                "boost": 10,
+                                            }
+                                        }
+                                    },
+                                    {"match": {"name": query}},
+                                ]
+                            }
+                        },
+                        "field_value_factor": {
+                            "field": "n_bdm_tables",
+                            "modifier": "square",
+                            "factor": 2,
+                            "missing": 0,
+                        },
+                        "boost_mode": "sum",
                     }
                 },
-                "sort": [{"n_bdm_tables": {"order": "desc"}}],
+                "sort": [{"_score": {"order": "desc"}}],
             }
 
         form_class = self.get_form_class()
