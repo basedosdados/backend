@@ -36,6 +36,9 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
     tags_name = indexes.MultiValueField(model_attr="tags__name", null=True)
     tags_slug = indexes.MultiValueField(model_attr="tags__slug", null=True)
     coverage = indexes.MultiValueField(model_attr="coverage", null=True)
+    observation_levels = indexes.MultiValueField(
+        model_attr="tables__observation_levels__entity__name", null=True
+    )
     raw_data_sources = indexes.MultiValueField(
         model_attr="raw_data_sources__id", null=True
     )
@@ -74,4 +77,18 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
             data["n_lais"] = len(information_requests)
         else:
             data["n_lais"] = 0
+
+        # Is closed
+        is_closed = data.get("is_closed", False)
+        data["is_closed"] = is_closed
+
+        # Coverage
+        coverage = data.get("coverage", "")
+        if coverage == " - ":
+            data["coverage"] = ""
+
+        # Observation Levels
+        observation_levels = data.get("observations", [])
+        data["observations"] = observation_levels if observation_levels else ""
+
         return data
