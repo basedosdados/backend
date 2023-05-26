@@ -57,7 +57,11 @@ class AsciifoldingElasticBackend(
                             "exact": {
                                 "type": "text",
                                 "analyzer": "standard_analyzer",
-                            }
+                            },
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256,
+                            },
                         }
                     else:
                         field_mapping["analyzer"] = "standard_analyzer"
