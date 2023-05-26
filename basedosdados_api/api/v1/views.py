@@ -1,10 +1,15 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import json
 from typing import Dict, List, Tuple, Union
 
-from django.http import HttpResponse, HttpResponseBadRequest, QueryDict
+from django.conf import settings
+from django.http import HttpResponse, HttpResponseBadRequest, QueryDict, JsonResponse
 from haystack.forms import ModelSearchForm
 from haystack.generic_views import SearchView
+
+from elasticsearch import Elasticsearch
 
 from basedosdados_api.api.v1.models import Coverage, Dataset
 
@@ -437,6 +442,150 @@ class DatasetSearchView(SearchView):
         if self.extra_context is not None:
             kwargs.update(self.extra_context)
         return kwargs
+
+    def split_number_text(self, text: str) -> Tuple[int, str]:
+        """
+        Splits a string into a number and text part. Examples:
+        >>> split_number_text("1year")
+        (1, 'year')
+        >>> split_number_text("2 month")
+        (2, 'month')
+        >>> split_number_text("3minute")
+        (3, 'minute')
+        """
+        number = ""
+        for c in text:
+            if c.isdigit():
+                number += c
+            else:
+                break
+        if number == "":
+            return None, text
+        return int(number), (text[len(number) :]).strip()  # noqa
+
+
+class DatasetESSearchView(SearchView):
+    def get(self, request, *args, **kwargs):
+        """
+        Handles GET requests and instantiates a blank version of the form.
+        """
+        # Get request arguments
+        req_args: QueryDict = request.GET.copy()
+        query = req_args.get("q", None)
+        es = Elasticsearch(settings.HAYSTACK_CONNECTIONS["default"]["URL"])
+        page_size = 10
+        page = int(req_args.get("page", 1))
+
+        # If query is empty, query all datasets
+        if not query:
+            raw_query = {
+                "from": (page - 1) * page_size,
+                "size": page_size,
+                "query": {
+                    "function_score": {
+                        "query": {"match_all": {}},
+                        "field_value_factor": {
+                            "field": "n_bdm_tables",
+                            "modifier": "square",
+                            "factor": 2,
+                            "missing": 0,
+                        },
+                        "boost_mode": "sum",
+                    }
+                },
+                "sort": [{"_score": {"order": "desc"}}],
+            }
+        # If query is not empty, search for datasets
+        else:
+            raw_query = {
+                "from": (page - 1) * page_size,
+                "size": page_size,
+                "query": {
+                    "function_score": {
+                        "query": {
+                            "bool": {
+                                "should": [
+                                    {
+                                        "match": {
+                                            "description.exact": {
+                                                "query": query,
+                                                "boost": 10,
+                                            }
+                                        }
+                                    },
+                                    {"match": {"name": query}},
+                                ]
+                            }
+                        },
+                        "field_value_factor": {
+                            "field": "n_bdm_tables",
+                            "modifier": "square",
+                            "factor": 2,
+                            "missing": 0,
+                        },
+                        "boost_mode": "sum",
+                    }
+                },
+                "sort": [{"_score": {"order": "desc"}}],
+            }
+
+        form_class = self.get_form_class()
+        form: ModelSearchForm = self.get_form(form_class)
+        if not form.is_valid():
+            return HttpResponseBadRequest(json.dumps({"error": "Invalid form"}))
+        self.queryset = es.search(
+            index=settings.HAYSTACK_CONNECTIONS["default"]["INDEX_NAME"], body=raw_query
+        )
+        context = self.get_context_data(
+            **{
+                self.form_name: form,
+                "query": form.cleaned_data.get(self.search_field),
+                "object_list": self.queryset,
+            }
+        )
+
+        # Get total number of results
+        count = context["object_list"].get("hits").get("total").get("value")
+
+        # Get results from elasticsearch
+        es_results = context["object_list"].get("hits").get("hits")
+
+        # Clean results
+        res = []
+        for idx, r in enumerate(es_results):
+            r_dict = r.get("_source")
+            r_dict["themes"] = []
+            if r_dict.get("organization_picture"):
+                r_dict["organization_picture"] = "/media/" + r_dict.get(
+                    "organization_picture"
+                )
+            if r_dict.get("themes_name"):
+                for idx, name in enumerate(r_dict.get("themes_name")):
+                    d = {"name": name, "slug": r_dict.get("themes_slug")[idx]}
+                    r_dict["themes"].append(d)
+            r_dict["tags"] = []
+            if r_dict.get("tags_name"):
+                for idx, name in enumerate(r_dict.get("tags_name")):
+                    d = {"name": name, "slug": r_dict.get("tags_slug")[idx]}
+                    r_dict["tags"].append(d)
+            r_dict["n_bdm_tables"] = r_dict.get("n_bdm_tables", 0)
+            coverage = r_dict.get("coverage")[0]
+            if coverage:
+                if coverage == " - ":
+                    coverage = ""
+                if "inf" in coverage:
+                    coverage = coverage.replace("inf", "")
+            r_dict["temporal_coverage"] = coverage
+            del r_dict["coverage"]
+            res.append(r_dict)
+
+        results = {"count": count, "results": res}
+        max_score = context["object_list"].get("hits").get("max_score")  # noqa
+
+        return JsonResponse(
+            results,
+            status=200 if len(results) > 0 else 204,
+        )
 
     def split_number_text(self, text: str) -> Tuple[int, str]:
         """
