@@ -587,6 +587,12 @@ class DatasetESSearchView(SearchView):
             status=200 if len(results) > 0 else 204,
         )
 
+    def get_context_data(self, **kwargs):
+        kwargs.setdefault("view", self)
+        if self.extra_context is not None:
+            kwargs.update(self.extra_context)
+        return kwargs
+
     def split_number_text(self, text: str) -> Tuple[int, str]:
         """
         Splits a string into a number and text part. Examples:
