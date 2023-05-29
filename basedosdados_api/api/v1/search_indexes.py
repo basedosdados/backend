@@ -10,31 +10,47 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
     slug = indexes.CharField(model_attr="slug")
     name = indexes.CharField(model_attr="name")
     description = indexes.EdgeNgramField(model_attr="description", null=True)
+
+    organization_id = indexes.CharField(model_attr="organization__id", null=True)
     organization_slug = indexes.CharField(model_attr="organization__slug")
     organization_name = indexes.CharField(model_attr="organization__name")
     organization_description = indexes.CharField(
         model_attr="organization__description", null=True
     )
-    organization_picture = indexes.CharField(model_attr="organization__picture")
+    organization_picture = indexes.CharField(
+        model_attr="organization__picture", null=True
+    )
+    organization_website = indexes.CharField(
+        model_attr="organization__website", null=True
+    )
+
     table_ids = indexes.MultiValueField(model_attr="tables__id", null=True)
     table_slugs = indexes.MultiValueField(model_attr="tables__slug", null=True)
     table_names = indexes.MultiValueField(model_attr="tables__name", null=True)
     table_descriptions = indexes.EdgeNgramField(
         model_attr="tables__description", null=True
     )
+
+    column_ids = indexes.MultiValueField(model_attr="tables__columns__id", null=True)
     column_names = indexes.MultiValueField(
         model_attr="tables__columns__name", null=True
     )
     column_descriptions = indexes.EdgeNgramField(
         model_attr="tables__columns__description", null=True
     )
+
     themes_name = indexes.MultiValueField(model_attr="themes__name", null=True)
     themes_slug = indexes.MultiValueField(model_attr="themes__slug", null=True)
     themes_keyword = indexes.MultiValueField(
         model_attr="themes__slug", null=True, indexed=True, stored=True
     )
+
     tags_name = indexes.MultiValueField(model_attr="tags__name", null=True)
     tags_slug = indexes.MultiValueField(model_attr="tags__slug", null=True)
+    tags_keyword = indexes.MultiValueField(
+        model_attr="tags__slug", null=True, indexed=True, stored=True
+    )
+
     coverage = indexes.MultiValueField(model_attr="coverage", null=True)
     observation_levels = indexes.MultiValueField(
         model_attr="tables__observation_levels__entity__name", null=True
@@ -61,6 +77,72 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         if table_ids:
             data["n_bdm_tables"] = len(table_ids)
 
+        # organization
+        organization_id = data.get("organization_id", "")
+        organization_name = data.get("organization_name", "")
+        organization_slug = data.get("organization_slug", "")
+        organization_picture = data.get("organization_picture", "")
+        organization_website = data.get("organization_website", "")
+        organization_description = data.get("organization_description", "")
+        data["organization"] = {
+            "id": organization_id,
+            "name": organization_name,
+            "slug": organization_slug,
+            "picture": organization_picture,
+            "website": organization_website,
+            "description": organization_description,
+        }
+
+        # themes
+        themes_slug = data.get("themes_slug", [])
+        if themes_slug:
+            data["themes"] = []
+            for i in range(len(themes_slug)):
+                data["themes"].append(
+                    {
+                        "name": data.get("themes_name", [])[i],
+                        "keyword": data.get("themes_keyword", [])[i],
+                    }
+                )
+
+        # tags
+        tags_slug = data.get("tags_slug", [])
+        if tags_slug:
+            data["tags"] = []
+            for i in range(len(tags_slug)):
+                data["tags"].append(
+                    {
+                        "name": data.get("tags_name", [])[i],
+                        "keyword": data.get("tags_keyword", [])[i],
+                    }
+                )
+
+        # tables
+        table_ids = data.get("table_slugs", [])
+        if table_ids:
+            data["tables"] = []
+            for i in range(len(table_ids)):
+                data["tables"].append(
+                    {
+                        "id": data.get("table_ids", [])[i],
+                        "name": data.get("table_names", [])[i],
+                        "slug": data.get("table_slugs", [])[i],
+                    }
+                )
+
+        # columns
+        column_ids = data.get("column_ids", [])
+        if column_ids:
+            data["columns"] = []
+            for i in range(len(column_ids)):
+                data["columns"].append(
+                    {
+                        "id": data.get("column_ids", [])[i],
+                        "name": data.get("column_names", [])[i],
+                        "description": data.get("column_descriptions", [])[i],
+                    }
+                )
+
         # Raw data sources (renamed to "original sources")
         raw_data_sources = data.get("raw_data_sources", [])
         data["first_original_source_id"] = (
@@ -70,6 +152,7 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
             data["n_original_sources"] = len(raw_data_sources)
         else:
             data["n_original_sources"] = 0
+
         # Information requests (renamed to "lai")
         information_requests = data.get("information_requests", [])
         data["first_lai_id"] = information_requests[0] if information_requests else ""

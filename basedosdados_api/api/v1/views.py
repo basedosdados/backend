@@ -11,7 +11,7 @@ from haystack.generic_views import SearchView
 
 from elasticsearch import Elasticsearch
 
-from basedosdados_api.api.v1.models import Coverage, Dataset
+from basedosdados_api.api.v1.models import Coverage, Dataset, Organization, Theme, Tag
 
 
 class DatasetSearchView(SearchView):
@@ -493,6 +493,42 @@ class DatasetESSearchView(SearchView):
                         "boost_mode": "sum",
                     }
                 },
+                "_source": True,  # can be deleted if True
+                "aggs": {
+                    "themes_keyword_counts": {
+                        "terms": {
+                            "field": "themes_slug.keyword",
+                            "size": 1000,
+                        }
+                    },
+                    "is_closed_counts": {
+                        "terms": {
+                            "field": "is_closed",
+                            "size": 1000,
+                        }
+                    },
+                    "organization_counts": {
+                        "terms": {
+                            "field": "organization_slug.keyword",
+                            "size": 1000,
+                        }
+                    },
+                    "tags_slug_counts": {
+                        "terms": {
+                            "field": "tags_slug.keyword",
+                            "size": 1000,
+                        }
+                    },
+                    "temporal_coverage_counts": {
+                        "terms": {"field": "coverage.keyword"}
+                    },
+                    "observation_levels_counts": {
+                        "terms": {
+                            "field": "observation_levels.keyword",
+                            "size": 1000,
+                        }
+                    },
+                },
                 "sort": [{"_score": {"order": "desc"}}],
             }
         # If query is not empty, search for datasets
@@ -526,7 +562,43 @@ class DatasetESSearchView(SearchView):
                         "boost_mode": "sum",
                     }
                 },
+                "_source": True,  # can be deleted if True
                 "sort": [{"_score": {"order": "desc"}}],
+                "aggs": {
+                    "themes_keyword_counts": {
+                        "terms": {
+                            "field": "themes_slug.keyword",
+                            "size": 1000,
+                        }
+                    },
+                    "is_closed_counts": {
+                        "terms": {
+                            "field": "is_closed",
+                            "size": 1000,
+                        }
+                    },
+                    "organization_counts": {
+                        "terms": {
+                            "field": "organization_slug.keyword",
+                            "size": 1000,
+                        }
+                    },
+                    "tags_slug_counts": {
+                        "terms": {
+                            "field": "tags_slug.keyword",
+                            "size": 1000,
+                        }
+                    },
+                    "temporal_coverage_counts": {
+                        "terms": {"field": "coverage.keyword"}
+                    },
+                    "observation_levels_counts": {
+                        "terms": {
+                            "field": "observation_levels.keyword",
+                            "size": 1000,
+                        }
+                    },
+                },
             }
 
         form_class = self.get_form_class()
@@ -552,34 +624,163 @@ class DatasetESSearchView(SearchView):
 
         # Clean results
         res = []
-        for idx, r in enumerate(es_results):
-            r_dict = r.get("_source")
-            r_dict["themes"] = []
-            if r_dict.get("organization_picture"):
-                r_dict["organization_picture"] = "/media/" + r_dict.get(
-                    "organization_picture"
-                )
-            if r_dict.get("themes_name"):
-                for idx, name in enumerate(r_dict.get("themes_name")):
-                    d = {"name": name, "slug": r_dict.get("themes_slug")[idx]}
-                    r_dict["themes"].append(d)
-            r_dict["tags"] = []
-            if r_dict.get("tags_name"):
-                for idx, name in enumerate(r_dict.get("tags_name")):
-                    d = {"name": name, "slug": r_dict.get("tags_slug")[idx]}
-                    r_dict["tags"].append(d)
-            r_dict["n_bdm_tables"] = r_dict.get("n_bdm_tables", 0)
-            coverage = r_dict.get("coverage")[0]
-            if coverage:
-                if coverage == " - ":
-                    coverage = ""
-                if "inf" in coverage:
-                    coverage = coverage.replace("inf", "")
-            r_dict["temporal_coverage"] = coverage
-            del r_dict["coverage"]
-            res.append(r_dict)
+        for idx, result in enumerate(es_results):
+            r = result.get("_source")
+            cleaned_results = {}
+            cleaned_results["id"] = r.get("django_id")
+            cleaned_results["slug"] = r.get("slug")
+            cleaned_results["name"] = r.get("name")
+            cleaned_results["description"] = r.get("description")
 
-        results = {"count": count, "results": res}
+            # organization
+            organization = r.get("organization", [])
+            # soon this will become a many to many relationship
+            # for now, we just put the organization within a list
+            organization = [organization] if organization else []
+            if len(organization) > 0:
+                cleaned_results["organization"] = []
+                for idx, org in enumerate(organization):
+                    d = {
+                        "id": org["id"],
+                        "name": org["name"],
+                        "slug": org["slug"],
+                        "picture": "/media/" + org["picture"],
+                        "website": org["website"],
+                        "description": org["description"],
+                    }
+                    cleaned_results["organization"].append(d)
+
+            # themes
+            if r.get("themes"):
+                cleaned_results["themes"] = []
+                for idx, theme in enumerate(r.get("themes")):
+                    d = {"name": theme["name"], "slug": theme["keyword"]}
+                    cleaned_results["themes"].append(d)
+            # tags
+            if r.get("tags"):
+                cleaned_results["tags"] = []
+                for idx, tag in enumerate(r.get("tags")):
+                    d = {"name": tag["name"], "slug": tag["keyword"]}
+                    cleaned_results["tags"].append(d)
+
+            # tables
+            if r.get("tables"):
+                cleaned_results["tables"] = []
+                for idx, table in enumerate(r.get("tables")):
+                    d = {
+                        "id": table["id"],
+                        "name": table["name"],
+                        "slug": table["slug"],
+                    }
+                    cleaned_results["tables"].append(d)
+
+            # columns
+            # if r.get("columns"):
+            #     cleaned_results["columns"] = []
+            #     for idx, column in enumerate(r.get("columns")):
+            #         d = {
+            #             "id": column["id"],
+            #             "name": column["name"],
+            #             "description": column["description"],
+            #         }
+            #         cleaned_results["columns"].append(d)
+
+            # observation levels
+            if r.get("observation_levels"):
+                cleaned_results["entities"] = r.get("observation_levels")
+
+            # raw data sources
+            cleaned_results["n_original_sources"] = r.get("n_original_sources", 0)
+            cleaned_results["first_original_source_id"] = r.get(
+                "first_original_source_id", []
+            )
+
+            # information requests
+            cleaned_results["n_lais"] = r.get("n_lais", 0)
+            cleaned_results["first_lai_id"] = r.get("first_lai_id", [])
+
+            # temporal coverage
+            coverage = r.get("coverage")
+            if coverage:
+                if coverage[0] == " - ":
+                    coverage = ""
+                elif "inf" in coverage[0]:
+                    coverage = coverage.replace("inf", "")
+                cleaned_results["temporal_coverage"] = coverage
+                del r["coverage"]
+            else:
+                cleaned_results["temporal_coverage"] = ""
+            cleaned_results["n_bdm_tables"] = r.get("n_bdm_tables", 0)
+            cleaned_results["is_closed"] = r.get("is_closed", False)
+            res.append(cleaned_results)
+
+        # Aggregations
+        agg = context["object_list"].get("aggregations")
+        organization_counts = agg["organization_counts"]["buckets"]
+        themes_slug_counts = agg["themes_keyword_counts"]["buckets"]
+        tags_slug_counts = agg["tags_slug_counts"]["buckets"]
+        # temporal_coverage_counts = agg["temporal_coverage_counts"]["buckets"]
+        observation_levels_counts = agg["observation_levels_counts"]["buckets"]
+        is_closed_counts = agg["is_closed_counts"]["buckets"]
+
+        # Return results
+        aggregations = dict()
+        if organization_counts:
+            agg_organizations = [
+                {
+                    "key": org["key"],
+                    "count": org["doc_count"],
+                    "name": Organization.objects.get(slug=org["key"]).name,
+                }
+                for idx, org in enumerate(organization_counts)
+            ]
+            aggregations["organizations"] = agg_organizations
+
+        if themes_slug_counts:
+            agg_themes = [
+                {
+                    "key": theme["key"],
+                    "count": theme["doc_count"],
+                    "name": Theme.objects.get(slug=theme["key"]).name,
+                }
+                for idx, theme in enumerate(themes_slug_counts)
+            ]
+            aggregations["themes"] = agg_themes
+
+        if tags_slug_counts:
+            agg_tags = [
+                {
+                    "key": tag["key"],
+                    "count": tag["doc_count"],
+                    "name": Tag.objects.get(slug=tag["key"]).name,
+                }
+                for idx, tag in enumerate(tags_slug_counts)
+            ]
+            aggregations["tags"] = agg_tags
+
+        if observation_levels_counts:
+            agg_observation_levels = [
+                {
+                    "key": observation_level["key"],
+                    "count": observation_level["doc_count"],
+                    "name": observation_level["key"],
+                }
+                for idx, observation_level in enumerate(observation_levels_counts)
+            ]
+            aggregations["observation_levels"] = agg_observation_levels
+
+        if is_closed_counts:
+            agg_is_closed = [
+                {
+                    "key": is_closed["key"],
+                    "count": is_closed["doc_count"],
+                    "name": is_closed["key"],
+                }
+                for idx, is_closed in enumerate(is_closed_counts)
+            ]
+            aggregations["is_closed"] = agg_is_closed
+
+        results = {"count": count, "results": res, "aggregations": aggregations}
         max_score = context["object_list"].get("hits").get("max_score")  # noqa
 
         return JsonResponse(
