@@ -3,16 +3,17 @@ name: Deployment - Staging
 on:
   workflow_run:
     workflows: ["Docker - Release image"]
-    branches:
-      - staging
     types:
       - completed
+  push:
+    branches:
+      - staging
   workflow_dispatch:
 
 jobs:
   deploy-prefeitura-staging:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}  || ${{ github.event_name == 'workflow_dispatch' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -32,7 +33,7 @@ jobs:
             secret/data/github_actions_deployment_secrets  GKE_CLUSTER      | GKE_CLUSTER ;
             secret/data/github_actions_deployment_secrets  GKE_ZONE         | GKE_ZONE ;
 
-- name: Setup Google Cloud CLI
+      - name: Setup Google Cloud CLI
         uses: google-github-actions/setup-gcloud@v0.2.1
         with:
           service_account_key: ${{ steps.import_secrets.outputs.GCP_SA_KEY }}
@@ -94,7 +95,7 @@ jobs:
 
   deploy-staging:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' }} || ${{ github.event_name == 'workflow_dispatch' }}
     environment:
       name: staging
       url: https://staging.api.basedosdados.org
@@ -117,7 +118,7 @@ jobs:
             secret/data/gcp_credentials/basedosdados-dev GKE_CLUSTER_NAME | GKE_CLUSTER_NAME ;
             secret/data/gcp_credentials/basedosdados-dev GKE_CLUSTER_ZONE | GKE_CLUSTER_ZONE ;
 
-- name: Setup Google Cloud CLI
+      - name: Setup Google Cloud CLI
         uses: google-github-actions/setup-gcloud@v0.2.1
         with:
           service_account_key: ${{ steps.import_secrets.outputs.GCP_SA }}
@@ -173,6 +174,6 @@ jobs:
                 secretName: staging-api-basedosdados-org-tls
           EOF
 
-- name: Deploy using Helm
+      - name: Deploy using Helm
         run: |
           helm upgrade --install api-staging charts/basedosdados-api/. -n website -f values.yaml --wait

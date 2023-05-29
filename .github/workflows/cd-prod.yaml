@@ -12,7 +12,7 @@ on:
 jobs:
   deploy-prod:
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event.workflow_run.conclusion == 'success' }} || ${{ github.event_name == 'workflow_dispatch' }}
     environment:
       name: production
       url: https://api.basedosdados.org
@@ -21,7 +21,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          ref: production
+          ref: main
 
       - name: Import secrets from Vault
         id: import_secrets
