@@ -730,7 +730,8 @@ class DatasetESSearchView(SearchView):
                 {
                     "key": org["key"],
                     "count": org["doc_count"],
-                    "name": Organization.objects.get(slug=org["key"]).name,
+                    # TODO: This error makes absolutely no sense, but it's the only way to make it work
+                    "name": Organization.objects.filter(slug=org["key"])[0].name,
                 }
                 for idx, org in enumerate(organization_counts)
             ]
