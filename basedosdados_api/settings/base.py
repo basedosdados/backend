@@ -156,9 +156,19 @@ REST_FRAMEWORK = {
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "formatters": {
+        "standard": {
+            "format": "%(levelname)s %(asctime)s %(message)s",
+        },
+    },
     "handlers": {
         # Include the default Django email handler for errors
         # This is what you'd get without configuring logging at all.
+        "console": {
+            "level": "ERROR",
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+        },
         "mail_admins": {
             "class": "django.utils.log.AdminEmailHandler",
             "level": "ERROR",
@@ -167,21 +177,25 @@ LOGGING = {
         },
         # Log to a text file that can be rotated by logrotate
         "logfile": {
-            "class": "logging.handlers.WatchedFileHandler",
-            "filename": str(BASE_DIR / "django.log"),
+            "level": "DEBUG",
+            "class": "logging.handlers.RotatingFileHandler",
+            "filename": "/var/log/django/basedosdados_api.log",
+            "maxBytes": 1024 * 1024 * 5,  # 5MB
+            "backupCount": 5,
+            "formatter": "standard",
         },
     },
     "loggers": {
         # Again, default Django configuration to email unhandled exceptions
         "django.request": {
-            "handlers": ["mail_admins"],
+            "handlers": ["mail_admins", "console", "logfile"],
             "level": "ERROR",
             "propagate": True,
         },
         # Might as well log any errors anywhere else in Django
         "django": {
-            "handlers": ["logfile"],
-            "level": "ERROR",
+            "handlers": ["console", "logfile"],
+            "level": "DEBUG",
             "propagate": False,
         },
     },
