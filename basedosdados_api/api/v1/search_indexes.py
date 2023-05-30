@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from django.core.files.storage import get_storage_class
 from haystack import indexes
 from .models import (
     Dataset,
@@ -81,7 +82,17 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         organization_id = data.get("organization_id", "")
         organization_name = data.get("organization_name", "")
         organization_slug = data.get("organization_slug", "")
-        organization_picture = data.get("organization_picture", "")
+
+        storage = get_storage_class()  # This will use DEFAULT_FILE_STORAGE
+        if (
+            obj.organization
+            and obj.organization.picture
+            and obj.organization.picture.name
+        ):
+            organization_picture = storage().url(obj.organization.picture.name)
+        else:
+            organization_picture = ""
+
         organization_website = data.get("organization_website", "")
         organization_description = data.get("organization_description", "")
         data["organization"] = {

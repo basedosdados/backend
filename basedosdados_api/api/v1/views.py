@@ -644,7 +644,7 @@ class DatasetESSearchView(SearchView):
                         "id": org["id"],
                         "name": org["name"],
                         "slug": org["slug"],
-                        "picture": "/media/" + org["picture"],
+                        "picture": org["picture"],
                         "website": org["website"],
                         "description": org["description"],
                     }
