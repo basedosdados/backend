@@ -521,6 +521,14 @@ class Dataset(BdmModel):
     @property
     def contains_tables(self):
         return self.tables.all() is not None
+    
+    @property
+    def contains_closed_tables(self):
+        tables = self.tables.all()
+        for table in tables:
+            if table.is_closed is True:
+                return True
+        return False
 
 
 class Update(BdmModel):
