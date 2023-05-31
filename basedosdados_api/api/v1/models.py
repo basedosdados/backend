@@ -518,6 +518,10 @@ class Dataset(BdmModel):
     def get_graphql_coverage(self):
         return self.coverage
 
+    @property
+    def contains_tables(self):
+        return self.tables.all() is not None
+
 
 class Update(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
