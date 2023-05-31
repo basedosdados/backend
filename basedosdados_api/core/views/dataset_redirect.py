@@ -23,6 +23,6 @@ class DatasetRedirectView(View):
         except Dataset.DoesNotExist:
             redirect_url = "http://basedosdados.org/404/"
         except IndexError:
-            redirect_url = "http://basedosdados.org/404/"
+            redirect_url = "https://basedosdados.org/404/"
 
         return HttpResponseRedirect(redirect_url)
