@@ -19,8 +19,10 @@ class DatasetRedirectView(View):
         try:
             slug = dataset_slug_list[2]
             dataset_id = Dataset.objects.get(slug=slug).pk
-            redirect_url = f"http://basedosdados.org/dataset/{dataset_id}/"
+            redirect_url = f"https://basedosdados.org/dataset/{dataset_id}/"
         except Dataset.DoesNotExist:
-            redirect_url = f"http://basedosdados.org/dataset/{dataset_slug}/"
+            redirect_url = "https://basedosdados.org/404/"
+        except IndexError:
+            redirect_url = "https://basedosdados.org/404/"
 
         return HttpResponseRedirect(redirect_url)
