@@ -21,7 +21,12 @@ class AsciifoldingElasticBackend(
             "ascii_ngram_analyser": {
                 "type": "custom",
                 "tokenizer": "standard",
-                "filter": ["asciifolding", "lowercase", "haystack_ngram"],
+                "filter": ["asciifolding", "lowercase", "haystack_edgengram"],
+            },
+            "standard_analyzer": {
+                "type": "custom",
+                "tokenizer": "standard",
+                "filter": ["asciifolding", "lowercase"],
             },
             "ngram_analyzer": {
                 "type": "custom",
@@ -45,10 +50,35 @@ class AsciifoldingElasticBackend(
             field_mapping = mapping[field_class.index_fieldname]
 
             if field_mapping["type"] == "text" and field_class.indexed:
-                if not hasattr(
-                    field_class, "facet_for"
-                ) and field_class.field_type not in ("ngram", "edge_ngram"):
-                    field_mapping["analyzer"] = "ascii_ngram_analyser"
+                if not hasattr(field_class, "facet_for"):
+                    if field_class.field_type not in ("ngram", "edge_ngram"):
+                        field_mapping["analyzer"] = "ascii_ngram_analyser"
+                        field_mapping["fields"] = {
+                            "exact": {
+                                "type": "text",
+                                "analyzer": "standard_analyzer",
+                            },
+                            "keyword": {
+                                "type": "keyword",
+                                "ignore_above": 256,
+                            },
+                        }
+                    else:
+                        field_mapping["analyzer"] = "standard_analyzer"
+                        field_mapping["fields"] = {
+                            "ngram": {
+                                "type": "text",
+                                "analyzer": "ngram_analyzer",
+                            },
+                            "edgengram": {
+                                "type": "text",
+                                "analyzer": "edgengram_analyzer",
+                            },
+                            "exact": {
+                                "type": "text",
+                                "analyzer": "standard_analyzer",
+                            },
+                        }
 
             mapping.update({field_class.index_fieldname: field_mapping})
         return (content_field_name, mapping)

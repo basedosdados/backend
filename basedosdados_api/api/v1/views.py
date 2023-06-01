@@ -1,12 +1,17 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
 import json
 from typing import Dict, List, Tuple, Union
 
-from django.http import HttpResponse, HttpResponseBadRequest, QueryDict
+from django.conf import settings
+from django.http import HttpResponse, HttpResponseBadRequest, QueryDict, JsonResponse
 from haystack.forms import ModelSearchForm
 from haystack.generic_views import SearchView
 
-from basedosdados_api.api.v1.models import Coverage, Dataset
+from elasticsearch import Elasticsearch
+
+from basedosdados_api.api.v1.models import Coverage, Dataset, Organization, Theme, Tag
 
 
 class DatasetSearchView(SearchView):
@@ -431,6 +436,358 @@ class DatasetSearchView(SearchView):
             "first_lai_id": get_first_lai_id(dataset),
             "is_closed": dataset.is_closed,
         }
+
+    def get_context_data(self, **kwargs):
+        kwargs.setdefault("view", self)
+        if self.extra_context is not None:
+            kwargs.update(self.extra_context)
+        return kwargs
+
+    def split_number_text(self, text: str) -> Tuple[int, str]:
+        """
+        Splits a string into a number and text part. Examples:
+        >>> split_number_text("1year")
+        (1, 'year')
+        >>> split_number_text("2 month")
+        (2, 'month')
+        >>> split_number_text("3minute")
+        (3, 'minute')
+        """
+        number = ""
+        for c in text:
+            if c.isdigit():
+                number += c
+            else:
+                break
+        if number == "":
+            return None, text
+        return int(number), (text[len(number) :]).strip()  # noqa
+
+
+class DatasetESSearchView(SearchView):
+    def get(self, request, *args, **kwargs):
+        """
+        Handles GET requests and instantiates a blank version of the form.
+        """
+        # Get request arguments
+        req_args: QueryDict = request.GET.copy()
+        query = req_args.get("q", None)
+        es = Elasticsearch(settings.HAYSTACK_CONNECTIONS["default"]["URL"])
+        page_size = 10
+        page = int(req_args.get("page", 1))
+
+        # If query is empty, query all datasets
+        if not query:
+            raw_query = {
+                "from": (page - 1) * page_size,
+                "size": page_size,
+                "query": {
+                    "function_score": {
+                        "query": {"match_all": {}},
+                        "field_value_factor": {
+                            "field": "n_bdm_tables",
+                            "modifier": "square",
+                            "factor": 2,
+                            "missing": 0,
+                        },
+                        "boost_mode": "sum",
+                    }
+                },
+                "_source": True,  # can be deleted if True
+                "aggs": {
+                    "themes_keyword_counts": {
+                        "terms": {
+                            "field": "themes_slug.keyword",
+                            "size": 1000,
+                        }
+                    },
+                    "is_closed_counts": {
+                        "terms": {
+                            "field": "is_closed",
+                            "size": 1000,
+                        }
+                    },
+                    "organization_counts": {
+                        "terms": {
+                            "field": "organization_slug.keyword",
+                            "size": 1000,
+                        }
+                    },
+                    "tags_slug_counts": {
+                        "terms": {
+                            "field": "tags_slug.keyword",
+                            "size": 1000,
+                        }
+                    },
+                    "temporal_coverage_counts": {
+                        "terms": {"field": "coverage.keyword"}
+                    },
+                    "observation_levels_counts": {
+                        "terms": {
+                            "field": "observation_levels.keyword",
+                            "size": 1000,
+                        }
+                    },
+                },
+                "sort": [{"_score": {"order": "desc"}}],
+            }
+        # If query is not empty, search for datasets
+        else:
+            raw_query = {
+                "from": (page - 1) * page_size,
+                "size": page_size,
+                "query": {
+                    "function_score": {
+                        "query": {
+                            "bool": {
+                                "should": [
+                                    {
+                                        "match": {
+                                            "description.exact": {
+                                                "query": query,
+                                                "boost": 10,
+                                            }
+                                        }
+                                    },
+                                    {"match": {"name": query}},
+                                ]
+                            }
+                        },
+                        "field_value_factor": {
+                            "field": "n_bdm_tables",
+                            "modifier": "square",
+                            "factor": 2,
+                            "missing": 0,
+                        },
+                        "boost_mode": "sum",
+                    }
+                },
+                "_source": True,  # can be deleted if True
+                "sort": [{"_score": {"order": "desc"}}],
+                "aggs": {
+                    "themes_keyword_counts": {
+                        "terms": {
+                            "field": "themes_slug.keyword",
+                            "size": 1000,
+                        }
+                    },
+                    "is_closed_counts": {
+                        "terms": {
+                            "field": "is_closed",
+                            "size": 1000,
+                        }
+                    },
+                    "organization_counts": {
+                        "terms": {
+                            "field": "organization_slug.keyword",
+                            "size": 1000,
+                        }
+                    },
+                    "tags_slug_counts": {
+                        "terms": {
+                            "field": "tags_slug.keyword",
+                            "size": 1000,
+                        }
+                    },
+                    "temporal_coverage_counts": {
+                        "terms": {"field": "coverage.keyword"}
+                    },
+                    "observation_levels_counts": {
+                        "terms": {
+                            "field": "observation_levels.keyword",
+                            "size": 1000,
+                        }
+                    },
+                },
+            }
+
+        form_class = self.get_form_class()
+        form: ModelSearchForm = self.get_form(form_class)
+        if not form.is_valid():
+            return HttpResponseBadRequest(json.dumps({"error": "Invalid form"}))
+        self.queryset = es.search(
+            index=settings.HAYSTACK_CONNECTIONS["default"]["INDEX_NAME"], body=raw_query
+        )
+        context = self.get_context_data(
+            **{
+                self.form_name: form,
+                "query": form.cleaned_data.get(self.search_field),
+                "object_list": self.queryset,
+            }
+        )
+
+        # Get total number of results
+        count = context["object_list"].get("hits").get("total").get("value")
+
+        # Get results from elasticsearch
+        es_results = context["object_list"].get("hits").get("hits")
+
+        # Clean results
+        res = []
+        for idx, result in enumerate(es_results):
+            r = result.get("_source")
+            cleaned_results = {}
+            cleaned_results["id"] = r.get("django_id")
+            cleaned_results["slug"] = r.get("slug")
+            cleaned_results["name"] = r.get("name")
+            cleaned_results["description"] = r.get("description")
+
+            # organization
+            organization = r.get("organization", [])
+            # soon this will become a many to many relationship
+            # for now, we just put the organization within a list
+            organization = [organization] if organization else []
+            if len(organization) > 0:
+                cleaned_results["organization"] = []
+                for idx, org in enumerate(organization):
+                    d = {
+                        "id": org["id"],
+                        "name": org["name"],
+                        "slug": org["slug"],
+                        "picture": org["picture"],
+                        "website": org["website"],
+                        "description": org["description"],
+                    }
+                    cleaned_results["organization"].append(d)
+
+            # themes
+            if r.get("themes"):
+                cleaned_results["themes"] = []
+                for idx, theme in enumerate(r.get("themes")):
+                    d = {"name": theme["name"], "slug": theme["keyword"]}
+                    cleaned_results["themes"].append(d)
+            # tags
+            if r.get("tags"):
+                cleaned_results["tags"] = []
+                for idx, tag in enumerate(r.get("tags")):
+                    d = {"name": tag["name"], "slug": tag["keyword"]}
+                    cleaned_results["tags"].append(d)
+
+            # tables
+            if r.get("tables"):
+                cleaned_results["tables"] = []
+                for idx, table in enumerate(r.get("tables")):
+                    d = {
+                        "id": table["id"],
+                        "name": table["name"],
+                        "slug": table["slug"],
+                    }
+                    cleaned_results["tables"].append(d)
+
+            # columns
+            # if r.get("columns"):
+            #     cleaned_results["columns"] = []
+            #     for idx, column in enumerate(r.get("columns")):
+            #         d = {
+            #             "id": column["id"],
+            #             "name": column["name"],
+            #             "description": column["description"],
+            #         }
+            #         cleaned_results["columns"].append(d)
+
+            # observation levels
+            if r.get("observation_levels"):
+                cleaned_results["entities"] = r.get("observation_levels")
+
+            # raw data sources
+            cleaned_results["n_original_sources"] = r.get("n_original_sources", 0)
+            cleaned_results["first_original_source_id"] = r.get(
+                "first_original_source_id", []
+            )
+
+            # information requests
+            cleaned_results["n_lais"] = r.get("n_lais", 0)
+            cleaned_results["first_lai_id"] = r.get("first_lai_id", [])
+
+            # temporal coverage
+            coverage = r.get("coverage")
+            if coverage:
+                if coverage[0] == " - ":
+                    coverage = ""
+                elif "inf" in coverage[0]:
+                    coverage = coverage.replace("inf", "")
+                cleaned_results["temporal_coverage"] = coverage
+                del r["coverage"]
+            else:
+                cleaned_results["temporal_coverage"] = ""
+            cleaned_results["n_bdm_tables"] = r.get("n_bdm_tables", 0)
+            cleaned_results["is_closed"] = r.get("is_closed", False)
+            res.append(cleaned_results)
+
+        # Aggregations
+        agg = context["object_list"].get("aggregations")
+        organization_counts = agg["organization_counts"]["buckets"]
+        themes_slug_counts = agg["themes_keyword_counts"]["buckets"]
+        tags_slug_counts = agg["tags_slug_counts"]["buckets"]
+        # temporal_coverage_counts = agg["temporal_coverage_counts"]["buckets"]
+        observation_levels_counts = agg["observation_levels_counts"]["buckets"]
+        is_closed_counts = agg["is_closed_counts"]["buckets"]
+
+        # Return results
+        aggregations = dict()
+        if organization_counts:
+            agg_organizations = [
+                {
+                    "key": org["key"],
+                    "count": org["doc_count"],
+                    # TODO: This error makes absolutely no sense, but it's the only way to make it work
+                    "name": Organization.objects.filter(slug=org["key"])[0].name,
+                }
+                for idx, org in enumerate(organization_counts)
+            ]
+            aggregations["organizations"] = agg_organizations
+
+        if themes_slug_counts:
+            agg_themes = [
+                {
+                    "key": theme["key"],
+                    "count": theme["doc_count"],
+                    "name": Theme.objects.get(slug=theme["key"]).name,
+                }
+                for idx, theme in enumerate(themes_slug_counts)
+            ]
+            aggregations["themes"] = agg_themes
+
+        if tags_slug_counts:
+            agg_tags = [
+                {
+                    "key": tag["key"],
+                    "count": tag["doc_count"],
+                    "name": Tag.objects.get(slug=tag["key"]).name,
+                }
+                for idx, tag in enumerate(tags_slug_counts)
+            ]
+            aggregations["tags"] = agg_tags
+
+        if observation_levels_counts:
+            agg_observation_levels = [
+                {
+                    "key": observation_level["key"],
+                    "count": observation_level["doc_count"],
+                    "name": observation_level["key"],
+                }
+                for idx, observation_level in enumerate(observation_levels_counts)
+            ]
+            aggregations["observation_levels"] = agg_observation_levels
+
+        if is_closed_counts:
+            agg_is_closed = [
+                {
+                    "key": is_closed["key"],
+                    "count": is_closed["doc_count"],
+                    "name": is_closed["key"],
+                }
+                for idx, is_closed in enumerate(is_closed_counts)
+            ]
+            aggregations["is_closed"] = agg_is_closed
+
+        results = {"count": count, "results": res, "aggregations": aggregations}
+        max_score = context["object_list"].get("hits").get("max_score")  # noqa
+
+        return JsonResponse(
+            results,
+            status=200 if len(results) > 0 else 204,
+        )
 
     def get_context_data(self, **kwargs):
         kwargs.setdefault("view", self)

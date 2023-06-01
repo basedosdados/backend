@@ -22,7 +22,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.conf import settings
 from graphene_file_upload.django import FileUploadGraphQLView
 
-from basedosdados_api.api.v1.views import DatasetSearchView
+from basedosdados_api.api.v1.views import DatasetSearchView, DatasetESSearchView
 
 
 def home_redirect(request):
@@ -50,6 +50,7 @@ urlpatterns = [
     ),
     path("schemas/", include("basedosdados_api.schemas.urls")),
     path("", include("basedosdados_api.core.urls")),
-    path("search/", DatasetSearchView.as_view(), name="search_view"),
+    path("search_hs/", DatasetSearchView.as_view(), name="search_view"),
+    path("search/", DatasetESSearchView.as_view(), name="search_view"),
     path("busca/", include("haystack.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
