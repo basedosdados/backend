@@ -528,6 +528,24 @@ class DatasetESSearchView(SearchView):
                             "size": 1000,
                         }
                     },
+                    "contains_tables": {
+                        "terms": {
+                            "field": "contains_tables",
+                            "size": 1000,
+                        }
+                    },
+                    "contains_raw_data_sources": {
+                        "terms": {
+                            "field": "contains_raw_data_sources",
+                            "size": 1000,
+                        }
+                    },
+                    "contains_information_requests": {
+                        "terms": {
+                            "field": "contains_information_requests",
+                            "size": 1000,
+                        }
+                    },
                 },
                 "sort": [{"_score": {"order": "desc"}}],
             }
@@ -595,6 +613,24 @@ class DatasetESSearchView(SearchView):
                     "observation_levels_counts": {
                         "terms": {
                             "field": "observation_levels.keyword",
+                            "size": 1000,
+                        }
+                    },
+                    "contains_tables_counts": {
+                        "terms": {
+                            "field": "contains_tables",
+                            "size": 1000,
+                        }
+                    },
+                    "contains_raw_data_sources_counts": {
+                        "terms": {
+                            "field": "contains_raw_data_sources",
+                            "size": 1000,
+                        }
+                    },
+                    "contains_information_requests_counts": {
+                        "terms": {
+                            "field": "contains_information_requests",
                             "size": 1000,
                         }
                     },
@@ -722,6 +758,13 @@ class DatasetESSearchView(SearchView):
         # temporal_coverage_counts = agg["temporal_coverage_counts"]["buckets"]
         observation_levels_counts = agg["observation_levels_counts"]["buckets"]
         is_closed_counts = agg["is_closed_counts"]["buckets"]
+        contains_tables_counts = agg["contains_tables_counts"]["buckets"]
+        contains_information_requests_counts = agg[
+            "contains_information_requests_counts"
+        ]["buckets"]
+        contains_raw_data_sources_counts = agg["contains_raw_data_sources_counts"][
+            "buckets"
+        ]
 
         # Return results
         aggregations = dict()
@@ -775,11 +818,56 @@ class DatasetESSearchView(SearchView):
                 {
                     "key": is_closed["key"],
                     "count": is_closed["doc_count"],
-                    "name": "BD Mais" if is_closed["key"] == 0 else "BD Pro",
+                    "name": "closed" if is_closed["key"] == 0 else "opened",
                 }
                 for idx, is_closed in enumerate(is_closed_counts)
             ]
             aggregations["is_closed"] = agg_is_closed
+
+        if contains_tables_counts:
+            agg_contains_tables = [
+                {
+                    "key": contains_tables["key"],
+                    "count": contains_tables["doc_count"],
+                    "name": "tabelas tratadas"
+                    if contains_tables["key"] == 1
+                    else "sem tabelas tratadas",
+                }
+                for idx, contains_tables in enumerate(contains_tables_counts)
+            ]
+            aggregations["contains_tables"] = agg_contains_tables
+
+        if contains_information_requests_counts:
+            agg_contains_information_requests = [
+                {
+                    "key": contains_information_requests["key"],
+                    "count": contains_information_requests["doc_count"],
+                    "name": "pedidos lai"
+                    if contains_information_requests["key"] == 1
+                    else "sem pedidos lai",
+                }
+                for idx, contains_information_requests in enumerate(
+                    contains_information_requests_counts
+                )
+            ]
+            aggregations[
+                "contains_information_requests"
+            ] = agg_contains_information_requests
+
+        if contains_raw_data_sources_counts:
+            agg_contains_raw_data_sources = [
+                {
+                    "key": contains_raw_data_sources["key"],
+                    "count": contains_raw_data_sources["doc_count"],
+                    "name": "fontes originais"
+                    if contains_raw_data_sources["key"] == 1
+                    else "sem fontes originais",
+                }
+                for idx, contains_raw_data_sources in enumerate(
+                    contains_raw_data_sources_counts
+                )
+            ]
+            aggregations["contains_raw_data_sources"] = agg_contains_raw_data_sources
 
         results = {"count": count, "results": res, "aggregations": aggregations}
         max_score = context["object_list"].get("hits").get("max_score")  # noqa
