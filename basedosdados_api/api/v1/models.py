@@ -518,6 +518,23 @@ class Dataset(BdmModel):
     def get_graphql_coverage(self):
         return self.coverage
 
+    @property
+    def contains_tables(self):
+        return len(self.tables.all()) > 0
+
+    @property
+    def get_graphql_contains_tables(self):
+        return self.contains_tables
+
+    @property
+    def contains_closed_tables(self):
+        closed_tables = self.tables.all().filter(is_closed=True)
+        return len(closed_tables) > 0
+
+    @property
+    def get_graphql_contains_closed_tables(self):
+        return self.contains_closed_tables
+
 
 class Update(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
