@@ -535,6 +535,22 @@ class Dataset(BdmModel):
     def get_graphql_contains_closed_tables(self):
         return self.contains_closed_tables
 
+    @property
+    def contains_raw_data_sources(self):
+        return len(self.raw_data_sources.all()) > 0
+
+    @property
+    def get_graphql_contains_raw_data_sources(self):
+        return self.contains_raw_data_sources
+
+    @property
+    def contains_information_requests(self):
+        return len(self.information_requests.all()) > 0
+
+    @property
+    def get_graphql_contains_information_requests(self):
+        return self.contains_information_requests
+
 
 class Update(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
