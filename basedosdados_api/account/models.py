@@ -1,9 +1,14 @@
 # -*- coding: utf-8 -*-
 import os
+from typing import Tuple
 from uuid import uuid4
 
 from django.core.mail import send_mail
 from django.db import models
+from django.contrib.auth.hashers import (
+    check_password,
+    make_password,
+)
 from django.contrib.auth.models import (
     AbstractBaseUser,
     BaseUserManager,
@@ -320,7 +325,39 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
             fail_silently=False,
         )
 
+    def split_password(self, password: str) -> Tuple[str, str, str, str]:
+        """
+        Split a password into four parts: algorithm, iterations, salt, and hash.
+        """
+        algorithm, iterations, salt, hash = password.split("$", 3)
+        return algorithm, iterations, salt, hash
+
+    def is_valid_encoded_password(self, password: str) -> bool:
+        """
+        Check if a password is valid.
+        """
+        double_encoded = make_password(password)
+        try:
+            target_algorithm, target_iterations, _, _ = self.split_password(
+                double_encoded
+            )
+            algorithm, iterations, _, _ = self.split_password(password)
+        except ValueError:
+            return False
+        return algorithm == target_algorithm and iterations == target_iterations
+
     def save(self, *args, **kwargs) -> None:
-        if self.password:
-            self.set_password(self.password)
+        # If self._password is set and check_password(self._password, self.password) is True, then
+        # just save the model without changing the password.
+        if self._password and check_password(self._password, self.password):
+            super().save(*args, **kwargs)
+            return
+        # If self._password is not set, we're probably not trying to modify the password, so if
+        # self.password is valid, just save the model without changing the password.
+        elif self.is_valid_encoded_password(self.password):
+            super().save(*args, **kwargs)
+            return
+        # If self.password is not usable, then we're probably trying to set self.password as the
+        # new password, so set it and save the model.
+        self.set_password(self.password)
         super().save(*args, **kwargs)
