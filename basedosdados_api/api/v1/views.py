@@ -478,164 +478,114 @@ class DatasetESSearchView(SearchView):
 
         # If query is empty, query all datasets
         if not query:
-            raw_query = {
-                "from": (page - 1) * page_size,
-                "size": page_size,
-                "query": {
-                    "function_score": {
-                        "query": {"match_all": {}},
-                        "field_value_factor": {
-                            "field": "n_bdm_tables",
-                            "modifier": "square",
-                            "factor": 2,
-                            "missing": 0,
-                        },
-                        "boost_mode": "sum",
-                    }
-                },
-                "_source": True,  # can be deleted if True
-                "aggs": {
-                    "themes_keyword_counts": {
-                        "terms": {
-                            "field": "themes_slug.keyword",
-                            "size": 1000,
-                        }
-                    },
-                    "is_closed_counts": {
-                        "terms": {
-                            "field": "is_closed",
-                            "size": 1000,
-                        }
-                    },
-                    "organization_counts": {
-                        "terms": {
-                            "field": "organization_slug.keyword",
-                            "size": 1000,
-                        }
-                    },
-                    "tags_slug_counts": {
-                        "terms": {
-                            "field": "tags_slug.keyword",
-                            "size": 1000,
-                        }
-                    },
-                    "temporal_coverage_counts": {
-                        "terms": {"field": "coverage.keyword"}
-                    },
-                    "observation_levels_counts": {
-                        "terms": {
-                            "field": "observation_levels.keyword",
-                            "size": 1000,
-                        }
-                    },
-                    "contains_tables": {
-                        "terms": {
-                            "field": "contains_tables",
-                            "size": 1000,
-                        }
-                    },
-                    "contains_raw_data_sources": {
-                        "terms": {
-                            "field": "contains_raw_data_sources",
-                            "size": 1000,
-                        }
-                    },
-                    "contains_information_requests": {
-                        "terms": {
-                            "field": "contains_information_requests",
-                            "size": 1000,
-                        }
-                    },
-                },
-                "sort": [{"_score": {"order": "desc"}}],
-            }
-        # If query is not empty, search for datasets
+            query = {"match_all": {}}
         else:
-            raw_query = {
-                "from": (page - 1) * page_size,
-                "size": page_size,
-                "query": {
-                    "function_score": {
-                        "query": {
-                            "bool": {
-                                "should": [
-                                    {
-                                        "match": {
-                                            "description.exact": {
-                                                "query": query,
-                                                "boost": 10,
-                                            }
-                                        }
-                                    },
-                                    {"match": {"name": query}},
-                                ]
+            query = {
+                "bool": {
+                    "should": [
+                        {
+                            "match": {
+                                "description.exact": {
+                                    "query": query,
+                                    "boost": 10,
+                                }
                             }
                         },
-                        "field_value_factor": {
-                            "field": "n_bdm_tables",
-                            "modifier": "square",
-                            "factor": 2,
-                            "missing": 0,
-                        },
-                        "boost_mode": "sum",
+                        {"match": {"name": query}},
+                    ]
+                }
+            }
+
+        all_filters = []
+
+        if "organization" in req_args:
+            all_filters.append(
+                {"match": {"organization.slug.keyword": req_args.get("organization")}}
+            )
+
+        if "theme" in req_args:
+            filter_theme = [
+                {"match": {"themes_slug.keyword": theme}}
+                for theme in req_args.getlist("theme")
+            ]
+            for t in filter_theme:
+                all_filters.append(t)
+
+        raw_query = {
+            "from": (page - 1) * page_size,
+            "size": page_size,
+            "query": {
+                "function_score": {
+                    "query": {
+                        "bool": {
+                            "must": [
+                                query,
+                                {"bool": {"must": all_filters}},
+                            ]
+                        }
+                    },
+                    "field_value_factor": {
+                        "field": "n_bdm_tables",
+                        "modifier": "square",
+                        "factor": 2,
+                        "missing": 0,
+                    },
+                    "boost_mode": "sum",
+                }
+            },
+            "aggs": {
+                "themes_keyword_counts": {
+                    "terms": {
+                        "field": "themes_slug.keyword",
+                        "size": 1000,
                     }
                 },
-                "_source": True,  # can be deleted if True
-                "sort": [{"_score": {"order": "desc"}}],
-                "aggs": {
-                    "themes_keyword_counts": {
-                        "terms": {
-                            "field": "themes_slug.keyword",
-                            "size": 1000,
-                        }
-                    },
-                    "is_closed_counts": {
-                        "terms": {
-                            "field": "is_closed",
-                            "size": 1000,
-                        }
-                    },
-                    "organization_counts": {
-                        "terms": {
-                            "field": "organization_slug.keyword",
-                            "size": 1000,
-                        }
-                    },
-                    "tags_slug_counts": {
-                        "terms": {
-                            "field": "tags_slug.keyword",
-                            "size": 1000,
-                        }
-                    },
-                    "temporal_coverage_counts": {
-                        "terms": {"field": "coverage.keyword"}
-                    },
-                    "observation_levels_counts": {
-                        "terms": {
-                            "field": "observation_levels.keyword",
-                            "size": 1000,
-                        }
-                    },
-                    "contains_tables_counts": {
-                        "terms": {
-                            "field": "contains_tables",
-                            "size": 1000,
-                        }
-                    },
-                    "contains_raw_data_sources_counts": {
-                        "terms": {
-                            "field": "contains_raw_data_sources",
-                            "size": 1000,
-                        }
-                    },
-                    "contains_information_requests_counts": {
-                        "terms": {
-                            "field": "contains_information_requests",
-                            "size": 1000,
-                        }
-                    },
+                "is_closed_counts": {
+                    "terms": {
+                        "field": "is_closed",
+                        "size": 1000,
+                    }
                 },
-            }
+                "organization_counts": {
+                    "terms": {
+                        "field": "organization_slug.keyword",
+                        "size": 1000,
+                    }
+                },
+                "tags_slug_counts": {
+                    "terms": {
+                        "field": "tags_slug.keyword",
+                        "size": 1000,
+                    }
+                },
+                "temporal_coverage_counts": {"terms": {"field": "coverage.keyword"}},
+                "observation_levels_counts": {
+                    "terms": {
+                        "field": "observation_levels.keyword",
+                        "size": 1000,
+                    }
+                },
+                "contains_tables_counts": {
+                    "terms": {
+                        "field": "contains_tables",
+                        "size": 1000,
+                    }
+                },
+                "contains_raw_data_sources_counts": {
+                    "terms": {
+                        "field": "contains_raw_data_sources",
+                        "size": 1000,
+                    }
+                },
+                "contains_information_requests_counts": {
+                    "terms": {
+                        "field": "contains_information_requests",
+                        "size": 1000,
+                    }
+                },
+            },
+            "sort": [{"_score": {"order": "desc"}}],
+        }
 
         form_class = self.get_form_class()
         form: ModelSearchForm = self.get_form(form_class)
