@@ -56,7 +56,7 @@ jobs:
               name: "ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}"
               tag: "staging"
               pullPolicy: "Always"
-            replicas: 1
+            replicas: 2
             resources:
               limits:
                 cpu: 2000m
