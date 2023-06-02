@@ -51,7 +51,7 @@ INSTALLED_APPS = [
     "haystack",
     "health_check",
     "health_check.db",
-    "health_check.cache",
+    # "health_check.cache",
     "health_check.storage",
     "health_check.contrib.migrations",
     "rest_framework",
@@ -253,7 +253,7 @@ HAYSTACK_CONNECTIONS = {
     "default": {
         "ENGINE": "basedosdados_api.api.v1.haystack_engines.AsciifoldingElasticSearchEngine",
         "URL": getenv("ELASTICSEARCH_URL", "http://0.0.0.0:9200"),
-        "TIMEOUT": 5,
+        "TIMEOUT": 30,
         "INDEX_NAME": getenv("ELASTICSEARCH_INDEX_NAME", "default"),
         "BATCH_SIZE": 1000,
         "INCLUDE_SPELLING": True,
