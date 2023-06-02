@@ -63,6 +63,13 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         model_attr="information_requests__id", null=True
     )
     is_closed = indexes.BooleanField(model_attr="is_closed")
+    contains_tables = indexes.BooleanField(model_attr="contains_tables")
+    contains_raw_data_sources = indexes.BooleanField(
+        model_attr="contains_raw_data_sources"
+    )
+    contains_information_requests = indexes.BooleanField(
+        model_attr="contains_information_requests"
+    )
 
     def get_model(self):
         return Dataset
@@ -184,5 +191,17 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         # Observation Levels
         observation_levels = data.get("observations", [])
         data["observations"] = observation_levels if observation_levels else ""
+
+        # Contains tables
+        contains_tables = data.get("contains_tables", False)
+        data["contains_tables"] = contains_tables
+
+        # Contains raw data sources
+        contains_raw_data_sources = data.get("contains_raw_data_sources", False)
+        data["contains_raw_data_sources"] = contains_raw_data_sources
+
+        # Contains information requests
+        contains_information_requests = data.get("contains_information_requests", False)
+        data["contains_information_requests"] = contains_information_requests
 
         return data
