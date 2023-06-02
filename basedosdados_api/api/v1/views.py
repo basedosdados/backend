@@ -768,7 +768,7 @@ class DatasetESSearchView(SearchView):
                 {
                     "key": is_closed["key"],
                     "count": is_closed["doc_count"],
-                    "name": "closed" if is_closed["key"] == 0 else "opened",
+                    "name": "closed" if is_closed["key"] == 0 else "open",
                 }
                 for idx, is_closed in enumerate(is_closed_counts)
             ]
