@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from basedosdados_api.api.v1.models import Coverage
+from basedosdados_api.api.v1.models import Coverage, Column
 from django.contrib import admin
 
 
@@ -42,3 +42,26 @@ class TableCoverageFilter(admin.SimpleListFilter):
     def queryset(self, request, queryset):
         if self.value():
             return queryset.filter(coverages__area__slug=self.value())
+
+
+class DirectoryPrimaryKeyAdminFilter(admin.SimpleListFilter):
+    title = "directory_primary_key"
+    parameter_name = "directory_primary_key"
+
+    def lookups(self, request, model_admin):
+        distinct_values = (
+            Column.objects.filter(directory_primary_key__id__isnull=False)
+            .order_by("directory_primary_key__name")
+            .distinct()
+            .values(
+                "directory_primary_key__name",
+            )
+        )
+        # Create a tuple of tuples with the format (value, label).
+        return [
+            (value.get("directory_primary_key__name"),) for value in distinct_values
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(directory_primary_key__name=self.value())

@@ -417,13 +417,22 @@ class Dataset(BdmModel):
         blank=True,
         help_text="Tags are used to group datasets by topic",
     )
+    version = models.IntegerField(null=True, blank=True)
+    status = models.ForeignKey(
+        "Status",
+        on_delete=models.PROTECT,
+        related_name="datasets",
+        null=True,
+        blank=True,
+        help_text="Status is used to indicate at what stage of development or publishing the dataset is.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_closed = models.BooleanField(
         default=False, help_text="Dataset is for Pro subscribers only"
     )
 
-    graphql_nested_filter_fields_whitelist = ["id"]
+    graphql_nested_filter_fields_whitelist = ["id", "slug"]
 
     def __str__(self):
         return str(self.slug)
@@ -509,6 +518,39 @@ class Dataset(BdmModel):
     def get_graphql_coverage(self):
         return self.coverage
 
+    @property
+    def contains_tables(self):
+        return len(self.tables.all()) > 0
+
+    @property
+    def get_graphql_contains_tables(self):
+        return self.contains_tables
+
+    @property
+    def contains_closed_tables(self):
+        closed_tables = self.tables.all().filter(is_closed=True)
+        return len(closed_tables) > 0
+
+    @property
+    def get_graphql_contains_closed_tables(self):
+        return self.contains_closed_tables
+
+    @property
+    def contains_raw_data_sources(self):
+        return len(self.raw_data_sources.all()) > 0
+
+    @property
+    def get_graphql_contains_raw_data_sources(self):
+        return self.contains_raw_data_sources
+
+    @property
+    def contains_information_requests(self):
+        return len(self.information_requests.all()) > 0
+
+    @property
+    def get_graphql_contains_information_requests(self):
+        return self.contains_information_requests
+
 
 class Update(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -582,6 +624,7 @@ class Table(BdmModel):
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="tables"
     )
+    version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
         "Status", on_delete=models.PROTECT, related_name="tables", null=True, blank=True
     )
@@ -637,7 +680,7 @@ class Table(BdmModel):
         default=False, help_text="Table is for Pro subscribers only"
     )
 
-    graphql_nested_filter_fields_whitelist = ["id"]
+    graphql_nested_filter_fields_whitelist = ["id", "dataset"]
 
     def __str__(self):
         return f"{str(self.dataset.slug)}.{str(self.slug)}"
@@ -691,6 +734,7 @@ class Column(BdmModel):
     )
     description = models.TextField(blank=True, null=True)
     covered_by_dictionary = models.BooleanField(default=False, blank=True, null=True)
+    is_primary_key = models.BooleanField(default=False, blank=True, null=True)
     directory_primary_key = models.ForeignKey(
         "Column",
         on_delete=models.PROTECT,
@@ -706,6 +750,14 @@ class Column(BdmModel):
     observation_level = models.ForeignKey(
         "ObservationLevel",
         on_delete=models.CASCADE,
+        related_name="columns",
+        null=True,
+        blank=True,
+    )
+    version = models.IntegerField(null=True, blank=True)
+    status = models.ForeignKey(
+        "Status",
+        on_delete=models.PROTECT,
         related_name="columns",
         null=True,
         blank=True,
@@ -772,12 +824,21 @@ class CloudTable(BdmModel):
     table = models.ForeignKey(
         "Table", on_delete=models.CASCADE, related_name="cloud_tables"
     )
-    columns = models.ManyToManyField("Column", related_name="cloud_tables")
+    columns = models.ManyToManyField(
+        "Column",
+        related_name="cloud_tables",
+        blank=True,
+    )
     gcp_project_id = models.CharField(max_length=255)
     gcp_dataset_id = models.CharField(max_length=255)
     gcp_table_id = models.CharField(max_length=255)
 
-    graphql_nested_filter_fields_whitelist = ["id"]
+    graphql_nested_filter_fields_whitelist = [
+        "id",
+        "gcp_project_id",
+        "gcp_dataset_id",
+        "gcp_table_id",
+    ]
 
     def __str__(self):
         return f"{self.gcp_project_id}.{self.gcp_dataset_id}.{self.gcp_table_id}"
@@ -867,6 +928,14 @@ class RawDataSource(BdmModel):
     contains_api = models.BooleanField(default=False)
     is_free = models.BooleanField(default=False)
     required_registration = models.BooleanField(default=False)
+    version = models.IntegerField(null=True, blank=True)
+    status = models.ForeignKey(
+        "Status",
+        on_delete=models.PROTECT,
+        related_name="raw_data_sources",
+        null=True,
+        blank=True,
+    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -885,8 +954,13 @@ class InformationRequest(BdmModel):
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="information_requests"
     )
+    version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
-        "Status", on_delete=models.CASCADE, related_name="information_requests"
+        "Status",
+        on_delete=models.CASCADE,
+        related_name="information_requests",
+        null=True,
+        blank=True,
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

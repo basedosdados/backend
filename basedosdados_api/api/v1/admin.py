@@ -82,6 +82,18 @@ class ColumnInlineForm(UUIDHIddenIdForm):
             "description",
             "bigquery_type",
             "is_closed",
+            "status",
+            "is_primary_key",
+            "table",
+        ]
+
+
+class CoverageInlineForm(UUIDHIddenIdForm):
+    class Meta(UUIDHIddenIdForm.Meta):
+        model = Coverage
+        fields = [
+            "id",
+            "area",
             "table",
         ]
 
@@ -108,7 +120,36 @@ class TableInline(TranslationStackedInline):
     show_change_link = True
 
 
-# Filters
+class DateTimeRangeInline(admin.StackedInline):
+    model = DateTimeRange
+    extra = 0
+    show_change_link = True
+
+
+class CoverageTableInline(admin.StackedInline):
+    model = Coverage
+    form = CoverageInlineForm
+    extra = 0
+    show_change_link = True
+    exclude = [
+        "raw_data_source",
+        "information_request",
+        "column",
+        "key",
+        "analysis",
+    ]
+    readonly_fields = [
+        "id",
+        "area",
+        # "table",
+    ]
+    inlines = [
+        DateTimeRangeInline,
+    ]
+    # template = "admin/edit_inline/custom_coverage_model_inline.html"
+    # inlines = [
+    #     TableCoverageFilter,
+    # ]
 
 
 # Model Admins
@@ -163,7 +204,7 @@ class TagAdmin(TabbedTranslationAdmin):
 class DatasetAdmin(TabbedTranslationAdmin):
     def related_objects(self, obj):
         return format_html(
-            "<a href='/admin/v1/table/add/?dataset={0}'>{1} {2}</a>",
+            "<a class='related-widget-wrapper-link add-related' href='/admin/v1/table/add/?dataset={0}&_to_field=id&_popup=1'>{1} {2}</a>",  # noqa
             obj.id,
             obj.tables.count(),
             " ".join(
@@ -195,7 +236,9 @@ class DatasetAdmin(TabbedTranslationAdmin):
 
 
 class TableAdmin(TabbedTranslationAdmin):
-    def related_objects(self, obj):
+    change_form_template = "admin/table_change_form.html"
+
+    def related_columns(self, obj):
         return format_html(
             "<a href='/admin/v1/column/add/?table={0}'>{1} {2}</a>",
             obj.id,
@@ -205,7 +248,23 @@ class TableAdmin(TabbedTranslationAdmin):
             ),
         )
 
-    related_objects.short_description = "Columns"
+    related_columns.short_description = "Columns"
+
+    def related_coverages(self, obj):
+        qs = DateTimeRange.objects.filter(coverage=obj)
+        lines = []
+        for datetimerange in qs:
+            lines.append(
+                '<a href="/admin/api/v1/datetimerange/{0}/change/" target="_blank">Date Time Range</a>',
+                datetimerange.pk,
+            )
+        return format_html(
+            '<a href="/admin/api/v1/datetimerange/{}/change/" target="_blank">Date Time Range</a>',
+            # 'http://localhost:8001/admin/v1/datetimerange/00004e41-a4f8-48eb-b39c-f353d872d7c7/change/'
+            obj.datetimerange.slug,
+        )
+
+    related_coverages.short_description = "Coverages"
 
     def add_view(self, request, *args, **kwargs):
         parent_model_id = request.GET.get("dataset")
@@ -228,7 +287,7 @@ class TableAdmin(TabbedTranslationAdmin):
         "id",
         "created_at",
         "updated_at",
-        "related_objects",
+        "related_columns",
     ]
     search_fields = ["name", "dataset__name"]
     inlines = [
@@ -244,29 +303,6 @@ class TableAdmin(TabbedTranslationAdmin):
         "dataset__organization__name",
         TableCoverageFilter,
     ]
-
-
-class DirectoryPrimaryKeyAdminFilter(admin.SimpleListFilter):
-    title = "directory_primary_key"
-    parameter_name = "directory_primary_key"
-
-    def lookups(self, request, model_admin):
-        distinct_values = (
-            Column.objects.filter(directory_primary_key__id__isnull=False)
-            .order_by("directory_primary_key__name")
-            .distinct()
-            .values(
-                "directory_primary_key__name",
-            )
-        )
-        # Create a tuple of tuples with the format (value, label).
-        return [
-            (value.get("directory_primary_key__name"),) for value in distinct_values
-        ]
-
-    def queryset(self, request, queryset):
-        if self.value():
-            return queryset.filter(directory_primary_key__name=self.value())
 
 
 class ColumnForm(forms.ModelForm):
