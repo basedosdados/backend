@@ -410,6 +410,12 @@ class DatasetSearchView(SearchView):
                 return str(dataset.tables.first().id)
             return None
 
+        def get_first_closed_table_id(dataset: Dataset) -> Union[str, None]:
+            closed_tables = self.tables.all().filter(is_closed=True)
+            if len(closed_tables) > 0:
+                return str(closed_tables.first().id)
+            return None
+
         def get_first_raw_data_source_id(dataset: Dataset) -> Union[str, None]:
             if dataset.raw_data_sources.count() > 0:
                 return str(dataset.raw_data_sources.first().id)
@@ -431,6 +437,8 @@ class DatasetSearchView(SearchView):
             "temporal_coverage": get_temporal_coverage(dataset),
             "n_tables": dataset.tables.count(),
             "first_table_id": get_first_table_id(dataset),
+            "n_closed_tables": dataset.tables.all().filter(is_closed=True).count(),
+            "first_closed_table_id": get_first_closed_table_id(dataset),
             "n_raw_data_sources": dataset.raw_data_sources.count(),
             "first_raw_data_source_id": get_first_raw_data_source_id(dataset),
             "n_information_requests": dataset.information_requests.count(),
