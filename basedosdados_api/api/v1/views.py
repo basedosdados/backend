@@ -635,6 +635,8 @@ class DatasetESSearchView(SearchView):
                             picture_url = org_object.picture.url
                     except Organization.DoesNotExist:
                         pass
+                    except ValueError:
+                        pass
                     d = {
                         "id": org["id"],
                         "name": org["name"],
