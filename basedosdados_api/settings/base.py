@@ -52,8 +52,8 @@ INSTALLED_APPS = [
     "health_check",
     "health_check.db",
     # "health_check.cache",
-    "health_check.storage",
-    "health_check.contrib.migrations",
+    # "health_check.storage",
+    # "health_check.contrib.migrations",
     "rest_framework",
     "basedosdados_api.account",
     "basedosdados_api.core",
@@ -175,26 +175,28 @@ LOGGING = {
             # But the emails are plain text by default - HTML is nicer
             "include_html": True,
         },
-        # Log to a text file that can be rotated by logrotate
-        "logfile": {
-            "level": "DEBUG",
-            "class": "logging.handlers.RotatingFileHandler",
-            "filename": "/var/log/django/basedosdados_api.log",
-            "maxBytes": 1024 * 1024 * 5,  # 5MB
-            "backupCount": 5,
-            "formatter": "standard",
-        },
+        # # Log to a text file that can be rotated by logrotate
+        # "logfile": {
+        #     "level": "DEBUG",
+        #     "class": "logging.handlers.RotatingFileHandler",
+        #     "filename": "/var/log/django/basedosdados_api.log",
+        #     "maxBytes": 1024 * 1024 * 5,  # 5MB
+        #     "backupCount": 5,
+        #     "formatter": "standard",
+        # },
     },
     "loggers": {
         # Again, default Django configuration to email unhandled exceptions
         "django.request": {
-            "handlers": ["mail_admins", "console", "logfile"],
+            "handlers": ["mail_admins", "console"],
+            # "handlers": ["mail_admins", "console", "logfile"],
             "level": "ERROR",
             "propagate": True,
         },
         # Might as well log any errors anywhere else in Django
         "django": {
-            "handlers": ["console", "logfile"],
+            "handlers": ["console"],
+            # "handlers": ["console", "logfile"],
             "level": "DEBUG",
             "propagate": False,
         },
