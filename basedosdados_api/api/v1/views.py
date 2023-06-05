@@ -473,7 +473,7 @@ class DatasetESSearchView(SearchView):
         req_args: QueryDict = request.GET.copy()
         query = req_args.get("q", None)
         es = Elasticsearch(settings.HAYSTACK_CONNECTIONS["default"]["URL"])
-        page_size = 10
+        page_size = int(req_args.get("page_size", 10))
         page = int(req_args.get("page", 1))
 
         # If query is empty, query all datasets
@@ -616,7 +616,7 @@ class DatasetESSearchView(SearchView):
             cleaned_results["id"] = r.get("django_id")
             cleaned_results["slug"] = r.get("slug")
             cleaned_results["name"] = r.get("name")
-            cleaned_results["description"] = r.get("description")
+            # cleaned_results["description"] = r.get("description")
 
             # organization
             organization = r.get("organization", [])
@@ -630,7 +630,7 @@ class DatasetESSearchView(SearchView):
                         "id": org["id"],
                         "name": org["name"],
                         "slug": org["slug"],
-                        "picture": org["picture"],
+                        "picture": Organization.objects.get(id=org["id"]).picture.url,
                         "website": org["website"],
                         "description": org["description"],
                     }
