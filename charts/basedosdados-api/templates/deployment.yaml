@@ -62,9 +62,6 @@ spec:
               port: http
             initialDelaySeconds: 30
             periodSeconds: 90
-          readinessProbe:
-            httpGet:
-              path: /healthcheck/
-              port: http
-            initialDelaySeconds: 30
-            periodSeconds: 90
+            timeoutSeconds: 5
+            failureThreshold: 5
+            successThreshold: 1
