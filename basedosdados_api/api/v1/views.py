@@ -525,7 +525,7 @@ class DatasetESSearchView(SearchView):
                         }
                     },
                     "field_value_factor": {
-                        "field": "n_bdm_tables",
+                        "field": "n_tables",
                         "modifier": "square",
                         "factor": 2,
                         "missing": 0,
@@ -568,6 +568,12 @@ class DatasetESSearchView(SearchView):
                 "contains_tables_counts": {
                     "terms": {
                         "field": "contains_tables",
+                        "size": 1000,
+                    }
+                },
+                "contains_closed_tables_counts": {
+                    "terms": {
+                        "field": "contains_closed_tables",
                         "size": 1000,
                     }
                 },
@@ -652,6 +658,7 @@ class DatasetESSearchView(SearchView):
             # tables
             if r.get("tables"):
                 cleaned_results["tables"] = []
+                cleaned_results["closed_tables"] = []
                 for idx, table in enumerate(r.get("tables")):
                     d = {
                         "id": table["id"],
@@ -659,6 +666,8 @@ class DatasetESSearchView(SearchView):
                         "slug": table["slug"],
                     }
                     cleaned_results["tables"].append(d)
+                    if table.is_closed is True:
+                        cleaned_results["closed_tables"].append(d)
 
             # columns
             # if r.get("columns"):
@@ -676,14 +685,18 @@ class DatasetESSearchView(SearchView):
                 cleaned_results["entities"] = r.get("observation_levels")
 
             # raw data sources
-            cleaned_results["n_original_sources"] = r.get("n_original_sources", 0)
-            cleaned_results["first_original_source_id"] = r.get(
-                "first_original_source_id", []
+            cleaned_results["n_raw_data_sources"] = r.get("n_raw_data_sources", 0)
+            cleaned_results["first_raw_data_source_id"] = r.get(
+                "first_raw_data_source_id", []
             )
 
             # information requests
-            cleaned_results["n_lais"] = r.get("n_lais", 0)
-            cleaned_results["first_lai_id"] = r.get("first_lai_id", [])
+            cleaned_results["n_information_requests"] = r.get(
+                "n_information_requests", 0
+            )
+            cleaned_results["first_information_request_id"] = r.get(
+                "first_information_request_id", []
+            )
 
             # temporal coverage
             coverage = r.get("coverage")
@@ -696,7 +709,8 @@ class DatasetESSearchView(SearchView):
                 del r["coverage"]
             else:
                 cleaned_results["temporal_coverage"] = ""
-            cleaned_results["n_bdm_tables"] = r.get("n_bdm_tables", 0)
+            cleaned_results["n_tables"] = r.get("n_tables", 0)
+            cleaned_results["n_closed_tables"] = r.get("n_closed_tables", 0)
             cleaned_results["is_closed"] = r.get("is_closed", False)
             res.append(cleaned_results)
 
@@ -709,6 +723,7 @@ class DatasetESSearchView(SearchView):
         observation_levels_counts = agg["observation_levels_counts"]["buckets"]
         is_closed_counts = agg["is_closed_counts"]["buckets"]
         contains_tables_counts = agg["contains_tables_counts"]["buckets"]
+        contains_closed_tables_counts = agg["contains_closed_tables_counts"]["buckets"]
         contains_information_requests_counts = agg[
             "contains_information_requests_counts"
         ]["buckets"]
