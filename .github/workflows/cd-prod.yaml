@@ -61,8 +61,8 @@ jobs:
             replicas: 2
             resources:
               limits:
-                cpu: 2000m
-                memory: 2048Mi
+                cpu: 1500m
+                memory: 1536Mi
               requests:
                 cpu: 1000m
                 memory: 1024Mi
