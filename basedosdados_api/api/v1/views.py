@@ -625,12 +625,21 @@ class DatasetESSearchView(SearchView):
             organization = [organization] if organization else []
             if len(organization) > 0:
                 cleaned_results["organization"] = []
-                for idx, org in enumerate(organization):
+                for _, org in enumerate(organization):
+                    picture_url = ""
+                    try:
+                        org_object: Organization = Organization.objects.get(
+                            id=org["id"]
+                        )
+                        if org_object.picture is not None:
+                            picture_url = org_object.picture.url
+                    except Organization.DoesNotExist:
+                        pass
                     d = {
                         "id": org["id"],
                         "name": org["name"],
                         "slug": org["slug"],
-                        "picture": Organization.objects.get(id=org["id"]).picture.url,
+                        "picture": picture_url,
                         "website": org["website"],
                         "description": org["description"],
                     }
