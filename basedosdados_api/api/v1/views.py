@@ -23,7 +23,7 @@ class DatasetESSearchView(SearchView):
         req_args: QueryDict = request.GET.copy()
         query = req_args.get("q", None)
         es = Elasticsearch(settings.HAYSTACK_CONNECTIONS["default"]["URL"])
-        page_size = 10
+        page_size = int(req_args.get("page_size", 10))
         page = int(req_args.get("page", 1))
 
         # If query is empty, query all datasets
@@ -166,7 +166,7 @@ class DatasetESSearchView(SearchView):
             cleaned_results["id"] = r.get("django_id")
             cleaned_results["slug"] = r.get("slug")
             cleaned_results["name"] = r.get("name")
-            cleaned_results["description"] = r.get("description")
+            # cleaned_results["description"] = r.get("description")
 
             # organization
             organization = r.get("organization", [])
@@ -175,12 +175,23 @@ class DatasetESSearchView(SearchView):
             organization = [organization] if organization else []
             if len(organization) > 0:
                 cleaned_results["organization"] = []
-                for idx, org in enumerate(organization):
+                for _, org in enumerate(organization):
+                    picture_url = ""
+                    try:
+                        org_object: Organization = Organization.objects.get(
+                            id=org["id"]
+                        )
+                        if org_object.picture is not None:
+                            picture_url = org_object.picture.url
+                    except Organization.DoesNotExist:
+                        pass
+                    except ValueError:
+                        pass
                     d = {
                         "id": org["id"],
                         "name": org["name"],
                         "slug": org["slug"],
-                        "picture": org["picture"],
+                        "picture": picture_url,
                         "website": org["website"],
                         "description": org["description"],
                     }
