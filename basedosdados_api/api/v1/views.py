@@ -11,7 +11,7 @@ from haystack.generic_views import SearchView
 
 from elasticsearch import Elasticsearch
 
-from basedosdados_api.api.v1.models import Organization, Theme, Tag
+from basedosdados_api.api.v1.models import Organization, Theme, Tag, Table
 
 
 class DatasetESSearchView(SearchView):
@@ -231,20 +231,31 @@ class DatasetESSearchView(SearchView):
                     cleaned_results["first_table_id"] = cleaned_results["tables"][0][
                         "id"
                     ]
+                    cleaned_results["n_tables"] = len(cleaned_results["tables"])
+                    closed_tables = [
+                        t
+                        for t in cleaned_results["tables"]
+                        if Table.objects.get(id=t["id"]).is_closed
+                    ]
+                    cleaned_results["n_closed_tables"] = len(closed_tables)
 
             # observation levels
             if r.get("observation_levels"):
                 cleaned_results["entities"] = r.get("observation_levels")
 
             # raw data sources
-            cleaned_results["n_original_sources"] = r.get("n_original_sources", 0)
-            cleaned_results["first_original_source_id"] = r.get(
-                "first_original_source_id", []
+            cleaned_results["n_raw_data_sources"] = r.get("n_raw_data_sources", 0)
+            cleaned_results["first_raw_data_source_id"] = r.get(
+                "first_raw_data_source_id", []
             )
 
             # information requests
-            cleaned_results["n_lais"] = r.get("n_lais", 0)
-            cleaned_results["first_lai_id"] = r.get("first_lai_id", [])
+            cleaned_results["n_information_requests"] = r.get(
+                "n_information_requests", 0
+            )
+            cleaned_results["first_information_request_id"] = r.get(
+                "first_information_request_id", []
+            )
 
             # temporal coverage
             coverage = r.get("coverage")
@@ -257,8 +268,6 @@ class DatasetESSearchView(SearchView):
                 del r["coverage"]
             else:
                 cleaned_results["temporal_coverage"] = ""
-            cleaned_results["n_bdm_tables"] = r.get("n_bdm_tables", 0)
-            cleaned_results["is_closed"] = r.get("is_closed", False)
             res.append(cleaned_results)
 
         # Aggregations
