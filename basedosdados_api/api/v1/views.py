@@ -82,7 +82,7 @@ class DatasetESSearchView(SearchView):
                         }
                     },
                     "field_value_factor": {
-                        "field": "n_bdm_tables",
+                        "field": "total_tables",
                         "modifier": "square",
                         "factor": 2,
                         "missing": 0,

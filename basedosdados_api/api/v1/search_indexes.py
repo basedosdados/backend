@@ -149,6 +149,9 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
                         "slug": data.get("table_slugs", [])[i],
                     }
                 )
+            data["total_tables"] = len(table_ids)
+        else:
+            data["total_tables"] = 0
 
         # columns
         column_ids = data.get("column_ids", [])
