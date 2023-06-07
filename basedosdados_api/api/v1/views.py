@@ -61,6 +61,13 @@ class DatasetESSearchView(SearchView):
             for t in filter_theme:
                 all_filters.append(t)
 
+        if "tag" in req_args:
+            filter_tag = [
+                {"match": {"tags_slug.keyword": tag}} for tag in req_args.getlist("tag")
+            ]
+            for t in filter_tag:
+                all_filters.append(t)
+
         raw_query = {
             "from": (page - 1) * page_size,
             "size": page_size,
@@ -220,17 +227,10 @@ class DatasetESSearchView(SearchView):
                         "slug": table["slug"],
                     }
                     cleaned_results["tables"].append(d)
-
-            # columns
-            # if r.get("columns"):
-            #     cleaned_results["columns"] = []
-            #     for idx, column in enumerate(r.get("columns")):
-            #         d = {
-            #             "id": column["id"],
-            #             "name": column["name"],
-            #             "description": column["description"],
-            #         }
-            #         cleaned_results["columns"].append(d)
+                if len(cleaned_results["tables"]) > 0:
+                    cleaned_results["first_table_id"] = cleaned_results["tables"][0][
+                        "id"
+                    ]
 
             # observation levels
             if r.get("observation_levels"):
