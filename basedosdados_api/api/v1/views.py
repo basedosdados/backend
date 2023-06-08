@@ -11,7 +11,7 @@ from haystack.generic_views import SearchView
 
 from elasticsearch import Elasticsearch
 
-from basedosdados_api.api.v1.models import Organization, Theme, Tag, Table
+from basedosdados_api.api.v1.models import Organization, Theme, Table
 
 
 class DatasetESSearchView(SearchView):
@@ -25,6 +25,8 @@ class DatasetESSearchView(SearchView):
         es = Elasticsearch(settings.HAYSTACK_CONNECTIONS["default"]["URL"])
         page_size = int(req_args.get("page_size", 10))
         page = int(req_args.get("page", 1))
+        # As counts are paginated, we need to get the total number of results
+        agg_page_size = 1000
 
         # If query is empty, query all datasets
         if not query:
@@ -68,6 +70,22 @@ class DatasetESSearchView(SearchView):
             for t in filter_tag:
                 all_filters.append(t)
 
+        if "contains_table" in req_args:
+            all_filters.append(
+                {"match": {"contains_tables": req_args.get("contains_table")}}
+            )
+
+        if "datasets_with" in req_args:
+            options = req_args.getlist("datasets_with")
+            if "bdm_tables" in options:
+                all_filters.append({"match": {"contains_tables": True}})
+            if "tables_pro" in options:
+                all_filters.append({"match": {"contains_closed_tables": True}})
+            if "raw_data_sources" in options:
+                all_filters.append({"match": {"contains_raw_data_sources": True}})
+            if "information_request" in options:
+                all_filters.append({"match": {"contains_information_requests": True}})
+
         raw_query = {
             "from": (page - 1) * page_size,
             "size": page_size,
@@ -94,50 +112,56 @@ class DatasetESSearchView(SearchView):
                 "themes_keyword_counts": {
                     "terms": {
                         "field": "themes_slug.keyword",
-                        "size": 1000,
+                        "size": agg_page_size,
                     }
                 },
                 "is_closed_counts": {
                     "terms": {
                         "field": "is_closed",
-                        "size": 1000,
+                        "size": agg_page_size,
                     }
                 },
                 "organization_counts": {
                     "terms": {
                         "field": "organization_slug.keyword",
-                        "size": 1000,
+                        "size": agg_page_size,
                     }
                 },
                 "tags_slug_counts": {
                     "terms": {
                         "field": "tags_slug.keyword",
-                        "size": 1000,
+                        "size": agg_page_size,
                     }
                 },
                 "temporal_coverage_counts": {"terms": {"field": "coverage.keyword"}},
                 "observation_levels_counts": {
                     "terms": {
                         "field": "observation_levels.keyword",
-                        "size": 1000,
+                        "size": agg_page_size,
                     }
                 },
                 "contains_tables_counts": {
                     "terms": {
                         "field": "contains_tables",
-                        "size": 1000,
+                        "size": agg_page_size,
+                    }
+                },
+                "contains_closed_tables_counts": {
+                    "terms": {
+                        "field": "contains_closed_tables",
+                        "size": agg_page_size,
                     }
                 },
                 "contains_raw_data_sources_counts": {
                     "terms": {
                         "field": "contains_raw_data_sources",
-                        "size": 1000,
+                        "size": agg_page_size,
                     }
                 },
                 "contains_information_requests_counts": {
                     "terms": {
                         "field": "contains_information_requests",
-                        "size": 1000,
+                        "size": agg_page_size,
                     }
                 },
             },
@@ -173,7 +197,6 @@ class DatasetESSearchView(SearchView):
             cleaned_results["id"] = r.get("django_id")
             cleaned_results["slug"] = r.get("slug")
             cleaned_results["name"] = r.get("name")
-            # cleaned_results["description"] = r.get("description")
 
             # organization
             organization = r.get("organization", [])
@@ -219,23 +242,11 @@ class DatasetESSearchView(SearchView):
 
             # tables
             if r.get("tables"):
-                cleaned_results["tables"] = []
-                for idx, table in enumerate(r.get("tables")):
-                    d = {
-                        "id": table["id"],
-                        "name": table["name"],
-                        "slug": table["slug"],
-                    }
-                    cleaned_results["tables"].append(d)
-                if len(cleaned_results["tables"]) > 0:
-                    cleaned_results["first_table_id"] = cleaned_results["tables"][0][
-                        "id"
-                    ]
-                    cleaned_results["n_tables"] = len(cleaned_results["tables"])
+                if len(tables := r.get("tables")) > 0:
+                    cleaned_results["first_table_id"] = tables[0]["id"]
+                    cleaned_results["n_tables"] = len(tables)
                     closed_tables = [
-                        t
-                        for t in cleaned_results["tables"]
-                        if Table.objects.get(id=t["id"]).is_closed
+                        t for t in tables if Table.objects.get(id=t["id"]).is_closed
                     ]
                     cleaned_results["n_closed_tables"] = len(closed_tables)
 
@@ -279,6 +290,7 @@ class DatasetESSearchView(SearchView):
         observation_levels_counts = agg["observation_levels_counts"]["buckets"]
         is_closed_counts = agg["is_closed_counts"]["buckets"]
         contains_tables_counts = agg["contains_tables_counts"]["buckets"]
+        contains_closed_tables_counts = agg["contains_closed_tables_counts"]["buckets"]
         contains_information_requests_counts = agg[
             "contains_information_requests_counts"
         ]["buckets"]
@@ -316,9 +328,9 @@ class DatasetESSearchView(SearchView):
                 {
                     "key": tag["key"],
                     "count": tag["doc_count"],
-                    "name": Tag.objects.get(slug=tag["key"]).name,
+                    "name": tag["key"],
                 }
-                for idx, tag in enumerate(tags_slug_counts)
+                for tag in tags_slug_counts
             ]
             aggregations["tags"] = agg_tags
 
@@ -356,6 +368,21 @@ class DatasetESSearchView(SearchView):
                 for idx, contains_tables in enumerate(contains_tables_counts)
             ]
             aggregations["contains_tables"] = agg_contains_tables
+
+        if contains_closed_tables_counts:
+            agg_contains_closed_tables = [
+                {
+                    "key": contains_closed_tables["key"],
+                    "count": contains_closed_tables["doc_count"],
+                    "name": "tabelas fechadas"
+                    if contains_closed_tables["key"] == 1
+                    else "sem tabelas fechadas",
+                }
+                for idx, contains_closed_tables in enumerate(
+                    contains_closed_tables_counts
+                )
+            ]
+            aggregations["contains_closed_tables"] = agg_contains_closed_tables
 
         if contains_information_requests_counts:
             agg_contains_information_requests = [
