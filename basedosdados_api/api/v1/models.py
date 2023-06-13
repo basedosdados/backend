@@ -536,6 +536,15 @@ class Dataset(BdmModel):
         return self.contains_closed_tables
 
     @property
+    def contains_open_tables(self):
+        open_tables = self.tables.all().filter(is_closed=False)
+        return len(open_tables) > 0
+
+    @property
+    def get_graphql_contains_open_tables(self):
+        return self.contains_open_tables
+
+    @property
     def contains_raw_data_sources(self):
         return len(self.raw_data_sources.all()) > 0
 
