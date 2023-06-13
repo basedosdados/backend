@@ -151,6 +151,12 @@ class DatasetESSearchView(SearchView):
                         "size": agg_page_size,
                     }
                 },
+                "contains_open_tables_counts": {
+                    "terms": {
+                        "field": "contains_open_tables",
+                        "size": agg_page_size,
+                    }
+                },
                 "contains_closed_tables_counts": {
                     "terms": {
                         "field": "contains_closed_tables",
@@ -313,6 +319,7 @@ class DatasetESSearchView(SearchView):
         observation_levels_counts = agg["observation_levels_counts"]["buckets"]
         is_closed_counts = agg["is_closed_counts"]["buckets"]
         contains_tables_counts = agg["contains_tables_counts"]["buckets"]
+        contains_open_tables_counts = agg["contains_open_tables_counts"]["buckets"]
         contains_closed_tables_counts = agg["contains_closed_tables_counts"]["buckets"]
         contains_information_requests_counts = agg[
             "contains_information_requests_counts"
@@ -391,6 +398,19 @@ class DatasetESSearchView(SearchView):
                 for idx, contains_tables in enumerate(contains_tables_counts)
             ]
             aggregations["contains_tables"] = agg_contains_tables
+
+        if contains_open_tables_counts:
+            agg_contains_open_tables = [
+                {
+                    "key": contains_open_tables["key"],
+                    "count": contains_open_tables["doc_count"],
+                    "name": "tabelas abertas"
+                    if contains_open_tables["key"] == 1
+                    else "sem tabelas abertas",
+                }
+                for idx, contains_open_tables in enumerate(contains_open_tables_counts)
+            ]
+            aggregations["contains_open_tables"] = agg_contains_open_tables
 
         if contains_closed_tables_counts:
             agg_contains_closed_tables = [
