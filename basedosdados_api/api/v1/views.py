@@ -82,13 +82,13 @@ class DatasetESSearchView(SearchView):
 
         if "datasets_with" in req_args:
             options = req_args.getlist("datasets_with")
-            if "bdm_tables" in options:
-                all_filters.append({"match": {"contains_tables": True}})
-            if "tables_pro" in options:
+            if "open_tables" in options:
+                all_filters.append({"match": {"contains_open_tables": True}})
+            if "closed_tables" in options:
                 all_filters.append({"match": {"contains_closed_tables": True}})
             if "raw_data_sources" in options:
                 all_filters.append({"match": {"contains_raw_data_sources": True}})
-            if "information_request" in options:
+            if "information_requests" in options:
                 all_filters.append({"match": {"contains_information_requests": True}})
 
         raw_query = {
@@ -293,6 +293,16 @@ class DatasetESSearchView(SearchView):
             else:
                 cleaned_results["temporal_coverage"] = ""
             res.append(cleaned_results)
+
+            # boolean fields
+            cleaned_results["is_closed"] = r.get("is_closed", False)
+            cleaned_results["contains_tables"] = r.get("contains_tables", False)
+            cleaned_results["contains_closed_tables"] = r.get(
+                "contains_closed_tables", False
+            )
+            cleaned_results["contains_open_tables"] = r.get(
+                "contains_open_tables", False
+            )
 
         # Aggregations
         agg = context["object_list"].get("aggregations")

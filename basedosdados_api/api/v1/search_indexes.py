@@ -33,14 +33,6 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
     )
     table_is_closed = indexes.MultiValueField(model_attr="tables__is_closed", null=True)
 
-    column_ids = indexes.MultiValueField(model_attr="tables__columns__id", null=True)
-    column_names = indexes.MultiValueField(
-        model_attr="tables__columns__name", null=True
-    )
-    column_descriptions = indexes.EdgeNgramField(
-        model_attr="tables__columns__description", null=True
-    )
-
     themes_name = indexes.MultiValueField(model_attr="themes__name", null=True)
     themes_slug = indexes.MultiValueField(model_attr="themes__slug", null=True)
     themes_keyword = indexes.MultiValueField(
@@ -68,6 +60,7 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
     )
     is_closed = indexes.BooleanField(model_attr="is_closed")
     contains_tables = indexes.BooleanField(model_attr="contains_tables")
+    contains_open_tables = indexes.BooleanField(model_attr="contains_open_tables")
     contains_closed_tables = indexes.BooleanField(model_attr="contains_closed_tables")
     contains_raw_data_sources = indexes.BooleanField(
         model_attr="contains_raw_data_sources"
@@ -159,19 +152,6 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         else:
             data["total_tables"] = 0
 
-        # columns
-        column_ids = data.get("column_ids", [])
-        if column_ids:
-            data["columns"] = []
-            for i in range(len(column_ids)):
-                data["columns"].append(
-                    {
-                        "id": data.get("column_ids", [])[i],
-                        "name": data.get("column_names", [])[i],
-                        "description": data.get("column_descriptions", [])[i],
-                    }
-                )
-
         # Raw data sources
         raw_data_sources = data.get("raw_data_sources", [])
         data["first_raw_data_source_id"] = (
@@ -216,6 +196,10 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         # Contains tables
         contains_tables = data.get("contains_tables", False)
         data["contains_tables"] = contains_tables
+
+        # Contains open tables
+        contains_open_tables = data.get("contains_open_tables", False)
+        data["contains_open_tables"] = contains_open_tables
 
         # Contains closed tables
         contains_closed_tables = data.get("contains_closed_tables", False)
