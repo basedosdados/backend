@@ -54,8 +54,11 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
     )
 
     coverage = indexes.MultiValueField(model_attr="coverage", null=True)
-    observation_levels = indexes.MultiValueField(
+    observation_levels_name = indexes.MultiValueField(
         model_attr="tables__observation_levels__entity__name", null=True
+    )
+    observation_levels_keyword = indexes.MultiValueField(
+        model_attr="tables__observation_levels__entity__slug", null=True
     )
     raw_data_sources = indexes.MultiValueField(
         model_attr="raw_data_sources__id", null=True
@@ -199,8 +202,16 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
             data["coverage"] = ""
 
         # Observation Levels
-        observation_levels = data.get("observations", [])
-        data["observations"] = observation_levels if observation_levels else ""
+        observation_levels = data.get("observation_levels_name", [])
+        if observation_levels:
+            data["observation_levels"] = []
+            for i in range(len(observation_levels)):
+                data["observation_levels"].append(
+                    {
+                        "name": data.get("observation_levels_name", [])[i],
+                        "keyword": data.get("observation_levels_keyword", [])[i],
+                    }
+                )
 
         # Contains tables
         contains_tables = data.get("contains_tables", False)

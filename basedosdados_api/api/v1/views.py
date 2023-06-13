@@ -11,7 +11,12 @@ from haystack.generic_views import SearchView
 
 from elasticsearch import Elasticsearch
 
-from basedosdados_api.api.v1.models import Organization, Theme, Table
+from basedosdados_api.api.v1.models import (
+    Organization,
+    Theme,
+    Table,
+    Entity,
+)
 
 
 class DatasetESSearchView(SearchView):
@@ -136,7 +141,7 @@ class DatasetESSearchView(SearchView):
                 "temporal_coverage_counts": {"terms": {"field": "coverage.keyword"}},
                 "observation_levels_counts": {
                     "terms": {
-                        "field": "observation_levels.keyword",
+                        "field": "observation_levels_keyword.keyword",
                         "size": agg_page_size,
                     }
                 },
@@ -347,7 +352,7 @@ class DatasetESSearchView(SearchView):
                 {
                     "key": observation_level["key"],
                     "count": observation_level["doc_count"],
-                    "name": observation_level["key"],
+                    "name": Entity.objects.get(slug=observation_level["key"]).name,
                 }
                 for idx, observation_level in enumerate(observation_levels_counts)
             ]
