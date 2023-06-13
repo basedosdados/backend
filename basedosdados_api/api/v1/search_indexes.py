@@ -31,6 +31,7 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
     table_descriptions = indexes.EdgeNgramField(
         model_attr="tables__description", null=True
     )
+    table_is_closed = indexes.MultiValueField(model_attr="tables__is_closed", null=True)
 
     column_ids = indexes.MultiValueField(model_attr="tables__columns__id", null=True)
     column_names = indexes.MultiValueField(
@@ -148,6 +149,7 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
                         "id": data.get("table_ids", [])[i],
                         "name": data.get("table_names", [])[i],
                         "slug": data.get("table_slugs", [])[i],
+                        "is_closed": data.get("table_is_closed", [])[i],
                     }
                 )
             data["total_tables"] = len(table_ids)

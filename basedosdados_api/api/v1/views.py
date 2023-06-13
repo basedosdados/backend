@@ -249,6 +249,14 @@ class DatasetESSearchView(SearchView):
                         t for t in tables if Table.objects.get(id=t["id"]).is_closed
                     ]
                     cleaned_results["n_closed_tables"] = len(closed_tables)
+                    cleaned_results["n_open_tables"] = (
+                        cleaned_results["n_tables"] - cleaned_results["n_closed_tables"]
+                    )
+                    cleaned_results["first_closed_table_id"] = None
+                    for table in tables:
+                        if table["is_closed"]:
+                            cleaned_results["first_closed_table_id"] = table["id"]
+                            break
 
             # observation levels
             if r.get("observation_levels"):
