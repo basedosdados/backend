@@ -429,7 +429,7 @@ class Dataset(BdmModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_closed = models.BooleanField(
-        default=False, help_text="Dataset is for Pro subscribers only"
+        default=False, help_text="Dataset is for BD Pro subscribers only"
     )
 
     graphql_nested_filter_fields_whitelist = ["id", "slug"]
@@ -782,7 +782,21 @@ class Column(BdmModel):
         blank=True,
     )
     is_closed = models.BooleanField(
-        default=False, help_text="Column is for Pro subscribers only"
+        default=False, help_text="Column is for BD Pro subscribers only"
+    )
+    after = models.ForeignKey(
+        "Column",
+        on_delete=models.PROTECT,
+        related_name="columns",
+        blank=True,
+        null=True,
+    )
+    before = models.ForeignKey(
+        "Column",
+        on_delete=models.PROTECT,
+        related_name="columns",
+        blank=True,
+        null=True,
     )
 
     graphql_nested_filter_fields_whitelist = ["id", "name"]
@@ -814,6 +828,12 @@ class Column(BdmModel):
 
         if not self.is_closed and self.table.dataset.is_closed:
             errors["is_closed"] = "Column cannot be opened if dataset is closed."
+
+        if self.after not in self.table.columns:
+            errors["after"] = "Column has to be from the same table."
+        
+        if self.before not in self.table.columns:
+            errors["before"] = "Column has to be from the same table."
 
         if errors:
             raise ValidationError(errors)
