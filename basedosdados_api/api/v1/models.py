@@ -686,7 +686,7 @@ class Table(BdmModel):
     number_rows = models.BigIntegerField(blank=True, null=True)
     number_columns = models.BigIntegerField(blank=True, null=True)
     is_closed = models.BooleanField(
-        default=False, help_text="Table is for Pro subscribers only"
+        default=False, help_text="Table is for BD Pro subscribers only"
     )
 
     graphql_nested_filter_fields_whitelist = ["id", "dataset"]
@@ -715,6 +715,16 @@ class Table(BdmModel):
             raise ValidationError(errors)
 
         return super().clean()
+    
+    @property
+    def partitions(self):
+        partitions = self.columns.all().filter(is_partition=True)
+        return partitions
+
+    @property
+    def get_graphql_partitions(self):
+        return self.partitions
+
 
 
 class BigQueryType(BdmModel):
