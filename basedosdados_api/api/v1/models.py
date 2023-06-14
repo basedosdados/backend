@@ -706,10 +706,10 @@ class Table(BdmModel):
         ]
 
     def clean(self):
-        """Table cannot be opened if dataset is closed"""
+        """Table cannot be open if dataset is closed"""
         errors = {}
         if not self.is_closed and self.dataset.is_closed:
-            errors["is_closed"] = "Table cannot be opened if dataset is closed"
+            errors["is_closed"] = "Table cannot be open if dataset is closed"
 
         if errors:
             raise ValidationError(errors)
@@ -827,7 +827,7 @@ class Column(BdmModel):
             ] = "Column indicated as a directory's primary key is not in a directory."
 
         if not self.is_closed and self.table.dataset.is_closed:
-            errors["is_closed"] = "Column cannot be opened if dataset is closed."
+            errors["is_closed"] = "Column cannot be open if dataset is closed."
 
         if self.after not in self.table.columns:
             errors["after"] = "Column has to be from the same table."
