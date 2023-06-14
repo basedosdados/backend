@@ -688,6 +688,20 @@ class Table(BdmModel):
     is_closed = models.BooleanField(
         default=False, help_text="Table is for BD Pro subscribers only"
     )
+    after = models.ForeignKey(
+        "Table",
+        on_delete=models.PROTECT,
+        related_name="tables",
+        blank=True,
+        null=True,
+    )
+    before = models.ForeignKey(
+        "Table",
+        on_delete=models.PROTECT,
+        related_name="tables",
+        blank=True,
+        null=True,
+    )
 
     graphql_nested_filter_fields_whitelist = ["id", "dataset"]
 
@@ -706,10 +720,17 @@ class Table(BdmModel):
         ]
 
     def clean(self):
-        """Table cannot be open if dataset is closed"""
+        
         errors = {}
+        
         if not self.is_closed and self.dataset.is_closed:
             errors["is_closed"] = "Table cannot be open if dataset is closed"
+        
+        if self.after not in self.dataset.tables:
+            errors["after"] = "Table has to be from the same dataset."
+        
+        if self.before not in self.dataset.tables:
+            errors["before"] = "Table has to be from the same dataset."
 
         if errors:
             raise ValidationError(errors)
@@ -975,6 +996,20 @@ class RawDataSource(BdmModel):
         null=True,
         blank=True,
     )
+    after = models.ForeignKey(
+        "RawDataSource",
+        on_delete=models.PROTECT,
+        related_name="raw_data_sources",
+        blank=True,
+        null=True,
+    )
+    before = models.ForeignKey(
+        "RawDataSource",
+        on_delete=models.PROTECT,
+        related_name="raw_data_sources",
+        blank=True,
+        null=True,
+    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -986,6 +1021,21 @@ class RawDataSource(BdmModel):
 
     def __str__(self):
         return f"{self.name} ({self.dataset.name})"
+    
+    def clean(self):
+        
+        errors = {}
+        
+        if self.after not in self.dataset.raw_data_sources:
+            errors["after"] = "RawDataSource has to be from the same dataset."
+        
+        if self.before not in self.dataset.tables:
+            errors["before"] = "RawDataSource has to be from the same dataset."
+
+        if errors:
+            raise ValidationError(errors)
+
+        return super().clean()
 
 
 class InformationRequest(BdmModel):
@@ -1016,6 +1066,20 @@ class InformationRequest(BdmModel):
         blank=True,
         null=True,
     )
+    after = models.ForeignKey(
+        "InformationRequest",
+        on_delete=models.PROTECT,
+        related_name="information_requests",
+        blank=True,
+        null=True,
+    )
+    before = models.ForeignKey(
+        "InformationRequest",
+        on_delete=models.PROTECT,
+        related_name="information_requests",
+        blank=True,
+        null=True,
+    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -1029,9 +1093,18 @@ class InformationRequest(BdmModel):
         ordering = ["number"]
 
     def clean(self) -> None:
+        
         errors = {}
+        
         if self.origin is not None and len(self.origin) > 500:
             errors["origin"] = "Origin cannot be longer than 500 characters"
+        
+        if self.after not in self.dataset.information_requests:
+            errors["after"] = "InformationRequest has to be from the same dataset."
+        
+        if self.before not in self.dataset.information_requests:
+            errors["before"] = "InformationRequest has to be from the same dataset."
+
         if errors:
             raise ValidationError(errors)
 
