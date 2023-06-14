@@ -17,10 +17,7 @@ RUN /env/bin/pip install --no-cache-dir . && \
 RUN apt-get update && apt-get install -y --no-install-recommends nginx curl \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
-    && rm /etc/nginx/sites-enabled/default \
-    && mkdir -p /var/log/django \
-    && touch /var/log/django/basedosdados_api.log \
-    && chown www-data:www-data /var/log/django/basedosdados_api.log
+    && rm /etc/nginx/sites-enabled/default
 COPY nginx.conf /etc/nginx/nginx.conf
 # https://docs.python.org/3/using/cmdline.html#envvar-PYTHONDONTWRITEBYTECODE
 # Prevents Python from writing .pyc files to disc

@@ -550,7 +550,6 @@ class CloudTableAdmin(admin.ModelAdmin):
         "__str__",
     ]
     search_fields = [
-        "table",
         "gcp_project_id",
         "gcp_dataset_id",
         "gcp_table_id",

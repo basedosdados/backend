@@ -9,6 +9,11 @@ metadata:
     rollme: {{ randAlphaNum 5 | quote }}
 spec:
   replicas: {{ .Values.api.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
   selector:
     matchLabels:
       app.kubernetes.io/component: basedosdados-api
@@ -62,9 +67,15 @@ spec:
               port: http
             initialDelaySeconds: 30
             periodSeconds: 90
+            timeoutSeconds: 5
+            failureThreshold: 5
+            successThreshold: 1
           readinessProbe:
             httpGet:
               path: /healthcheck/
               port: http
             initialDelaySeconds: 30
             periodSeconds: 90
+            timeoutSeconds: 5
+            failureThreshold: 5
+            successThreshold: 1

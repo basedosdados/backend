@@ -51,9 +51,9 @@ INSTALLED_APPS = [
     "haystack",
     "health_check",
     "health_check.db",
-    "health_check.cache",
-    "health_check.storage",
-    "health_check.contrib.migrations",
+    # "health_check.cache",
+    # "health_check.storage",
+    # "health_check.contrib.migrations",
     "rest_framework",
     "basedosdados_api.account",
     "basedosdados_api.core",
@@ -156,32 +156,48 @@ REST_FRAMEWORK = {
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "formatters": {
+        "standard": {
+            "format": "%(levelname)s %(asctime)s %(message)s",
+        },
+    },
     "handlers": {
         # Include the default Django email handler for errors
         # This is what you'd get without configuring logging at all.
+        "console": {
+            "level": "ERROR",
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+        },
         "mail_admins": {
             "class": "django.utils.log.AdminEmailHandler",
             "level": "ERROR",
             # But the emails are plain text by default - HTML is nicer
             "include_html": True,
         },
-        # Log to a text file that can be rotated by logrotate
-        "logfile": {
-            "class": "logging.handlers.WatchedFileHandler",
-            "filename": str(BASE_DIR / "django.log"),
-        },
+        # # Log to a text file that can be rotated by logrotate
+        # "logfile": {
+        #     "level": "DEBUG",
+        #     "class": "logging.handlers.RotatingFileHandler",
+        #     "filename": "/var/log/django/basedosdados_api.log",
+        #     "maxBytes": 1024 * 1024 * 5,  # 5MB
+        #     "backupCount": 5,
+        #     "formatter": "standard",
+        # },
     },
     "loggers": {
         # Again, default Django configuration to email unhandled exceptions
         "django.request": {
-            "handlers": ["mail_admins"],
+            "handlers": ["mail_admins", "console"],
+            # "handlers": ["mail_admins", "console", "logfile"],
             "level": "ERROR",
             "propagate": True,
         },
         # Might as well log any errors anywhere else in Django
         "django": {
-            "handlers": ["logfile"],
-            "level": "ERROR",
+            "handlers": ["console"],
+            # "handlers": ["console", "logfile"],
+            "level": "DEBUG",
             "propagate": False,
         },
     },
@@ -239,8 +255,8 @@ HAYSTACK_CONNECTIONS = {
     "default": {
         "ENGINE": "basedosdados_api.api.v1.haystack_engines.AsciifoldingElasticSearchEngine",
         "URL": getenv("ELASTICSEARCH_URL", "http://0.0.0.0:9200"),
-        "TIMEOUT": 5,
-        "INDEX_NAME": "default",
+        "TIMEOUT": 30,
+        "INDEX_NAME": getenv("ELASTICSEARCH_INDEX_NAME", "default"),
         "BATCH_SIZE": 1000,
         "INCLUDE_SPELLING": True,
     },
