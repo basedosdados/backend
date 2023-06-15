@@ -217,6 +217,11 @@ class DatasetAdmin(TabbedTranslationAdmin):
         "id",
         "full_slug",
         "coverage",
+        "contains_tables",
+        "contains_open_tables",
+        "contains_closed_tables",
+        "contains_raw_data_sources",
+        "contains_information_requests",
         "created_at",
         "updated_at",
         "related_objects",
@@ -285,6 +290,7 @@ class TableAdmin(TabbedTranslationAdmin):
 
     readonly_fields = [
         "id",
+        "partitions",
         "created_at",
         "updated_at",
         "related_columns",
