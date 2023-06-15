@@ -80,6 +80,15 @@ class DatasetESSearchView(SearchView):
                 {"match": {"contains_tables": req_args.get("contains_table")}}
             )
 
+        if "observation_level" in req_args:
+            all_filters.append(
+                {
+                    "match": {
+                        "observation_levels.keyword": req_args.get("observation_level")
+                    }
+                }
+            )
+
         if "datasets_with" in req_args:
             options = req_args.getlist("datasets_with")
             if "open_tables" in options:
