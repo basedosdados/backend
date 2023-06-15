@@ -31,14 +31,7 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
     table_descriptions = indexes.EdgeNgramField(
         model_attr="tables__description", null=True
     )
-
-    column_ids = indexes.MultiValueField(model_attr="tables__columns__id", null=True)
-    column_names = indexes.MultiValueField(
-        model_attr="tables__columns__name", null=True
-    )
-    column_descriptions = indexes.EdgeNgramField(
-        model_attr="tables__columns__description", null=True
-    )
+    table_is_closed = indexes.MultiValueField(model_attr="tables__is_closed", null=True)
 
     themes_name = indexes.MultiValueField(model_attr="themes__name", null=True)
     themes_slug = indexes.MultiValueField(model_attr="themes__slug", null=True)
@@ -53,8 +46,11 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
     )
 
     coverage = indexes.MultiValueField(model_attr="coverage", null=True)
-    observation_levels = indexes.MultiValueField(
+    observation_levels_name = indexes.MultiValueField(
         model_attr="tables__observation_levels__entity__name", null=True
+    )
+    observation_levels_keyword = indexes.MultiValueField(
+        model_attr="tables__observation_levels__entity__slug", null=True
     )
     raw_data_sources = indexes.MultiValueField(
         model_attr="raw_data_sources__id", null=True
@@ -64,6 +60,8 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
     )
     is_closed = indexes.BooleanField(model_attr="is_closed")
     contains_tables = indexes.BooleanField(model_attr="contains_tables")
+    contains_open_tables = indexes.BooleanField(model_attr="contains_open_tables")
+    contains_closed_tables = indexes.BooleanField(model_attr="contains_closed_tables")
     contains_raw_data_sources = indexes.BooleanField(
         model_attr="contains_raw_data_sources"
     )
@@ -83,7 +81,9 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         table_ids = data.get("table_ids", [])
         data["first_table_id"] = table_ids[0] if table_ids else ""
         if table_ids:
-            data["n_bdm_tables"] = len(table_ids)
+            closed_tables = obj.tables.filter(is_closed=True)
+            data["n_closed_tables"] = closed_tables.count()
+            data["n_tables"] = len(table_ids)
 
         # organization
         organization_id = data.get("organization_id", "")
@@ -145,39 +145,32 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
                         "id": data.get("table_ids", [])[i],
                         "name": data.get("table_names", [])[i],
                         "slug": data.get("table_slugs", [])[i],
+                        "is_closed": data.get("table_is_closed", [])[i],
                     }
                 )
+            data["total_tables"] = len(table_ids)
+        else:
+            data["total_tables"] = 0
 
-        # columns
-        column_ids = data.get("column_ids", [])
-        if column_ids:
-            data["columns"] = []
-            for i in range(len(column_ids)):
-                data["columns"].append(
-                    {
-                        "id": data.get("column_ids", [])[i],
-                        "name": data.get("column_names", [])[i],
-                        "description": data.get("column_descriptions", [])[i],
-                    }
-                )
-
-        # Raw data sources (renamed to "original sources")
+        # Raw data sources
         raw_data_sources = data.get("raw_data_sources", [])
-        data["first_original_source_id"] = (
+        data["first_raw_data_source_id"] = (
             raw_data_sources[0] if raw_data_sources else ""
         )
         if raw_data_sources:
-            data["n_original_sources"] = len(raw_data_sources)
+            data["n_raw_data_sources"] = len(raw_data_sources)
         else:
-            data["n_original_sources"] = 0
+            data["n_raw_data_sources"] = 0
 
-        # Information requests (renamed to "lai")
+        # Information requests
         information_requests = data.get("information_requests", [])
-        data["first_lai_id"] = information_requests[0] if information_requests else ""
+        data["first_information_request_id"] = (
+            information_requests[0] if information_requests else ""
+        )
         if information_requests:
-            data["n_lais"] = len(information_requests)
+            data["n_information_requests"] = len(information_requests)
         else:
-            data["n_lais"] = 0
+            data["n_information_requests"] = 0
 
         # Is closed
         is_closed = data.get("is_closed", False)
@@ -189,12 +182,28 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
             data["coverage"] = ""
 
         # Observation Levels
-        observation_levels = data.get("observations", [])
-        data["observations"] = observation_levels if observation_levels else ""
+        observation_levels = data.get("observation_levels_name", [])
+        if observation_levels:
+            data["observation_levels"] = []
+            for i in range(len(observation_levels)):
+                data["observation_levels"].append(
+                    {
+                        "name": data.get("observation_levels_name", [])[i],
+                        "keyword": data.get("observation_levels_keyword", [])[i],
+                    }
+                )
 
         # Contains tables
         contains_tables = data.get("contains_tables", False)
         data["contains_tables"] = contains_tables
+
+        # Contains open tables
+        contains_open_tables = data.get("contains_open_tables", False)
+        data["contains_open_tables"] = contains_open_tables
+
+        # Contains closed tables
+        contains_closed_tables = data.get("contains_closed_tables", False)
+        data["contains_closed_tables"] = contains_closed_tables
 
         # Contains raw data sources
         contains_raw_data_sources = data.get("contains_raw_data_sources", False)
