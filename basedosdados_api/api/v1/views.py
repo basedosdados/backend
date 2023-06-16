@@ -337,6 +337,25 @@ class DatasetESSearchView(SearchView):
             "buckets"
         ]
 
+        # Getting data from DB to aggregate
+        orgs = Organization.objects.all().values("slug", "name", "picture")
+        orgs_dict = {}
+        for org in orgs:
+            slug = str(org.pop("slug"))
+            orgs_dict[slug] = org
+
+        themes = Theme.objects.all().values("slug", "name")
+        themes_dict = {}
+        for theme in themes:
+            slug = str(theme.pop("slug"))
+            themes_dict[slug] = theme
+
+        entities = Entity.objects.all().values("slug", "name")
+        entities_dict = {}
+        for entity in entities:
+            slug = str(entity.pop("slug"))
+            entities_dict[slug] = entity
+
         # Return results
         aggregations = dict()
         if organization_counts:
@@ -344,9 +363,7 @@ class DatasetESSearchView(SearchView):
                 {
                     "key": org["key"],
                     "count": org["doc_count"],
-                    "name": Organization.objects.filter(slug=org["key"])
-                    .only("name")[0]
-                    .name,
+                    "name": orgs_dict[org["key"]]["name"],
                 }
                 for org in organization_counts
             ]
@@ -357,9 +374,7 @@ class DatasetESSearchView(SearchView):
                 {
                     "key": theme["key"],
                     "count": theme["doc_count"],
-                    "name": Theme.objects.filter(slug=theme["key"])
-                    .only("name")[0]
-                    .name,
+                    "name": themes_dict[theme["key"]]["name"],
                 }
                 for idx, theme in enumerate(themes_slug_counts)
             ]
@@ -381,9 +396,7 @@ class DatasetESSearchView(SearchView):
                 {
                     "key": observation_level["key"],
                     "count": observation_level["doc_count"],
-                    "name": Entity.objects.filter(slug=observation_level["key"])
-                    .only("name")[0]
-                    .name,
+                    "name": entities_dict[observation_level["key"]]["name"],
                 }
                 for idx, observation_level in enumerate(observation_levels_counts)
             ]
