@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-from typing import Tuple
 
 from django.conf import settings
 from django.http import HttpResponseBadRequest, QueryDict, JsonResponse
@@ -78,6 +77,15 @@ class DatasetESSearchView(SearchView):
         if "contains_table" in req_args:
             all_filters.append(
                 {"match": {"contains_tables": req_args.get("contains_table")}}
+            )
+
+        if "observation_level" in req_args:
+            all_filters.append(
+                {
+                    "match": {
+                        "observation_levels.keyword": req_args.get("observation_level")
+                    }
+                }
             )
 
         if "datasets_with" in req_args:
@@ -204,35 +212,36 @@ class DatasetESSearchView(SearchView):
         res = []
         for idx, result in enumerate(es_results):
             r = result.get("_source")
-            cleaned_results = {}
-            cleaned_results["id"] = r.get("django_id")
-            cleaned_results["slug"] = r.get("slug")
-            cleaned_results["name"] = r.get("name")
+            cleaned_results = {
+                "id": r.get("django_id"),
+                "slug": r.get("slug"),
+                "name": r.get("name"),
+            }
 
             # organization
             organization = r.get("organization", [])
-            # soon this will become a many to many relationship
+            # soon this will become a many-to-many relationship
             # for now, we just put the organization within a list
             organization = [organization] if organization else []
             if len(organization) > 0:
                 cleaned_results["organization"] = []
                 for _, org in enumerate(organization):
-                    picture_url = ""
-                    try:
-                        org_object: Organization = Organization.objects.get(
-                            id=org["id"]
-                        )
-                        if org_object.picture is not None:
-                            picture_url = org_object.picture.url
-                    except Organization.DoesNotExist:
-                        pass
-                    except ValueError:
-                        pass
+                    # picture_url = ""
+                    # try:
+                    #     org_object: QuerySet = Organization.objects.filter(
+                    #         id=org["id"]
+                    #     ).only('slug', 'picture')
+                    #     if org_object is not None:
+                    #         picture_url = org_object[0].picture.url
+                    # except Organization.DoesNotExist:
+                    #     pass
+                    # except ValueError:
+                    #     pass
                     d = {
                         "id": org["id"],
                         "name": org["name"],
                         "slug": org["slug"],
-                        "picture": picture_url,
+                        "picture": org["picture"],
                         "website": org["website"],
                         "description": org["description"],
                     }
@@ -241,13 +250,13 @@ class DatasetESSearchView(SearchView):
             # themes
             if r.get("themes"):
                 cleaned_results["themes"] = []
-                for idx, theme in enumerate(r.get("themes")):
+                for theme in r.get("themes"):
                     d = {"name": theme["name"], "slug": theme["keyword"]}
                     cleaned_results["themes"].append(d)
             # tags
             if r.get("tags"):
                 cleaned_results["tags"] = []
-                for idx, tag in enumerate(r.get("tags")):
+                for tag in r.get("tags"):
                     d = {"name": tag["name"], "slug": tag["keyword"]}
                     cleaned_results["tags"].append(d)
 
@@ -328,6 +337,25 @@ class DatasetESSearchView(SearchView):
             "buckets"
         ]
 
+        # Getting data from DB to aggregate
+        orgs = Organization.objects.all().values("slug", "name", "picture")
+        orgs_dict = {}
+        for org in orgs:
+            slug = str(org.pop("slug"))
+            orgs_dict[slug] = org
+
+        themes = Theme.objects.all().values("slug", "name")
+        themes_dict = {}
+        for theme in themes:
+            slug = str(theme.pop("slug"))
+            themes_dict[slug] = theme
+
+        entities = Entity.objects.all().values("slug", "name")
+        entities_dict = {}
+        for entity in entities:
+            slug = str(entity.pop("slug"))
+            entities_dict[slug] = entity
+
         # Return results
         aggregations = dict()
         if organization_counts:
@@ -335,10 +363,9 @@ class DatasetESSearchView(SearchView):
                 {
                     "key": org["key"],
                     "count": org["doc_count"],
-                    # TODO: This error makes absolutely no sense, but it's the only way to make it work
-                    "name": Organization.objects.filter(slug=org["key"])[0].name,
+                    "name": orgs_dict[org["key"]]["name"],
                 }
-                for idx, org in enumerate(organization_counts)
+                for org in organization_counts
             ]
             aggregations["organizations"] = agg_organizations
 
@@ -347,7 +374,7 @@ class DatasetESSearchView(SearchView):
                 {
                     "key": theme["key"],
                     "count": theme["doc_count"],
-                    "name": Theme.objects.get(slug=theme["key"]).name,
+                    "name": themes_dict[theme["key"]]["name"],
                 }
                 for idx, theme in enumerate(themes_slug_counts)
             ]
@@ -369,7 +396,7 @@ class DatasetESSearchView(SearchView):
                 {
                     "key": observation_level["key"],
                     "count": observation_level["doc_count"],
-                    "name": Entity.objects.get(slug=observation_level["key"]).name,
+                    "name": entities_dict[observation_level["key"]]["name"],
                 }
                 for idx, observation_level in enumerate(observation_levels_counts)
             ]
@@ -472,23 +499,3 @@ class DatasetESSearchView(SearchView):
         if self.extra_context is not None:
             kwargs.update(self.extra_context)
         return kwargs
-
-    def split_number_text(self, text: str) -> Tuple[int, str]:
-        """
-        Splits a string into a number and text part. Examples:
-        >>> split_number_text("1year")
-        (1, 'year')
-        >>> split_number_text("2 month")
-        (2, 'month')
-        >>> split_number_text("3minute")
-        (3, 'minute')
-        """
-        number = ""
-        for c in text:
-            if c.isdigit():
-                number += c
-            else:
-                break
-        if number == "":
-            return None, text
-        return int(number), (text[len(number) :]).strip()  # noqa
