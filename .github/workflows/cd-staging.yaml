@@ -64,7 +64,11 @@ jobs:
               requests:
                 cpu: 250m
                 memory: 500Mi
-            env: []
+            env:
+              - name: "BASE_URL_FRONTEND"
+                value: "https://homologation.basedosdados.org"
+              - name: "BASE_URL_API"
+                value: "https://staging.api.basedosdados.org"
             envFrom:
               - secretRef:
                   name: api-staging-secrets
