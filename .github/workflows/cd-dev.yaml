@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  deploy-prod:
+  deploy-dev:
     runs-on: ubuntu-latest
     if: ${{ github.event.workflow_run.conclusion == 'success' }} || ${{ github.event_name == 'workflow_dispatch' }}
     environment:
@@ -64,7 +64,11 @@ jobs:
               requests:
                 cpu: 1000m
                 memory: 1024Mi
-            env: []
+            env:
+              - name: "BASE_URL_FRONTEND"
+                value: "https://development.basedosdados.org"
+              - name: "BASE_URL_API"
+                value: "https://development.api.basedosdados.org"
             envFrom:
               - secretRef:
                   name: api-development-secrets

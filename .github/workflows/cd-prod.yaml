@@ -66,7 +66,11 @@ jobs:
               requests:
                 cpu: 1000m
                 memory: 1024Mi
-            env: []
+            env:
+              - name: "BASE_URL_FRONTEND"
+                value: "https://basedosdados.org"
+              - name: "BASE_URL_API"
+                value: "https://api.basedosdados.org"
             envFrom:
               - secretRef:
                   name: api-prod-secrets
