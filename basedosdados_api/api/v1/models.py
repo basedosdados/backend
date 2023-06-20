@@ -518,6 +518,48 @@ class Dataset(BdmModel):
     def get_graphql_coverage(self):
         return self.coverage
 
+    @property
+    def contains_tables(self):
+        return len(self.tables.all()) > 0
+
+    @property
+    def get_graphql_contains_tables(self):
+        return self.contains_tables
+
+    @property
+    def contains_closed_tables(self):
+        closed_tables = self.tables.all().filter(is_closed=True)
+        return len(closed_tables) > 0
+
+    @property
+    def get_graphql_contains_closed_tables(self):
+        return self.contains_closed_tables
+
+    @property
+    def contains_open_tables(self):
+        open_tables = self.tables.all().filter(is_closed=False)
+        return len(open_tables) > 0
+
+    @property
+    def get_graphql_contains_open_tables(self):
+        return self.contains_open_tables
+
+    @property
+    def contains_raw_data_sources(self):
+        return len(self.raw_data_sources.all()) > 0
+
+    @property
+    def get_graphql_contains_raw_data_sources(self):
+        return self.contains_raw_data_sources
+
+    @property
+    def contains_information_requests(self):
+        return len(self.information_requests.all()) > 0
+
+    @property
+    def get_graphql_contains_information_requests(self):
+        return self.contains_information_requests
+
 
 class Update(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -723,7 +765,11 @@ class Column(BdmModel):
     )
     version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
-        "Status", on_delete=models.PROTECT, related_name="columns", null=True, blank=True
+        "Status",
+        on_delete=models.PROTECT,
+        related_name="columns",
+        null=True,
+        blank=True,
     )
     is_closed = models.BooleanField(
         default=False, help_text="Column is for Pro subscribers only"
@@ -787,7 +833,11 @@ class CloudTable(BdmModel):
     table = models.ForeignKey(
         "Table", on_delete=models.CASCADE, related_name="cloud_tables"
     )
-    columns = models.ManyToManyField("Column", related_name="cloud_tables")
+    columns = models.ManyToManyField(
+        "Column",
+        related_name="cloud_tables",
+        blank=True,
+    )
     gcp_project_id = models.CharField(max_length=255)
     gcp_dataset_id = models.CharField(max_length=255)
     gcp_table_id = models.CharField(max_length=255)
@@ -889,7 +939,11 @@ class RawDataSource(BdmModel):
     required_registration = models.BooleanField(default=False)
     version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
-        "Status", on_delete=models.PROTECT, related_name="raw_data_sources", null=True, blank=True
+        "Status",
+        on_delete=models.PROTECT,
+        related_name="raw_data_sources",
+        null=True,
+        blank=True,
     )
 
     graphql_nested_filter_fields_whitelist = ["id"]
@@ -911,7 +965,11 @@ class InformationRequest(BdmModel):
     )
     version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
-        "Status", on_delete=models.CASCADE, related_name="information_requests", null=True, blank=True
+        "Status",
+        on_delete=models.CASCADE,
+        related_name="information_requests",
+        null=True,
+        blank=True,
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

@@ -48,9 +48,9 @@ DEFAULT_FROM_EMAIL = nonull_getenv("EMAIL_HOST_USER")
 SERVER_EMAIL = nonull_getenv("EMAIL_HOST_USER")
 
 # Set logging path for production
-LOGGING["handlers"]["logfile"][  # noqa
-    "filename"
-] = "/var/log/django/basedosdados_api.log"
+# LOGGING["handlers"]["logfile"][  # noqa
+#     "filename"
+# ] = "/var/log/django/basedosdados_api.log"
 
 # Google Cloud Storage
 GS_CREDENTIALS = service_account.Credentials.from_service_account_info(
@@ -58,3 +58,4 @@ GS_CREDENTIALS = service_account.Credentials.from_service_account_info(
 )
 DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
 GS_BUCKET_NAME = nonull_getenv("GCP_BUCKET_NAME")
+GS_EXPIRATION = timedelta(seconds=604800)  # noqa: F405

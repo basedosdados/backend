@@ -13,6 +13,7 @@ from basedosdados_api.api.v1.models import (
     InformationRequest,
     DateTimeRange,
     Analysis,
+    CloudTable,
 )
 
 
@@ -134,3 +135,18 @@ def test_create_analysis(
     analise_bairros.save()
 
     assert Analysis.objects.exists()
+
+
+@pytest.mark.django_db
+def test_create_cloud_table(tabela_bairros):
+    """Test for CloudTable."""
+    cloud_table = CloudTable(
+        table=tabela_bairros,
+        gcp_project_id="basedosdados-dev",
+        gcp_dataset_id="dados_mestres",
+        gcp_table_id="bairros",
+    )
+    cloud_table.clean()
+    cloud_table.save()
+
+    assert CloudTable.objects.exists()

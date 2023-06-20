@@ -36,6 +36,7 @@ DATABASES = {
 }
 
 LOGGING = DEFAULT_LOGGING
+CSRF_TRUSTED_ORIGINS = ["http://localhost:8080"]
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
