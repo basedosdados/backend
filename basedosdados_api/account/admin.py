@@ -198,7 +198,14 @@ class BDGroupRoleInline(admin.TabularInline):
     extra = 1
 
 
+from martor.widgets import AdminMartorWidget
+from django.db import models
+
+
 class BDGroupAdmin(admin.ModelAdmin):
+    formfield_overrides = {
+        models.TextField: {"widget": AdminMartorWidget},
+    }
     inlines = (BDGroupRoleInline,)
     list_display = ("name", "description")
     search_fields = ("name", "description")
