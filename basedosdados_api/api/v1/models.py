@@ -933,7 +933,7 @@ class RawDataSource(BdmModel):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    contains_structure_data = models.BooleanField(default=False)
+    contains_structured_data = models.BooleanField(default=False)
     contains_api = models.BooleanField(default=False)
     is_free = models.BooleanField(default=False)
     required_registration = models.BooleanField(default=False)
