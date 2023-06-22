@@ -27,6 +27,7 @@ graphene = "3.2.1"
 django-storages = {extras = ["google"], version = "^1.13.2"}
 google-api-python-client = "^2.83.0"
 django-jazzmin = "^2.6.0"
+martor = "^1.6.26"
 django-extensions = "^3.2.1"
 
 [tool.poetry.dev-dependencies]
@@ -37,6 +38,10 @@ flake8 = "^4.0.1"
 [tool.poetry.group.test.dependencies]
 pytest = "^7.2.1"
 pytest-django = "^4.5.2"
+
+
+[tool.poetry.group.dev.dependencies]
+pygments = "^2.15.1"
 
 [tool.poetry.scripts]
 lint = "scripts.lint:main"

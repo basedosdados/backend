@@ -17,6 +17,8 @@ def nonull_getenv(var):
     return value
 
 
+CSRF_TRUSTED_ORIGINS = ["http://localhost:3000", "http://localhost:8000"]
+
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
 BASE_DIR = Path(__file__).resolve().parent.parent  # noqa: F405

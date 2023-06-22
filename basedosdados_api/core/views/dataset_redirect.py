@@ -17,6 +17,13 @@ class DatasetRedirectView(View):
 
         dataset = request.GET.get("dataset")
         dataset_slug = dataset.replace("-", "_")
+        BASE_URL = {
+            "localhost:8001": "localhost:3000",
+            "development.api.basedosdados.org": "development.basedosdados.org",
+            "staging.api.basedosdados.org": "homologation.basedosdados.org",
+            "api.basedosdados.org": "basedosdados.org",
+        }
+        redirect_domain = BASE_URL[domain]
 
         try:
             redirect_url = CloudTable.objects.filter(
@@ -25,14 +32,14 @@ class DatasetRedirectView(View):
             if not redirect_url:
                 raise CloudTable.DoesNotExist
             redirect_url = (
-                f"http://{domain}/dataset/{str(redirect_url.table.dataset.id)}"
+                f"http://{redirect_domain}/dataset/{str(redirect_url.table.dataset.id)}"
             )
         except CloudTable.DoesNotExist:
             # não tem cloud table, procura pelo nome do dataset
             try:
                 new_ds = Dataset.objects.filter(slug__icontains=dataset_slug).first()
-                redirect_url = f"http://{domain}/dataset/{str(new_ds.id)}"
+                redirect_url = f"http://{redirect_domain}/dataset/{str(new_ds.id)}"
             except Dataset.DoesNotExist:
-                redirect_url = f"http://{domain}/404"
+                redirect_url = f"http://{redirect_domain}/404"
 
         return HttpResponseRedirect(redirect_url)
