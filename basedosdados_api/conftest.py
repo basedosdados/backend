@@ -276,6 +276,7 @@ def fixture_tabela_bairros(
         number_rows=100,
         number_columns=10,
         version=1,
+        order=0,
     )
 
 

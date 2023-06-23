@@ -81,6 +81,10 @@ class TableInlineForm(UUIDHIddenIdForm):
             "number_columns",
             "is_closed",
         ]
+        readonly_fields = [
+            "order",
+            "move_up_down_links",
+        ]
 
 
 class ColumnInlineForm(UUIDHIddenIdForm):
@@ -139,11 +143,22 @@ class ColumnInline(TranslateOrderedInline):
     ]
 
 
-class TableInline(TranslationStackedInline):
+class TableInline(TranslateOrderedInline):
     model = Table
     form = TableInlineForm
     extra = 0
     show_change_link = True
+    fields = [
+        "order",
+        "move_up_down_links",
+    ] + TableInlineForm.Meta.fields
+    readonly_fields = [
+        "order",
+        "move_up_down_links",
+    ]
+    ordering = [
+        "order",
+    ]
 
 
 class DateTimeRangeInline(admin.StackedInline):
@@ -228,7 +243,7 @@ class TagAdmin(TabbedTranslationAdmin):
     ]
 
 
-class DatasetAdmin(TabbedTranslationAdmin):
+class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     def related_objects(self, obj):
         return format_html(
             "<a class='related-widget-wrapper-link add-related' href='/admin/v1/table/add/?dataset={0}&_to_field=id&_popup=1'>{1} {2}</a>",  # noqa

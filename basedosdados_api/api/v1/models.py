@@ -627,7 +627,7 @@ class Update(BdmModel):
         return super().clean()
 
 
-class Table(BdmModel):
+class Table(BdmModel, OrderedModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=False, max_length=255)
     name = models.CharField(max_length=255)
@@ -690,6 +690,7 @@ class Table(BdmModel):
     is_closed = models.BooleanField(
         default=False, help_text="Table is for Pro subscribers only"
     )
+    order_with_respect_to = ("dataset",)
 
     graphql_nested_filter_fields_whitelist = ["id", "dataset"]
 
