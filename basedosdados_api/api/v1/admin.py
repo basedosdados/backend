@@ -161,6 +161,48 @@ class TableInline(TranslateOrderedInline):
     ]
 
 
+class RawDataSourceInline(TranslateOrderedInline):
+    model = RawDataSource
+    extra = 0
+    show_change_link = True
+    fields = [
+        "order",
+        "move_up_down_links",
+        "id",
+        "name",
+        "description",
+        "url",
+    ]
+    readonly_fields = [
+        "order",
+        "move_up_down_links",
+    ]
+    ordering = [
+        "order",
+    ]
+
+
+class InformationRequestInline(TranslateOrderedInline):
+    model = InformationRequest
+    extra = 0
+    show_change_link = True
+    fields = [
+        "order",
+        "move_up_down_links",
+        "id",
+        "origin",
+        "number",
+        "url",
+    ]
+    readonly_fields = [
+        "order",
+        "move_up_down_links",
+    ]
+    ordering = [
+        "order",
+    ]
+
+
 class DateTimeRangeInline(admin.StackedInline):
     model = DateTimeRange
     extra = 0
@@ -268,6 +310,8 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     search_fields = ["name", "slug", "organization__name"]
     inlines = [
         TableInline,
+        RawDataSourceInline,
+        InformationRequestInline,
     ]
     filter_horizontal = [
         "tags",

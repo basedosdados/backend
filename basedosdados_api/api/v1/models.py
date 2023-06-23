@@ -915,7 +915,7 @@ class Language(BdmModel):
         ordering = ["slug"]
 
 
-class RawDataSource(BdmModel):
+class RawDataSource(BdmModel, OrderedModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
@@ -949,6 +949,7 @@ class RawDataSource(BdmModel):
         null=True,
         blank=True,
     )
+    order_with_respect_to = ("dataset",)
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -962,7 +963,7 @@ class RawDataSource(BdmModel):
         return f"{self.name} ({self.dataset.name})"
 
 
-class InformationRequest(BdmModel):
+class InformationRequest(BdmModel, OrderedModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="information_requests"
@@ -990,6 +991,7 @@ class InformationRequest(BdmModel):
         blank=True,
         null=True,
     )
+    order_with_respect_to = ("dataset",)
 
     graphql_nested_filter_fields_whitelist = ["id"]
 

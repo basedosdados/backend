@@ -410,6 +410,7 @@ def fixture_raw_data_source(
         name="Fonte de dados",
         status=status_em_processamento,
         version=1,
+        order=0,
     )
 
 
@@ -447,6 +448,7 @@ def fixture_pedido_informacao(
         status=status_em_processamento,
         started_by=usuario_inicio,
         version=1,
+        order=0,
     )
 
 
