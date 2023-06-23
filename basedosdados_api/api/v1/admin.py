@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
 from django import forms
-from django.db import models
+
+# from django.db import models
 from django.utils.html import format_html
 
-from martor.widgets import AdminMartorWidget
+# from martor.widgets import AdminMartorWidget
 from modeltranslation.admin import (
     TabbedTranslationAdmin,
     TranslationStackedInline,
@@ -233,7 +234,7 @@ class CoverageTableInline(admin.StackedInline):
     # inlines = [
     #     TableCoverageFilter,
     # ]
-    formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
+    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
 
 
 # Model Admins
@@ -297,7 +298,7 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         )
 
     related_objects.short_description = "Tables"
-    formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
+    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
     readonly_fields = [
         "id",
         "full_slug",
@@ -462,7 +463,7 @@ class RawDataSourceAdmin(TabbedTranslationAdmin):
         "languages",
         "area_ip_address_required",
     ]
-    formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
+    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
 
 
 class InformationRequestAdmin(TabbedTranslationAdmin):
@@ -472,7 +473,7 @@ class InformationRequestAdmin(TabbedTranslationAdmin):
     autocomplete_fields = [
         "dataset",
     ]
-    formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
+    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
 
 
 class CoverageTypeAdminFilter(admin.SimpleListFilter):
