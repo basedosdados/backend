@@ -41,7 +41,11 @@ from graphene_django.filter import DjangoFilterConnectionField
 from graphene_django.registry import get_global_registry
 from graphene_file_upload.scalars import Upload
 import graphql_jwt
-from graphql_jwt.decorators import login_required, staff_member_required, superuser_required
+from graphql_jwt.decorators import (
+    # login_required,
+    staff_member_required,
+    # superuser_required,
+)
 
 from basedosdados_api.custom.model import BdmModel
 
@@ -403,6 +407,7 @@ def generate_form_fields(model: BdmModel):
         "id",
         "created_at",
         "updated_at",
+        "order",
     )
     fields = []
     for field in model._meta.get_fields():
