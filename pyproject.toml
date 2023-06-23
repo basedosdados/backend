@@ -29,6 +29,7 @@ google-api-python-client = "^2.83.0"
 django-jazzmin = "^2.6.0"
 martor = "^1.6.26"
 django-extensions = "^3.2.1"
+django-ordered-model = "^3.7.4"
 
 [tool.poetry.dev-dependencies]
 black = "^22.3.0"

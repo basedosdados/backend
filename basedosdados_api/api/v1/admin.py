@@ -1,13 +1,18 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
 from django import forms
-from django.db import models
+
+# from django.db import models
 from django.utils.html import format_html
 
-from martor.widgets import AdminMartorWidget
+# from martor.widgets import AdminMartorWidget
 from modeltranslation.admin import (
     TabbedTranslationAdmin,
     TranslationStackedInline,
+)
+from ordered_model.admin import (
+    OrderedStackedInline,
+    OrderedInlineModelAdminMixin,
 )
 
 from basedosdados_api.api.v1.filters import OrganizationImageFilter, TableCoverageFilter
@@ -43,6 +48,10 @@ from basedosdados_api.api.v1.models import (
 )
 
 
+class TranslateOrderedInline(OrderedStackedInline, TranslationStackedInline):
+    pass
+
+
 # Forms
 
 
@@ -73,6 +82,10 @@ class TableInlineForm(UUIDHIddenIdForm):
             "number_columns",
             "is_closed",
         ]
+        readonly_fields = [
+            "order",
+            "move_up_down_links",
+        ]
 
 
 class ColumnInlineForm(UUIDHIddenIdForm):
@@ -89,6 +102,10 @@ class ColumnInlineForm(UUIDHIddenIdForm):
             "is_primary_key",
             "table",
         ]
+        readonly_fields = [
+            "order",
+            "move_up_down_links",
+        ]
 
 
 class CoverageInlineForm(UUIDHIddenIdForm):
@@ -104,7 +121,7 @@ class CoverageInlineForm(UUIDHIddenIdForm):
 # Inlines
 
 
-class ColumnInline(TranslationStackedInline):
+class ColumnInline(TranslateOrderedInline):
     model = Column
     form = ColumnInlineForm
     extra = 0
@@ -114,13 +131,77 @@ class ColumnInline(TranslationStackedInline):
         "directory_primary_key",
         "observation_level",
     ]
+    fields = [
+        "order",
+        "move_up_down_links",
+    ] + ColumnInlineForm.Meta.fields
+    readonly_fields = [
+        "order",
+        "move_up_down_links",
+    ]
+    ordering = [
+        "order",
+    ]
 
 
-class TableInline(TranslationStackedInline):
+class TableInline(TranslateOrderedInline):
     model = Table
     form = TableInlineForm
     extra = 0
     show_change_link = True
+    fields = [
+        "order",
+        "move_up_down_links",
+    ] + TableInlineForm.Meta.fields
+    readonly_fields = [
+        "order",
+        "move_up_down_links",
+    ]
+    ordering = [
+        "order",
+    ]
+
+
+class RawDataSourceInline(TranslateOrderedInline):
+    model = RawDataSource
+    extra = 0
+    show_change_link = True
+    fields = [
+        "order",
+        "move_up_down_links",
+        "id",
+        "name",
+        "description",
+        "url",
+    ]
+    readonly_fields = [
+        "order",
+        "move_up_down_links",
+    ]
+    ordering = [
+        "order",
+    ]
+
+
+class InformationRequestInline(TranslateOrderedInline):
+    model = InformationRequest
+    extra = 0
+    show_change_link = True
+    fields = [
+        "order",
+        "move_up_down_links",
+        "id",
+        "origin",
+        "number",
+        "url",
+    ]
+    readonly_fields = [
+        "order",
+        "move_up_down_links",
+    ]
+    ordering = [
+        "order",
+    ]
 
 
 class DateTimeRangeInline(admin.StackedInline):
@@ -153,7 +234,7 @@ class CoverageTableInline(admin.StackedInline):
     # inlines = [
     #     TableCoverageFilter,
     # ]
-    formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
+    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
 
 
 # Model Admins
@@ -205,7 +286,7 @@ class TagAdmin(TabbedTranslationAdmin):
     ]
 
 
-class DatasetAdmin(TabbedTranslationAdmin):
+class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     def related_objects(self, obj):
         return format_html(
             "<a class='related-widget-wrapper-link add-related' href='/admin/v1/table/add/?dataset={0}&_to_field=id&_popup=1'>{1} {2}</a>",  # noqa
@@ -217,7 +298,7 @@ class DatasetAdmin(TabbedTranslationAdmin):
         )
 
     related_objects.short_description = "Tables"
-    formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
+    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
     readonly_fields = [
         "id",
         "full_slug",
@@ -230,6 +311,8 @@ class DatasetAdmin(TabbedTranslationAdmin):
     search_fields = ["name", "slug", "organization__name"]
     inlines = [
         TableInline,
+        RawDataSourceInline,
+        InformationRequestInline,
     ]
     filter_horizontal = [
         "tags",
@@ -240,7 +323,7 @@ class DatasetAdmin(TabbedTranslationAdmin):
     ]
 
 
-class TableAdmin(TabbedTranslationAdmin):
+class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     change_form_template = "admin/table_change_form.html"
 
     def related_columns(self, obj):
@@ -326,6 +409,7 @@ class ColumnAdmin(TabbedTranslationAdmin):
     form = ColumnForm
     readonly_fields = [
         "id",
+        "order",
     ]
     list_display = [
         "__str__",
@@ -339,7 +423,7 @@ class ColumnAdmin(TabbedTranslationAdmin):
     list_filter = [
         "table__dataset__organization__name",
     ]
-    formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
+    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
 
 
 class ObservationLevelAdmin(admin.ModelAdmin):
@@ -379,7 +463,7 @@ class RawDataSourceAdmin(TabbedTranslationAdmin):
         "languages",
         "area_ip_address_required",
     ]
-    formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
+    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
 
 
 class InformationRequestAdmin(TabbedTranslationAdmin):
@@ -389,7 +473,7 @@ class InformationRequestAdmin(TabbedTranslationAdmin):
     autocomplete_fields = [
         "dataset",
     ]
-    formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
+    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
 
 
 class CoverageTypeAdminFilter(admin.SimpleListFilter):
