@@ -9,6 +9,10 @@ from modeltranslation.admin import (
     TabbedTranslationAdmin,
     TranslationStackedInline,
 )
+from ordered_model.admin import (
+    OrderedStackedInline,
+    OrderedInlineModelAdminMixin,
+)
 
 from basedosdados_api.api.v1.filters import OrganizationImageFilter, TableCoverageFilter
 from basedosdados_api.api.v1.models import (
@@ -41,6 +45,10 @@ from basedosdados_api.api.v1.models import (
     QualityCheck,
     UUIDHIddenIdForm,
 )
+
+
+class TranslateOrderedInline(OrderedStackedInline, TranslationStackedInline):
+    pass
 
 
 # Forms
@@ -89,6 +97,10 @@ class ColumnInlineForm(UUIDHIddenIdForm):
             "is_primary_key",
             "table",
         ]
+        readonly_fields = [
+            "order",
+            "move_up_down_links",
+        ]
 
 
 class CoverageInlineForm(UUIDHIddenIdForm):
@@ -104,7 +116,7 @@ class CoverageInlineForm(UUIDHIddenIdForm):
 # Inlines
 
 
-class ColumnInline(TranslationStackedInline):
+class ColumnInline(TranslateOrderedInline):
     model = Column
     form = ColumnInlineForm
     extra = 0
@@ -113,6 +125,17 @@ class ColumnInline(TranslationStackedInline):
     autocomplete_fields = [
         "directory_primary_key",
         "observation_level",
+    ]
+    fields = [
+        "order",
+        "move_up_down_links",
+    ] + ColumnInlineForm.Meta.fields
+    readonly_fields = [
+        "order",
+        "move_up_down_links",
+    ]
+    ordering = [
+        "order",
     ]
 
 
@@ -240,7 +263,7 @@ class DatasetAdmin(TabbedTranslationAdmin):
     ]
 
 
-class TableAdmin(TabbedTranslationAdmin):
+class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     change_form_template = "admin/table_change_form.html"
 
     def related_columns(self, obj):
@@ -326,6 +349,7 @@ class ColumnAdmin(TabbedTranslationAdmin):
     form = ColumnForm
     readonly_fields = [
         "id",
+        "order",
     ]
     list_display = [
         "__str__",
@@ -339,7 +363,7 @@ class ColumnAdmin(TabbedTranslationAdmin):
     list_filter = [
         "table__dataset__organization__name",
     ]
-    formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
+    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
 
 
 class ObservationLevelAdmin(admin.ModelAdmin):

@@ -56,6 +56,7 @@ INSTALLED_APPS = [
     # "health_check.storage",
     # "health_check.contrib.migrations",
     "rest_framework",
+    "ordered_model",
     "basedosdados_api.account",
     "basedosdados_api.core",
     "basedosdados_api.api.v1",

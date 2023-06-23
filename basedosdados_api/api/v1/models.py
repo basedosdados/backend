@@ -10,6 +10,8 @@ from django import forms
 from django.db import models
 from django.urls import reverse
 
+from ordered_model.models import OrderedModel
+
 from basedosdados_api.account.models import Account
 from basedosdados_api.account.storage import OverwriteStorage
 from basedosdados_api.api.v1.utils import (
@@ -733,7 +735,7 @@ class BigQueryType(BdmModel):
         ordering = ["name"]
 
 
-class Column(BdmModel):
+class Column(BdmModel, OrderedModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     table = models.ForeignKey("Table", on_delete=models.CASCADE, related_name="columns")
     name = models.CharField(max_length=255)
@@ -774,6 +776,7 @@ class Column(BdmModel):
     is_closed = models.BooleanField(
         default=False, help_text="Column is for Pro subscribers only"
     )
+    order_with_respect_to = ("table",)
 
     graphql_nested_filter_fields_whitelist = ["id", "name"]
 

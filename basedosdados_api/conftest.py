@@ -347,6 +347,7 @@ def fixture_coluna_state_id_bairros(
         is_in_staging=True,
         is_partition=False,
         directory_primary_key=coluna_state_id_diretorio,
+        order=1,
     )
 
 
@@ -366,6 +367,7 @@ def fixture_coluna_nome_bairros(
         is_partition=False,
         status=status_em_processamento,
         is_primary_key=True,
+        order=2,
     )
 
 
@@ -385,6 +387,7 @@ def fixture_coluna_populacao_bairros(
         is_partition=False,
         version=1,
         is_primary_key=False,
+        order=3,
     )
 
 
