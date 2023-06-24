@@ -431,7 +431,7 @@ class Dataset(BdmModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_closed = models.BooleanField(
-        default=False, help_text="Dataset is for Pro subscribers only"
+        default=False, help_text="Dataset is for BD Pro subscribers only"
     )
 
     graphql_nested_filter_fields_whitelist = ["id", "slug"]
@@ -688,7 +688,7 @@ class Table(BdmModel, OrderedModel):
     number_rows = models.BigIntegerField(blank=True, null=True)
     number_columns = models.BigIntegerField(blank=True, null=True)
     is_closed = models.BooleanField(
-        default=False, help_text="Table is for Pro subscribers only"
+        default=False, help_text="Table is for BD Pro subscribers only"
     )
     order_with_respect_to = ("dataset",)
 
@@ -718,6 +718,15 @@ class Table(BdmModel, OrderedModel):
             raise ValidationError(errors)
 
         return super().clean()
+
+    @property
+    def partitions(self):
+        partitions = self.columns.all().filter(is_partition=True)
+        return partitions
+
+    @property
+    def get_graphql_partitions(self):
+        return self.partitions
 
 
 class BigQueryType(BdmModel):
@@ -775,7 +784,7 @@ class Column(BdmModel, OrderedModel):
         blank=True,
     )
     is_closed = models.BooleanField(
-        default=False, help_text="Column is for Pro subscribers only"
+        default=False, help_text="Column is for BD Pro subscribers only"
     )
     order_with_respect_to = ("table",)
 
