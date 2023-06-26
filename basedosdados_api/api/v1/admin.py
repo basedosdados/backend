@@ -225,6 +225,21 @@ class DatasetAdmin(TabbedTranslationAdmin):
     ]
 
 
+def create_field_named_coverage():
+    def method(self, obj):
+        count = obj.coverages.count()  # only work to foreign keys of coverage
+
+        return format_html(
+            "<a href='/admin/v1/coverage/add/?table={0}'>{1} {2}</a>",
+            obj.id,
+            count,
+            "coverages" if count > 1 else "coverage (click to add)",
+        )
+
+    method.short_description = "Coverage"
+    return method
+
+
 class TableAdmin(TabbedTranslationAdmin):
     def related_objects(self, obj):
         return format_html(
@@ -237,6 +252,7 @@ class TableAdmin(TabbedTranslationAdmin):
         )
 
     related_objects.short_description = "Columns"
+    coverage = create_field_named_coverage()
 
     def add_view(self, request, *args, **kwargs):
         parent_model_id = request.GET.get("dataset")
@@ -255,12 +271,7 @@ class TableAdmin(TabbedTranslationAdmin):
             fields += parent_model._meta.fields
         return fields
 
-    readonly_fields = [
-        "id",
-        "created_at",
-        "updated_at",
-        "related_objects",
-    ]
+    readonly_fields = ["id", "created_at", "updated_at", "related_objects", "coverage"]
     search_fields = ["name", "dataset__name"]
     inlines = [
         ColumnInline,
@@ -278,9 +289,8 @@ class TableAdmin(TabbedTranslationAdmin):
 
 
 class ColumnAdmin(TabbedTranslationAdmin):
-    readonly_fields = [
-        "id",
-    ]
+    coverage = create_field_named_coverage()
+    readonly_fields = ["id", "coverage"]
     list_display = [
         "__str__",
         "table",
@@ -315,7 +325,8 @@ class ObservationLevelAdmin(admin.ModelAdmin):
 
 
 class RawDataSourceAdmin(admin.ModelAdmin):
-    readonly_fields = ["id", "created_at", "updated_at"]
+    coverage = create_field_named_coverage()
+    readonly_fields = ["id", "created_at", "updated_at", "coverage"]
     list_display = ["name", "dataset", "created_at", "updated_at"]
     search_fields = ["name", "dataset__name"]
     autocomplete_fields = [
@@ -329,7 +340,8 @@ class RawDataSourceAdmin(admin.ModelAdmin):
 
 
 class InformationRequestAdmin(TabbedTranslationAdmin):
-    readonly_fields = ["id", "created_at", "updated_at"]
+    coverage = create_field_named_coverage()
+    readonly_fields = ["id", "created_at", "updated_at", "coverage"]
     list_display = ["__str__", "dataset", "created_at", "updated_at"]
     search_fields = ["__str__", "dataset__name"]
     autocomplete_fields = [
@@ -559,9 +571,8 @@ class AnalysisAdmin(TabbedTranslationAdmin):
 
 
 class KeyAdmin(admin.ModelAdmin):
-    readonly_fields = [
-        "id",
-    ]
+    coverage = create_field_named_coverage()
+    readonly_fields = ["id", "coverage"]
     list_display = [
         "name",
         "value",
