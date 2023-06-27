@@ -18,7 +18,11 @@ from ordered_model.admin import (
 )
 
 from basedosdados_api.api.v1.filters import OrganizationImageFilter, TableCoverageFilter
-from basedosdados_api.api.v1.forms import ReorderTablesForm
+from basedosdados_api.api.v1.forms import (
+    ReorderTablesForm,
+    ReorderColumnsForm,
+)
+
 from basedosdados_api.api.v1.models import (
     Organization,
     Dataset,
@@ -82,6 +86,32 @@ def reorder_tables(modeladmin, request, queryset):
 
 
 reorder_tables.short_description = "Reorder tables"
+
+
+def reorder_columns(modeladmin, request, queryset):
+    if queryset.count() != 1:
+        messages.error(request, "Please select exactly one table.")
+        return
+
+    if "do_action" in request.POST:
+        form = ReorderColumnsForm(request.POST)
+        if form.is_valid():
+            ordered_slugs = form.cleaned_data["ordered_columns"].split()
+            for table in queryset:
+                call_command("reorder_columns", table.id, *ordered_slugs)
+            messages.success(request, "Columns reordered successfully")
+            return
+    else:
+        form = ReorderColumnsForm()
+
+    return render(
+        request,
+        "admin/reorder_columns.html",
+        {"title": "Reorder columns", "tables": queryset, "form": form},
+    )
+
+
+reorder_columns.short_description = "Reorder columns"
 
 
 class TranslateOrderedInline(OrderedStackedInline, TranslationStackedInline):
@@ -365,6 +395,10 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
 
 
 class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
+    actions = [
+        reorder_columns,
+    ]
+
     change_form_template = "admin/table_change_form.html"
 
     def related_columns(self, obj):

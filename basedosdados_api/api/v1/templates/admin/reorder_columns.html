@@ -1,0 +1,26 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+    <form action="" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="reorder_columns">
+        <input type="hidden" name="do_action" value="yes">
+
+        <div>
+            {{ form.ordered_columns }}
+            <input type="submit" class="default" style="float: none" value="Reorder">
+            {{ form.ordered_columns.errors }}
+        </div>
+
+        <h2>Reorder columns for table</h2>
+
+        <ul>
+            {% for table in tables %}
+                <li>
+                    <a href="{{ table.pk }}/">{{ table.slug }}</a>
+                    <input type="hidden" name="_selected_action" value="{{ table.pk }}">
+                </li>
+            {% endfor %}
+        </ul>
+    </form>
+{% endblock %}
