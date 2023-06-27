@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
-from django.contrib import admin
+from django.contrib import admin, messages
 from django import forms
+from django.core.management import call_command
+from django.shortcuts import render
 
 # from django.db import models
 from django.utils.html import format_html
@@ -16,6 +18,7 @@ from ordered_model.admin import (
 )
 
 from basedosdados_api.api.v1.filters import OrganizationImageFilter, TableCoverageFilter
+from basedosdados_api.api.v1.forms import ReorderTablesForm
 from basedosdados_api.api.v1.models import (
     Organization,
     Dataset,
@@ -46,6 +49,39 @@ from basedosdados_api.api.v1.models import (
     QualityCheck,
     UUIDHIddenIdForm,
 )
+
+
+def reorder_tables(modeladmin, request, queryset):
+    if queryset.count() != 1:
+        messages.error(
+            request,
+            "You can only reorder tables for one dataset at a time",
+        )
+        return
+
+    if "do_action" in request.POST:
+        form = ReorderTablesForm(request.POST)
+        if form.is_valid():
+            ordered_slugs = form.cleaned_data["ordered_slugs"].split()
+            for dataset in queryset:
+                call_command("reorder_tables", dataset.id, *ordered_slugs)
+
+            messages.success(request, "Tables reordered successfully")
+            return
+    else:
+        form = ReorderTablesForm()
+    return render(
+        request,
+        "admin/reorder_tables.html",
+        {
+            "title": "Reorder tables",
+            "form": form,
+            "datasets": queryset,
+        },
+    )
+
+
+reorder_tables.short_description = "Reorder tables"
 
 
 class TranslateOrderedInline(OrderedStackedInline, TranslationStackedInline):
@@ -287,6 +323,10 @@ class TagAdmin(TabbedTranslationAdmin):
 
 
 class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
+    actions = [
+        reorder_tables,
+    ]
+
     def related_objects(self, obj):
         return format_html(
             "<a class='related-widget-wrapper-link add-related' href='/admin/v1/table/add/?dataset={0}&_to_field=id&_popup=1'>{1} {2}</a>",  # noqa
@@ -298,6 +338,7 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         )
 
     related_objects.short_description = "Tables"
+
     # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
     readonly_fields = [
         "id",
