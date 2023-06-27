@@ -10,6 +10,8 @@ from django import forms
 from django.db import models
 from django.urls import reverse
 
+from ordered_model.models import OrderedModel
+
 from basedosdados_api.account.models import Account
 from basedosdados_api.account.storage import OverwriteStorage
 from basedosdados_api.api.v1.utils import (
@@ -429,7 +431,7 @@ class Dataset(BdmModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     is_closed = models.BooleanField(
-        default=False, help_text="Dataset is for Pro subscribers only"
+        default=False, help_text="Dataset is for BD Pro subscribers only"
     )
 
     graphql_nested_filter_fields_whitelist = ["id", "slug"]
@@ -625,7 +627,7 @@ class Update(BdmModel):
         return super().clean()
 
 
-class Table(BdmModel):
+class Table(BdmModel, OrderedModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=False, max_length=255)
     name = models.CharField(max_length=255)
@@ -686,8 +688,9 @@ class Table(BdmModel):
     number_rows = models.BigIntegerField(blank=True, null=True)
     number_columns = models.BigIntegerField(blank=True, null=True)
     is_closed = models.BooleanField(
-        default=False, help_text="Table is for Pro subscribers only"
+        default=False, help_text="Table is for BD Pro subscribers only"
     )
+    order_with_respect_to = ("dataset",)
 
     graphql_nested_filter_fields_whitelist = ["id", "dataset"]
 
@@ -716,6 +719,15 @@ class Table(BdmModel):
 
         return super().clean()
 
+    @property
+    def partitions(self):
+        partitions = self.columns.all().filter(is_partition=True)
+        return partitions
+
+    @property
+    def get_graphql_partitions(self):
+        return self.partitions
+
 
 class BigQueryType(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -733,7 +745,7 @@ class BigQueryType(BdmModel):
         ordering = ["name"]
 
 
-class Column(BdmModel):
+class Column(BdmModel, OrderedModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     table = models.ForeignKey("Table", on_delete=models.CASCADE, related_name="columns")
     name = models.CharField(max_length=255)
@@ -772,8 +784,9 @@ class Column(BdmModel):
         blank=True,
     )
     is_closed = models.BooleanField(
-        default=False, help_text="Column is for Pro subscribers only"
+        default=False, help_text="Column is for BD Pro subscribers only"
     )
+    order_with_respect_to = ("table",)
 
     graphql_nested_filter_fields_whitelist = ["id", "name"]
 
@@ -911,7 +924,7 @@ class Language(BdmModel):
         ordering = ["slug"]
 
 
-class RawDataSource(BdmModel):
+class RawDataSource(BdmModel, OrderedModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
@@ -945,6 +958,7 @@ class RawDataSource(BdmModel):
         null=True,
         blank=True,
     )
+    order_with_respect_to = ("dataset",)
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -958,7 +972,7 @@ class RawDataSource(BdmModel):
         return f"{self.name} ({self.dataset.name})"
 
 
-class InformationRequest(BdmModel):
+class InformationRequest(BdmModel, OrderedModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="information_requests"
@@ -986,6 +1000,7 @@ class InformationRequest(BdmModel):
         blank=True,
         null=True,
     )
+    order_with_respect_to = ("dataset",)
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
