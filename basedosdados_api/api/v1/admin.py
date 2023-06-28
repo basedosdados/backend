@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin, messages
+from django.conf import settings
 from django import forms
 from django.core.management import call_command
 from django.shortcuts import render
 
 # from django.db import models
 from django.utils.html import format_html
+
+from google.cloud import bigquery
 
 # from martor.widgets import AdminMartorWidget
 from modeltranslation.admin import (
@@ -96,8 +99,21 @@ def reorder_columns(modeladmin, request, queryset):
     if "do_action" in request.POST:
         form = ReorderColumnsForm(request.POST)
         if form.is_valid():
-            ordered_slugs = form.cleaned_data["ordered_columns"].split()
             for table in queryset:
+                if form.cleaned_data["use_database_order"]:
+                    cloud_table = CloudTable.objects.get(table=table)
+                    client = bigquery.Client.from_service_account_json(
+                        settings.GOOGLE_APPLICATION_CREDENTIALS
+                    )
+                    query = f"""
+                        SELECT column_name
+                        FROM {cloud_table.gcp_project_id}.{cloud_table.gcp_dataset_id}.INFORMATION_SCHEMA.COLUMNS
+                        WHERE table_name = '{cloud_table.gcp_table_id}'
+                    """
+                    query_job = client.query(query)
+                    ordered_slugs = [row.column_name for row in query_job.result()]
+                else:
+                    ordered_slugs = form.cleaned_data["ordered_columns"].split()
                 call_command("reorder_columns", table.id, *ordered_slugs)
             messages.success(request, "Columns reordered successfully")
             return
