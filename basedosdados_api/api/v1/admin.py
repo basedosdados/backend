@@ -1,9 +1,15 @@
 # -*- coding: utf-8 -*-
-from django.contrib import admin
+import os
+
+from django.contrib import admin, messages
 from django import forms
+from django.core.management import call_command
+from django.shortcuts import render
 
 # from django.db import models
 from django.utils.html import format_html
+
+from google.cloud import bigquery
 
 # from martor.widgets import AdminMartorWidget
 from modeltranslation.admin import (
@@ -16,6 +22,11 @@ from ordered_model.admin import (
 )
 
 from basedosdados_api.api.v1.filters import OrganizationImageFilter, TableCoverageFilter
+from basedosdados_api.api.v1.forms import (
+    ReorderTablesForm,
+    ReorderColumnsForm,
+)
+
 from basedosdados_api.api.v1.models import (
     Organization,
     Dataset,
@@ -46,6 +57,78 @@ from basedosdados_api.api.v1.models import (
     QualityCheck,
     UUIDHIddenIdForm,
 )
+
+
+def reorder_tables(modeladmin, request, queryset):
+    if queryset.count() != 1:
+        messages.error(
+            request,
+            "You can only reorder tables for one dataset at a time",
+        )
+        return
+
+    if "do_action" in request.POST:
+        form = ReorderTablesForm(request.POST)
+        if form.is_valid():
+            ordered_slugs = form.cleaned_data["ordered_slugs"].split()
+            for dataset in queryset:
+                call_command("reorder_tables", dataset.id, *ordered_slugs)
+
+            messages.success(request, "Tables reordered successfully")
+            return
+    else:
+        form = ReorderTablesForm()
+    return render(
+        request,
+        "admin/reorder_tables.html",
+        {
+            "title": "Reorder tables",
+            "form": form,
+            "datasets": queryset,
+        },
+    )
+
+
+reorder_tables.short_description = "Reorder tables"
+
+
+def reorder_columns(modeladmin, request, queryset):
+    if queryset.count() != 1:
+        messages.error(request, "Please select exactly one table.")
+        return
+
+    if "do_action" in request.POST:
+        form = ReorderColumnsForm(request.POST)
+        if form.is_valid():
+            for table in queryset:
+                if form.cleaned_data["use_database_order"]:
+                    cloud_table = CloudTable.objects.get(table=table)
+                    client = bigquery.Client.from_service_account_json(
+                        os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
+                    )
+                    query = f"""
+                        SELECT column_name
+                        FROM {cloud_table.gcp_project_id}.{cloud_table.gcp_dataset_id}.INFORMATION_SCHEMA.COLUMNS
+                        WHERE table_name = '{cloud_table.gcp_table_id}'
+                    """
+                    query_job = client.query(query)
+                    ordered_slugs = [row.column_name for row in query_job.result()]
+                else:
+                    ordered_slugs = form.cleaned_data["ordered_columns"].split()
+                call_command("reorder_columns", table.id, *ordered_slugs)
+            messages.success(request, "Columns reordered successfully")
+            return
+    else:
+        form = ReorderColumnsForm()
+
+    return render(
+        request,
+        "admin/reorder_columns.html",
+        {"title": "Reorder columns", "tables": queryset, "form": form},
+    )
+
+
+reorder_columns.short_description = "Reorder columns"
 
 
 class TranslateOrderedInline(OrderedStackedInline, TranslationStackedInline):
@@ -287,6 +370,10 @@ class TagAdmin(TabbedTranslationAdmin):
 
 
 class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
+    actions = [
+        reorder_tables,
+    ]
+
     def related_objects(self, obj):
         return format_html(
             "<a class='related-widget-wrapper-link add-related' href='/admin/v1/table/add/?dataset={0}&_to_field=id&_popup=1'>{1} {2}</a>",  # noqa
@@ -298,6 +385,7 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         )
 
     related_objects.short_description = "Tables"
+
     # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
     readonly_fields = [
         "id",
@@ -329,6 +417,10 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
 
 
 class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
+    actions = [
+        reorder_columns,
+    ]
+
     change_form_template = "admin/table_change_form.html"
 
     def related_columns(self, obj):

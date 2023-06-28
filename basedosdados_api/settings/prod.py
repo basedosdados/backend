@@ -56,6 +56,7 @@ SERVER_EMAIL = nonull_getenv("EMAIL_HOST_USER")
 GS_CREDENTIALS = service_account.Credentials.from_service_account_info(
     json.loads(nonull_getenv("GCP_SA"))
 )
+GOOGLE_APPLICATION_CREDENTIALS = GS_CREDENTIALS
 DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
 GS_BUCKET_NAME = nonull_getenv("GCP_BUCKET_NAME")
 GS_EXPIRATION = timedelta(seconds=604800)  # noqa: F405
