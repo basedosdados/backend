@@ -69,6 +69,8 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         model_attr="contains_information_requests"
     )
 
+    status_slug = indexes.MultiValueField(model_attr="status__slug", null=True)
+
     def get_model(self):
         return Dataset
 
@@ -171,6 +173,10 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
             data["n_information_requests"] = len(information_requests)
         else:
             data["n_information_requests"] = 0
+
+        # Status
+        status = data.get("status__slug", "")
+        data["status"] = status
 
         # Is closed
         is_closed = data.get("is_closed", False)

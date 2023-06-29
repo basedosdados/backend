@@ -108,7 +108,18 @@ class DatasetESSearchView(SearchView):
                         "bool": {
                             "must": [
                                 query,
-                                {"bool": {"must": all_filters}},
+                                {
+                                    "bool": {
+                                        "must": all_filters,
+                                        "must_not": [
+                                            {
+                                                "match": {
+                                                    "status_slug.exact": "under_review"
+                                                }
+                                            }
+                                        ],
+                                    }
+                                },
                             ]
                         }
                     },
