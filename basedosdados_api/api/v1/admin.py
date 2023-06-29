@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import os
 
 from django.contrib import admin, messages
 from django import forms
@@ -103,9 +102,7 @@ def reorder_columns(modeladmin, request, queryset):
             for table in queryset:
                 if form.cleaned_data["use_database_order"]:
                     cloud_table = CloudTable.objects.get(table=table)
-                    client = bigquery.Client.from_service_account_json(
-                        os.getenv("GOOGLE_APPLICATION_CREDENTIALS")
-                    )
+                    client = bigquery.Client()
                     query = f"""
                         SELECT column_name
                         FROM {cloud_table.gcp_project_id}.{cloud_table.gcp_dataset_id}.INFORMATION_SCHEMA.COLUMNS
