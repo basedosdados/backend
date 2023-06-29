@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
+import json
 
+from django.conf import settings
 from django.contrib import admin, messages
 from django import forms
 from django.core.management import call_command
@@ -9,6 +11,7 @@ from django.shortcuts import render
 from django.utils.html import format_html
 
 from google.cloud import bigquery
+from google.oauth2 import service_account
 
 # from martor.widgets import AdminMartorWidget
 from modeltranslation.admin import (
@@ -102,7 +105,13 @@ def reorder_columns(modeladmin, request, queryset):
             for table in queryset:
                 if form.cleaned_data["use_database_order"]:
                     cloud_table = CloudTable.objects.get(table=table)
-                    client = bigquery.Client()
+                    credentials_dict = json.loads(
+                        settings.GOOGLE_APPLICATION_CREDENTIALS
+                    )
+                    credentials = service_account.Credentials.from_service_account_info(
+                        credentials_dict
+                    )
+                    client = bigquery.Client(credentials=credentials)
                     query = f"""
                         SELECT column_name
                         FROM {cloud_table.gcp_project_id}.{cloud_table.gcp_dataset_id}.INFORMATION_SCHEMA.COLUMNS
