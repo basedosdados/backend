@@ -708,16 +708,6 @@ class Table(BdmModel, OrderedModel):
             )
         ]
 
-    def clean(self):
-        """Table cannot be opened if dataset is closed"""
-        errors = {}
-        if not self.is_closed and self.dataset.is_closed:
-            errors["is_closed"] = "Table cannot be opened if dataset is closed"
-
-        if errors:
-            raise ValidationError(errors)
-
-        return super().clean()
 
     @property
     def partitions(self):
@@ -814,9 +804,6 @@ class Column(BdmModel, OrderedModel):
             errors[
                 "directory_primary_key"
             ] = "Column indicated as a directory's primary key is not in a directory."
-
-        if not self.is_closed and self.table.dataset.is_closed:
-            errors["is_closed"] = "Column cannot be opened if dataset is closed."
 
         if errors:
             raise ValidationError(errors)
