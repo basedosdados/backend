@@ -7,6 +7,7 @@ from .models import (
 
 
 class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
+    updated_at = indexes.DateTimeField(model_attr="updated_at")
     text = indexes.CharField(document=True, use_template=True)
     slug = indexes.CharField(model_attr="slug")
     name = indexes.CharField(model_attr="name")

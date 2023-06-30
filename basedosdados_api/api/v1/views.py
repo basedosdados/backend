@@ -124,9 +124,9 @@ class DatasetESSearchView(SearchView):
                         }
                     },
                     "field_value_factor": {
-                        "field": "total_tables",
+                        "field": "contains_tables",
                         "modifier": "square",
-                        "factor": 2,
+                        "factor": 0.5,
                         "missing": 0,
                     },
                     "boost_mode": "sum",
@@ -195,7 +195,10 @@ class DatasetESSearchView(SearchView):
                     }
                 },
             },
-            "sort": [{"_score": {"order": "desc"}}],
+            "sort": [
+                {"_score": {"order": "desc"}},
+                {"updated_at": {"order": "desc"}},
+            ],
         }
 
         form_class = self.get_form_class()
@@ -228,6 +231,9 @@ class DatasetESSearchView(SearchView):
                 "slug": r.get("slug"),
                 "name": r.get("name"),
             }
+
+            if r.get("updated_at"):
+                cleaned_results["updated_at"] = r.get("updated_at")
 
             # organization
             organization = r.get("organization", [])
