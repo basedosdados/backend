@@ -4,6 +4,7 @@ import json
 from django.conf import settings
 from django.contrib import admin, messages
 from django import forms
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.management import call_command
 from django.shortcuts import render
 
@@ -12,6 +13,7 @@ from django.utils.html import format_html
 
 from google.cloud import bigquery
 from google.oauth2 import service_account
+from haystack import connections
 
 # from martor.widgets import AdminMartorWidget
 from modeltranslation.admin import (
@@ -135,6 +137,30 @@ def reorder_columns(modeladmin, request, queryset):
 
 
 reorder_columns.short_description = "Reorder columns"
+
+
+def rebuild_search_index(modeladmin, request, queryset):
+    call_command("rebuild_index", interactive=False, batchsize=100, workers=4)
+    messages.success(request, "Search index rebuilt successfully")
+
+
+rebuild_search_index.short_description = "Rebuild search index"
+
+
+def update_search_index(modeladmin, request, queryset):
+    for instance in queryset:
+        try:
+            search_backend = connections["default"].get_backend()
+            search_index = search_backend.get_index(
+                "basedosdados_api.api.v1.models.Dataset"
+            )
+            search_index.update_object(instance, using="default")
+            messages.success(request, "Search index updated successfully")
+        except ObjectDoesNotExist:
+            messages.error(request, f"Search index for {instance} update failed")
+
+
+update_search_index.short_description = "Update search index"
 
 
 class TranslateOrderedInline(OrderedStackedInline, TranslationStackedInline):
@@ -378,6 +404,7 @@ class TagAdmin(TabbedTranslationAdmin):
 class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     actions = [
         reorder_tables,
+        rebuild_search_index,
     ]
 
     def related_objects(self, obj):
