@@ -1,16 +1,34 @@
 # -*- coding: utf-8 -*-
-from django.contrib import admin
+import json
+
+from django.conf import settings
+from django.contrib import admin, messages
 from django import forms
-from django.db import models
+from django.core.management import call_command
+from django.shortcuts import render
+
+# from django.db import models
 from django.utils.html import format_html
 
-from martor.widgets import AdminMartorWidget
+from google.cloud import bigquery
+from google.oauth2 import service_account
+
+# from martor.widgets import AdminMartorWidget
 from modeltranslation.admin import (
     TabbedTranslationAdmin,
     TranslationStackedInline,
 )
+from ordered_model.admin import (
+    OrderedStackedInline,
+    OrderedInlineModelAdminMixin,
+)
 
 from basedosdados_api.api.v1.filters import OrganizationImageFilter, TableCoverageFilter
+from basedosdados_api.api.v1.forms import (
+    ReorderTablesForm,
+    ReorderColumnsForm,
+)
+
 from basedosdados_api.api.v1.models import (
     Organization,
     Dataset,
@@ -43,6 +61,86 @@ from basedosdados_api.api.v1.models import (
 )
 
 
+def reorder_tables(modeladmin, request, queryset):
+    if queryset.count() != 1:
+        messages.error(
+            request,
+            "You can only reorder tables for one dataset at a time",
+        )
+        return
+
+    if "do_action" in request.POST:
+        form = ReorderTablesForm(request.POST)
+        if form.is_valid():
+            ordered_slugs = form.cleaned_data["ordered_slugs"].split()
+            for dataset in queryset:
+                call_command("reorder_tables", dataset.id, *ordered_slugs)
+
+            messages.success(request, "Tables reordered successfully")
+            return
+    else:
+        form = ReorderTablesForm()
+    return render(
+        request,
+        "admin/reorder_tables.html",
+        {
+            "title": "Reorder tables",
+            "form": form,
+            "datasets": queryset,
+        },
+    )
+
+
+reorder_tables.short_description = "Reorder tables"
+
+
+def reorder_columns(modeladmin, request, queryset):
+    if queryset.count() != 1:
+        messages.error(request, "Please select exactly one table.")
+        return
+
+    if "do_action" in request.POST:
+        form = ReorderColumnsForm(request.POST)
+        if form.is_valid():
+            for table in queryset:
+                if form.cleaned_data["use_database_order"]:
+                    cloud_table = CloudTable.objects.get(table=table)
+                    credentials_dict = json.loads(
+                        settings.GOOGLE_APPLICATION_CREDENTIALS
+                    )
+                    credentials = service_account.Credentials.from_service_account_info(
+                        credentials_dict
+                    )
+                    client = bigquery.Client(credentials=credentials)
+                    query = f"""
+                        SELECT column_name
+                        FROM {cloud_table.gcp_project_id}.{cloud_table.gcp_dataset_id}.INFORMATION_SCHEMA.COLUMNS
+                        WHERE table_name = '{cloud_table.gcp_table_id}'
+                    """
+                    query_job = client.query(query)
+                    ordered_slugs = [row.column_name for row in query_job.result()]
+                else:
+                    ordered_slugs = form.cleaned_data["ordered_columns"].split()
+                call_command("reorder_columns", table.id, *ordered_slugs)
+            messages.success(request, "Columns reordered successfully")
+            return
+    else:
+        form = ReorderColumnsForm()
+
+    return render(
+        request,
+        "admin/reorder_columns.html",
+        {"title": "Reorder columns", "tables": queryset, "form": form},
+    )
+
+
+reorder_columns.short_description = "Reorder columns"
+
+
+class TranslateOrderedInline(OrderedStackedInline, TranslationStackedInline):
+    pass
+
+
 # Forms
 
 
@@ -73,6 +171,10 @@ class TableInlineForm(UUIDHIddenIdForm):
             "number_columns",
             "is_closed",
         ]
+        readonly_fields = [
+            "order",
+            "move_up_down_links",
+        ]
 
 
 class ColumnInlineForm(UUIDHIddenIdForm):
@@ -89,6 +191,10 @@ class ColumnInlineForm(UUIDHIddenIdForm):
             "is_primary_key",
             "table",
         ]
+        readonly_fields = [
+            "order",
+            "move_up_down_links",
+        ]
 
 
 class CoverageInlineForm(UUIDHIddenIdForm):
@@ -104,7 +210,7 @@ class CoverageInlineForm(UUIDHIddenIdForm):
 # Inlines
 
 
-class ColumnInline(TranslationStackedInline):
+class ColumnInline(TranslateOrderedInline):
     model = Column
     form = ColumnInlineForm
     extra = 0
@@ -114,13 +220,77 @@ class ColumnInline(TranslationStackedInline):
         "directory_primary_key",
         "observation_level",
     ]
+    fields = [
+        "order",
+        "move_up_down_links",
+    ] + ColumnInlineForm.Meta.fields
+    readonly_fields = [
+        "order",
+        "move_up_down_links",
+    ]
+    ordering = [
+        "order",
+    ]
 
 
-class TableInline(TranslationStackedInline):
+class TableInline(TranslateOrderedInline):
     model = Table
     form = TableInlineForm
     extra = 0
     show_change_link = True
+    fields = [
+        "order",
+        "move_up_down_links",
+    ] + TableInlineForm.Meta.fields
+    readonly_fields = [
+        "order",
+        "move_up_down_links",
+    ]
+    ordering = [
+        "order",
+    ]
+
+
+class RawDataSourceInline(TranslateOrderedInline):
+    model = RawDataSource
+    extra = 0
+    show_change_link = True
+    fields = [
+        "order",
+        "move_up_down_links",
+        "id",
+        "name",
+        "description",
+        "url",
+    ]
+    readonly_fields = [
+        "order",
+        "move_up_down_links",
+    ]
+    ordering = [
+        "order",
+    ]
+
+
+class InformationRequestInline(TranslateOrderedInline):
+    model = InformationRequest
+    extra = 0
+    show_change_link = True
+    fields = [
+        "order",
+        "move_up_down_links",
+        "id",
+        "origin",
+        "number",
+        "url",
+    ]
+    readonly_fields = [
+        "order",
+        "move_up_down_links",
+    ]
+    ordering = [
+        "order",
+    ]
 
 
 class DateTimeRangeInline(admin.StackedInline):
@@ -153,7 +323,7 @@ class CoverageTableInline(admin.StackedInline):
     # inlines = [
     #     TableCoverageFilter,
     # ]
-    formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
+    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
 
 
 # Model Admins
@@ -205,7 +375,11 @@ class TagAdmin(TabbedTranslationAdmin):
     ]
 
 
-class DatasetAdmin(TabbedTranslationAdmin):
+class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
+    actions = [
+        reorder_tables,
+    ]
+
     def related_objects(self, obj):
         return format_html(
             "<a class='related-widget-wrapper-link add-related' href='/admin/v1/table/add/?dataset={0}&_to_field=id&_popup=1'>{1} {2}</a>",  # noqa
@@ -217,11 +391,17 @@ class DatasetAdmin(TabbedTranslationAdmin):
         )
 
     related_objects.short_description = "Tables"
-    formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
+
+    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
     readonly_fields = [
         "id",
         "full_slug",
         "coverage",
+        "contains_tables",
+        "contains_open_tables",
+        "contains_closed_tables",
+        "contains_raw_data_sources",
+        "contains_information_requests",
         "created_at",
         "updated_at",
         "related_objects",
@@ -230,6 +410,8 @@ class DatasetAdmin(TabbedTranslationAdmin):
     search_fields = ["name", "slug", "organization__name"]
     inlines = [
         TableInline,
+        RawDataSourceInline,
+        InformationRequestInline,
     ]
     filter_horizontal = [
         "tags",
@@ -240,7 +422,11 @@ class DatasetAdmin(TabbedTranslationAdmin):
     ]
 
 
-class TableAdmin(TabbedTranslationAdmin):
+class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
+    actions = [
+        reorder_columns,
+    ]
+
     change_form_template = "admin/table_change_form.html"
 
     def related_columns(self, obj):
@@ -290,6 +476,7 @@ class TableAdmin(TabbedTranslationAdmin):
 
     readonly_fields = [
         "id",
+        "partitions",
         "created_at",
         "updated_at",
         "related_columns",
@@ -326,6 +513,7 @@ class ColumnAdmin(TabbedTranslationAdmin):
     form = ColumnForm
     readonly_fields = [
         "id",
+        "order",
     ]
     list_display = [
         "__str__",
@@ -339,7 +527,7 @@ class ColumnAdmin(TabbedTranslationAdmin):
     list_filter = [
         "table__dataset__organization__name",
     ]
-    formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
+    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
 
 
 class ObservationLevelAdmin(admin.ModelAdmin):
@@ -379,7 +567,7 @@ class RawDataSourceAdmin(TabbedTranslationAdmin):
         "languages",
         "area_ip_address_required",
     ]
-    formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
+    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
 
 
 class InformationRequestAdmin(TabbedTranslationAdmin):
@@ -389,7 +577,7 @@ class InformationRequestAdmin(TabbedTranslationAdmin):
     autocomplete_fields = [
         "dataset",
     ]
-    formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
+    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
 
 
 class CoverageTypeAdminFilter(admin.SimpleListFilter):

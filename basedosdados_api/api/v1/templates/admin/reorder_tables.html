@@ -1,0 +1,26 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+    <form action="" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="reorder_tables">
+        <input type="hidden" name="do_action" value="yes">
+
+        <div>
+            {{ form.ordered_slugs }}
+            <input type="submit" class="default" style="float: none" value="Reorder">
+            {{ form.ordered_slugs.errors }}
+        </div>
+
+        <h2>Reorder tables for next datasets</h2>
+
+        <ul>
+            {% for dataset in datasets %}
+                <li>
+                    <a href="{{ dataset.pk }}/">{{ dataset.slug }}</a>
+                    <input type="hidden" name="_selected_action" value="{{ dataset.pk }}">
+                </li>
+            {% endfor %}
+        </ul>
+    </form>
+{% endblock %}
