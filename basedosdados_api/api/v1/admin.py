@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+from time import sleep
 
 from django.conf import settings
 from django.contrib import admin, messages
@@ -97,10 +98,6 @@ reorder_tables.short_description = "Reorder tables"
 
 
 def reorder_columns(modeladmin, request, queryset):
-    if queryset.count() != 1:
-        messages.error(request, "Please select exactly one table.")
-        return
-
     if "do_action" in request.POST:
         form = ReorderColumnsForm(request.POST)
         if form.is_valid():
@@ -119,11 +116,33 @@ def reorder_columns(modeladmin, request, queryset):
                         FROM {cloud_table.gcp_project_id}.{cloud_table.gcp_dataset_id}.INFORMATION_SCHEMA.COLUMNS
                         WHERE table_name = '{cloud_table.gcp_table_id}'
                     """
-                    query_job = client.query(query)
+                    try:
+                        query_job = client.query(query, timeout=90)
+                    except Exception as e:
+                        messages.error(
+                            request,
+                            f"Error while querying BigQuery: {e}",
+                        )
+                        return
                     ordered_slugs = [row.column_name for row in query_job.result()]
                 else:
+                    if queryset.count() != 1:
+                        messages.error(
+                            request,
+                            "To pass the names manually you must select only one table.",
+                        )
+                        return
                     ordered_slugs = form.cleaned_data["ordered_columns"].split()
-                call_command("reorder_columns", table.id, *ordered_slugs)
+                try:
+                    call_command("reorder_columns", table.id, *ordered_slugs)
+                    print(f"Columns reordered successfully for {table}")
+                    sleep(1)
+                except Exception as e:
+                    messages.error(
+                        request,
+                        f"Error while reordering columns: {e}",
+                    )
+                    return
             messages.success(request, "Columns reordered successfully")
             return
     else:
