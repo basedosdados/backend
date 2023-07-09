@@ -10,7 +10,9 @@ from django.core.validators import FileExtensionValidator
 current_site = os.getenv("url")
 
 
-def validate_area_key(value):   # outdated because it assumes separators as `.` instead of `_`
+def validate_area_key(
+    value,
+):  # outdated because it assumes separators as `.` instead of `_`
     """Validate area hierarchy."""
     regex = re.compile(r"^[a-z]+(\.[a-z0-9]+)*$")
     if not regex.match(value):
@@ -21,7 +23,9 @@ def validate_area_key(value):   # outdated because it assumes separators as `.` 
         )
 
 
-def validate_is_valid_area_key(value):  # outdated because it assumes separators as `.` instead of `_`
+def validate_is_valid_area_key(
+    value,
+):  # outdated because it assumes separators as `.` instead of `_`
     """Validate area key is in BD dict."""
     with open(
         settings.BASE_DIR / "schemas/repository/bd_spatial_coverage_tree.json"
@@ -38,6 +42,6 @@ def validate_is_valid_area_key(value):  # outdated because it assumes separators
 def validate_is_valid_image_format(value):
     """Validate image file."""
     validate_image_file_extension = FileExtensionValidator(
-        allowed_extensions=["jpg", "jpeg", "png", "gif"]
+        allowed_extensions=["jpg", "jpeg", "png", "gif", "svg"]
     )
     validate_image_file_extension(value)

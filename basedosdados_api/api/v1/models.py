@@ -309,6 +309,14 @@ class Theme(BdmModel):
     name = models.CharField(max_length=255)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    picture = models.ImageField(
+        "Image",
+        upload_to=image_path_and_rename,
+        null=True,
+        blank=True,
+        validators=[validate_is_valid_image_format],
+        storage=OverwriteStorage(),
+    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -320,6 +328,16 @@ class Theme(BdmModel):
         verbose_name = "Theme"
         verbose_name_plural = "Themes"
         ordering = ["slug"]
+
+    def has_picture(self):
+        try:
+            hasattr(self.picture, "url")
+        except Exception as e:  # noqa
+            return False
+        return self.picture is not None
+
+    has_picture.short_description = "Has Picture"
+    has_picture.boolean = True
 
 
 class Organization(BdmModel):
@@ -707,7 +725,6 @@ class Table(BdmModel, OrderedModel):
                 fields=["dataset", "slug"], name="constraint_dataset_table_slug"
             )
         ]
-
 
     @property
     def partitions(self):
