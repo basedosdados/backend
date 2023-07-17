@@ -708,11 +708,10 @@ class Table(BdmModel, OrderedModel):
             )
         ]
 
-
     @property
     def partitions(self):
-        partitions = self.columns.all().filter(is_partition=True)
-        return partitions
+        partitions_list = [p.name for p in self.columns.all().filter(is_partition=True)]
+        return ", ".join(partitions_list)
 
     @property
     def get_graphql_partitions(self):
