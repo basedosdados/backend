@@ -462,6 +462,8 @@ class Dataset(BdmModel):
     @property
     def coverage(self):
         tables = self.tables.all()
+        raw_data_sources = self.raw_data_sources.all()
+        information_requests = self.information_requests.all()
         start_year, start_month, start_day = False, False, False
         # start_semester, star_quarter = False, False
         # start_hour, start_minute, start_second = False, False, False
@@ -471,12 +473,65 @@ class Dataset(BdmModel):
 
         start_date, end_date = datetime(3000, 1, 1, 0, 0, 0), datetime(1, 1, 1, 0, 0, 0)
 
+        # TODO: refactor this to use a function
         for table in tables:
             for coverage in table.coverages.all():
                 try:
                     date_time = DateTimeRange.objects.get(coverage=coverage.pk)
                 except DateTimeRange.DoesNotExist:
-                    return ""
+                    continue
+                start_year = date_time.start_year is not None or start_year
+                start_month = date_time.start_month is not None or start_month
+                start_day = date_time.start_day is not None or start_day
+                end_year = date_time.end_year is not None or end_year
+                end_month = date_time.end_month is not None or end_month
+                end_day = date_time.end_day is not None or end_day
+
+                new_start_date = datetime(
+                    date_time.start_year,
+                    date_time.start_month or 1,
+                    date_time.start_day or 1,
+                )
+                start_date = (
+                    new_start_date if new_start_date < start_date else start_date
+                )
+                new_end_date = datetime(
+                    date_time.end_year, date_time.end_month or 1, date_time.end_day or 1
+                )
+                end_date = new_end_date if new_end_date > end_date else end_date
+
+        for raw_data_source in raw_data_sources:
+            for coverage in raw_data_source.coverages.all():
+                try:
+                    date_time = DateTimeRange.objects.get(coverage=coverage.pk)
+                except DateTimeRange.DoesNotExist:
+                    continue
+                start_year = date_time.start_year is not None or start_year
+                start_month = date_time.start_month is not None or start_month
+                start_day = date_time.start_day is not None or start_day
+                end_year = date_time.end_year is not None or end_year
+                end_month = date_time.end_month is not None or end_month
+                end_day = date_time.end_day is not None or end_day
+
+                new_start_date = datetime(
+                    date_time.start_year,
+                    date_time.start_month or 1,
+                    date_time.start_day or 1,
+                )
+                start_date = (
+                    new_start_date if new_start_date < start_date else start_date
+                )
+                new_end_date = datetime(
+                    date_time.end_year, date_time.end_month or 1, date_time.end_day or 1
+                )
+                end_date = new_end_date if new_end_date > end_date else end_date
+
+        for information_request in information_requests:
+            for coverage in information_request.coverages.all():
+                try:
+                    date_time = DateTimeRange.objects.get(coverage=coverage.pk)
+                except DateTimeRange.DoesNotExist:
+                    continue
                 start_year = date_time.start_year is not None or start_year
                 start_month = date_time.start_month is not None or start_month
                 start_day = date_time.start_day is not None or start_day
@@ -708,11 +763,10 @@ class Table(BdmModel, OrderedModel):
             )
         ]
 
-
     @property
     def partitions(self):
-        partitions = self.columns.all().filter(is_partition=True)
-        return partitions
+        partitions_list = [p.name for p in self.columns.all().filter(is_partition=True)]
+        return ", ".join(partitions_list)
 
     @property
     def get_graphql_partitions(self):
