@@ -36,10 +36,10 @@ def test_invalid_organization(organizacao_bd):
 
 
 @pytest.mark.django_db
-def test_date_time_range(coverage_tabela):
+def test_date_time_range(coverage_tabela_open):
     """Test for DateTimeRange."""
     date_time_range = DateTimeRange(
-        coverage=coverage_tabela,
+        coverage=coverage_tabela_open,
         start_year=2019,
         start_month=1,
         start_day=1,
@@ -53,10 +53,10 @@ def test_date_time_range(coverage_tabela):
 
 
 @pytest.mark.django_db
-def test_invalid_date_time_range(coverage_tabela):
+def test_invalid_date_time_range(coverage_tabela_open):
     """Test for DateTimeRange."""
     date_time_range = DateTimeRange(
-        coverage=coverage_tabela,
+        coverage=coverage_tabela_open,
         start_year=2019,
         start_month=1,
         start_quarter=5,
@@ -84,6 +84,21 @@ def test_create_dataset(
 def test_create_table(tabela_bairros):
     """Test for Table."""
     tabela_bairros.save()
+    assert Table.objects.exists()
+
+
+@pytest.mark.django_db
+def test_create_table_with_multiple_coverage(
+    tabela_pro,
+    coverage_tabela_open,
+    coverage_tabela_closed,
+):
+    """Test for Table."""
+    tabela_pro.save()
+    coverage_tabela_open.save()
+    coverage_tabela_closed.save()
+    with pytest.raises(ValidationError):
+        tabela_pro.coverages.add(coverage_tabela_open, coverage_tabela_closed)
     assert Table.objects.exists()
 
 

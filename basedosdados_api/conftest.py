@@ -31,6 +31,7 @@ from basedosdados_api.api.v1.models import (
     Dictionary,
     Key,
     QualityCheck,
+    DateTimeRange,
 )
 
 
@@ -206,13 +207,53 @@ def fixture_status_em_processamento():
     )
 
 
-@pytest.fixture(name="coverage_tabela")
+@pytest.fixture(name="coverage_tabela_open")
 @pytest.mark.django_db
-def fixture_coverage_tabela(tabela_bairros, area_br):
-    """Fixture for Coverage."""
+def fixture_coverage_tabela_open(tabela_bairros, area_br):
+    """Fixture for open Coverage."""
     return Coverage.objects.create(
         table=tabela_bairros,
         area=area_br,
+        is_closed=False,
+    )
+
+
+@pytest.fixture(name="coverage_tabela_closed")
+@pytest.mark.django_db
+def fixture_coverage_tabela_closed(tabela_bairros, area_br):
+    """Fixture for closed Coverage."""
+    return Coverage.objects.create(
+        table=tabela_bairros,
+        area=area_br,
+        is_closed=True,
+    )
+
+
+@pytest.fixture(name="datetime_range_tabela_open")
+@pytest.mark.django_db
+def fixture_datetime_range_tabela_open(coverage_tabela_open):
+    """Fixture for DateTimeRange."""
+    return DateTimeRange.objects.create(
+        start_year=2019,
+        start_month=1,
+        end_year=2022,
+        end_month=6,
+        interval=1,
+        coverage=coverage_tabela_open,
+    )
+
+
+@pytest.fixture(name="datetime_range_tabela_closed")
+@pytest.mark.django_db
+def fixture_datetime_range_tabela_closed(coverage_tabela_closed):
+    """Fixture for closed DateTimeRange."""
+    return DateTimeRange.objects.create(
+        start_year=2019,
+        start_month=1,
+        end_year=2022,
+        end_month=6,
+        interval=1,
+        coverage=coverage_tabela_closed,
     )
 
 
@@ -270,6 +311,39 @@ def fixture_tabela_bairros(
         raw_data_url="http://raw.com/bairros",
         auxiliary_files_url="http://aux.com/bairros",
         architecture_url="http://arch.com/bairros",
+        source_bucket_name="basedosdados-dev",
+        uncompressed_file_size=1000,
+        compressed_file_size=20,
+        number_rows=100,
+        number_columns=10,
+        version=1,
+        order=0,
+    )
+
+
+@pytest.fixture(name="tabela_pro")
+@pytest.mark.django_db
+def fixture_tabela_pro(
+    dataset_dados_mestres,
+    licenca_mit,
+    organizacao_parceira,
+    pipeline,
+):
+    """Fixture for Pro Table"""
+    return Table.objects.create(
+        dataset=dataset_dados_mestres,
+        license=licenca_mit,
+        partner_organization=organizacao_parceira,
+        pipeline=pipeline,
+        slug="pro_table",
+        name="Tabela Pro With Multiple Coverages",
+        description="Descrição da tabela Pro With Multiple Coverages",
+        is_directory=False,
+        data_cleaning_description="Descrição da limpeza de dados",
+        data_cleaning_code_url="http://cleaning.com/pro_table",
+        raw_data_url="http://raw.com/pro_table",
+        auxiliary_files_url="http://aux.com/pro_table",
+        architecture_url="http://arch.com/pro_table",
         source_bucket_name="basedosdados-dev",
         uncompressed_file_size=1000,
         compressed_file_size=20,

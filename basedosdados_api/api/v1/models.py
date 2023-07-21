@@ -102,6 +102,7 @@ class Coverage(BdmModel):
         related_name="coverages",
     )
     area = models.ForeignKey("Area", on_delete=models.CASCADE, related_name="coverages")
+    is_closed = models.BooleanField("Is Closed", default=False)
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
