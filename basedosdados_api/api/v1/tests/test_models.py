@@ -90,15 +90,14 @@ def test_create_table(tabela_bairros):
 @pytest.mark.django_db
 def test_create_table_with_multiple_coverage(
     tabela_pro,
-    coverage_tabela_open,
     coverage_tabela_closed,
 ):
     """Test for Table."""
     tabela_pro.save()
-    coverage_tabela_open.save()
     coverage_tabela_closed.save()
     with pytest.raises(ValidationError):
-        tabela_pro.coverages.add(coverage_tabela_open, coverage_tabela_closed)
+        tabela_pro.coverages.add(coverage_tabela_closed)
+        tabela_pro.clean()
     assert Table.objects.exists()
 
 

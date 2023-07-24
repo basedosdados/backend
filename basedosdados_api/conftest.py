@@ -209,52 +209,87 @@ def fixture_status_em_processamento():
 
 @pytest.fixture(name="coverage_tabela_open")
 @pytest.mark.django_db
-def fixture_coverage_tabela_open(tabela_bairros, area_br):
+def fixture_coverage_tabela_open(
+    tabela_bairros,
+    area_br,
+):
     """Fixture for open Coverage."""
-    return Coverage.objects.create(
+    coverage_open = Coverage.objects.create(
         table=tabela_bairros,
         area=area_br,
         is_closed=False,
     )
+    datetime_range_tabela_open = DateTimeRange(
+        start_year=2019,
+        start_month=1,
+        end_year=2022,
+        end_month=6,
+        interval=1,
+        coverage=coverage_open,
+    )
+    datetime_range_tabela_open.save()
+    return coverage_open
 
 
 @pytest.fixture(name="coverage_tabela_closed")
 @pytest.mark.django_db
-def fixture_coverage_tabela_closed(tabela_bairros, area_br):
+def fixture_coverage_tabela_closed(
+    tabela_bairros,
+    area_br,
+):
     """Fixture for closed Coverage."""
-    return Coverage.objects.create(
+    coverage_closed = Coverage.objects.create(
         table=tabela_bairros,
         area=area_br,
         is_closed=True,
     )
-
-
-@pytest.fixture(name="datetime_range_tabela_open")
-@pytest.mark.django_db
-def fixture_datetime_range_tabela_open(coverage_tabela_open):
-    """Fixture for DateTimeRange."""
-    return DateTimeRange.objects.create(
+    datetime_range_tabela_closed = DateTimeRange(
+        start_year=2021,
+        start_month=6,
+        end_year=2023,
+        end_month=6,
+        interval=1,
+        coverage=coverage_closed,
+    )
+    datetime_range_tabela_closed.save()
+    datetime_range_tabela_open = DateTimeRange(
         start_year=2019,
         start_month=1,
         end_year=2022,
         end_month=6,
         interval=1,
-        coverage=coverage_tabela_open,
+        coverage=coverage_closed,
     )
+    datetime_range_tabela_open.save()
+    return coverage_closed
 
 
-@pytest.fixture(name="datetime_range_tabela_closed")
-@pytest.mark.django_db
-def fixture_datetime_range_tabela_closed(coverage_tabela_closed):
-    """Fixture for closed DateTimeRange."""
-    return DateTimeRange.objects.create(
-        start_year=2019,
-        start_month=1,
-        end_year=2022,
-        end_month=6,
-        interval=1,
-        coverage=coverage_tabela_closed,
-    )
+# @pytest.fixture(name="datetime_range_tabela_open")
+# @pytest.mark.django_db
+# def fixture_datetime_range_tabela_open(coverage_tabela_open):
+#     """Fixture for DateTimeRange."""
+#     return DateTimeRange.objects.create(
+#         start_year=2019,
+#         start_month=1,
+#         end_year=2022,
+#         end_month=6,
+#         interval=1,
+#         coverage=coverage_tabela_open,
+#     )
+#
+
+# @pytest.fixture(name="datetime_range_tabela_closed")
+# @pytest.mark.django_db
+# def fixture_datetime_range_tabela_closed(coverage_tabela_closed):
+#     """Fixture for closed DateTimeRange."""
+#     return DateTimeRange.objects.create(
+#         start_year=2019,
+#         start_month=1,
+#         end_year=2022,
+#         end_month=6,
+#         interval=1,
+#         coverage=coverage_tabela_closed,
+#     )
 
 
 #############################################################################################

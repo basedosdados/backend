@@ -773,6 +773,36 @@ class Table(BdmModel, OrderedModel):
     def get_graphql_partitions(self):
         return self.partitions
 
+    def clean(self):
+        errors = {}
+        """Coverages must not overlap"""
+        coverages = self.coverages.all()
+        for coverage in coverages:
+            temporal_coverages = [d for d in coverage.datetime_ranges.all()]
+            dt_ranges = []
+            for idx, temporal_coverage in enumerate(temporal_coverages):
+                dt_ranges.append(
+                    (
+                        datetime(
+                            temporal_coverage.start_year,
+                            temporal_coverage.start_month or 1,
+                            temporal_coverage.start_day or 1,
+                        ),
+                        datetime(
+                            temporal_coverage.end_year or datetime.now().year,
+                            temporal_coverage.end_month or 1,
+                            temporal_coverage.end_day or 1,
+                        ),
+                    )
+                )
+            dt_ranges.sort(key=lambda x: x[0])
+            for i in range(1, len(dt_ranges)):
+                if dt_ranges[i - 1][1] > dt_ranges[i][0]:
+                    errors = "Temporal coverages must not overlap"
+
+        if errors:
+            raise ValidationError(errors)
+
 
 class BigQueryType(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
