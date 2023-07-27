@@ -794,6 +794,24 @@ class Table(BdmModel, OrderedModel):
     def get_graphql_partitions(self):
         return self.partitions
 
+    @property
+    def contains_closed_data(self):
+        """Returns true if there are columns with closed coverages"""
+        closed_data = False
+        table_coverages = self.coverages.filter(is_closed=True)
+        if table_coverages:
+            closed_data = True
+        for column in self.columns.all():  # in the future it will be column.coverages
+            if column.is_closed:
+                closed_data = True
+                break
+
+        return closed_data
+
+    @property
+    def get_graphql_contains_closed_data(self):
+        return self.contains_closed_data
+
     def clean(self):
         errors = {}
         """Coverages must not overlap"""
