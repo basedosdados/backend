@@ -594,6 +594,11 @@ class Dataset(BdmModel):
             if table_coverages:
                 closed_data = True
                 break
+            for column in table.columns.all():
+                if column.is_closed:  # in the future it will be column.coverages
+                    closed_data = True
+                    break
+
         return closed_data
 
     @property
