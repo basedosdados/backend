@@ -33,6 +33,36 @@ def image_path_and_rename(instance, filename):
     return os.path.join(upload_to, filename)
 
 
+def get_date_time(date_times):
+    """Returns a DateTimeRange object with the minimum start date and maximum end date"""
+    start_year, start_month, start_day = False, False, False
+    end_year, end_month, end_day = False, False, False
+    start_date, end_date = datetime(3000, 12, 31, 0, 0, 0), datetime(1, 1, 1, 0, 0, 0)
+
+    for date_time in date_times:
+        if date_time.start_year and date_time.start_year < start_date.year:
+            start_year = date_time.start_year
+        if date_time.start_month and date_time.start_month < start_date.month:
+            start_month = date_time.start_month
+        if date_time.start_day and date_time.start_day < start_date.day:
+            start_day = date_time.start_day
+        if date_time.end_year and date_time.end_year > end_date.year:
+            end_year = date_time.end_year
+        if date_time.end_month and date_time.end_month > end_date.month:
+            end_month = date_time.end_month
+        if date_time.end_day and date_time.end_day > end_date.day:
+            end_day = date_time.end_day
+
+    return DateTimeRange(
+        start_year=start_year,
+        start_month=start_month,
+        start_day=start_day,
+        end_year=end_year,
+        end_month=end_month,
+        end_day=end_day,
+    )
+
+
 class UUIDHIddenIdForm(forms.ModelForm):
     id = forms.UUIDField(widget=forms.HiddenInput(), required=False)
 
@@ -466,30 +496,32 @@ class Dataset(BdmModel):
         raw_data_sources = self.raw_data_sources.all()
         information_requests = self.information_requests.all()
         start_year, start_month, start_day = False, False, False
-        # start_semester, star_quarter = False, False
-        # start_hour, start_minute, start_second = False, False, False
         end_year, end_month, end_day = False, False, False
-        # end_semester, end_quarter = False, False
-        # end_hour, end_minute, end_second = False, False, False
 
-        start_date, end_date = datetime(3000, 1, 1, 0, 0, 0), datetime(1, 1, 1, 0, 0, 0)
+        start_date = datetime(3000, 12, 31, 0, 0, 0)
+        end_date = datetime(1, 1, 1, 0, 0, 0)
 
         # TODO: refactor this to use a function
         for table in tables:
             for coverage in table.coverages.all():
-                try:
-                    date_time = DateTimeRange.objects.get(coverage=coverage.pk)
-                except DateTimeRange.DoesNotExist:
+                date_times = DateTimeRange.objects.filter(coverage=coverage.pk)
+                if len(date_times) == 0:
                     continue
-                start_year = date_time.start_year is not None or start_year
-                start_month = date_time.start_month is not None or start_month
-                start_day = date_time.start_day is not None or start_day
-                end_year = date_time.end_year is not None or end_year
-                end_month = date_time.end_month is not None or end_month
-                end_day = date_time.end_day is not None or end_day
+                date_time = get_date_time(date_times)
+
+                start_year = (
+                    date_time.start_year if date_time.start_year else start_year
+                )
+                start_month = (
+                    date_time.start_month if date_time.start_month else start_month
+                )
+                start_day = date_time.start_day if date_time.start_day else start_day
+                end_year = date_time.end_year if date_time.end_year else end_year
+                end_month = date_time.end_month if date_time.end_month else end_month
+                end_day = date_time.end_day if date_time.end_day else end_day
 
                 new_start_date = datetime(
-                    date_time.start_year,
+                    date_time.start_year or 3000,
                     date_time.start_month or 1,
                     date_time.start_day or 1,
                 )
@@ -497,25 +529,32 @@ class Dataset(BdmModel):
                     new_start_date if new_start_date < start_date else start_date
                 )
                 new_end_date = datetime(
-                    date_time.end_year, date_time.end_month or 1, date_time.end_day or 1
+                    date_time.end_year or 1,
+                    date_time.end_month or 1,
+                    date_time.end_day or 1,
                 )
                 end_date = new_end_date if new_end_date > end_date else end_date
 
         for raw_data_source in raw_data_sources:
             for coverage in raw_data_source.coverages.all():
-                try:
-                    date_time = DateTimeRange.objects.get(coverage=coverage.pk)
-                except DateTimeRange.DoesNotExist:
+                date_times = DateTimeRange.objects.filter(coverage=coverage.pk)
+                if len(date_times) == 0:
                     continue
-                start_year = date_time.start_year is not None or start_year
-                start_month = date_time.start_month is not None or start_month
-                start_day = date_time.start_day is not None or start_day
-                end_year = date_time.end_year is not None or end_year
-                end_month = date_time.end_month is not None or end_month
-                end_day = date_time.end_day is not None or end_day
+                date_time = get_date_time(date_times)
+
+                start_year = (
+                    date_time.start_year if date_time.start_year else start_year
+                )
+                start_month = (
+                    date_time.start_month if date_time.start_month else start_month
+                )
+                start_day = date_time.start_day if date_time.start_day else start_day
+                end_year = date_time.end_year if date_time.end_year else end_year
+                end_month = date_time.end_month if date_time.end_month else end_month
+                end_day = date_time.end_day if date_time.end_day else end_day
 
                 new_start_date = datetime(
-                    date_time.start_year,
+                    date_time.start_year or 3000,
                     date_time.start_month or 1,
                     date_time.start_day or 1,
                 )
@@ -523,25 +562,32 @@ class Dataset(BdmModel):
                     new_start_date if new_start_date < start_date else start_date
                 )
                 new_end_date = datetime(
-                    date_time.end_year, date_time.end_month or 1, date_time.end_day or 1
+                    date_time.end_year or 1,
+                    date_time.end_month or 1,
+                    date_time.end_day or 1,
                 )
                 end_date = new_end_date if new_end_date > end_date else end_date
 
         for information_request in information_requests:
             for coverage in information_request.coverages.all():
-                try:
-                    date_time = DateTimeRange.objects.get(coverage=coverage.pk)
-                except DateTimeRange.DoesNotExist:
+                date_times = DateTimeRange.objects.filter(coverage=coverage.pk)
+                if len(date_times) == 0:
                     continue
-                start_year = date_time.start_year is not None or start_year
-                start_month = date_time.start_month is not None or start_month
-                start_day = date_time.start_day is not None or start_day
-                end_year = date_time.end_year is not None or end_year
-                end_month = date_time.end_month is not None or end_month
-                end_day = date_time.end_day is not None or end_day
+                date_time = get_date_time(date_times)
+
+                start_year = (
+                    date_time.start_year if date_time.start_year else start_year
+                )
+                start_month = (
+                    date_time.start_month if date_time.start_month else start_month
+                )
+                start_day = date_time.start_day if date_time.start_day else start_day
+                end_year = date_time.end_year if date_time.end_year else end_year
+                end_month = date_time.end_month if date_time.end_month else end_month
+                end_day = date_time.end_day if date_time.end_day else end_day
 
                 new_start_date = datetime(
-                    date_time.start_year,
+                    date_time.start_year or 3000,
                     date_time.start_month or 1,
                     date_time.start_day or 1,
                 )
@@ -549,21 +595,23 @@ class Dataset(BdmModel):
                     new_start_date if new_start_date < start_date else start_date
                 )
                 new_end_date = datetime(
-                    date_time.end_year, date_time.end_month or 1, date_time.end_day or 1
+                    date_time.end_year or 1,
+                    date_time.end_month or 1,
+                    date_time.end_day or 1,
                 )
                 end_date = new_end_date if new_end_date > end_date else end_date
 
         start = []
         end = []
 
-        if start_year and start_date.year:
+        if start_year < 3000 and start_date.year:
             start.append(str(start_date.year))
             if start_month and start_date.month:
                 start.append(str(start_date.month).zfill(2))
                 if start_day and start_date.day:
                     start.append(str(start_date.day).zfill(2))
 
-        if end_year and end_date.year:
+        if end_year > 1 and end_date.year:
             end.append(str(end_date.year))
             if end_month and end_date.month:
                 end.append(str(end_date.month).zfill(2))
