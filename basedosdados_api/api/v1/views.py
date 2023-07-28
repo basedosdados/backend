@@ -90,14 +90,18 @@ class DatasetESSearchView(SearchView):
 
         if "datasets_with" in req_args:
             options = req_args.getlist("datasets_with")
-            if "open_tables" in options:
-                all_filters.append({"match": {"contains_open_tables": True}})
-            if "closed_tables" in options:
-                all_filters.append({"match": {"contains_closed_tables": True}})
+            if "tables" in options:
+                all_filters.append({"match": {"contains_tables": True}})
+            if "closed_data" in options:
+                all_filters.append({"match": {"contains_closed_data": True}})
             if "raw_data_sources" in options:
                 all_filters.append({"match": {"contains_raw_data_sources": True}})
             if "information_requests" in options:
                 all_filters.append({"match": {"contains_information_requests": True}})
+            if "open_tables" in options:
+                all_filters.append({"match": {"contains_open_tables": True}})
+            if "closed_tables" in options:
+                all_filters.append({"match": {"contains_closed_tables": True}})
 
         raw_query = {
             "from": (page - 1) * page_size,
@@ -167,6 +171,12 @@ class DatasetESSearchView(SearchView):
                 "contains_tables_counts": {
                     "terms": {
                         "field": "contains_tables",
+                        "size": agg_page_size,
+                    }
+                },
+                "contains_closed_data_counts": {
+                    "terms": {
+                        "field": "contains_closed_data",
                         "size": agg_page_size,
                     }
                 },
@@ -329,6 +339,9 @@ class DatasetESSearchView(SearchView):
             # boolean fields
             cleaned_results["is_closed"] = r.get("is_closed", False)
             cleaned_results["contains_tables"] = r.get("contains_tables", False)
+            cleaned_results["contains_closed_data"] = r.get(
+                "contains_closed_data", False
+            )
             cleaned_results["contains_closed_tables"] = r.get(
                 "contains_closed_tables", False
             )
@@ -345,6 +358,7 @@ class DatasetESSearchView(SearchView):
         observation_levels_counts = agg["observation_levels_counts"]["buckets"]
         is_closed_counts = agg["is_closed_counts"]["buckets"]
         contains_tables_counts = agg["contains_tables_counts"]["buckets"]
+        contains_closed_data_counts = agg["contains_closed_data_counts"]["buckets"]
         contains_open_tables_counts = agg["contains_open_tables_counts"]["buckets"]
         contains_closed_tables_counts = agg["contains_closed_tables_counts"]["buckets"]
         contains_information_requests_counts = agg[
@@ -442,6 +456,19 @@ class DatasetESSearchView(SearchView):
                 for idx, contains_tables in enumerate(contains_tables_counts)
             ]
             aggregations["contains_tables"] = agg_contains_tables
+
+        if contains_closed_data_counts:
+            agg_contains_closed_data = [
+                {
+                    "key": contains_closed_data["key"],
+                    "count": contains_closed_data["doc_count"],
+                    "name": "dados fechados"
+                    if contains_closed_data["key"] == 1
+                    else "sem dados fechados",
+                }
+                for idx, contains_closed_data in enumerate(contains_closed_data_counts)
+            ]
+            aggregations["contains_closed_data"] = agg_contains_closed_data
 
         if contains_open_tables_counts:
             agg_contains_open_tables = [
