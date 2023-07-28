@@ -61,6 +61,7 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
     )
     is_closed = indexes.BooleanField(model_attr="is_closed")
     contains_tables = indexes.BooleanField(model_attr="contains_tables")
+    contains_closed_data = indexes.BooleanField(model_attr="contains_closed_data")
     contains_open_tables = indexes.BooleanField(model_attr="contains_open_tables")
     contains_closed_tables = indexes.BooleanField(model_attr="contains_closed_tables")
     contains_raw_data_sources = indexes.BooleanField(
@@ -203,6 +204,10 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         # Contains tables
         contains_tables = data.get("contains_tables", False)
         data["contains_tables"] = contains_tables
+
+        # Contains closed data
+        contains_closed_data = data.get("contains_closed_data", False)
+        data["contains_closed_data"] = contains_closed_data
 
         # Contains open tables
         contains_open_tables = data.get("contains_open_tables", False)
