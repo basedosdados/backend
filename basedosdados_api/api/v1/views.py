@@ -13,7 +13,6 @@ from elasticsearch import Elasticsearch
 from basedosdados_api.api.v1.models import (
     Organization,
     Theme,
-    Table,
     Entity,
 )
 
@@ -161,7 +160,12 @@ class DatasetESSearchView(SearchView):
                         "size": agg_page_size,
                     }
                 },
-                "temporal_coverage_counts": {"terms": {"field": "coverage.keyword"}},
+                "temporal_coverage_counts": {
+                    "terms": {
+                        "field": "coverage.keyword",
+                        "size": agg_page_size,
+                    }
+                },
                 "observation_levels_counts": {
                     "terms": {
                         "field": "observation_levels_keyword.keyword",
@@ -288,14 +292,11 @@ class DatasetESSearchView(SearchView):
                     cleaned_results["tags"].append(d)
 
             # tables
+            cleaned_results["n_closed_tables"] = r.get("n_closed_tables") or 0
             if r.get("tables"):
                 if len(tables := r.get("tables")) > 0:
                     cleaned_results["first_table_id"] = tables[0]["id"]
                     cleaned_results["n_tables"] = len(tables)
-                    closed_tables = [
-                        t for t in tables if Table.objects.get(id=t["id"]).is_closed
-                    ]
-                    cleaned_results["n_closed_tables"] = len(closed_tables)
                     cleaned_results["n_open_tables"] = (
                         cleaned_results["n_tables"] - cleaned_results["n_closed_tables"]
                     )
@@ -334,7 +335,6 @@ class DatasetESSearchView(SearchView):
                 del r["coverage"]
             else:
                 cleaned_results["temporal_coverage"] = ""
-            res.append(cleaned_results)
 
             # boolean fields
             cleaned_results["is_closed"] = r.get("is_closed", False)
@@ -348,6 +348,8 @@ class DatasetESSearchView(SearchView):
             cleaned_results["contains_open_tables"] = r.get(
                 "contains_open_tables", False
             )
+
+            res.append(cleaned_results)
 
         # Aggregations
         agg = context["object_list"].get("aggregations")
