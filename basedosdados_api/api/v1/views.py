@@ -396,7 +396,9 @@ class DatasetESSearchView(SearchView):
                 {
                     "key": org["key"],
                     "count": org["doc_count"],
-                    "name": orgs_dict[org["key"]]["name"],
+                    "name": orgs_dict.get(org["key"]).get("name")
+                    if orgs_dict.get(org["key"])
+                    else org["key"],
                 }
                 for org in organization_counts
             ]
