@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 
 from django.conf import settings
+from django.core.files.storage import get_storage_class
 from django.http import HttpResponseBadRequest, QueryDict, JsonResponse
 from haystack.forms import ModelSearchForm
 from haystack.generic_views import SearchView
@@ -13,7 +14,6 @@ from elasticsearch import Elasticsearch
 from basedosdados_api.api.v1.models import (
     Organization,
     Theme,
-    Table,
     Entity,
 )
 
@@ -31,6 +31,8 @@ class DatasetESSearchView(SearchView):
         page = int(req_args.get("page", 1))
         # As counts are paginated, we need to get the total number of results
         agg_page_size = 1000
+
+        storage = get_storage_class()
 
         # If query is empty, query all datasets
         if not query:
@@ -161,7 +163,12 @@ class DatasetESSearchView(SearchView):
                         "size": agg_page_size,
                     }
                 },
-                "temporal_coverage_counts": {"terms": {"field": "coverage.keyword"}},
+                "temporal_coverage_counts": {
+                    "terms": {
+                        "field": "coverage.keyword",
+                        "size": agg_page_size,
+                    }
+                },
                 "observation_levels_counts": {
                     "terms": {
                         "field": "observation_levels_keyword.keyword",
@@ -253,22 +260,15 @@ class DatasetESSearchView(SearchView):
             if len(organization) > 0:
                 cleaned_results["organization"] = []
                 for _, org in enumerate(organization):
-                    # picture_url = ""
-                    # try:
-                    #     org_object: QuerySet = Organization.objects.filter(
-                    #         id=org["id"]
-                    #     ).only('slug', 'picture')
-                    #     if org_object is not None:
-                    #         picture_url = org_object[0].picture.url
-                    # except Organization.DoesNotExist:
-                    #     pass
-                    # except ValueError:
-                    #     pass
+                    if "picture" in org:
+                        picture = storage().url(org["picture"])
+                    else:
+                        picture = ""
                     d = {
                         "id": org["id"],
                         "name": org["name"],
                         "slug": org["slug"],
-                        "picture": org["picture"],
+                        "picture": picture,
                         "website": org["website"],
                         "description": org["description"],
                     }
@@ -288,14 +288,11 @@ class DatasetESSearchView(SearchView):
                     cleaned_results["tags"].append(d)
 
             # tables
+            cleaned_results["n_closed_tables"] = r.get("n_closed_tables") or 0
             if r.get("tables"):
                 if len(tables := r.get("tables")) > 0:
                     cleaned_results["first_table_id"] = tables[0]["id"]
                     cleaned_results["n_tables"] = len(tables)
-                    closed_tables = [
-                        t for t in tables if Table.objects.get(id=t["id"]).is_closed
-                    ]
-                    cleaned_results["n_closed_tables"] = len(closed_tables)
                     cleaned_results["n_open_tables"] = (
                         cleaned_results["n_tables"] - cleaned_results["n_closed_tables"]
                     )
@@ -334,7 +331,6 @@ class DatasetESSearchView(SearchView):
                 del r["coverage"]
             else:
                 cleaned_results["temporal_coverage"] = ""
-            res.append(cleaned_results)
 
             # boolean fields
             cleaned_results["is_closed"] = r.get("is_closed", False)
@@ -348,6 +344,8 @@ class DatasetESSearchView(SearchView):
             cleaned_results["contains_open_tables"] = r.get(
                 "contains_open_tables", False
             )
+
+            res.append(cleaned_results)
 
         # Aggregations
         agg = context["object_list"].get("aggregations")
@@ -394,7 +392,9 @@ class DatasetESSearchView(SearchView):
                 {
                     "key": org["key"],
                     "count": org["doc_count"],
-                    "name": orgs_dict[org["key"]]["name"],
+                    "name": orgs_dict.get(org["key"]).get("name")
+                    if orgs_dict.get(org["key"])
+                    else org["key"],
                 }
                 for org in organization_counts
             ]
