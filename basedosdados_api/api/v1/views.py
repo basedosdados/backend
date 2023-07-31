@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 
 from django.conf import settings
+from django.core.files.storage import get_storage_class
 from django.http import HttpResponseBadRequest, QueryDict, JsonResponse
 from haystack.forms import ModelSearchForm
 from haystack.generic_views import SearchView
@@ -30,6 +31,8 @@ class DatasetESSearchView(SearchView):
         page = int(req_args.get("page", 1))
         # As counts are paginated, we need to get the total number of results
         agg_page_size = 1000
+
+        storage = get_storage_class()
 
         # If query is empty, query all datasets
         if not query:
@@ -257,22 +260,15 @@ class DatasetESSearchView(SearchView):
             if len(organization) > 0:
                 cleaned_results["organization"] = []
                 for _, org in enumerate(organization):
-                    # picture_url = ""
-                    # try:
-                    #     org_object: QuerySet = Organization.objects.filter(
-                    #         id=org["id"]
-                    #     ).only('slug', 'picture')
-                    #     if org_object is not None:
-                    #         picture_url = org_object[0].picture.url
-                    # except Organization.DoesNotExist:
-                    #     pass
-                    # except ValueError:
-                    #     pass
+                    if "picture" in org:
+                        picture = storage().url(org["picture"])
+                    else:
+                        picture = ""
                     d = {
                         "id": org["id"],
                         "name": org["name"],
                         "slug": org["slug"],
-                        "picture": org["picture"],
+                        "picture": picture,
                         "website": org["website"],
                         "description": org["description"],
                     }
