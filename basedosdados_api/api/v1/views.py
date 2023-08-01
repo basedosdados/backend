@@ -96,6 +96,8 @@ class DatasetESSearchView(SearchView):
                 all_filters.append({"match": {"contains_tables": True}})
             if "closed_data" in options:
                 all_filters.append({"match": {"contains_closed_data": True}})
+            if "open_data" in options:
+                all_filters.append({"match": {"contains_open_data": True}})
             if "raw_data_sources" in options:
                 all_filters.append({"match": {"contains_raw_data_sources": True}})
             if "information_requests" in options:
@@ -184,6 +186,12 @@ class DatasetESSearchView(SearchView):
                 "contains_closed_data_counts": {
                     "terms": {
                         "field": "contains_closed_data",
+                        "size": agg_page_size,
+                    }
+                },
+                "contains_open_data_counts": {
+                    "terms": {
+                        "field": "contains_open_data",
                         "size": agg_page_size,
                     }
                 },
@@ -338,6 +346,7 @@ class DatasetESSearchView(SearchView):
             cleaned_results["contains_closed_data"] = r.get(
                 "contains_closed_data", False
             )
+            cleaned_results["contains_open_data"] = r.get("contains_open_data", False)
             cleaned_results["contains_closed_tables"] = r.get(
                 "contains_closed_tables", False
             )

@@ -654,6 +654,15 @@ class Dataset(BdmModel):
         return self.contains_closed_data
 
     @property
+    def contains_open_data(self):
+        """Returns true if there are tables or columns with open coverages"""
+        return True
+
+    @property
+    def get_graphql_contains_open_data(self):
+        return self.contains_open_data
+
+    @property
     def contains_closed_tables(self):
         closed_tables = self.tables.all().filter(is_closed=True)
         return len(closed_tables) > 0
