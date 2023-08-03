@@ -90,8 +90,11 @@ class DatasetESSearchView(SearchView):
                 }
             )
 
-        if "datasets_with" in req_args:
-            options = req_args.getlist("datasets_with")
+        if "datasets_with" or "contains" in req_args:
+            if "datasets_with" in req_args:
+                options = req_args.getlist("datasets_with")
+            else:
+                options = req_args.getlist("contains")
             if "tables" in options:
                 all_filters.append({"match": {"contains_tables": True}})
             if "closed_data" in options:
