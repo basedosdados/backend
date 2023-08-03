@@ -12,6 +12,7 @@ from basedosdados_api.api.v1.models import (
     Table,
     RawDataSource,
     InformationRequest,
+    Coverage,
 )
 
 logger = logging.getLogger("django")
@@ -39,6 +40,11 @@ class BDSignalProcessor(BaseSignalProcessor):
                     ds = Dataset.objects.filter(organization__id=instance.id)
                     for instance in ds:
                         index.update_object(instance, using=using)
+                elif sender == Coverage:
+                    instance = (
+                        Coverage.objects.filter(pk=instance.id).first().table.dataset
+                    )
+                    index.update_object(instance, using=using)
                 elif sender in [Table, RawDataSource, InformationRequest]:
                     index.update_object(instance.dataset, using=using)
             except NotHandled:
