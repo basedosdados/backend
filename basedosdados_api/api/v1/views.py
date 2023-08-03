@@ -90,8 +90,11 @@ class DatasetESSearchView(SearchView):
                 }
             )
 
-        if "datasets_with" in req_args:
-            options = req_args.getlist("datasets_with")
+        if "datasets_with" or "contains" in req_args:
+            if "datasets_with" in req_args:
+                options = req_args.getlist("datasets_with")
+            else:
+                options = req_args.getlist("contains")
             if "tables" in options:
                 all_filters.append({"match": {"contains_tables": True}})
             if "closed_data" in options:
@@ -366,6 +369,7 @@ class DatasetESSearchView(SearchView):
         is_closed_counts = agg["is_closed_counts"]["buckets"]
         contains_tables_counts = agg["contains_tables_counts"]["buckets"]
         contains_closed_data_counts = agg["contains_closed_data_counts"]["buckets"]
+        contains_open_data_counts = agg["contains_open_data_counts"]["buckets"]
         contains_open_tables_counts = agg["contains_open_tables_counts"]["buckets"]
         contains_closed_tables_counts = agg["contains_closed_tables_counts"]["buckets"]
         contains_information_requests_counts = agg[
@@ -478,6 +482,19 @@ class DatasetESSearchView(SearchView):
                 for idx, contains_closed_data in enumerate(contains_closed_data_counts)
             ]
             aggregations["contains_closed_data"] = agg_contains_closed_data
+
+        if contains_open_data_counts:
+            agg_contains_open_data = [
+                {
+                    "key": contains_open_data["key"],
+                    "count": contains_open_data["doc_count"],
+                    "name": "dados abertos"
+                    if contains_open_data["key"] == 1
+                    else "sem dados abertos",
+                }
+                for idx, contains_open_data in enumerate(contains_open_data_counts)
+            ]
+            aggregations["contains_open_data"] = agg_contains_open_data
 
         if contains_open_tables_counts:
             agg_contains_open_tables = [
