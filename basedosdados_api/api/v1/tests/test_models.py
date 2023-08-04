@@ -82,27 +82,30 @@ def test_create_dataset(
 
 @pytest.mark.django_db
 def test_create_table(tabela_bairros):
-    """Test for Table."""
+    """Test for Table without closed data."""
     tabela_bairros.save()
     assert Table.objects.exists()
+    assert tabela_bairros.contains_closed_data is False
 
 
 @pytest.mark.django_db
 def test_create_table_with_overlapping_coverage(
     tabela_pro,
-    coverage_closed,
+    coverage_tabela_open,
     datetime_range_1,
     datetime_range_2,
 ):
     """Test for Table with overlapping coverage. Must raise ValidationError."""
     tabela_pro.save()
-    coverage_closed.save()
+    coverage_tabela_open.save()
+    datetime_range_1.coverage = coverage_tabela_open
     datetime_range_1.save()
+
+    datetime_range_2.coverage = coverage_tabela_open
     datetime_range_2.save()
     with pytest.raises(ValidationError):
-        tabela_pro.coverages.add(coverage_closed)
+        tabela_pro.coverages.add(coverage_tabela_open)
         tabela_pro.clean()
-    assert Table.objects.exists()
 
 
 @pytest.mark.django_db
@@ -121,25 +124,28 @@ def test_columns_create(
 
 
 @pytest.mark.django_db
-def test_columns_create_with_coverage(
+def test_columns_create_with_open_coverage(
     area_br,
     coluna_nome_bairros,
     coverage_tabela_open,
     datetime_range_1,
     datetime_range_3,
 ):
-    """Test for Column with coverage with valid date time ranges."""
+    """Test for Column with coverage with valid date time ranges and no closed data."""
     coluna_nome_bairros.save()
     coverage_tabela_open.save()
 
     datetime_range_1.area = area_br
+    datetime_range_1.coverage = coverage_tabela_open
     datetime_range_1.save()
 
     datetime_range_3.area = area_br
+    datetime_range_3.coverage = coverage_tabela_open
     datetime_range_3.save()
 
     tabela_bairros = Table.objects.get(slug="bairros")
     assert len(tabela_bairros.columns.all()) == 1
+    assert tabela_bairros.contains_closed_data is False
 
 
 @pytest.mark.django_db

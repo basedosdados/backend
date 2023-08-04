@@ -207,6 +207,11 @@ def fixture_status_em_processamento():
     )
 
 
+#############################################################################################
+# Coverage fixtures for tables
+#############################################################################################
+
+
 @pytest.fixture(name="coverage_tabela_open")
 @pytest.mark.django_db
 def fixture_coverage_tabela_open(
@@ -222,7 +227,7 @@ def fixture_coverage_tabela_open(
     return coverage_open
 
 
-@pytest.fixture(name="coverage_closed")
+@pytest.fixture(name="coverage_tabela_closed")
 @pytest.mark.django_db
 def fixture_coverage_closed(
     tabela_bairros,
@@ -238,6 +243,41 @@ def fixture_coverage_closed(
 
 
 #############################################################################################
+# Coverage fixtures for columns
+#############################################################################################
+
+
+@pytest.fixture(name="coverage_coluna_open")
+@pytest.mark.django_db
+def fixture_coverage_coluna_open(
+    coluna_bairros,
+    area_br,
+):
+    """Fixture for open Coverage."""
+    coverage_open = Coverage.objects.create(
+        column=coluna_bairros,
+        area=area_br,
+        is_closed=False,
+    )
+    return coverage_open
+
+
+@pytest.fixture(name="coverage_coluna_closed")
+@pytest.mark.django_db
+def fixture_coverage_coluna_closed(
+    coluna_bairros,
+    area_br,
+):
+    """Fixture for closed Coverage."""
+    coverage_closed = Coverage.objects.create(
+        column=coluna_bairros,
+        area=area_br,
+        is_closed=True,
+    )
+    return coverage_closed
+
+
+#############################################################################################
 # Date Time Ranges fixtures
 # The following two date time ranges overlaps
 # The third one is disjoint with the first
@@ -246,49 +286,44 @@ def fixture_coverage_closed(
 
 @pytest.fixture(name="datetime_range_1")
 @pytest.mark.django_db
-def fixture_datetime_range_1(coverage_closed):
+def fixture_datetime_range_1():
     datetime_range_1 = DateTimeRange(
         start_year=2021,
         start_month=6,
         end_year=2023,
         end_month=6,
         interval=1,
-        coverage=coverage_closed,
     )
     return datetime_range_1
 
 
 @pytest.fixture(name="datetime_range_2")
 @pytest.mark.django_db
-def fixture_datetime_range_2(coverage_closed):
+def fixture_datetime_range_2():
     datetime_range_2 = DateTimeRange(
         start_year=2022,
         start_month=6,
         end_year=2024,
         end_month=6,
         interval=1,
-        coverage=coverage_closed,
     )
     return datetime_range_2
 
 
 @pytest.fixture(name="datetime_range_3")
 @pytest.mark.django_db
-def fixture_datetime_range_3(coverage_closed):
+def fixture_datetime_range_3():
     datetime_range_3 = DateTimeRange(
         start_year=2023,
         start_month=7,
         end_year=2026,
         end_month=6,
         interval=1,
-        coverage=coverage_closed,
     )
     return datetime_range_3
 
 
 #############################################################################################
-
-
 # Dataset fixtures
 #############################################################################################
 
