@@ -70,35 +70,6 @@ def test_invalid_date_time_range(coverage_tabela_open):
 
 
 @pytest.mark.django_db
-def test_overlapping_date_time_range(coverage_tabela_open):
-    """Test for overlapping DateTimeRange."""
-    date_time_range_1 = DateTimeRange(
-        coverage=coverage_tabela_open,
-        start_year=2019,
-        start_month=1,
-        start_day=None,
-        end_year=2022,
-        end_month=6,
-        end_day=None,
-        interval=1,
-    )
-    date_time_range_1.full_clean()
-    date_time_range_1.save()
-    date_time_range_2 = DateTimeRange(
-        coverage=coverage_tabela_open,
-        start_year=2020,
-        start_month=1,
-        start_day=None,
-        end_year=2023,
-        end_month=6,
-        end_day=None,
-        interval=1,
-    )
-    date_time_range_2.full_clean()
-    date_time_range_2.save()
-
-
-@pytest.mark.django_db
 def test_create_dataset(
     dataset_dados_mestres, tema_saude, tema_educacao, tag_aborto, tag_covid
 ):
@@ -140,13 +111,35 @@ def test_columns_create(
     coluna_nome_bairros,
     coluna_populacao_bairros,
 ):
-    """Test for Column."""
+    """Test for Column without coverage."""
     coluna_state_id_bairros.save()
     coluna_nome_bairros.save()
     coluna_populacao_bairros.save()
 
     tabela_bairros = Table.objects.get(slug="bairros")
     assert len(tabela_bairros.columns.all()) == 3
+
+
+@pytest.mark.django_db
+def test_columns_create_with_coverage(
+    area_br,
+    coluna_nome_bairros,
+    coverage_tabela_open,
+    datetime_range_1,
+    datetime_range_3,
+):
+    """Test for Column with coverage with valid date time ranges."""
+    coluna_nome_bairros.save()
+    coverage_tabela_open.save()
+
+    datetime_range_1.area = area_br
+    datetime_range_1.save()
+
+    datetime_range_3.area = area_br
+    datetime_range_3.save()
+
+    tabela_bairros = Table.objects.get(slug="bairros")
+    assert len(tabela_bairros.columns.all()) == 1
 
 
 @pytest.mark.django_db

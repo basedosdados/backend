@@ -239,7 +239,8 @@ def fixture_coverage_closed(
 
 #############################################################################################
 # Date Time Ranges fixtures
-# The following date time ranges overlaps
+# The following two date time ranges overlaps
+# The third one is disjoint with the first
 #############################################################################################
 
 
@@ -270,7 +271,22 @@ def fixture_datetime_range_2(coverage_closed):
     )
     return datetime_range_2
 
-    #############################################################################################
+
+@pytest.fixture(name="datetime_range_3")
+@pytest.mark.django_db
+def fixture_datetime_range_3(coverage_closed):
+    datetime_range_3 = DateTimeRange(
+        start_year=2023,
+        start_month=7,
+        end_year=2026,
+        end_month=6,
+        interval=1,
+        coverage=coverage_closed,
+    )
+    return datetime_range_3
+
+
+#############################################################################################
 
 
 # Dataset fixtures
