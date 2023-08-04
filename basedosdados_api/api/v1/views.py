@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 
 from django.conf import settings
+from django.core.files.storage import get_storage_class
 from django.http import HttpResponseBadRequest, QueryDict, JsonResponse
 from haystack.forms import ModelSearchForm
 from haystack.generic_views import SearchView
@@ -13,7 +14,6 @@ from elasticsearch import Elasticsearch
 from basedosdados_api.api.v1.models import (
     Organization,
     Theme,
-    Table,
     Entity,
 )
 
@@ -31,6 +31,8 @@ class DatasetESSearchView(SearchView):
         page = int(req_args.get("page", 1))
         # As counts are paginated, we need to get the total number of results
         agg_page_size = 1000
+
+        storage = get_storage_class()
 
         # If query is empty, query all datasets
         if not query:
@@ -88,16 +90,25 @@ class DatasetESSearchView(SearchView):
                 }
             )
 
-        if "datasets_with" in req_args:
-            options = req_args.getlist("datasets_with")
-            if "open_tables" in options:
-                all_filters.append({"match": {"contains_open_tables": True}})
-            if "closed_tables" in options:
-                all_filters.append({"match": {"contains_closed_tables": True}})
+        if "datasets_with" or "contains" in req_args:
+            if "datasets_with" in req_args:
+                options = req_args.getlist("datasets_with")
+            else:
+                options = req_args.getlist("contains")
+            if "tables" in options:
+                all_filters.append({"match": {"contains_tables": True}})
+            if "closed_data" in options:
+                all_filters.append({"match": {"contains_closed_data": True}})
+            if "open_data" in options:
+                all_filters.append({"match": {"contains_open_data": True}})
             if "raw_data_sources" in options:
                 all_filters.append({"match": {"contains_raw_data_sources": True}})
             if "information_requests" in options:
                 all_filters.append({"match": {"contains_information_requests": True}})
+            if "open_tables" in options:
+                all_filters.append({"match": {"contains_open_tables": True}})
+            if "closed_tables" in options:
+                all_filters.append({"match": {"contains_closed_tables": True}})
 
         raw_query = {
             "from": (page - 1) * page_size,
@@ -157,7 +168,12 @@ class DatasetESSearchView(SearchView):
                         "size": agg_page_size,
                     }
                 },
-                "temporal_coverage_counts": {"terms": {"field": "coverage.keyword"}},
+                "temporal_coverage_counts": {
+                    "terms": {
+                        "field": "coverage.keyword",
+                        "size": agg_page_size,
+                    }
+                },
                 "observation_levels_counts": {
                     "terms": {
                         "field": "observation_levels_keyword.keyword",
@@ -167,6 +183,18 @@ class DatasetESSearchView(SearchView):
                 "contains_tables_counts": {
                     "terms": {
                         "field": "contains_tables",
+                        "size": agg_page_size,
+                    }
+                },
+                "contains_closed_data_counts": {
+                    "terms": {
+                        "field": "contains_closed_data",
+                        "size": agg_page_size,
+                    }
+                },
+                "contains_open_data_counts": {
+                    "terms": {
+                        "field": "contains_open_data",
                         "size": agg_page_size,
                     }
                 },
@@ -243,22 +271,15 @@ class DatasetESSearchView(SearchView):
             if len(organization) > 0:
                 cleaned_results["organization"] = []
                 for _, org in enumerate(organization):
-                    # picture_url = ""
-                    # try:
-                    #     org_object: QuerySet = Organization.objects.filter(
-                    #         id=org["id"]
-                    #     ).only('slug', 'picture')
-                    #     if org_object is not None:
-                    #         picture_url = org_object[0].picture.url
-                    # except Organization.DoesNotExist:
-                    #     pass
-                    # except ValueError:
-                    #     pass
+                    if "picture" in org:
+                        picture = storage().url(org["picture"])
+                    else:
+                        picture = ""
                     d = {
                         "id": org["id"],
                         "name": org["name"],
                         "slug": org["slug"],
-                        "picture": org["picture"],
+                        "picture": picture,
                         "website": org["website"],
                         "description": org["description"],
                     }
@@ -278,14 +299,11 @@ class DatasetESSearchView(SearchView):
                     cleaned_results["tags"].append(d)
 
             # tables
+            cleaned_results["n_closed_tables"] = r.get("n_closed_tables") or 0
             if r.get("tables"):
                 if len(tables := r.get("tables")) > 0:
                     cleaned_results["first_table_id"] = tables[0]["id"]
                     cleaned_results["n_tables"] = len(tables)
-                    closed_tables = [
-                        t for t in tables if Table.objects.get(id=t["id"]).is_closed
-                    ]
-                    cleaned_results["n_closed_tables"] = len(closed_tables)
                     cleaned_results["n_open_tables"] = (
                         cleaned_results["n_tables"] - cleaned_results["n_closed_tables"]
                     )
@@ -324,17 +342,22 @@ class DatasetESSearchView(SearchView):
                 del r["coverage"]
             else:
                 cleaned_results["temporal_coverage"] = ""
-            res.append(cleaned_results)
 
             # boolean fields
             cleaned_results["is_closed"] = r.get("is_closed", False)
             cleaned_results["contains_tables"] = r.get("contains_tables", False)
+            cleaned_results["contains_closed_data"] = r.get(
+                "contains_closed_data", False
+            )
+            cleaned_results["contains_open_data"] = r.get("contains_open_data", False)
             cleaned_results["contains_closed_tables"] = r.get(
                 "contains_closed_tables", False
             )
             cleaned_results["contains_open_tables"] = r.get(
                 "contains_open_tables", False
             )
+
+            res.append(cleaned_results)
 
         # Aggregations
         agg = context["object_list"].get("aggregations")
@@ -345,6 +368,8 @@ class DatasetESSearchView(SearchView):
         observation_levels_counts = agg["observation_levels_counts"]["buckets"]
         is_closed_counts = agg["is_closed_counts"]["buckets"]
         contains_tables_counts = agg["contains_tables_counts"]["buckets"]
+        contains_closed_data_counts = agg["contains_closed_data_counts"]["buckets"]
+        contains_open_data_counts = agg["contains_open_data_counts"]["buckets"]
         contains_open_tables_counts = agg["contains_open_tables_counts"]["buckets"]
         contains_closed_tables_counts = agg["contains_closed_tables_counts"]["buckets"]
         contains_information_requests_counts = agg[
@@ -380,7 +405,9 @@ class DatasetESSearchView(SearchView):
                 {
                     "key": org["key"],
                     "count": org["doc_count"],
-                    "name": orgs_dict[org["key"]]["name"],
+                    "name": orgs_dict.get(org["key"]).get("name")
+                    if orgs_dict.get(org["key"])
+                    else org["key"],
                 }
                 for org in organization_counts
             ]
@@ -442,6 +469,32 @@ class DatasetESSearchView(SearchView):
                 for idx, contains_tables in enumerate(contains_tables_counts)
             ]
             aggregations["contains_tables"] = agg_contains_tables
+
+        if contains_closed_data_counts:
+            agg_contains_closed_data = [
+                {
+                    "key": contains_closed_data["key"],
+                    "count": contains_closed_data["doc_count"],
+                    "name": "dados fechados"
+                    if contains_closed_data["key"] == 1
+                    else "sem dados fechados",
+                }
+                for idx, contains_closed_data in enumerate(contains_closed_data_counts)
+            ]
+            aggregations["contains_closed_data"] = agg_contains_closed_data
+
+        if contains_open_data_counts:
+            agg_contains_open_data = [
+                {
+                    "key": contains_open_data["key"],
+                    "count": contains_open_data["doc_count"],
+                    "name": "dados abertos"
+                    if contains_open_data["key"] == 1
+                    else "sem dados abertos",
+                }
+                for idx, contains_open_data in enumerate(contains_open_data_counts)
+            ]
+            aggregations["contains_open_data"] = agg_contains_open_data
 
         if contains_open_tables_counts:
             agg_contains_open_tables = [

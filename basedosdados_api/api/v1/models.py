@@ -33,6 +33,36 @@ def image_path_and_rename(instance, filename):
     return os.path.join(upload_to, filename)
 
 
+def get_date_time(date_times):
+    """Returns a DateTimeRange object with the minimum start date and maximum end date"""
+    start_year, start_month, start_day = False, False, False
+    end_year, end_month, end_day = False, False, False
+    start_date, end_date = datetime(3000, 12, 31, 0, 0, 0), datetime(1, 1, 1, 0, 0, 0)
+
+    for date_time in date_times:
+        if date_time.start_year and date_time.start_year < start_date.year:
+            start_year = date_time.start_year
+        if date_time.start_month and date_time.start_month < start_date.month:
+            start_month = date_time.start_month
+        if date_time.start_day and date_time.start_day < start_date.day:
+            start_day = date_time.start_day
+        if date_time.end_year and date_time.end_year > end_date.year:
+            end_year = date_time.end_year
+        if date_time.end_month and date_time.end_month > end_date.month:
+            end_month = date_time.end_month
+        if date_time.end_day and date_time.end_day > end_date.day:
+            end_day = date_time.end_day
+
+    return DateTimeRange(
+        start_year=start_year,
+        start_month=start_month,
+        start_day=start_day,
+        end_year=end_year,
+        end_month=end_month,
+        end_day=end_day,
+    )
+
+
 class UUIDHIddenIdForm(forms.ModelForm):
     id = forms.UUIDField(widget=forms.HiddenInput(), required=False)
 
@@ -102,6 +132,7 @@ class Coverage(BdmModel):
         related_name="coverages",
     )
     area = models.ForeignKey("Area", on_delete=models.CASCADE, related_name="coverages")
+    is_closed = models.BooleanField("Is Closed", default=False)
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -462,30 +493,35 @@ class Dataset(BdmModel):
     @property
     def coverage(self):
         tables = self.tables.all()
+        raw_data_sources = self.raw_data_sources.all()
+        information_requests = self.information_requests.all()
         start_year, start_month, start_day = False, False, False
-        # start_semester, star_quarter = False, False
-        # start_hour, start_minute, start_second = False, False, False
         end_year, end_month, end_day = False, False, False
-        # end_semester, end_quarter = False, False
-        # end_hour, end_minute, end_second = False, False, False
 
-        start_date, end_date = datetime(3000, 1, 1, 0, 0, 0), datetime(1, 1, 1, 0, 0, 0)
+        start_date = datetime(3000, 12, 31, 0, 0, 0)
+        end_date = datetime(1, 1, 1, 0, 0, 0)
 
+        # TODO: refactor this to use a function
         for table in tables:
             for coverage in table.coverages.all():
-                try:
-                    date_time = DateTimeRange.objects.get(coverage=coverage.pk)
-                except DateTimeRange.DoesNotExist:
-                    return ""
-                start_year = date_time.start_year is not None or start_year
-                start_month = date_time.start_month is not None or start_month
-                start_day = date_time.start_day is not None or start_day
-                end_year = date_time.end_year is not None or end_year
-                end_month = date_time.end_month is not None or end_month
-                end_day = date_time.end_day is not None or end_day
+                date_times = DateTimeRange.objects.filter(coverage=coverage.pk)
+                if len(date_times) == 0:
+                    continue
+                date_time = get_date_time(date_times)
+
+                start_year = (
+                    date_time.start_year if date_time.start_year else start_year
+                )
+                start_month = (
+                    date_time.start_month if date_time.start_month else start_month
+                )
+                start_day = date_time.start_day if date_time.start_day else start_day
+                end_year = date_time.end_year if date_time.end_year else end_year
+                end_month = date_time.end_month if date_time.end_month else end_month
+                end_day = date_time.end_day if date_time.end_day else end_day
 
                 new_start_date = datetime(
-                    date_time.start_year,
+                    date_time.start_year or 3000,
                     date_time.start_month or 1,
                     date_time.start_day or 1,
                 )
@@ -493,21 +529,89 @@ class Dataset(BdmModel):
                     new_start_date if new_start_date < start_date else start_date
                 )
                 new_end_date = datetime(
-                    date_time.end_year, date_time.end_month or 1, date_time.end_day or 1
+                    date_time.end_year or 1,
+                    date_time.end_month or 1,
+                    date_time.end_day or 1,
+                )
+                end_date = new_end_date if new_end_date > end_date else end_date
+
+        for raw_data_source in raw_data_sources:
+            for coverage in raw_data_source.coverages.all():
+                date_times = DateTimeRange.objects.filter(coverage=coverage.pk)
+                if len(date_times) == 0:
+                    continue
+                date_time = get_date_time(date_times)
+
+                start_year = (
+                    date_time.start_year if date_time.start_year else start_year
+                )
+                start_month = (
+                    date_time.start_month if date_time.start_month else start_month
+                )
+                start_day = date_time.start_day if date_time.start_day else start_day
+                end_year = date_time.end_year if date_time.end_year else end_year
+                end_month = date_time.end_month if date_time.end_month else end_month
+                end_day = date_time.end_day if date_time.end_day else end_day
+
+                new_start_date = datetime(
+                    date_time.start_year or 3000,
+                    date_time.start_month or 1,
+                    date_time.start_day or 1,
+                )
+                start_date = (
+                    new_start_date if new_start_date < start_date else start_date
+                )
+                new_end_date = datetime(
+                    date_time.end_year or 1,
+                    date_time.end_month or 1,
+                    date_time.end_day or 1,
+                )
+                end_date = new_end_date if new_end_date > end_date else end_date
+
+        for information_request in information_requests:
+            for coverage in information_request.coverages.all():
+                date_times = DateTimeRange.objects.filter(coverage=coverage.pk)
+                if len(date_times) == 0:
+                    continue
+                date_time = get_date_time(date_times)
+
+                start_year = (
+                    date_time.start_year if date_time.start_year else start_year
+                )
+                start_month = (
+                    date_time.start_month if date_time.start_month else start_month
+                )
+                start_day = date_time.start_day if date_time.start_day else start_day
+                end_year = date_time.end_year if date_time.end_year else end_year
+                end_month = date_time.end_month if date_time.end_month else end_month
+                end_day = date_time.end_day if date_time.end_day else end_day
+
+                new_start_date = datetime(
+                    date_time.start_year or 3000,
+                    date_time.start_month or 1,
+                    date_time.start_day or 1,
+                )
+                start_date = (
+                    new_start_date if new_start_date < start_date else start_date
+                )
+                new_end_date = datetime(
+                    date_time.end_year or 1,
+                    date_time.end_month or 1,
+                    date_time.end_day or 1,
                 )
                 end_date = new_end_date if new_end_date > end_date else end_date
 
         start = []
         end = []
 
-        if start_year and start_date.year:
+        if start_year < 3000 and start_date.year:
             start.append(str(start_date.year))
             if start_month and start_date.month:
                 start.append(str(start_date.month).zfill(2))
                 if start_day and start_date.day:
                     start.append(str(start_date.day).zfill(2))
 
-        if end_year and end_date.year:
+        if end_year > 1 and end_date.year:
             end.append(str(end_date.year))
             if end_month and end_date.month:
                 end.append(str(end_date.month).zfill(2))
@@ -527,6 +631,44 @@ class Dataset(BdmModel):
     @property
     def get_graphql_contains_tables(self):
         return self.contains_tables
+
+    @property
+    def contains_closed_data(self):
+        """Returns true if there are tables or columns with closed coverages"""
+        closed_data = False
+        tables = self.tables.all()
+        for table in tables:
+            table_coverages = table.coverages.filter(is_closed=True)
+            if table_coverages:
+                closed_data = True
+                break
+            for column in table.columns.all():
+                if column.is_closed:  # in the future it will be column.coverages
+                    closed_data = True
+                    break
+
+        return closed_data
+
+    @property
+    def get_graphql_contains_closed_data(self):
+        return self.contains_closed_data
+
+    @property
+    def contains_open_data(self):
+        """Returns true if there are tables or columns with open coverages"""
+        open_data = False
+        tables = self.tables.all()
+        for table in tables:
+            table_coverages = table.coverages.filter(is_closed=False)
+            if table_coverages:
+                open_data = True
+                break
+
+        return open_data
+
+    @property
+    def get_graphql_contains_open_data(self):
+        return self.contains_open_data
 
     @property
     def contains_closed_tables(self):
@@ -708,15 +850,62 @@ class Table(BdmModel, OrderedModel):
             )
         ]
 
-
     @property
     def partitions(self):
-        partitions = self.columns.all().filter(is_partition=True)
-        return partitions
+        partitions_list = [p.name for p in self.columns.all().filter(is_partition=True)]
+        return ", ".join(partitions_list)
 
     @property
     def get_graphql_partitions(self):
         return self.partitions
+
+    @property
+    def contains_closed_data(self):
+        """Returns true if there are columns with closed coverages"""
+        closed_data = False
+        table_coverages = self.coverages.filter(is_closed=True)
+        if table_coverages:
+            closed_data = True
+        for column in self.columns.all():  # in the future it will be column.coverages
+            if column.is_closed:
+                closed_data = True
+                break
+
+        return closed_data
+
+    @property
+    def get_graphql_contains_closed_data(self):
+        return self.contains_closed_data
+
+    def clean(self):
+        errors = {}
+        """Coverages must not overlap"""
+        coverages = self.coverages.all()
+        for coverage in coverages:
+            temporal_coverages = [d for d in coverage.datetime_ranges.all()]
+            dt_ranges = []
+            for idx, temporal_coverage in enumerate(temporal_coverages):
+                dt_ranges.append(
+                    (
+                        datetime(
+                            temporal_coverage.start_year,
+                            temporal_coverage.start_month or 1,
+                            temporal_coverage.start_day or 1,
+                        ),
+                        datetime(
+                            temporal_coverage.end_year or datetime.now().year,
+                            temporal_coverage.end_month or 1,
+                            temporal_coverage.end_day or 1,
+                        ),
+                    )
+                )
+            dt_ranges.sort(key=lambda x: x[0])
+            for i in range(1, len(dt_ranges)):
+                if dt_ranges[i - 1][1] > dt_ranges[i][0]:
+                    errors = "Temporal coverages must not overlap"
+
+        if errors:
+            raise ValidationError(errors)
 
 
 class BigQueryType(BdmModel):
