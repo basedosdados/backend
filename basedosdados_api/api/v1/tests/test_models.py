@@ -36,8 +36,8 @@ def test_invalid_organization(organizacao_bd):
 
 
 @pytest.mark.django_db
-def test_date_time_range(coverage_tabela_open):
-    """Test for DateTimeRange."""
+def test_date_time_range_open(coverage_tabela_open):
+    """Test for open DateTimeRange."""
     date_time_range = DateTimeRange(
         coverage=coverage_tabela_open,
         start_year=2019,
@@ -49,7 +49,27 @@ def test_date_time_range(coverage_tabela_open):
     )
     date_time_range.full_clean()
     date_time_range.save()
+    assert date_time_range.is_closed is False
     assert DateTimeRange.objects.exists()
+
+
+@pytest.mark.django_db
+def test_date_time_range_closed(coverage_tabela_open):
+    """Test for closed DateTimeRange."""
+    date_time_range = DateTimeRange(
+        coverage=coverage_tabela_open,
+        start_year=2019,
+        start_month=1,
+        start_day=1,
+        end_year=2022,
+        end_month=6,
+        interval=1,
+        is_closed=True,
+    )
+    date_time_range.full_clean()
+    date_time_range.save()
+    open_date_time_range = DateTimeRange.objects.first()
+    assert open_date_time_range.is_closed is True
 
 
 @pytest.mark.django_db
@@ -146,6 +166,7 @@ def test_columns_create_with_open_coverage(
     tabela_bairros = Table.objects.get(slug="bairros")
     assert len(tabela_bairros.columns.all()) == 1
     assert tabela_bairros.contains_closed_data is False
+    assert coluna_nome_bairros.is_closed is False
 
 
 @pytest.mark.django_db

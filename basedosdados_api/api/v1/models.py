@@ -1321,6 +1321,7 @@ class DateTimeRange(BdmModel):
     end_minute = models.IntegerField(blank=True, null=True)
     end_second = models.IntegerField(blank=True, null=True)
     interval = models.IntegerField(blank=True, null=True)
+    is_closed = models.BooleanField("Is Closed", default=False)
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
