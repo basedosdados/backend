@@ -70,6 +70,35 @@ def test_invalid_date_time_range(coverage_tabela_open):
 
 
 @pytest.mark.django_db
+def test_overlapping_date_time_range(coverage_tabela_open):
+    """Test for overlapping DateTimeRange."""
+    date_time_range_1 = DateTimeRange(
+        coverage=coverage_tabela_open,
+        start_year=2019,
+        start_month=1,
+        start_day=None,
+        end_year=2022,
+        end_month=6,
+        end_day=None,
+        interval=1,
+    )
+    date_time_range_1.full_clean()
+    date_time_range_1.save()
+    date_time_range_2 = DateTimeRange(
+        coverage=coverage_tabela_open,
+        start_year=2020,
+        start_month=1,
+        start_day=None,
+        end_year=2023,
+        end_month=6,
+        end_day=None,
+        interval=1,
+    )
+    date_time_range_2.full_clean()
+    date_time_range_2.save()
+
+
+@pytest.mark.django_db
 def test_create_dataset(
     dataset_dados_mestres, tema_saude, tema_educacao, tag_aborto, tag_covid
 ):
@@ -88,15 +117,19 @@ def test_create_table(tabela_bairros):
 
 
 @pytest.mark.django_db
-def test_create_table_with_multiple_coverage(
+def test_create_table_with_overlapping_coverage(
     tabela_pro,
-    coverage_tabela_closed,
+    coverage_closed,
+    datetime_range_1,
+    datetime_range_2,
 ):
-    """Test for Table."""
+    """Test for Table with overlapping coverage. Must raise ValidationError."""
     tabela_pro.save()
-    coverage_tabela_closed.save()
+    coverage_closed.save()
+    datetime_range_1.save()
+    datetime_range_2.save()
     with pytest.raises(ValidationError):
-        tabela_pro.coverages.add(coverage_tabela_closed)
+        tabela_pro.coverages.add(coverage_closed)
         tabela_pro.clean()
     assert Table.objects.exists()
 
