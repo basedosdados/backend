@@ -5,6 +5,7 @@ from uuid import uuid4
 
 from django.core.mail import send_mail
 from django.db import models
+from django.contrib import admin
 from django.contrib.auth.hashers import (
     check_password,
     make_password,
@@ -193,7 +194,6 @@ class AccountManager(BaseUserManager):
         return account
 
     def create_superuser(self, email, password, **kwargs):
-
         account = self.create_user(email, password, profile=1, **kwargs)
 
         account.is_admin = True
@@ -361,3 +361,30 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
         # new password, so set it and save the model.
         self.set_password(self.password)
         super().save(*args, **kwargs)
+
+
+class Career(BdmModel):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    account = models.ForeignKey(Account, on_delete=models.DO_NOTHING)
+
+    team = models.CharField("Equipe", max_length=40, blank=True)
+    role = models.CharField("Cargo", max_length=40, blank=True)
+    level = models.CharField("Nível", max_length=40, blank=True)
+
+    start_at = models.DateField("Data de Início", null=True)
+    end_at = models.DateField("Data de Término", null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Career"
+        verbose_name_plural = "Careers"
+
+    def __str__(self):
+        return f"{self.account.first_name} @{self.role}"
+
+    def get_team(self):
+        return self.team
+
+    get_team.short_description = "Equipe"
