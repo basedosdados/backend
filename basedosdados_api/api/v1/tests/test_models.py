@@ -77,7 +77,10 @@ def test_date_time_range_closed(coverage_tabela_open):
 
 @pytest.mark.django_db
 def test_invalid_date_time_range(coverage_tabela_open):
-    """Test for DateTimeRange."""
+    """
+    Test for invalid DateTimeRange.
+    Must raise ValidationError because start_quarter is bigger than 4.
+    """
     date_time_range = DateTimeRange(
         coverage=coverage_tabela_open,
         start_year=2019,
@@ -96,7 +99,7 @@ def test_invalid_date_time_range(coverage_tabela_open):
 def test_create_dataset(
     dataset_dados_mestres, tema_saude, tema_educacao, tag_aborto, tag_covid
 ):
-    """Test for Dataset."""
+    """Test for Dataset creation"""
     dataset_dados_mestres.save()
     dataset_dados_mestres.themes.add(tema_saude, tema_educacao)
     dataset_dados_mestres.tags.add(tag_aborto, tag_covid)
@@ -118,7 +121,10 @@ def test_create_table_with_overlapping_coverage(
     datetime_range_1,
     datetime_range_2,
 ):
-    """Test for Table with overlapping coverage. Must raise ValidationError."""
+    """
+    Test for Table with Coverage containing overlapping DateTimeRange.
+    Must raise ValidationError.
+    """
     tabela_pro.save()
     coverage_tabela_open.save()
     datetime_range_1.coverage = coverage_tabela_open
