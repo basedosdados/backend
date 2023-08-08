@@ -21,7 +21,7 @@ from basedosdados_api.api.v1.models import (
 
 
 @pytest.mark.django_db
-def test_invalid_area_slug_brasil():
+def test_area_slug_brasil_invalid():
     """Test for Area with dot names, which are invalid in slug."""
     area = Area(
         name="Brasil",
@@ -32,7 +32,7 @@ def test_invalid_area_slug_brasil():
 
 
 @pytest.mark.django_db
-def test_invalid_organization(organizacao_invalida):
+def test_organization_invalid(organizacao_invalida):
     """Test for Organization without name."""
     with pytest.raises(ValidationError):
         organizacao_invalida.full_clean()
@@ -76,7 +76,7 @@ def test_date_time_range_closed(coverage_tabela_open):
 
 
 @pytest.mark.django_db
-def test_invalid_date_time_range(coverage_tabela_open):
+def test_date_time_range_invalid(coverage_tabela_open):
     """
     Test for invalid DateTimeRange.
     Must raise ValidationError because start_quarter is bigger than 4.
@@ -96,7 +96,7 @@ def test_invalid_date_time_range(coverage_tabela_open):
 
 
 @pytest.mark.django_db
-def test_create_dataset(
+def test_dataset_create(
     dataset_dados_mestres, tema_saude, tema_educacao, tag_aborto, tag_covid
 ):
     """Test for Dataset creation"""
@@ -107,7 +107,7 @@ def test_create_dataset(
 
 
 @pytest.mark.django_db
-def test_create_table(tabela_bairros):
+def test_table_create(tabela_bairros):
     """Test for Table without closed data."""
     tabela_bairros.save()
     assert Table.objects.exists()
@@ -115,7 +115,7 @@ def test_create_table(tabela_bairros):
 
 
 @pytest.mark.django_db
-def test_create_table_with_overlapping_coverage(
+def test_table_create_with_overlapping_coverage(
     tabela_pro,
     coverage_tabela_open,
     datetime_range_1,
@@ -179,7 +179,7 @@ def test_columns_create_with_open_coverage(
 
 
 @pytest.mark.django_db
-def test_create_rawdatasource(
+def test_rawdatasource_create(
     raw_data_source,
 ):
     """Test for RawDataSource."""
@@ -188,7 +188,7 @@ def test_create_rawdatasource(
 
 
 @pytest.mark.django_db
-def test_create_information_request(
+def test_information_request_create(
     pedido_informacao,
 ):
     """Test for InformationRequest."""
@@ -198,7 +198,7 @@ def test_create_information_request(
 
 
 @pytest.mark.django_db
-def test_create_analysis(  # pylint: disable=too-many-arguments
+def test_analysis_create(  # pylint: disable=too-many-arguments
     analise_bairros,
     dataset_dados_mestres,
     tema_saude,
@@ -218,7 +218,7 @@ def test_create_analysis(  # pylint: disable=too-many-arguments
 
 
 @pytest.mark.django_db
-def test_create_cloud_table(tabela_bairros):
+def test_cloud_table_create(tabela_bairros):
     """Test for CloudTable."""
     cloud_table = CloudTable(
         table=tabela_bairros,
