@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
-import pytest
+"""
+Pytest conftest
+"""
 import uuid
+import pytest
 
 
 from basedosdados_api.account.models import Account
@@ -46,6 +49,16 @@ def fixture_area_br():
     return area_br
 
 
+@pytest.fixture(name="organizacao_invalida")
+@pytest.mark.django_db
+def fixture_organizacao_invalida(area_br):
+    """Fixture for Organization without name (invalid)."""
+    return Organization.objects.create(
+        area=area_br,
+        slug="invalida",
+    )
+
+
 @pytest.fixture(name="organizacao_bd")
 @pytest.mark.django_db
 def fixture_organizacao_bd(area_br):
@@ -53,6 +66,7 @@ def fixture_organizacao_bd(area_br):
     return Organization.objects.create(
         area=area_br,
         slug="basedosdados",
+        name="Base dos Dados",
     )
 
 
@@ -287,6 +301,10 @@ def fixture_coverage_coluna_closed(
 @pytest.fixture(name="datetime_range_1")
 @pytest.mark.django_db
 def fixture_datetime_range_1():
+    """
+    Basic fixture for DateTimeRange.
+    Old format: YYYY-MM (1) YYYY-MM
+    """
     datetime_range_1 = DateTimeRange(
         start_year=2021,
         start_month=6,
@@ -300,6 +318,10 @@ def fixture_datetime_range_1():
 @pytest.fixture(name="datetime_range_2")
 @pytest.mark.django_db
 def fixture_datetime_range_2():
+    """
+    Basic fixture for DateTimeRange.
+    Old format: YYYY-MM (1) YYYY-MM
+    """
     datetime_range_2 = DateTimeRange(
         start_year=2022,
         start_month=6,
@@ -313,6 +335,10 @@ def fixture_datetime_range_2():
 @pytest.fixture(name="datetime_range_3")
 @pytest.mark.django_db
 def fixture_datetime_range_3():
+    """
+    Basic fixture for DateTimeRange.
+    Old format: YYYY-MM (1) YYYY-MM
+    """
     datetime_range_3 = DateTimeRange(
         start_year=2023,
         start_month=7,
@@ -332,10 +358,6 @@ def fixture_datetime_range_3():
 @pytest.mark.django_db
 def fixture_dataset_dados_mestres(
     organizacao_bd,
-    tema_saude,
-    tema_educacao,
-    tag_aborto,
-    tag_covid,
     status_em_processamento,
 ):
     """Test for Dataset."""
@@ -427,7 +449,6 @@ def fixture_tabela_diretorios_brasil_uf(
     licenca_mit,
     organizacao_parceira,
     pipeline,
-    observation_level_anual,
 ):
     """Fixture for Table."""
     return Table.objects.create(
@@ -576,9 +597,6 @@ def fixture_usuario_inicio():
 @pytest.mark.django_db
 def fixture_pedido_informacao(
     dataset_dados_mestres,
-    tabela_bairros,
-    coluna_nome_bairros,
-    coluna_populacao_bairros,
     status_em_processamento,
     usuario_inicio,
 ):
@@ -600,6 +618,7 @@ def fixture_pedido_informacao(
 @pytest.fixture(name="analise_tipo1")
 @pytest.mark.django_db
 def fixture_analise_tipo1():
+    """Fixture for AnalysisType."""
     return AnalysisType.objects.create(
         name="Análise tipo 1",
         slug="analise-tipo-1",
@@ -610,11 +629,6 @@ def fixture_analise_tipo1():
 @pytest.mark.django_db
 def fixture_analise_bairros(
     analise_tipo1,
-    dataset_dados_mestres,
-    tema_saude,
-    tema_educacao,
-    tag_aborto,
-    tag_covid,
 ):
     """Fixture for Analysis."""
     analysis = Analysis.objects.create(
@@ -640,6 +654,7 @@ def test_dictionary(
 @pytest.fixture(name="chave_1")
 @pytest.mark.django_db
 def fixture_chave_1(dicionario_1):
+    """Fixture for Key."""
     chave = Key.objects.create(dictionary=dicionario_1, name="Chave 1", value="Valor 1")
 
     return chave
@@ -647,7 +662,7 @@ def fixture_chave_1(dicionario_1):
 
 @pytest.fixture(name="teste_qualidade")
 @pytest.mark.django_db
-def fixture_teste_qualidade(
+def fixture_teste_qualidade(  # pylint: disable=too-many-arguments
     pipeline,
     analise_bairros,
     dataset_dados_mestres,
@@ -657,6 +672,7 @@ def fixture_teste_qualidade(
     raw_data_source,
     pedido_informacao,
 ):
+    """Fixture for QualityCheck."""
     teste_qualidade = QualityCheck.objects.create(
         name="Teste de qualidade",
         description="Descrição do teste de qualidade",

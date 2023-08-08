@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""
+Pytest Django models tests.
+"""
 import pytest
 from django.core.exceptions import ValidationError
 
@@ -29,10 +32,10 @@ def test_invalid_area_slug_brasil():
 
 
 @pytest.mark.django_db
-def test_invalid_organization(organizacao_bd):
-    """Test for Organization."""
+def test_invalid_organization(organizacao_invalida):
+    """Test for Organization without name."""
     with pytest.raises(ValidationError):
-        organizacao_bd.full_clean()
+        organizacao_invalida.full_clean()
 
 
 @pytest.mark.django_db
@@ -170,14 +173,18 @@ def test_columns_create_with_open_coverage(
 
 
 @pytest.mark.django_db
-def test_create_rawdatasource(raw_data_source, entity_escola, entity_anual):
+def test_create_rawdatasource(
+    raw_data_source,
+):
     """Test for RawDataSource."""
     raw_data_source.save()
     assert RawDataSource.objects.exists()
 
 
 @pytest.mark.django_db
-def test_create_information_request(pedido_informacao, entity_escola, entity_anual):
+def test_create_information_request(
+    pedido_informacao,
+):
     """Test for InformationRequest."""
     pedido_informacao.save()
 
@@ -185,7 +192,7 @@ def test_create_information_request(pedido_informacao, entity_escola, entity_anu
 
 
 @pytest.mark.django_db
-def test_create_analysis(
+def test_create_analysis(  # pylint: disable=too-many-arguments
     analise_bairros,
     dataset_dados_mestres,
     tema_saude,
