@@ -1,4 +1,9 @@
 # -*- coding: utf-8 -*-
+# pylint: disable=too-few-public-methods,too-many-lines
+"""
+Models for API v1
+"""
+
 from uuid import uuid4
 
 import calendar
@@ -64,13 +69,19 @@ def get_date_time(date_times):
 
 
 class UUIDHIddenIdForm(forms.ModelForm):
+    """Form to include UUID in inline formes (Table, Column and Coverage)"""
+
     id = forms.UUIDField(widget=forms.HiddenInput(), required=False)
 
     class Meta:
+        """Meta class"""
+
         abstract = True
 
 
 class Area(BdmModel):
+    """Area model"""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255, blank=False, null=False)
@@ -81,6 +92,8 @@ class Area(BdmModel):
         return f"{str(self.name)} ({str(self.slug)})"
 
     class Meta:
+        """Meta definition for Area."""
+
         db_table = "area"
         verbose_name = "Area"
         verbose_name_plural = "Areas"
@@ -88,6 +101,11 @@ class Area(BdmModel):
 
 
 class Coverage(BdmModel):
+    """
+    Coverage model
+    Spatial and temporal coverage of a table, raw data source, information request, column or key
+    """
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     table = models.ForeignKey(
         "Table",
@@ -137,12 +155,14 @@ class Coverage(BdmModel):
     graphql_nested_filter_fields_whitelist = ["id"]
 
     class Meta:
+        """Meta definition for Coverage."""
+
         db_table = "coverage"
         verbose_name = "Coverage"
         verbose_name_plural = "Coverages"
         ordering = ["id"]
 
-    def __str__(self):
+    def __str__(self):  # noqa: D105 pylint: disable=too-many-return-statements
         if self.coverage_type() == "table":
             return f"Table: {self.table} - {self.area}"
         if self.coverage_type() == "raw_data_source":
@@ -159,6 +179,10 @@ class Coverage(BdmModel):
         return str(self.id)
 
     def coverage_type(self):
+        """
+        Return the type of coverage. Must be table, raw_data_source,
+        information_request, column or key
+        """
         if self.table:
             return "table"
 
@@ -177,11 +201,15 @@ class Coverage(BdmModel):
         if self.analysis:
             return "analysis"
 
+        return ""
+
     coverage_type.short_description = "Coverage Type"
 
     def clean(self) -> None:
-        # Assert that only one of "table", "raw_data_source", "information_request", "column" or
-        # "key" is set
+        """
+        Assert that only one of "table", "raw_data_source",
+        "information_request", "column" or "key" is set
+        """
         count = 0
         if self.table:
             count += 1
@@ -197,11 +225,13 @@ class Coverage(BdmModel):
             count += 1
         if count != 1:
             raise ValidationError(
-                "One and only one of 'table', 'raw_data_source', 'information_request', 'column', 'key', 'analysis' must be set."  # noqa
+                "One and only one of 'table', 'raw_data_source', 'information_request', 'column', 'key', 'analysis' must be set."  # noqa  #pylint: disable=line-too-long
             )
 
 
 class License(BdmModel):
+    """License model"""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
@@ -213,6 +243,8 @@ class License(BdmModel):
         return str(self.slug)
 
     class Meta:
+        """Meta definition for License."""
+
         db_table = "license"
         verbose_name = "License"
         verbose_name_plural = "Licenses"
@@ -220,6 +252,11 @@ class License(BdmModel):
 
 
 class Key(BdmModel):
+    """
+    Key model
+    Sets a name and a value of a dictionary key
+    """
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     dictionary = models.ForeignKey(
         "Dictionary", on_delete=models.CASCADE, related_name="keys"
@@ -233,6 +270,8 @@ class Key(BdmModel):
         return str(self.name)
 
     class Meta:
+        """Meta definition for Key."""
+
         db_table = "keys"
         verbose_name = "Key"
         verbose_name_plural = "Keys"
@@ -240,6 +279,8 @@ class Key(BdmModel):
 
 
 class Pipeline(BdmModel):
+    """Pipeline model"""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     github_url = models.URLField()
 
@@ -249,6 +290,8 @@ class Pipeline(BdmModel):
         return str(self.github_url)
 
     class Meta:
+        """Meta definition for Pipeline."""
+
         db_table = "pipeline"
         verbose_name = "Pipeline"
         verbose_name_plural = "Pipelines"
@@ -256,6 +299,8 @@ class Pipeline(BdmModel):
 
 
 class Analysis(BdmModel):
+    """Analysis model"""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     name = models.CharField(null=True, blank=True, max_length=255)
     description = models.TextField(null=True, blank=True)
@@ -292,6 +337,8 @@ class Analysis(BdmModel):
         return str(self.name)
 
     class Meta:
+        """Meta definition for Analysis."""
+
         db_table = "analysis"
         verbose_name = "Analysis"
         verbose_name_plural = "Analyses"
@@ -299,6 +346,8 @@ class Analysis(BdmModel):
 
 
 class AnalysisType(BdmModel):
+    """Analysis Type model"""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
@@ -309,6 +358,8 @@ class AnalysisType(BdmModel):
         return str(self.name)
 
     class Meta:
+        """Meta definition for AnalysisType."""
+
         db_table = "analysis_type"
         verbose_name = "Analysis Type"
         verbose_name_plural = "Analysis Types"
@@ -316,6 +367,8 @@ class AnalysisType(BdmModel):
 
 
 class Tag(BdmModel):
+    """Tag model"""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
@@ -328,6 +381,8 @@ class Tag(BdmModel):
         return str(self.slug)
 
     class Meta:
+        """Meta definition for Tag."""
+
         db_table = "tag"
         verbose_name = "Tag"
         verbose_name_plural = "Tags"
@@ -335,6 +390,8 @@ class Tag(BdmModel):
 
 
 class Theme(BdmModel):
+    """Theme model"""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
@@ -347,6 +404,8 @@ class Theme(BdmModel):
         return str(self.slug)
 
     class Meta:
+        """Meta definition for Theme."""
+
         db_table = "theme"
         verbose_name = "Theme"
         verbose_name_plural = "Themes"
@@ -354,6 +413,8 @@ class Theme(BdmModel):
 
 
 class Organization(BdmModel):
+    """Organization model"""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=False, max_length=255)
     name = models.CharField(max_length=255)
@@ -383,15 +444,18 @@ class Organization(BdmModel):
         return str(self.slug)
 
     class Meta:
+        """Meta definition for Organization."""
+
         db_table = "organization"
         verbose_name = "Organization"
         verbose_name_plural = "Organizations"
         ordering = ["slug"]
 
     def has_picture(self):
+        """Check if the organization has a picture"""
         try:
             hasattr(self.picture, "url")
-        except Exception as e:  # noqa
+        except Exception:  # noqa  pylint: disable=broad-except
             return False
         return self.picture is not None
 
@@ -400,21 +464,26 @@ class Organization(BdmModel):
 
     @property
     def get_graphql_has_picture(self):
+        """Get the has_picture property for graphql"""
         return self.has_picture()
 
     @property
     def full_slug(self):
+        """Get the full slug or Organization"""
         if self.area.slug != "unknown":
             return f"{self.area.slug}_{self.slug}"
-        else:
-            return f"{self.slug}"
+
+        return f"{self.slug}"
 
     @property
     def get_graphql_full_slug(self):
+        """Get the full slug or Organization for graphql"""
         return self.full_slug
 
 
 class Status(BdmModel):
+    """Status model"""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
@@ -425,6 +494,8 @@ class Status(BdmModel):
     graphql_nested_filter_fields_whitelist = ["id"]
 
     class Meta:
+        """Meta class"""
+
         db_table = "status"
         verbose_name = "Status"
         verbose_name_plural = "Statuses"
@@ -432,6 +503,8 @@ class Status(BdmModel):
 
 
 class Dataset(BdmModel):
+    """Dataset model"""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=False, max_length=255)
     name = models.CharField(max_length=255)
@@ -457,7 +530,8 @@ class Dataset(BdmModel):
         related_name="datasets",
         null=True,
         blank=True,
-        help_text="Status is used to indicate at what stage of development or publishing the dataset is.",
+        help_text="Status is used to indicate at what stage of "
+        "development or publishing the dataset is.",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -471,27 +545,33 @@ class Dataset(BdmModel):
         return str(self.slug)
 
     class Meta:
+        """Meta class"""
+
         db_table = "dataset"
         verbose_name = "Dataset"
         verbose_name_plural = "Datasets"
         ordering = ["slug"]
 
     def get_success_url(self):
+        """Get the success url for the dataset"""
         return reverse("datasetdetail", kwargs={"pk": self.object.pk})
 
     @property
     def full_slug(self):
+        """Get the full slug or Dataset"""
         if self.organization.area.slug != "unknown":
             return f"{self.organization.area.slug}_{self.organization.slug}_{self.slug}"
-        else:
-            return f"{self.organization.slug}_{self.slug}"
+
+        return f"{self.organization.slug}_{self.slug}"
 
     @property
     def get_graphql_full_slug(self):
+        """Get the full slug or Dataset for graphql"""
         return self.full_slug
 
     @property
     def coverage(self):
+        """Get the temporal coverage of the dataset in the format YYYY-MM-DD - YYYY-MM-DD"""
         tables = self.tables.all()
         raw_data_sources = self.raw_data_sources.all()
         information_requests = self.information_requests.all()
@@ -501,7 +581,7 @@ class Dataset(BdmModel):
         start_date = datetime(3000, 12, 31, 0, 0, 0)
         end_date = datetime(1, 1, 1, 0, 0, 0)
 
-        # TODO: refactor this to use a function
+        # This must be refactored to avoid code duplication
         for table in tables:
             for coverage in table.coverages.all():
                 date_times = DateTimeRange.objects.filter(coverage=coverage.pk)
@@ -604,32 +684,44 @@ class Dataset(BdmModel):
         start = []
         end = []
 
-        if start_year < 3000 and start_date.year:
+        if start_year and start_year < 3000 and start_date.year:
             start.append(str(start_date.year))
             if start_month and start_date.month:
                 start.append(str(start_date.month).zfill(2))
                 if start_day and start_date.day:
                     start.append(str(start_date.day).zfill(2))
 
-        if end_year > 1 and end_date.year:
+        if end_year and end_year > 1 and end_date.year:
             end.append(str(end_date.year))
             if end_month and end_date.month:
                 end.append(str(end_date.month).zfill(2))
                 if end_day and end_date.day:
                     end.append(str(end_date.day).zfill(2))
 
-        return "-".join(start) + " - " + "-".join(end)
+        coverage_str = ""
+        if start:
+            coverage_str += "-".join(start)
+        if end:
+            coverage_str += " - " + "-".join(end)
+
+        return coverage_str
 
     @property
     def get_graphql_coverage(self):
+        """
+        Returns the temporal coverage of the dataset in the format
+        YYYY-MM-DD - YYYY-MM-DD for graphql
+        """
         return self.coverage
 
     @property
     def contains_tables(self):
+        """Returns true if there are tables in the dataset"""
         return len(self.tables.all()) > 0
 
     @property
     def get_graphql_contains_tables(self):
+        """Returns true if there are tables in the dataset for graphql"""
         return self.contains_tables
 
     @property
@@ -651,6 +743,7 @@ class Dataset(BdmModel):
 
     @property
     def get_graphql_contains_closed_data(self):
+        """Returns true if there are tables or columns with closed coverages for graphql"""
         return self.contains_closed_data
 
     @property
@@ -668,44 +761,59 @@ class Dataset(BdmModel):
 
     @property
     def get_graphql_contains_open_data(self):
+        """Returns true if there are tables or columns with open coverages for graphql"""
         return self.contains_open_data
 
     @property
     def contains_closed_tables(self):
+        """Returns true if there are tables with closed coverages (DEPRECATED)"""
         closed_tables = self.tables.all().filter(is_closed=True)
         return len(closed_tables) > 0
 
     @property
     def get_graphql_contains_closed_tables(self):
+        """Returns true if there are tables with closed coverages for graphql (DEPRECATED)"""
         return self.contains_closed_tables
 
     @property
     def contains_open_tables(self):
+        """Returns true if there are tables with open coverages (DEPRECATED)"""
         open_tables = self.tables.all().filter(is_closed=False)
         return len(open_tables) > 0
 
     @property
     def get_graphql_contains_open_tables(self):
+        """Returns true if there are tables with open coverages for graphql (DEPRECATED)"""
         return self.contains_open_tables
 
     @property
     def contains_raw_data_sources(self):
+        """Returns true if there are raw data sources in the dataset"""
         return len(self.raw_data_sources.all()) > 0
 
     @property
     def get_graphql_contains_raw_data_sources(self):
+        """Returns true if there are raw data sources in the dataset for graphql"""
         return self.contains_raw_data_sources
 
     @property
     def contains_information_requests(self):
+        """Returns true if there are information requests in the dataset"""
         return len(self.information_requests.all()) > 0
 
     @property
     def get_graphql_contains_information_requests(self):
+        """Returns true if there are information requests in the dataset for graphql"""
         return self.contains_information_requests
 
 
 class Update(BdmModel):
+    """
+    Update model
+    Informations about the update of a model - frequency, lag, latest update
+    Can be linked to a table, a raw data source or an information request
+    """
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     entity = models.ForeignKey(
         "Entity", on_delete=models.CASCADE, related_name="updates"
@@ -741,14 +849,15 @@ class Update(BdmModel):
         return f"{str(self.frequency)} {str(self.entity)}"
 
     class Meta:
+        """Meta definition for Update."""
+
         db_table = "update"
         verbose_name = "Update"
         verbose_name_plural = "Updates"
         ordering = ["frequency"]
 
     def clean(self) -> None:
-
-        # Assert that only one of "table", "raw_data_source", "information_request" is set
+        """Assert that only one of "table", "raw_data_source", "information_request" is set"""
         count = 0
         if self.table:
             count += 1
@@ -758,7 +867,7 @@ class Update(BdmModel):
             count += 1
         if count != 1:
             raise ValidationError(
-                "One and only one of 'table', 'raw_data_source', or 'information_request' must be set."  # noqa
+                "One and only one of 'table', 'raw_data_source', or 'information_request' must be set."  # noqa  pylint: disable=line-too-long
             )
 
         if self.entity.category.slug != "datetime":
@@ -770,6 +879,8 @@ class Update(BdmModel):
 
 
 class Table(BdmModel, OrderedModel):
+    """Table model"""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=False, max_length=255)
     name = models.CharField(max_length=255)
@@ -840,6 +951,8 @@ class Table(BdmModel, OrderedModel):
         return f"{str(self.dataset.slug)}.{str(self.slug)}"
 
     class Meta:
+        """Meta definition for Table."""
+
         db_table = "table"
         verbose_name = "Table"
         verbose_name_plural = "Tables"
@@ -852,11 +965,13 @@ class Table(BdmModel, OrderedModel):
 
     @property
     def partitions(self):
+        """Returns a list of columns used to partition the table"""
         partitions_list = [p.name for p in self.columns.all().filter(is_partition=True)]
         return ", ".join(partitions_list)
 
     @property
     def get_graphql_partitions(self):
+        """Returns a list of columns used to partition the table"""
         return self.partitions
 
     @property
@@ -875,40 +990,55 @@ class Table(BdmModel, OrderedModel):
 
     @property
     def get_graphql_contains_closed_data(self):
+        """Returns true if there are columns with closed coverages to be used in graphql"""
         return self.contains_closed_data
 
     def clean(self):
+        """
+        Clean method for Table model
+            - Coverages must not overlap
+        """
         errors = {}
-        """Coverages must not overlap"""
-        coverages = self.coverages.all()
-        for coverage in coverages:
-            temporal_coverages = [d for d in coverage.datetime_ranges.all()]
-            dt_ranges = []
-            for idx, temporal_coverage in enumerate(temporal_coverages):
-                dt_ranges.append(
-                    (
-                        datetime(
-                            temporal_coverage.start_year,
-                            temporal_coverage.start_month or 1,
-                            temporal_coverage.start_day or 1,
-                        ),
-                        datetime(
-                            temporal_coverage.end_year or datetime.now().year,
-                            temporal_coverage.end_month or 1,
-                            temporal_coverage.end_day or 1,
-                        ),
-                    )
+        try:
+            coverages = self.coverages.all()
+            temporal_coverages_by_area = {
+                str(coverage.area.slug): [] for coverage in coverages
+            }
+            for coverage in coverages:
+                temporal_coverages_by_area[str(coverage.area.slug)].append(
+                    *list(coverage.datetime_ranges.all())
                 )
-            dt_ranges.sort(key=lambda x: x[0])
-            for i in range(1, len(dt_ranges)):
-                if dt_ranges[i - 1][1] > dt_ranges[i][0]:
-                    errors = "Temporal coverages must not overlap"
+            for area, temporal_coverages in temporal_coverages_by_area.items():
+                dt_ranges = []
+                for _, temporal_coverage in enumerate(temporal_coverages):
+                    dt_ranges.append(
+                        (
+                            datetime(
+                                temporal_coverage.start_year,
+                                temporal_coverage.start_month or 1,
+                                temporal_coverage.start_day or 1,
+                            ),
+                            datetime(
+                                temporal_coverage.end_year or datetime.now().year,
+                                temporal_coverage.end_month or 1,
+                                temporal_coverage.end_day or 1,
+                            ),
+                        )
+                    )
+                dt_ranges.sort(key=lambda x: x[0])
+                for i in range(1, len(dt_ranges)):
+                    if dt_ranges[i - 1][1] > dt_ranges[i][0]:
+                        errors = f"Temporal coverages in area {area} overlap"
+        except ValueError:
+            pass
 
         if errors:
             raise ValidationError(errors)
 
 
 class BigQueryType(BdmModel):
+    """Model definition for BigQueryType."""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     name = models.CharField(max_length=255)
 
@@ -918,6 +1048,8 @@ class BigQueryType(BdmModel):
         return str(self.name)
 
     class Meta:
+        """Meta definition for BigQueryType."""
+
         db_table = "bigquery_type"
         verbose_name = "BigQuery Type"
         verbose_name_plural = "BigQuery Types"
@@ -925,6 +1057,8 @@ class BigQueryType(BdmModel):
 
 
 class Column(BdmModel, OrderedModel):
+    """Model definition for Column."""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     table = models.ForeignKey("Table", on_delete=models.CASCADE, related_name="columns")
     name = models.CharField(max_length=255)
@@ -973,13 +1107,15 @@ class Column(BdmModel, OrderedModel):
         return f"{str(self.table.dataset.slug)}.{self.table.slug}.{str(self.name)}"
 
     class Meta:
+        """Meta definition for Column."""
+
         db_table = "column"
         verbose_name = "Column"
         verbose_name_plural = "Columns"
         ordering = ["name"]
 
     def clean(self) -> None:
-
+        """Clean method for Column model"""
         errors = {}
         if self.observation_level and self.observation_level.table != self.table:
             errors[
@@ -1001,6 +1137,8 @@ class Column(BdmModel, OrderedModel):
 
 
 class Dictionary(BdmModel):
+    """Model definition for Dictionary."""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     column = models.ForeignKey(
         "Column", on_delete=models.CASCADE, related_name="dictionaries"
@@ -1009,15 +1147,19 @@ class Dictionary(BdmModel):
     graphql_nested_filter_fields_whitelist = ["id"]
 
     class Meta:
+        """Meta definition for Dictionary."""
+
         verbose_name = "Dictionary"
         verbose_name_plural = "Dictionaries"
         ordering = ["column"]
 
     def __str__(self):
-        return f"{str(self.column.table.dataset.slug)}.{self.column.table.slug}.{str(self.column.name)}"
+        return f"{str(self.column.table.dataset.slug)}.{self.column.table.slug}.{str(self.column.name)}"  # noqa pylint: disable=line-too-long
 
 
 class CloudTable(BdmModel):
+    """Model definition for CloudTable."""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     table = models.ForeignKey(
         "Table", on_delete=models.CASCADE, related_name="cloud_tables"
@@ -1042,6 +1184,7 @@ class CloudTable(BdmModel):
         return f"{self.gcp_project_id}.{self.gcp_dataset_id}.{self.gcp_table_id}"
 
     def clean(self) -> None:
+        """Clean method for CloudTable model"""
         errors = {}
         if self.gcp_project_id and not check_kebab_case(self.gcp_project_id):
             errors["gcp_project_id"] = "gcp_project_id must be in kebab-case."
@@ -1060,6 +1203,8 @@ class CloudTable(BdmModel):
         return super().clean()
 
     class Meta:
+        """Meta definition for CloudTable."""
+
         db_table = "cloud_table"
         verbose_name = "Cloud Table"
         verbose_name_plural = "Cloud Tables"
@@ -1067,6 +1212,8 @@ class CloudTable(BdmModel):
 
 
 class Availability(BdmModel):
+    """Model definition for Availability."""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
@@ -1077,6 +1224,8 @@ class Availability(BdmModel):
         return str(self.slug)
 
     class Meta:
+        """Meta definition for Availability."""
+
         db_table = "availability"
         verbose_name = "Availability"
         verbose_name_plural = "Availabilities"
@@ -1084,6 +1233,8 @@ class Availability(BdmModel):
 
 
 class Language(BdmModel):
+    """Model definition for Language."""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
@@ -1094,6 +1245,8 @@ class Language(BdmModel):
         return str(self.slug)
 
     class Meta:
+        """Meta definition for Language."""
+
         db_table = "language"
         verbose_name = "Language"
         verbose_name_plural = "Languages"
@@ -1101,6 +1254,8 @@ class Language(BdmModel):
 
 
 class RawDataSource(BdmModel, OrderedModel):
+    """Model definition for RawDataSource."""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
@@ -1139,6 +1294,8 @@ class RawDataSource(BdmModel, OrderedModel):
     graphql_nested_filter_fields_whitelist = ["id"]
 
     class Meta:
+        """Meta definition for RawDataSource."""
+
         db_table = "raw_data_source"
         verbose_name = "Raw Data Source"
         verbose_name_plural = "Raw Data Sources"
@@ -1149,6 +1306,8 @@ class RawDataSource(BdmModel, OrderedModel):
 
 
 class InformationRequest(BdmModel, OrderedModel):
+    """Model definition for InformationRequest."""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     dataset = models.ForeignKey(
         "Dataset", on_delete=models.CASCADE, related_name="information_requests"
@@ -1184,12 +1343,15 @@ class InformationRequest(BdmModel, OrderedModel):
         return str(f"{self.dataset.name}({self.number})")
 
     class Meta:
+        """Meta definition for InformationRequest."""
+
         db_table = "information_request"
         verbose_name = "Information Request"
         verbose_name_plural = "Information Requests"
         ordering = ["number"]
 
     def clean(self) -> None:
+        """Validate the model fields."""
         errors = {}
         if self.origin is not None and len(self.origin) > 500:
             errors["origin"] = "Origin cannot be longer than 500 characters"
@@ -1200,6 +1362,8 @@ class InformationRequest(BdmModel, OrderedModel):
 
 
 class EntityCategory(BdmModel):
+    """Model definition for Entity Category."""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
@@ -1210,6 +1374,8 @@ class EntityCategory(BdmModel):
         return str(self.slug)
 
     class Meta:
+        """Meta definition for Entity Category."""
+
         db_table = "entity_category"
         verbose_name = "Entity Category"
         verbose_name_plural = "Entity Categories"
@@ -1217,6 +1383,8 @@ class EntityCategory(BdmModel):
 
 
 class Entity(BdmModel):
+    """Model definition for Entity."""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
@@ -1230,6 +1398,8 @@ class Entity(BdmModel):
         return str(self.slug)
 
     class Meta:
+        """Meta definition for Entity."""
+
         db_table = "entity"
         verbose_name = "Entity"
         verbose_name_plural = "Entities"
@@ -1237,6 +1407,8 @@ class Entity(BdmModel):
 
 
 class ObservationLevel(BdmModel):
+    """Model definition for ObservationLevel."""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     entity = models.ForeignKey(
         "Entity", on_delete=models.CASCADE, related_name="observation_levels"
@@ -1276,13 +1448,15 @@ class ObservationLevel(BdmModel):
         return str(self.entity)
 
     class Meta:
+        """Meta definition for ObservationLevel."""
+
         db_table = "observation_level"
         verbose_name = "Observation Level"
         verbose_name_plural = "Observation Levels"
         ordering = ["id"]
 
     def clean(self) -> None:
-        # Assert that only one of "table", "raw_data_source", "information_request" is set
+        """Assert that only one of "table", "raw_data_source", "information_request" is set"""
         count = 0
         if self.table:
             count += 1
@@ -1294,12 +1468,14 @@ class ObservationLevel(BdmModel):
             count += 1
         if count != 1:
             raise ValidationError(
-                "One and only one of 'table', 'raw_data_source', 'information_request', 'analysis' must be set."  # noqa
+                "One and only one of 'table', 'raw_data_source', 'information_request', 'analysis' must be set."  # noqa pylint: disable=line-too-long
             )
         return super().clean()
 
 
 class DateTimeRange(BdmModel):
+    """Model definition for DateTimeRange."""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     coverage = models.ForeignKey(
         "Coverage", on_delete=models.CASCADE, related_name="datetime_ranges"
@@ -1321,6 +1497,7 @@ class DateTimeRange(BdmModel):
     end_minute = models.IntegerField(blank=True, null=True)
     end_second = models.IntegerField(blank=True, null=True)
     interval = models.IntegerField(blank=True, null=True)
+    is_closed = models.BooleanField("Is Closed", default=False)
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -1339,15 +1516,21 @@ class DateTimeRange(BdmModel):
         end_second = f":{self.end_second}" if self.end_second else ""
         interval = f"({self.interval})" if self.interval else "()"
         return f"{start_year}{start_month}{start_day}{start_hour}{start_minute}{start_second}{interval}\
-           {end_year}{end_month}{end_day}{end_hour}{end_minute}{end_second}"
+           {end_year}{end_month}{end_day}{end_hour}{end_minute}{end_second}"  # noqa pylint: disable=line-too-long
 
     class Meta:
+        """Meta definition for DateTimeRange."""
+
         db_table = "datetime_range"
         verbose_name = "DateTime Range"
         verbose_name_plural = "DateTime Ranges"
         ordering = ["id"]
 
     def clean(self) -> None:
+        """
+        Assert that start_year <= end_year and start_month <= end_month
+        and start_day <= end_day
+        """
         errors = {}
 
         if (self.start_year and self.end_year) and self.start_year > self.end_year:
@@ -1424,6 +1607,8 @@ class DateTimeRange(BdmModel):
 
 
 class QualityCheck(BdmModel):
+    """Model definition for QualityCheck."""
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     name = models.CharField(null=True, blank=True, max_length=255)
     description = models.TextField(null=True, blank=True)
@@ -1493,12 +1678,15 @@ class QualityCheck(BdmModel):
         return str(self.name)
 
     class Meta:
+        """Meta definition for QualityCheck."""
+
         db_table = "quality_check"
         verbose_name = "Quality Check"
         verbose_name_plural = "Quality Checks"
         ordering = ["id"]
 
     def clean(self) -> None:
+        """Validate that only one of the FKs is set."""
         count = 0
         if self.analysis:
             count += 1
@@ -1516,6 +1704,6 @@ class QualityCheck(BdmModel):
             count += 1
         if count != 1:
             raise ValidationError(
-                "One and only one of 'analysis', 'dataset, 'table', 'column', 'key, 'raw_data_source', 'information_request' must be set."  # noqa
+                "One and only one of 'analysis', 'dataset, 'table', 'column', 'key, 'raw_data_source', 'information_request' must be set."  # noqa pylint: disable=line-too-long
             )
         return super().clean()

@@ -7,7 +7,7 @@ from django.contrib import admin, messages
 from django import forms
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.management import call_command
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 
 # from django.db import models
 from django.utils.html import format_html
@@ -428,7 +428,7 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
 
     def related_objects(self, obj):
         return format_html(
-            "<a class='related-widget-wrapper-link add-related' href='/admin/v1/table/add/?dataset={0}&_to_field=id&_popup=1'>{1} {2}</a>",  # noqa
+            "<a class='related-widget-wrapper-link add-related' href='/admin/v1/table/add/?dataset={0}&_to_field=id&_popup=1'>{1} {2}</a>",  # noqa  pylint: disable=line-too-long
             obj.id,
             obj.tables.count(),
             " ".join(
@@ -475,7 +475,37 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
 
     change_form_template = "admin/table_change_form.html"
 
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        """Adds custom context to the change form view"""
+        extra_context = extra_context or {}
+        obj = get_object_or_404(Table, pk=object_id) if object_id else None
+        if obj:
+            coverages = obj.coverages.all()
+            coverages_list = []
+            for coverage in coverages:
+                cov = {
+                    "id": coverage.id,
+                    "area": coverage.area.name,
+                    "datetime_range": "",
+                }
+                datetime_range = (
+                    coverage.datetime_ranges.first()
+                )  # currently, it gets only the first datetime_range
+                if datetime_range:
+                    cov["datetime_range"] = datetime_range
+                coverages_list.append(cov)
+
+            extra_context["table_coverages"] = coverages_list
+
+            extra_context["datetime_ranges"] = [
+                coverage.datetime_ranges.all() for coverage in obj.coverages.all()
+            ]
+        return super().changeform_view(
+            request, object_id, form_url, extra_context=extra_context
+        )
+
     def related_columns(self, obj):
+        """Adds information of number of columns, with link to add a new column"""
         return format_html(
             "<a href='/admin/v1/column/add/?table={0}'>{1} {2}</a>",
             obj.id,
@@ -492,12 +522,11 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         lines = []
         for datetimerange in qs:
             lines.append(
-                '<a href="/admin/api/v1/datetimerange/{0}/change/" target="_blank">Date Time Range</a>',
+                '<a href="/admin/api/v1/datetimerange/{0}/change/" target="_blank">Date Time Range</a>',  # noqa  pylint: disable=line-too-long
                 datetimerange.pk,
             )
         return format_html(
-            '<a href="/admin/api/v1/datetimerange/{}/change/" target="_blank">Date Time Range</a>',
-            # 'http://localhost:8001/admin/v1/datetimerange/00004e41-a4f8-48eb-b39c-f353d872d7c7/change/'
+            '<a href="/admin/api/v1/datetimerange/{}/change/" target="_blank">Date Time Range</a>',  # noqa  pylint: disable=line-too-long
             obj.datetimerange.slug,
         )
 
@@ -507,18 +536,9 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         parent_model_id = request.GET.get("dataset")
         if parent_model_id:
             # If a parent model ID is provided, add the parent model field to the form
-            # fields = self.get_related_fields
             initial = {"parent_model": parent_model_id}
             self.initial = initial  # noqa
         return super().add_view(request, *args, **kwargs)
-
-    def get_related_fields(self, request, obj=None):  # noqa
-        fields = self.model._meta.fields  # noqa
-        parent_model_id = request.GET.get("dataset")
-        if parent_model_id:
-            parent_model = Dataset.objects.get(id=parent_model_id)
-            fields += parent_model._meta.fields  # noqa
-        return fields
 
     readonly_fields = [
         "id",
