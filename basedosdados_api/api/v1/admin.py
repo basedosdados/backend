@@ -7,7 +7,7 @@ from django.contrib import admin, messages
 from django import forms
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.management import call_command
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 
 # from django.db import models
 from django.utils.html import format_html
@@ -474,6 +474,35 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     ]
 
     change_form_template = "admin/table_change_form.html"
+
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        """Adds custom context to the change form view"""
+        extra_context = extra_context or {}
+        obj = get_object_or_404(Table, pk=object_id) if object_id else None
+        if obj:
+            coverages = obj.coverages.all()
+            coverages_list = []
+            for coverage in coverages:
+                cov = {
+                    "id": coverage.id,
+                    "area": coverage.area.name,
+                    "datetime_range": "",
+                }
+                datetime_range = (
+                    coverage.datetime_ranges.first()
+                )  # currently, it gets only the first datetime_range
+                if datetime_range:
+                    cov["datetime_range"] = datetime_range
+                coverages_list.append(cov)
+
+            extra_context["table_coverages"] = coverages_list
+
+            extra_context["datetime_ranges"] = [
+                coverage.datetime_ranges.all() for coverage in obj.coverages.all()
+            ]
+        return super().changeform_view(
+            request, object_id, form_url, extra_context=extra_context
+        )
 
     def related_columns(self, obj):
         """Adds information of number of columns, with link to add a new column"""
