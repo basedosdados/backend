@@ -145,7 +145,7 @@ def test_table_with_empty_coverage(
 ):
     """
     Test for Table with Coverage containing no DateTimeRange.
-    Must raise ValidationError.
+    Coverage must be empty string.
     """
     tabela_bairros.save()
     coverage_tabela_open.save()
