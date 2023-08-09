@@ -349,6 +349,23 @@ def fixture_datetime_range_3():
     return datetime_range_3
 
 
+@pytest.fixture(name="datetime_range_empty")
+@pytest.mark.django_db
+def fixture_datetime_range_empty():
+    """
+    Fixture for empty DateTimeRange for columns.
+    Must be inherited from table.
+    """
+    datetime_range_empty = DateTimeRange(
+        start_year=None,
+        start_month=None,
+        end_year=None,
+        end_month=None,
+        interval=None,
+    )
+    return datetime_range_empty
+
+
 #############################################################################################
 # Dataset fixtures
 #############################################################################################

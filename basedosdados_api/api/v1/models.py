@@ -201,6 +201,8 @@ class Coverage(BdmModel):
         if self.analysis:
             return "analysis"
 
+        return ""
+
     coverage_type.short_description = "Coverage Type"
 
     def clean(self) -> None:
@@ -682,21 +684,27 @@ class Dataset(BdmModel):
         start = []
         end = []
 
-        if start_year < 3000 and start_date.year:
+        if start_year and start_year < 3000 and start_date.year:
             start.append(str(start_date.year))
             if start_month and start_date.month:
                 start.append(str(start_date.month).zfill(2))
                 if start_day and start_date.day:
                     start.append(str(start_date.day).zfill(2))
 
-        if end_year > 1 and end_date.year:
+        if end_year and end_year > 1 and end_date.year:
             end.append(str(end_date.year))
             if end_month and end_date.month:
                 end.append(str(end_date.month).zfill(2))
                 if end_day and end_date.day:
                     end.append(str(end_date.day).zfill(2))
 
-        return "-".join(start) + " - " + "-".join(end)
+        coverage_str = ""
+        if start:
+            coverage_str += "-".join(start)
+        if end:
+            coverage_str += " - " + "-".join(end)
+
+        return coverage_str
 
     @property
     def get_graphql_coverage(self):

@@ -138,6 +138,21 @@ def test_table_create_with_overlapping_coverage(
 
 
 @pytest.mark.django_db
+def test_table_with_empty_coverage(
+    tabela_bairros, coverage_tabela_open, datetime_range_empty
+):
+    """
+    Test for Table with Coverage containing no DateTimeRange.
+    Must raise ValidationError.
+    """
+    tabela_bairros.save()
+    coverage_tabela_open.save()
+    datetime_range_empty.coverage = coverage_tabela_open
+    datetime_range_empty.save()
+    assert tabela_bairros.dataset.coverage == ""
+
+
+@pytest.mark.django_db
 def test_columns_create(
     coluna_state_id_bairros,
     coluna_nome_bairros,
