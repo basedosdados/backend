@@ -999,29 +999,32 @@ class Table(BdmModel, OrderedModel):
             - Coverages must not overlap
         """
         errors = {}
-        coverages = self.coverages.all()
-        for coverage in coverages:
-            temporal_coverages = list(coverage.datetime_ranges.all())
-            dt_ranges = []
-            for _, temporal_coverage in enumerate(temporal_coverages):
-                dt_ranges.append(
-                    (
-                        datetime(
-                            temporal_coverage.start_year,
-                            temporal_coverage.start_month or 1,
-                            temporal_coverage.start_day or 1,
-                        ),
-                        datetime(
-                            temporal_coverage.end_year or datetime.now().year,
-                            temporal_coverage.end_month or 1,
-                            temporal_coverage.end_day or 1,
-                        ),
+        try:
+            coverages = self.coverages.all()
+            for coverage in coverages:
+                temporal_coverages = list(coverage.datetime_ranges.all())
+                dt_ranges = []
+                for _, temporal_coverage in enumerate(temporal_coverages):
+                    dt_ranges.append(
+                        (
+                            datetime(
+                                temporal_coverage.start_year,
+                                temporal_coverage.start_month or 1,
+                                temporal_coverage.start_day or 1,
+                            ),
+                            datetime(
+                                temporal_coverage.end_year or datetime.now().year,
+                                temporal_coverage.end_month or 1,
+                                temporal_coverage.end_day or 1,
+                            ),
+                        )
                     )
-                )
-            dt_ranges.sort(key=lambda x: x[0])
-            for i in range(1, len(dt_ranges)):
-                if dt_ranges[i - 1][1] > dt_ranges[i][0]:
-                    errors = "Temporal coverages must not overlap"
+                dt_ranges.sort(key=lambda x: x[0])
+                for i in range(1, len(dt_ranges)):
+                    if dt_ranges[i - 1][1] > dt_ranges[i][0]:
+                        errors = "Temporal coverages must not overlap"
+        except ValueError:
+            pass
 
         if errors:
             raise ValidationError(errors)
