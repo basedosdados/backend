@@ -1001,8 +1001,14 @@ class Table(BdmModel, OrderedModel):
         errors = {}
         try:
             coverages = self.coverages.all()
+            temporal_coverages_by_area = {
+                str(coverage.area.slug): [] for coverage in coverages
+            }
             for coverage in coverages:
-                temporal_coverages = list(coverage.datetime_ranges.all())
+                temporal_coverages_by_area[str(coverage.area.slug)].append(
+                    *list(coverage.datetime_ranges.all())
+                )
+            for area, temporal_coverages in temporal_coverages_by_area.items():
                 dt_ranges = []
                 for _, temporal_coverage in enumerate(temporal_coverages):
                     dt_ranges.append(
@@ -1022,7 +1028,7 @@ class Table(BdmModel, OrderedModel):
                 dt_ranges.sort(key=lambda x: x[0])
                 for i in range(1, len(dt_ranges)):
                     if dt_ranges[i - 1][1] > dt_ranges[i][0]:
-                        errors = "Temporal coverages must not overlap"
+                        errors = f"Temporal coverages in area {area} overlap"
         except ValueError:
             pass
 
