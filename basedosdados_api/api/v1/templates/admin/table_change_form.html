@@ -8,9 +8,9 @@
                         <fieldset class="module">
                             <h3>{% trans "Table Coverages" %}</h3>
                             <ul>
-                                {% for coverage in original.coverages.all %}
+                                {% for coverage in table_coverages %}
                                     <li>
-                                        <a class="related-widget-wrapper-link change-related" href="{% url 'admin:v1_coverage_change' coverage.id %}?_to_field=id&_popup=1">{{ coverage.area }} (id: {{ coverage.pk }})</a>
+                                        <a class="related-widget-wrapper-link change-related" href="{% url 'admin:v1_coverage_change' coverage.id %}?_to_field=id&_popup=1">{{ coverage.area }} {{coverage.datetime_range}}</a>
                                     </li>
                                 {% empty %}
                                     <li>{% trans "No related coverages." %}</li>
