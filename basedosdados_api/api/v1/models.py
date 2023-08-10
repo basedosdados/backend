@@ -3,7 +3,7 @@
 """
 Models for API v1
 """
-
+import json
 from uuid import uuid4
 
 import calendar
@@ -713,6 +713,31 @@ class Dataset(BdmModel):
         YYYY-MM-DD - YYYY-MM-DD for graphql
         """
         return self.coverage
+
+    @property
+    def full_coverage(self) -> str:
+        """
+        Returns the full temporal coverage of the dataset as a json string
+        representing an object with the 3 initial points of the coverage
+        The first point is the start of the open coverage, the second point is the
+        end of the open coverage and the third point is the end of closed coverage
+        When thera are only one type of coverage (open or closed) the second point
+        will represent the end of the entire coverage, with both the types being
+        the same
+
+        Returns:
+            str: json string representing the full coverage
+        """
+        full_coverage_dict = [
+            {"year": 2021, "month": 6, "type": "open"},
+            {"year": 2023, "month": 6, "type": "open"},
+            {"year": 2026, "month": 6, "type": "closed"},
+        ]
+        return json.dumps(full_coverage_dict)
+
+    @property
+    def get_graphql_full_coverage(self):
+        return self.full_coverage
 
     @property
     def contains_tables(self):
