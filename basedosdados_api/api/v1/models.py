@@ -1087,21 +1087,36 @@ class Table(BdmModel, OrderedModel):
                     "type": "open",
                 }
             )
-            if first_closed_datetime_range:
+        if first_closed_datetime_range:
+            if not first_open_datetime_range:
                 full_coverage.append(
                     {
-                        "year": str(first_closed_datetime_range.end_year)
-                        if first_closed_datetime_range.end_year
+                        "year": str(first_closed_datetime_range.start_year)
+                        if first_closed_datetime_range.start_year
                         else None,
-                        "month": str(first_closed_datetime_range.end_month).zfill(2)
-                        if first_closed_datetime_range.end_month
+                        "month": str(first_closed_datetime_range.start_month).zfill(2)
+                        if first_closed_datetime_range.start_month
                         else None,
-                        "day": str(first_closed_datetime_range.end_day).zfill(2)
-                        if first_closed_datetime_range.end_day
+                        "day": str(first_closed_datetime_range.start_day).zfill(2)
+                        if first_closed_datetime_range.start_day
                         else None,
                         "type": "closed",
                     }
                 )
+            full_coverage.append(
+                {
+                    "year": str(first_closed_datetime_range.end_year)
+                    if first_closed_datetime_range.end_year
+                    else None,
+                    "month": str(first_closed_datetime_range.end_month).zfill(2)
+                    if first_closed_datetime_range.end_month
+                    else None,
+                    "day": str(first_closed_datetime_range.end_day).zfill(2)
+                    if first_closed_datetime_range.end_day
+                    else None,
+                    "type": "closed",
+                }
+            )
 
         return json.dumps(full_coverage)
 
