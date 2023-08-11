@@ -729,9 +729,9 @@ class Dataset(BdmModel):
             str: json string representing the full coverage
         """
         full_coverage_dict = [
-            {"year": 2021, "month": 6, "type": "open"},
-            {"year": 2023, "month": 6, "type": "open"},
-            {"year": 2026, "month": 6, "type": "closed"},
+            # {"year": 2021, "month": 6, "type": "open"},
+            # {"year": 2023, "month": 6, "type": "open"},
+            # {"year": 2026, "month": 6, "type": "closed"},
         ]
         return json.dumps(full_coverage_dict)
 
@@ -1021,7 +1021,7 @@ class Table(BdmModel, OrderedModel):
     @property
     def full_coverage(self) -> str:
         """
-        Returns the full temporal coverage of the dataset as a json string
+        Returns the full temporal coverage of the table as a json string
         representing an object with the 3 initial points of the coverage
         The first point is the start of the open coverage, the second point is the
         end of the open coverage and the third point is the end of closed coverage
@@ -1032,12 +1032,78 @@ class Table(BdmModel, OrderedModel):
         Returns:
             str: json string representing the full coverage
         """
-        full_coverage_dict = [
-            {"year": 2021, "month": 6, "type": "open"},
-            {"year": 2023, "month": 6, "type": "open"},
-            {"year": 2026, "month": 6, "type": "closed"},
-        ]
-        return json.dumps(full_coverage_dict)
+        # First area of all coverages - thus must be changed to get all areas
+        try:
+            first_area = self.coverages.first().area
+        except AttributeError:
+            return ""
+        # First open coverage of a table - it's an open coverage for now
+        try:
+            first_open_datetime_range = (
+                self.coverages.filter(area=first_area, is_closed=False)
+                .first()
+                .datetime_ranges.order_by("start_year", "start_month", "start_day")
+                .first()
+            )
+        except AttributeError:
+            first_open_datetime_range = None
+        # First closed coverage of a table - it's a closed coverage for now
+        try:
+            first_closed_datetime_range = (
+                self.coverages.filter(area=first_area, is_closed=True)
+                .first()
+                .datetime_ranges.order_by("start_year", "start_month", "start_day")
+                .first()
+            )
+        except AttributeError:
+            first_closed_datetime_range = None
+        full_coverage = []
+        if first_open_datetime_range:
+            full_coverage.append(
+                {
+                    "year": str(first_open_datetime_range.start_year)
+                    if first_open_datetime_range.start_year
+                    else None,
+                    "month": str(first_open_datetime_range.start_month).zfill(2)
+                    if first_open_datetime_range.end_month
+                    else None,
+                    "day": str(first_open_datetime_range.start_day).zfill(2)
+                    if first_open_datetime_range.start_day
+                    else None,
+                    "type": "open",
+                }
+            )
+            full_coverage.append(
+                {
+                    "year": str(first_open_datetime_range.end_year)
+                    if first_open_datetime_range.end_year
+                    else None,
+                    "month": str(first_open_datetime_range.end_month).zfill(2)
+                    if first_open_datetime_range.end_month
+                    else None,
+                    "day": str(first_open_datetime_range.end_day).zfill(2)
+                    if first_open_datetime_range.end_day
+                    else None,
+                    "type": "open",
+                }
+            )
+            if first_closed_datetime_range:
+                full_coverage.append(
+                    {
+                        "year": str(first_closed_datetime_range.end_year)
+                        if first_closed_datetime_range.end_year
+                        else None,
+                        "month": str(first_closed_datetime_range.end_month).zfill(2)
+                        if first_closed_datetime_range.end_month
+                        else None,
+                        "day": str(first_closed_datetime_range.end_day).zfill(2)
+                        if first_closed_datetime_range.end_day
+                        else None,
+                        "type": "closed",
+                    }
+                )
+
+        return json.dumps(full_coverage)
 
     @property
     def get_graphql_full_coverage(self):
