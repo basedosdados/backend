@@ -2,6 +2,8 @@
 """
 Pytest Django models tests.
 """
+import json
+
 import pytest
 from django.core.exceptions import ValidationError
 
@@ -247,3 +249,75 @@ def test_cloud_table_create(tabela_bairros):
     cloud_table.save()
 
     assert CloudTable.objects.exists()
+
+
+@pytest.mark.django_db
+def test_table_with_multiple_coverages(
+    tabela_bairros,
+    coverage_tabela_open,
+    coverage_tabela_closed,
+    datetime_range_1,
+    datetime_range_3,
+):
+    """Test for Dataset with multiple coverages."""
+    tabela_bairros.save()
+    coverage_tabela_open.save()
+    coverage_tabela_closed.save()
+    datetime_range_1.coverage = coverage_tabela_open
+    datetime_range_1.save()
+    datetime_range_3.coverage = coverage_tabela_closed
+    datetime_range_3.save()
+    tabela_bairros.coverages.add(coverage_tabela_open, coverage_tabela_closed)
+    tabela_bairros.save()
+
+    table_expected_coverage = [
+        {"year": "2021", "month": "06", "day": None, "type": "open"},
+        {"year": "2023", "month": "06", "day": None, "type": "open"},
+        {"year": "2026", "month": "06", "day": None, "type": "closed"},
+    ]
+
+    assert tabela_bairros.full_coverage == json.dumps(table_expected_coverage)
+
+
+@pytest.mark.django_db
+def test_table_with_open_coverages(
+    tabela_bairros,
+    coverage_tabela_open,
+    datetime_range_1,
+):
+    """Test for Dataset with multiple coverages."""
+    tabela_bairros.save()
+    coverage_tabela_open.save()
+    datetime_range_1.coverage = coverage_tabela_open
+    datetime_range_1.save()
+    tabela_bairros.coverages.add(coverage_tabela_open)
+    tabela_bairros.save()
+
+    table_expected_coverage = [
+        {"year": "2021", "month": "06", "day": None, "type": "open"},
+        {"year": "2023", "month": "06", "day": None, "type": "open"},
+    ]
+
+    assert tabela_bairros.full_coverage == json.dumps(table_expected_coverage)
+
+
+@pytest.mark.django_db
+def test_table_with_closed_coverages(
+    tabela_bairros,
+    coverage_tabela_closed,
+    datetime_range_3,
+):
+    """Test for Dataset with multiple coverages."""
+    tabela_bairros.save()
+    coverage_tabela_closed.save()
+    datetime_range_3.coverage = coverage_tabela_closed
+    datetime_range_3.save()
+    tabela_bairros.coverages.add(coverage_tabela_closed)
+    tabela_bairros.save()
+
+    table_expected_coverage = [
+        {"year": "2023", "month": "07", "day": None, "type": "closed"},
+        {"year": "2026", "month": "06", "day": None, "type": "closed"},
+    ]
+
+    assert tabela_bairros.full_coverage == json.dumps(table_expected_coverage)
