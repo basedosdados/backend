@@ -252,7 +252,7 @@ def test_cloud_table_create(tabela_bairros):
 
 
 @pytest.mark.django_db
-def test_dataset_multiple_coverages(
+def test_table_with_multiple_coverages(
     tabela_bairros,
     coverage_tabela_open,
     coverage_tabela_closed,
@@ -270,10 +270,10 @@ def test_dataset_multiple_coverages(
     tabela_bairros.coverages.add(coverage_tabela_open, coverage_tabela_closed)
     tabela_bairros.save()
 
-    expected_coverage = [
-        {"year": 2021, "month": 6, "type": "open"},
-        {"year": 2023, "month": 6, "type": "open"},
-        {"year": 2026, "month": 6, "type": "closed"},
+    table_expected_coverage = [
+        {"year": "2021", "month": "06", "day": None, "type": "open"},
+        {"year": "2023", "month": "06", "day": None, "type": "open"},
+        {"year": "2026", "month": "06", "day": None, "type": "closed"},
     ]
 
-    assert tabela_bairros.dataset.full_coverage == json.dumps(expected_coverage)
+    assert tabela_bairros.full_coverage == json.dumps(table_expected_coverage)
