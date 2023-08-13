@@ -49,7 +49,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "corsheaders",
     "graphene_django",
-    "haystack",
+    # "haystack",
     "health_check",
     "health_check.db",
     # "health_check.cache",
