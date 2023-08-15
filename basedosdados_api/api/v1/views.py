@@ -34,10 +34,14 @@ class DatasetESSearchView(SearchView):
 
         storage = get_storage_class()
 
-        # If query is empty, query all datasets
         if not query:
+            # If query is empty, query all datasets
             query = {"match_all": {}}
+            # Factor to multiply the number of tables by
+            # Has no effect if no query is passed
+            n_table_factor = 0
         else:
+            # If query is not empty, query datasets and tables
             query = {
                 "bool": {
                     "should": [
@@ -50,9 +54,12 @@ class DatasetESSearchView(SearchView):
                             }
                         },
                         {"match": {"name.edgengram": query}},
+                        {"match": {"table_names.edgengram": query}},
+                        {"match": {"organization_name.edgengram": query}},
                     ]
                 }
             }
+            n_table_factor = 2
 
         all_filters = []
 
@@ -147,7 +154,7 @@ class DatasetESSearchView(SearchView):
                             "field_value_factor": {
                                 "field": "n_tables",
                                 "modifier": "square",
-                                "factor": 2,
+                                "factor": n_table_factor,
                                 "missing": 0,
                             }
                         },
