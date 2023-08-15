@@ -9,7 +9,7 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
     updated_at = indexes.DateTimeField(model_attr="updated_at")
     text = indexes.CharField(document=True, use_template=True)
     slug = indexes.CharField(model_attr="slug")
-    name = indexes.CharField(model_attr="name")
+    name = indexes.EdgeNgramField(model_attr="name")
     description = indexes.EdgeNgramField(model_attr="description", null=True)
 
     organization_id = indexes.CharField(model_attr="organization__id", null=True)
