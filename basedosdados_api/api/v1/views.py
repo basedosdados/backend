@@ -134,13 +134,26 @@ class DatasetESSearchView(SearchView):
                             ]
                         }
                     },
-                    "field_value_factor": {
-                        "field": "contains_tables",
-                        "modifier": "square",
-                        "factor": 2,
-                        "missing": 0,
-                    },
-                    "boost_mode": "sum",
+                    "functions": [
+                        {
+                            "field_value_factor": {
+                                "field": "contains_tables",
+                                "modifier": "square",
+                                "factor": 8,
+                                "missing": 0,
+                            }
+                        },
+                        {
+                            "field_value_factor": {
+                                "field": "n_tables",
+                                "modifier": "square",
+                                "factor": 2,
+                                "missing": 0,
+                            }
+                        },
+                    ],
+                    "score_mode": "sum",
+                    "boost_mode": "multiply",
                 }
             },
             "aggs": {
