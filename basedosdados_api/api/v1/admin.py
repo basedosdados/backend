@@ -167,16 +167,8 @@ rebuild_search_index.short_description = "Rebuild search index"
 
 
 def update_search_index(modeladmin, request, queryset):
-    for instance in queryset:
-        try:
-            search_backend = connections["default"].get_backend()
-            search_index = search_backend.get_index(
-                "basedosdados_api.api.v1.models.Dataset"
-            )
-            search_index.update_object(instance, using="default")
-            messages.success(request, "Search index updated successfully")
-        except ObjectDoesNotExist:
-            messages.error(request, f"Search index for {instance} update failed")
+    call_command("update_index", interactive=False, batchsize=100, workers=4)
+    messages.success(request, "Search index rebuilt successfully")
 
 
 update_search_index.short_description = "Update search index"
@@ -423,6 +415,7 @@ class TagAdmin(TabbedTranslationAdmin):
 class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     actions = [
         reorder_tables,
+        update_search_index,
         rebuild_search_index,
     ]
 
