@@ -30,16 +30,41 @@ class AsciifoldingElasticBackend(
             },
             "ngram_analyzer": {
                 "type": "custom",
-                "tokenizer": "lowercase",
-                "filter": ["haystack_ngram", "asciifolding"],
+                "tokenizer": "standard",
+                "filter": ["asciifolding", "lowercase", "haystack_ngram"],
             },
             "edgengram_analyzer": {
                 "type": "custom",
-                "tokenizer": "lowercase",
-                "filter": ["haystack_edgengram", "asciifolding"],
+                "tokenizer": "my_tokenizer",
+                "filter": ["asciifolding", "lowercase"],
             },
         }
+        tokenizer = {
+            "standard": {"type": "standard"},
+            "lowercase": {"type": "lowercase"},
+            "my_tokenizer": {
+                "type": "edge_ngram",
+                "min_gram": 4,
+                "max_gram": 15,
+                "token_chars": ["letter", "digit"],
+            },
+        }
+        filter = {
+            "haystack_ngram": {
+                "type": "ngram",
+                "min_gram": 4,
+                "max_gram": 5,
+            },
+            "haystack_edgengram": {
+                "type": "edge_ngram",
+                "min_gram": 2,
+                "max_gram": 15,
+            },
+        }
+
+        self.DEFAULT_SETTINGS["settings"]["analysis"]["tokenizer"] = tokenizer
         self.DEFAULT_SETTINGS["settings"]["analysis"]["analyzer"] = analyzer
+        self.DEFAULT_SETTINGS["settings"]["analysis"]["filter"] = filter
 
     def build_schema(self, fields):
         content_field_name, mapping = super(
