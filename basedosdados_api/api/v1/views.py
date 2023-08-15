@@ -54,6 +54,7 @@ class DatasetESSearchView(SearchView):
                             }
                         },
                         {"match": {"name.edgengram": query}},
+                        {"match": {"table_names.edgengram": query}},
                     ]
                 }
             }
