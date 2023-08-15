@@ -49,7 +49,7 @@ class DatasetESSearchView(SearchView):
                                 }
                             }
                         },
-                        {"match": {"name": query}},
+                        {"match": {"name.edgengram": query}},
                     ]
                 }
             }
@@ -137,7 +137,7 @@ class DatasetESSearchView(SearchView):
                     "field_value_factor": {
                         "field": "contains_tables",
                         "modifier": "square",
-                        "factor": 0.5,
+                        "factor": 2,
                         "missing": 0,
                     },
                     "boost_mode": "sum",
