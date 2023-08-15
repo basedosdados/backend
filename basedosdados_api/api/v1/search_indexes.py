@@ -14,7 +14,7 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
 
     organization_id = indexes.CharField(model_attr="organization__id", null=True)
     organization_slug = indexes.CharField(model_attr="organization__slug")
-    organization_name = indexes.CharField(model_attr="organization__name")
+    organization_name = indexes.EdgeNgramField(model_attr="organization__name")
     organization_description = indexes.CharField(
         model_attr="organization__description", null=True
     )
