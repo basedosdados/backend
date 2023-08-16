@@ -388,6 +388,7 @@ def create_model_object_meta(model: BdmModel):
 
 def generate_form_fields(model: BdmModel):
     whitelist_field_types = (
+        models.DateField,
         models.DateTimeField,
         models.SlugField,
         models.CharField,

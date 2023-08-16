@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
-import pytest
+"""
+Pytest conftest
+"""
 import uuid
+import pytest
 
 
 from basedosdados_api.account.models import Account
@@ -46,6 +49,16 @@ def fixture_area_br():
     return area_br
 
 
+@pytest.fixture(name="organizacao_invalida")
+@pytest.mark.django_db
+def fixture_organizacao_invalida(area_br):
+    """Fixture for Organization without name (invalid)."""
+    return Organization.objects.create(
+        area=area_br,
+        slug="invalida",
+    )
+
+
 @pytest.fixture(name="organizacao_bd")
 @pytest.mark.django_db
 def fixture_organizacao_bd(area_br):
@@ -53,6 +66,7 @@ def fixture_organizacao_bd(area_br):
     return Organization.objects.create(
         area=area_br,
         slug="basedosdados",
+        name="Base dos Dados",
     )
 
 
@@ -207,6 +221,11 @@ def fixture_status_em_processamento():
     )
 
 
+#############################################################################################
+# Coverage fixtures for tables
+#############################################################################################
+
+
 @pytest.fixture(name="coverage_tabela_open")
 @pytest.mark.django_db
 def fixture_coverage_tabela_open(
@@ -219,21 +238,12 @@ def fixture_coverage_tabela_open(
         area=area_br,
         is_closed=False,
     )
-    datetime_range_tabela_open = DateTimeRange(
-        start_year=2019,
-        start_month=1,
-        end_year=2022,
-        end_month=6,
-        interval=1,
-        coverage=coverage_open,
-    )
-    datetime_range_tabela_open.save()
     return coverage_open
 
 
 @pytest.fixture(name="coverage_tabela_closed")
 @pytest.mark.django_db
-def fixture_coverage_tabela_closed(
+def fixture_coverage_closed(
     tabela_bairros,
     area_br,
 ):
@@ -243,53 +253,117 @@ def fixture_coverage_tabela_closed(
         area=area_br,
         is_closed=True,
     )
-    datetime_range_tabela_closed = DateTimeRange(
+    return coverage_closed
+
+
+#############################################################################################
+# Coverage fixtures for columns
+#############################################################################################
+
+
+@pytest.fixture(name="coverage_coluna_open")
+@pytest.mark.django_db
+def fixture_coverage_coluna_open(
+    coluna_bairros,
+    area_br,
+):
+    """Fixture for open Coverage."""
+    coverage_open = Coverage.objects.create(
+        column=coluna_bairros,
+        area=area_br,
+        is_closed=False,
+    )
+    return coverage_open
+
+
+@pytest.fixture(name="coverage_coluna_closed")
+@pytest.mark.django_db
+def fixture_coverage_coluna_closed(
+    coluna_bairros,
+    area_br,
+):
+    """Fixture for closed Coverage."""
+    coverage_closed = Coverage.objects.create(
+        column=coluna_bairros,
+        area=area_br,
+        is_closed=True,
+    )
+    return coverage_closed
+
+
+#############################################################################################
+# Date Time Ranges fixtures
+# The following two date time ranges overlaps
+# The third one is disjoint with the first
+#############################################################################################
+
+
+@pytest.fixture(name="datetime_range_1")
+@pytest.mark.django_db
+def fixture_datetime_range_1():
+    """
+    Basic fixture for DateTimeRange.
+    Old format: YYYY-MM (1) YYYY-MM
+    """
+    datetime_range_1 = DateTimeRange(
         start_year=2021,
         start_month=6,
         end_year=2023,
         end_month=6,
         interval=1,
-        coverage=coverage_closed,
     )
-    datetime_range_tabela_closed.save()
-    datetime_range_tabela_open = DateTimeRange(
-        start_year=2019,
-        start_month=1,
-        end_year=2022,
+    return datetime_range_1
+
+
+@pytest.fixture(name="datetime_range_2")
+@pytest.mark.django_db
+def fixture_datetime_range_2():
+    """
+    Basic fixture for DateTimeRange.
+    Old format: YYYY-MM (1) YYYY-MM
+    """
+    datetime_range_2 = DateTimeRange(
+        start_year=2022,
+        start_month=6,
+        end_year=2024,
         end_month=6,
         interval=1,
-        coverage=coverage_closed,
     )
-    datetime_range_tabela_open.save()
-    return coverage_closed
+    return datetime_range_2
 
 
-# @pytest.fixture(name="datetime_range_tabela_open")
-# @pytest.mark.django_db
-# def fixture_datetime_range_tabela_open(coverage_tabela_open):
-#     """Fixture for DateTimeRange."""
-#     return DateTimeRange.objects.create(
-#         start_year=2019,
-#         start_month=1,
-#         end_year=2022,
-#         end_month=6,
-#         interval=1,
-#         coverage=coverage_tabela_open,
-#     )
-#
+@pytest.fixture(name="datetime_range_3")
+@pytest.mark.django_db
+def fixture_datetime_range_3():
+    """
+    Basic fixture for DateTimeRange.
+    Old format: YYYY-MM (1) YYYY-MM
+    """
+    datetime_range_3 = DateTimeRange(
+        start_year=2023,
+        start_month=7,
+        end_year=2026,
+        end_month=6,
+        interval=1,
+    )
+    return datetime_range_3
 
-# @pytest.fixture(name="datetime_range_tabela_closed")
-# @pytest.mark.django_db
-# def fixture_datetime_range_tabela_closed(coverage_tabela_closed):
-#     """Fixture for closed DateTimeRange."""
-#     return DateTimeRange.objects.create(
-#         start_year=2019,
-#         start_month=1,
-#         end_year=2022,
-#         end_month=6,
-#         interval=1,
-#         coverage=coverage_tabela_closed,
-#     )
+
+@pytest.fixture(name="datetime_range_empty")
+@pytest.mark.django_db
+def fixture_datetime_range_empty():
+    """
+    Fixture for empty DateTimeRange for columns.
+    Must be inherited from table.
+    """
+    datetime_range_empty = DateTimeRange(
+        start_year=None,
+        start_month=None,
+        end_year=None,
+        end_month=None,
+        interval=None,
+    )
+    return datetime_range_empty
 
 
 #############################################################################################
@@ -301,10 +375,6 @@ def fixture_coverage_tabela_closed(
 @pytest.mark.django_db
 def fixture_dataset_dados_mestres(
     organizacao_bd,
-    tema_saude,
-    tema_educacao,
-    tag_aborto,
-    tag_covid,
     status_em_processamento,
 ):
     """Test for Dataset."""
@@ -396,7 +466,6 @@ def fixture_tabela_diretorios_brasil_uf(
     licenca_mit,
     organizacao_parceira,
     pipeline,
-    observation_level_anual,
 ):
     """Fixture for Table."""
     return Table.objects.create(
@@ -545,9 +614,6 @@ def fixture_usuario_inicio():
 @pytest.mark.django_db
 def fixture_pedido_informacao(
     dataset_dados_mestres,
-    tabela_bairros,
-    coluna_nome_bairros,
-    coluna_populacao_bairros,
     status_em_processamento,
     usuario_inicio,
 ):
@@ -569,6 +635,7 @@ def fixture_pedido_informacao(
 @pytest.fixture(name="analise_tipo1")
 @pytest.mark.django_db
 def fixture_analise_tipo1():
+    """Fixture for AnalysisType."""
     return AnalysisType.objects.create(
         name="Análise tipo 1",
         slug="analise-tipo-1",
@@ -579,11 +646,6 @@ def fixture_analise_tipo1():
 @pytest.mark.django_db
 def fixture_analise_bairros(
     analise_tipo1,
-    dataset_dados_mestres,
-    tema_saude,
-    tema_educacao,
-    tag_aborto,
-    tag_covid,
 ):
     """Fixture for Analysis."""
     analysis = Analysis.objects.create(
@@ -609,6 +671,7 @@ def test_dictionary(
 @pytest.fixture(name="chave_1")
 @pytest.mark.django_db
 def fixture_chave_1(dicionario_1):
+    """Fixture for Key."""
     chave = Key.objects.create(dictionary=dicionario_1, name="Chave 1", value="Valor 1")
 
     return chave
@@ -616,7 +679,7 @@ def fixture_chave_1(dicionario_1):
 
 @pytest.fixture(name="teste_qualidade")
 @pytest.mark.django_db
-def fixture_teste_qualidade(
+def fixture_teste_qualidade(  # pylint: disable=too-many-arguments
     pipeline,
     analise_bairros,
     dataset_dados_mestres,
@@ -626,6 +689,7 @@ def fixture_teste_qualidade(
     raw_data_source,
     pedido_informacao,
 ):
+    """Fixture for QualityCheck."""
     teste_qualidade = QualityCheck.objects.create(
         name="Teste de qualidade",
         description="Descrição do teste de qualidade",
