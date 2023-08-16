@@ -142,7 +142,6 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         table_ids = data.get("table_slugs", [])
         if table_ids:
             data["tables"] = []
-            # Creating empty commit
             for i in range(len(table_ids)):
                 data["tables"].append(
                     {
