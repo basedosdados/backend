@@ -142,6 +142,15 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         table_ids = data.get("table_slugs", [])
         if table_ids:
             data["tables"] = []
+            for i in range(len(table_ids)):
+                data["tables"].append(
+                    {
+                        "id": data.get("table_ids", [])[i],
+                        "name": data.get("table_names", [])[i],
+                        "slug": data.get("table_slugs", [])[i],
+                        "is_closed": data.get("table_is_closed", [])[i],
+                    }
+                )
             data["total_tables"] = len(table_ids)
         else:
             data["total_tables"] = 0
