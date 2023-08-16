@@ -1266,6 +1266,26 @@ class Column(BdmModel, OrderedModel):
 
         return super().clean()
 
+    @property
+    def coverage(self):
+        """
+        Returns the coverage of the column if it exists, otherwise returns the coverage of the table
+        """
+        coverages = self.coverages.all()
+        if coverages:
+            """
+            Currently returns the first coverage, but this should be changed to return the
+            full coverage of the column, as in table coverage
+            """
+            column_coverage = coverages[0]
+            return str(column_coverage.datetime_ranges.first())
+        return self.table.full_coverage
+
+    @property
+    def get_graphql_coverage(self):
+        """Coverage for GraphQL"""
+        return self.coverage
+
 
 class Dictionary(BdmModel):
     """Model definition for Dictionary."""
@@ -1645,9 +1665,8 @@ class DateTimeRange(BdmModel):
         end_hour = f" {self.end_hour}" if self.end_hour else ""
         end_minute = f":{self.end_minute}" if self.end_minute else ""
         end_second = f":{self.end_second}" if self.end_second else ""
-        interval = f"({self.interval})" if self.interval else "()"
-        return f"{start_year}{start_month}{start_day}{start_hour}{start_minute}{start_second}{interval}\
-           {end_year}{end_month}{end_day}{end_hour}{end_minute}{end_second}"  # noqa pylint: disable=line-too-long
+        interval = f"({self.interval})" if self.interval else ""
+        return f"{start_year}{start_month}{start_day}{start_hour}{start_minute}{start_second}{interval}{end_year}{end_month}{end_day}{end_hour}{end_minute}{end_second}"  # noqa pylint: disable=line-too-long
 
     class Meta:
         """Meta definition for DateTimeRange."""
