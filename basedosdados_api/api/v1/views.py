@@ -25,7 +25,7 @@ class DatasetESSearchView(SearchView):
         """
         # Get request arguments
         req_args: QueryDict = request.GET.copy()
-        query = req_args.get("q", None)
+        q = req_args.get("q", None)
         es = Elasticsearch(settings.HAYSTACK_CONNECTIONS["default"]["URL"])
         page_size = int(req_args.get("page_size", 10))
         page = int(req_args.get("page", 1))
@@ -34,7 +34,7 @@ class DatasetESSearchView(SearchView):
 
         storage = get_storage_class()
 
-        if not query:
+        if not q:
             # If query is empty, query all datasets
             query = {"match_all": {}}
             # Factor to multiply the number of tables by
@@ -48,14 +48,36 @@ class DatasetESSearchView(SearchView):
                         {
                             "match": {
                                 "description.exact": {
-                                    "query": query,
+                                    "query": q,
+                                    "operator": "AND",
                                     "boost": 10,
                                 }
                             }
                         },
-                        {"match": {"name.edgengram": query}},
-                        {"match": {"table_names.edgengram": query}},
-                        {"match": {"organization_name.edgengram": query}},
+                        {
+                            "match": {
+                                "name.edgengram": {
+                                    "query": q,
+                                    "operator": "AND",
+                                }
+                            }
+                        },
+                        {
+                            "match": {
+                                "table_names.edgengram": {
+                                    "query": q,
+                                    "operator": "AND",
+                                }
+                            }
+                        },
+                        {
+                            "match": {
+                                "organization_name.edgengram": {
+                                    "query": q,
+                                    "operator": "AND",
+                                }
+                            }
+                        },
                     ]
                 }
             }
