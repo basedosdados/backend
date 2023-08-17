@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
-from os import getenv
-
 from django.utils.log import DEFAULT_LOGGING
 
 from basedosdados_api.settings.base import *  # noqa
+from utils import getenv
 
 
 def nonull_getenv(var, default=None):
@@ -13,8 +12,11 @@ def nonull_getenv(var, default=None):
         raise ValueError(f"Environment variable {var} not set")
     return value
 
+# CSRF
+# https://docs.djangoproject.com/en/4.2/ref/csrf/
+# https://docs.djangoproject.com/en/4.2/ref/settings/#std-setting-CSRF_TRUSTED_ORIGINS
+CSRF_TRUSTED_ORIGINS = ["http://localhost:8080"]
 
-CSRF_TRUSTED_ORIGINS = ["http://localhost:3000", "http://localhost:8000"]
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
@@ -32,7 +34,6 @@ DATABASES = {
 }
 
 LOGGING = DEFAULT_LOGGING
-CSRF_TRUSTED_ORIGINS = ["http://localhost:8080"]
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = getenv("EMAIL_HOST", "smtp.gmail.com")
