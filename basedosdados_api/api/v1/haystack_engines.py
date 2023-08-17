@@ -44,7 +44,7 @@ class AsciifoldingElasticBackend(
             "lowercase": {"type": "lowercase"},
             "my_tokenizer": {
                 "type": "edge_ngram",
-                "min_gram": 4,
+                "min_gram": 3,
                 "max_gram": 15,
                 "token_chars": ["letter", "digit"],
             },
