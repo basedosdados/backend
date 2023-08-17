@@ -98,6 +98,19 @@ def test_date_time_range_invalid(coverage_tabela_open):
 
 
 @pytest.mark.django_db
+def test_date_time_range_empty(coverage_tabela_open):
+    """
+    Test for empty DateTimeRange.
+    All fields must be empty, except coverage.
+    """
+    date_time_range = DateTimeRange(
+        coverage=coverage_tabela_open,
+    )
+    date_time_range.save()
+    assert DateTimeRange.objects.exists()
+
+
+@pytest.mark.django_db
 def test_dataset_create(
     dataset_dados_mestres, tema_saude, tema_educacao, tag_aborto, tag_covid
 ):

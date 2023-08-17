@@ -1267,24 +1267,58 @@ class Column(BdmModel, OrderedModel):
         return super().clean()
 
     @property
-    def coverage(self):
+    def full_coverage(self) -> str:
         """
-        Returns the coverage of the column if it exists, otherwise returns the coverage of the table
+        Returns the coverage of the column if it exists,
+        otherwise returns the coverage of the table
+        Currently returns the first coverage, but this
+        should be changed to return the
+        full coverage of the column, as in table coverage
+
+        Returns:
+            str: coverage of the column - a dumped list of dicts [start_date, end_date]
         """
+
         coverages = self.coverages.all()
-        if coverages:
+        column_full_coverage = []
+
+        if (
+            len(coverages) == 0
+            or not coverages[0].datetime_ranges.exists()
+            or coverages[0].datetime_ranges.first().start_year is None
+        ):
             """
-            Currently returns the first coverage, but this should be changed to return the
-            full coverage of the column, as in table coverage
+            At the moment, only one coverage exists per column
+            No coverage for column, using table coverage
             """
-            column_coverage = coverages[0]
-            return str(column_coverage.datetime_ranges.first())
-        return self.table.full_coverage
+            table_full_coverage = json.loads(self.table.full_coverage)
+            temporal_coverage_start = table_full_coverage[0]
+            temporal_coverage_end = table_full_coverage[-1]
+        elif coverages[0].datetime_ranges.first().start_year is not None:
+            dt_range = coverages[0].datetime_ranges.first()
+            temporal_coverage_start = {
+                "year": str(dt_range.start_year),
+                "month": str(dt_range.start_month).zfill(2),
+                "day": str(dt_range.start_day).zfill(2),
+            }
+            temporal_coverage_end = {
+                "year": str(dt_range.end_year),
+                "month": str(dt_range.end_month).zfill(2),
+                "day": str(dt_range.end_day).zfill(2),
+            }
+        else:
+            temporal_coverage_start = {"year": "", "month": "", "day": ""}
+            temporal_coverage_end = {"year": "", "month": "", "day": ""}
+
+        column_full_coverage.append(temporal_coverage_start)
+        column_full_coverage.append(temporal_coverage_end)
+
+        return json.dumps(column_full_coverage)
 
     @property
-    def get_graphql_coverage(self):
+    def get_graphql_full_coverage(self):
         """Coverage for GraphQL"""
-        return self.coverage
+        return self.full_coverage
 
 
 class Dictionary(BdmModel):
