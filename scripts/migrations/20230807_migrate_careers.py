@@ -103,7 +103,7 @@ def create_careers(url: str, key: str, users_filepath: str, teams_filepath: str)
         picture = user["url_foto"]
 
         if id_ == "0":
-            print(f"SKIP: {user['email']}")
+            print(f"ACCOUNT SKIP: {user['email']}")
             continue
 
         variables = {
@@ -118,9 +118,8 @@ def create_careers(url: str, key: str, users_filepath: str, teams_filepath: str)
         variables = {"input": variables}
         response = gql(url, key, mutation_account, variables)
         if "errors" in response.text:
-            print(f"ERROR: ACCOUNT")
-            print(f"ERROR: ({variables})")
-            print(f"ERROR: ({response.text})")
+            print(f"ACCOUNT ERRR: ({variables})")
+            print(f"ACCOUNT ERRR: ({response.text})")
 
         for team in teams:
             if (
@@ -149,10 +148,9 @@ def create_careers(url: str, key: str, users_filepath: str, teams_filepath: str)
                 variables = {"input": variables}
                 response = gql(url, key, mutation_career, variables)
                 if "errors" in response.text:
-                    print(f"ERROR: CAREER")
-                    print(f"ERROR: ({response.text})")
+                    print(f"CAREERS ERRR: ({response.text})")
                 else:
-                    print(f"DONE: {user['email']} {team['cargo']}")
+                    print(f"CAREERS DONE: {user['email']} {team['cargo']}")
 
 
 def run():
