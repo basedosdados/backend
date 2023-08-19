@@ -25,9 +25,11 @@ jobs:
       - name: Set up Poetry and upgrade pip
         run: |
           pip install -U pip poetry
+
       - name: Install this package
         run: |
           poetry install
-      - name: Run tests
+
+      - name: Lint
         run: |
           poetry run lint
