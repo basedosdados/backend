@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-import json
+from json import loads
 from os import getenv
 
 from google.oauth2 import service_account
@@ -7,8 +7,9 @@ from google.oauth2 import service_account
 from basedosdados_api.settings.base import *  # noqa
 
 
-def nonull_getenv(var):
-    value = getenv(var)
+def nonull_getenv(var, default=None):
+    """Get environment variable or raise exception if not set."""
+    value = getenv(var, default)
     if value is None:
         raise ValueError(f"Environment variable {var} not set")
     return value
@@ -26,7 +27,6 @@ SECRET_KEY = nonull_getenv("DJANGO_SECRET_KEY")
 
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
-
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql_psycopg2",
@@ -39,14 +39,15 @@ DATABASES = {
 }
 
 ADMINS = get_admins()
+
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_HOST_USER = nonull_getenv("EMAIL_HOST_USER")
 EMAIL_HOST_PASSWORD = nonull_getenv("EMAIL_HOST_PASSWORD")
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-DEFAULT_FROM_EMAIL = nonull_getenv("EMAIL_HOST_USER")
+EMAIL_PORT = int(nonull_getenv("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = bool(nonull_getenv("EMAIL_PORT", "True"))
 SERVER_EMAIL = nonull_getenv("EMAIL_HOST_USER")
+DEFAULT_FROM_EMAIL = nonull_getenv("EMAIL_HOST_USER")
 
 # Set logging path for production
 # LOGGING["handlers"]["logfile"][  # noqa
@@ -54,11 +55,12 @@ SERVER_EMAIL = nonull_getenv("EMAIL_HOST_USER")
 # ] = "/var/log/django/basedosdados_api.log"
 
 # Google Cloud Storage
+GS_SERVICE_ACCOUNT = nonull_getenv("GCP_SA")
 GS_CREDENTIALS = service_account.Credentials.from_service_account_info(
-    json.loads(nonull_getenv("GCP_SA"))
+    loads(GS_SERVICE_ACCOUNT)
 )
-DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
 GS_BUCKET_NAME = nonull_getenv("GCP_BUCKET_NAME")
 GS_EXPIRATION = timedelta(seconds=604800)  # noqa: F405
+DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
 
 GOOGLE_APPLICATION_CREDENTIALS = nonull_getenv("GOOGLE_APPLICATION_CREDENTIALS")
