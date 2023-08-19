@@ -100,7 +100,6 @@ def create_careers(url: str, key: str, users_filepath: str, teams_filepath: str)
         twitter = user["twitter"]
         linkedin = user["linkedin"]
         website = user["website"]
-        picture = user["url_foto"]
 
         if id_ == "0":
             continue
@@ -112,7 +111,6 @@ def create_careers(url: str, key: str, users_filepath: str, teams_filepath: str)
             "twitter": twitter,
             "linkedin": linkedin,
             "website": website,
-            "picture": picture,
         }
         variables = {"input": variables}
         response = gql(url, key, mutation_account, variables)
