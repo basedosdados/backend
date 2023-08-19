@@ -100,10 +100,8 @@ def create_careers(url: str, key: str, users_filepath: str, teams_filepath: str)
         twitter = user["twitter"]
         linkedin = user["linkedin"]
         website = user["website"]
-        picture = user["url_foto"]
 
         if id_ == "0":
-            print(f"ACCOUNT SKIP: {user['email']}")
             continue
 
         variables = {
@@ -113,17 +111,16 @@ def create_careers(url: str, key: str, users_filepath: str, teams_filepath: str)
             "twitter": twitter,
             "linkedin": linkedin,
             "website": website,
-            "picture": picture,
         }
         variables = {"input": variables}
         response = gql(url, key, mutation_account, variables)
         if "errors" in response.text:
-            print(f"ACCOUNT ERRR: ({variables})")
-            print(f"ACCOUNT ERRR: ({response.text})")
+            print(f"ACCOUNT:\n\t{response.text}\n\t{variables}")
 
         for team in teams:
             if (
-                user["id"]
+                True
+                and user["id"]
                 and team["id_pessoa"]
                 and int(user["id"]) == int(float(team["id_pessoa"]))
             ):
@@ -148,9 +145,7 @@ def create_careers(url: str, key: str, users_filepath: str, teams_filepath: str)
                 variables = {"input": variables}
                 response = gql(url, key, mutation_career, variables)
                 if "errors" in response.text:
-                    print(f"CAREERS ERRR: ({response.text})")
-                else:
-                    print(f"CAREERS DONE: {user['email']} {team['cargo']}")
+                    print(f"CAREERS:\n\t{response.text}\n\t{variables}")
 
 
 def run():
