@@ -3,7 +3,6 @@ from subprocess import run as _run
 
 def run(*args):
     process = _run(*args)
-    print("\n")
     return process.returncode
     
 
