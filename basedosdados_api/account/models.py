@@ -371,8 +371,8 @@ class Career(BdmModel):
     role = models.CharField("Cargo", max_length=40, blank=True)
     level = models.CharField("Nível", max_length=40, blank=True)
 
-    start_at = models.DateField("Data de Início", null=True)
-    end_at = models.DateField("Data de Término", null=True)
+    start_at = models.DateField("Data de Início", null=True, blank=True)
+    end_at = models.DateField("Data de Término", null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
