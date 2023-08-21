@@ -264,12 +264,12 @@ def fixture_coverage_closed(
 @pytest.fixture(name="coverage_coluna_open")
 @pytest.mark.django_db
 def fixture_coverage_coluna_open(
-    coluna_bairros,
+    coluna_nome_bairros,
     area_br,
 ):
     """Fixture for open Coverage."""
     coverage_open = Coverage.objects.create(
-        column=coluna_bairros,
+        column=coluna_nome_bairros,
         area=area_br,
         is_closed=False,
     )
@@ -279,12 +279,12 @@ def fixture_coverage_coluna_open(
 @pytest.fixture(name="coverage_coluna_closed")
 @pytest.mark.django_db
 def fixture_coverage_coluna_closed(
-    coluna_bairros,
+    coluna_nome_bairros,
     area_br,
 ):
     """Fixture for closed Coverage."""
     coverage_closed = Coverage.objects.create(
-        column=coluna_bairros,
+        column=coluna_nome_bairros,
         area=area_br,
         is_closed=True,
     )

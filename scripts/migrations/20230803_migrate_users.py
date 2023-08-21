@@ -7,17 +7,19 @@ from utils.graphql import gql
 
 
 query = """
-query {
-  allAccount {
+query ($offset: Int!) {
+  allAccount(offset: $offset) {
     edges {
       node {
         id
         email
+        description
         firstName
         lastName
         fullName
       }
     }
+    edgeCount
   }
 }
 """
@@ -62,11 +64,18 @@ def make_password():
 
 
 def get_emails(url: str, key: str):
-    response = gql(url=url, query=query)
-    response = response.json()
-    users = response["data"]["allAccount"]["edges"]
-    users = [u["node"]["email"] for u in users]
-    return users
+    count = 1
+    offset = 0
+    emails = []
+    while count > 0:
+      variables = {"offset": offset}
+      response = gql(url=url, query=query, variables=variables)
+      response = response.json()
+      users = response["data"]["allAccount"]["edges"]
+      count = response["data"]["allAccount"]["edgeCount"]
+      emails.extend([u["node"]["email"] for u in users])
+      offset += 1500
+    return emails
 
 
 def create_users(url: str, key: str, filepath: str):
@@ -98,7 +107,8 @@ def create_users(url: str, key: str, filepath: str):
         variables = {"input": variables}
         response = gql(url, key, mutation, variables)
         if "errors" in response.text:
-            print(f"ERROR: ({response.text})")
+            print(f"ERRR: ({response.text})")
+        print(f"OKAY: {email}")
 
 
 def run():
