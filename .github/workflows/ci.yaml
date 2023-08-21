@@ -1,4 +1,4 @@
-name: CI - Lint
+name: CI - Lint and Test
 
 on:
   push:
@@ -33,3 +33,7 @@ jobs:
       - name: Lint
         run: |
           poetry run lint
+
+      - name: Test
+        run: |
+          poetry run test

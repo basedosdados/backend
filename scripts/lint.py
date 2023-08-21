@@ -8,9 +8,7 @@ def run(*args):
     
 
 def main():
-    """
-    Lint all python files in the project.
-    """
+    """Lint all python files in the project"""
     code = 0
     code |= run(["yamllint", "."])
     code |= run(["isort", "--check-only", "."])
