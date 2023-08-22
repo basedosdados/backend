@@ -2,9 +2,9 @@
 extends: default
 
 ignore: |
-  charts
   .github
-  .docker-compose.yaml
+  charts
+  docker-compose.yaml
 
 rules:
   braces:

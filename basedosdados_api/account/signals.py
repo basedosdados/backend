@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from django.core.mail import EmailMultiAlternatives
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -6,8 +7,8 @@ from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
 
 from basedosdados_api.account.models import Account
-from basedosdados_api.settings import EMAIL_HOST_USER
 from basedosdados_api.account.token import token_generator
+from basedosdados_api.settings import EMAIL_HOST_USER
 
 
 @receiver(post_save, sender=Account)

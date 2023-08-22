@@ -7,4 +7,4 @@ class AccountConfig(AppConfig):
     name = "basedosdados_api.account"
 
     def ready(self):
-        import basedosdados_api.account.signals
+        import basedosdados_api.account.signals  # noqa

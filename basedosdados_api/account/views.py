@@ -1,13 +1,11 @@
 # -*- coding: utf-8 -*-
-from base64 import b64encode
-from logging import getLogger
 from json import loads
+from logging import getLogger
 from typing import Any
-from django import http
 
 from django.conf import settings
 from django.contrib import messages
-from django.contrib.auth import get_user_model, login
+from django.contrib.auth import get_user_model
 from django.contrib.auth.views import (
     LoginView,
     LogoutView,
@@ -19,24 +17,12 @@ from django.contrib.auth.views import (
 from django.contrib.messages.views import SuccessMessageMixin
 from django.contrib.sites.shortcuts import get_current_site
 from django.core.mail import EmailMultiAlternatives
-from django.shortcuts import redirect
+from django.http import JsonResponse
 from django.template.loader import render_to_string
 from django.urls import reverse_lazy as r
-from django.utils.encoding import force_bytes, force_str
-from django.http import JsonResponse
-from django.contrib.auth.views import (
-    LoginView,
-    LogoutView,
-    PasswordChangeView,
-    PasswordChangeDoneView,
-    PasswordResetView,
-    PasswordResetDoneView,
-    PasswordResetConfirmView,
-    PasswordResetCompleteView,
-)
-from django.contrib.messages.views import SuccessMessageMixin
-from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.decorators import method_decorator
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import CreateView
@@ -46,6 +32,7 @@ from basedosdados_api.account.token import token_generator
 from basedosdados_api.settings import EMAIL_HOST_USER
 
 logger = getLogger("django")
+
 
 class LoadUserView:
     pass
@@ -68,7 +55,6 @@ class PasswordChangeView(SuccessMessageMixin, PasswordChangeView):
     success_url = r("home")
 
 
-
 class PasswordResetView(SuccessMessageMixin, PasswordResetView):
     template_name = "account/password_reset.html"
     success_message = (
@@ -86,7 +72,7 @@ class PasswordResetView(SuccessMessageMixin, PasswordResetView):
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = user_model.objects.get(id=uid)
-        except(TypeError, ValueError, OverflowError, user_model.DoesNotExist) as e:
+        except (TypeError, ValueError, OverflowError, user_model.DoesNotExist) as e:
             logger.error(e)
             user = None
 
@@ -130,7 +116,7 @@ class PasswordResetConfirmView(SuccessMessageMixin, PasswordResetConfirmView):
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = user_model.objects.get(id=uid)
-        except(TypeError, ValueError, OverflowError, user_model.DoesNotExist) as e:
+        except (TypeError, ValueError, OverflowError, user_model.DoesNotExist) as e:
             logger.error(e)
             user = None
 
@@ -165,12 +151,15 @@ class RegisterView(SuccessMessageMixin, CreateView):
         user.save()
 
         subject = "Bem vindo(a) à Base dos Dados! Ative sua conta."
-        message = render_to_string("account/activation_email.html", {
-            "user": user,
-            "domain": get_current_site(self.request).domain,
-            "uid": urlsafe_base64_encode(force_bytes(user.pk)),
-            "token": token_generator.make_token(user),
-        })
+        message = render_to_string(
+            "account/activation_email.html",
+            {
+                "user": user,
+                "domain": get_current_site(self.request).domain,
+                "uid": urlsafe_base64_encode(force_bytes(user.pk)),
+                "token": token_generator.make_token(user),
+            },
+        )
         user.email_user(subject, message, settings.DEFAULT_FROM_EMAIL)
 
         messages.add_message(
@@ -194,7 +183,7 @@ class ActivateAccountView(View):
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = user_model.objects.get(id=uid)
-        except(TypeError, ValueError, OverflowError, user_model.DoesNotExist) as e:
+        except (TypeError, ValueError, OverflowError, user_model.DoesNotExist) as e:
             logger.error(e)
             user = None
 

@@ -12,6 +12,7 @@ def nonull_getenv(var, default=None):
         raise ValueError(f"Environment variable {var} not set")
     return value
 
+
 # CSRF
 # https://docs.djangoproject.com/en/4.2/ref/csrf/
 # https://docs.djangoproject.com/en/4.2/ref/settings/#std-setting-CSRF_TRUSTED_ORIGINS
