@@ -26,7 +26,11 @@ from ordered_model.admin import (
     OrderedInlineModelAdminMixin,
 )
 
-from basedosdados_api.api.v1.filters import OrganizationImageFilter, TableCoverageFilter
+from basedosdados_api.api.v1.filters import (
+    OrganizationImageFilter,
+    TableCoverageFilter,
+    TableObservationFilter,
+)
 from basedosdados_api.api.v1.forms import (
     ReorderTablesForm,
     ReorderColumnsForm,
@@ -576,6 +580,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     list_filter = [
         "dataset__organization__name",
         TableCoverageFilter,
+        TableObservationFilter,
     ]
 
 

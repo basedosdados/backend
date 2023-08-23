@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from basedosdados_api.api.v1.models import Coverage, Column
+from basedosdados_api.api.v1.models import Coverage, Column, ObservationLevel
 from django.contrib import admin
 
 
@@ -21,7 +21,7 @@ class OrganizationImageFilter(admin.SimpleListFilter):
 
 
 class TableCoverageFilter(admin.SimpleListFilter):
-    title = "table_coverage"
+    title = "Coverage"
     parameter_name = "table_coverage"
 
     def lookups(self, request, model_admin):
@@ -37,11 +37,31 @@ class TableCoverageFilter(admin.SimpleListFilter):
             for value in distinct_values
         ]
 
-        # return Coverage.objects.order_by().values("area__name").distinct()
-
     def queryset(self, request, queryset):
         if self.value():
             return queryset.filter(coverages__area__slug=self.value())
+
+
+class TableObservationFilter(admin.SimpleListFilter):
+    title = "Observation Level"
+    parameter_name = "table_observation"
+
+    def lookups(self, request, model_admin):
+        distinct_values = (
+            ObservationLevel.objects.filter(table__id__isnull=False)
+            .order_by("entity__name")
+            .distinct()
+            .values("entity__id", "entity__name")
+        )
+        # Create a tuple of tuples with the format (value, label).
+        return [
+            (value.get("entity__id"), value.get("entity__name"))
+            for value in distinct_values
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(observation_levels__entity=self.value())
 
 
 class DirectoryPrimaryKeyAdminFilter(admin.SimpleListFilter):
