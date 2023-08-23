@@ -7,6 +7,11 @@ PYTHON=$(shell poetry run which python)
 install:
 	$(POETRY) install
 
+# `make install`: installs pre-commit
+.PHONY: install_precommit
+install_precommit:
+	$(POETRY) run pre-commit install --install-hooks
+
 # `make add`: adds a new dependency
 ifeq (add,$(firstword $(MAKECMDGOALS)))
 	ADD_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))

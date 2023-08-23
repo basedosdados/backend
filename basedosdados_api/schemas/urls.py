@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 from django.urls import path
+
 from basedosdados_api.schemas.views import (
+    BdsSpatialCoverageTreeSchemaView,
+    ColumnSchemaView,
     DatasetSchemaView,
     TableSchemaView,
-    ColumnSchemaView,
-    BdsSpatialCoverageTreeSchemaView,
 )
 
 urlpatterns = [

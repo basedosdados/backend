@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-from basedosdados_api.api.v1.models import Coverage, Column
 from django.contrib import admin
+
+from basedosdados_api.api.v1.models import Column, Coverage
 
 
 class OrganizationImageFilter(admin.SimpleListFilter):
@@ -32,10 +33,7 @@ class TableCoverageFilter(admin.SimpleListFilter):
             .values("area__name", "area__slug")
         )
         # Create a tuple of tuples with the format (value, label).
-        return [
-            (value.get("area__slug"), value.get("area__name"))
-            for value in distinct_values
-        ]
+        return [(value.get("area__slug"), value.get("area__name")) for value in distinct_values]
 
         # return Coverage.objects.order_by().values("area__name").distinct()
 
@@ -58,9 +56,7 @@ class DirectoryPrimaryKeyAdminFilter(admin.SimpleListFilter):
             )
         )
         # Create a tuple of tuples with the format (value, label).
-        return [
-            (value.get("directory_primary_key__name"),) for value in distinct_values
-        ]
+        return [(value.get("directory_primary_key__name"),) for value in distinct_values]
 
     def queryset(self, request, queryset):
         if self.value():

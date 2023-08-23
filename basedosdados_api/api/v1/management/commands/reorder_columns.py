@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from django.core.management.base import BaseCommand
-from basedosdados_api.api.v1.models import Table, Column
+
+from basedosdados_api.api.v1.models import Column, Table
 
 
 class Command(BaseCommand):
@@ -8,9 +9,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("table_id", type=str, help="ID of the table")
-        parser.add_argument(
-            "ordered_slugs", type=str, nargs="+", help="Ordered list of tables"
-        )
+        parser.add_argument("ordered_slugs", type=str, nargs="+", help="Ordered list of tables")
 
     def handle(self, table_id, *args, **options):
         ordered_slugs = options["ordered_slugs"]
@@ -18,9 +17,7 @@ class Command(BaseCommand):
         try:
             table = Table.objects.get(id=table_id)
         except Table.DoesNotExist:
-            self.stdout.write(
-                self.style.ERROR(f"Table with ID {table_id} does not exist")
-            )
+            self.stdout.write(self.style.ERROR(f"Table with ID {table_id} does not exist"))
             return
 
         # TODO improve validation

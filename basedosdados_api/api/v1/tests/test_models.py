@@ -7,19 +7,18 @@ import json
 import pytest
 from django.core.exceptions import ValidationError
 
-# from django.core.validators import RegexValidator
-
-from basedosdados_api.api.v1.models import (
-    Dataset,
-    Area,
-    Table,
-    # Column,
-    RawDataSource,
-    InformationRequest,
-    DateTimeRange,
+from basedosdados_api.api.v1.models import (  # Column,
     Analysis,
+    Area,
     CloudTable,
+    Dataset,
+    DateTimeRange,
+    InformationRequest,
+    RawDataSource,
+    Table,
 )
+
+# from django.core.validators import RegexValidator
 
 
 @pytest.mark.django_db
@@ -111,9 +110,7 @@ def test_date_time_range_empty(coverage_tabela_open):
 
 
 @pytest.mark.django_db
-def test_dataset_create(
-    dataset_dados_mestres, tema_saude, tema_educacao, tag_aborto, tag_covid
-):
+def test_dataset_create(dataset_dados_mestres, tema_saude, tema_educacao, tag_aborto, tag_covid):
     """Test for Dataset creation"""
     dataset_dados_mestres.save()
     dataset_dados_mestres.themes.add(tema_saude, tema_educacao)
@@ -155,9 +152,7 @@ def test_table_create_with_overlapping_coverage(
 
 
 @pytest.mark.django_db
-def test_table_with_empty_coverage(
-    tabela_bairros, coverage_tabela_open, datetime_range_empty
-):
+def test_table_with_empty_coverage(tabela_bairros, coverage_tabela_open, datetime_range_empty):
     """
     Test for Table with Coverage containing no DateTimeRange.
     Coverage must be empty string.

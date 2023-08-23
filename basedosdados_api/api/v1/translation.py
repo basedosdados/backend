@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from modeltranslation.translator import translator, TranslationOptions
+from modeltranslation.translator import TranslationOptions, translator
 
 from .models import (
     Analysis,
@@ -14,12 +14,12 @@ from .models import (
     Language,
     License,
     Organization,
+    QualityCheck,
     RawDataSource,
     Status,
     Table,
     Tag,
     Theme,
-    QualityCheck,
 )
 
 

@@ -1,6 +1,7 @@
+# -*- coding: utf-8 -*-
 from pathlib import Path
-from requests import post
 
+from requests import post
 
 token = """
 mutation {
@@ -16,7 +17,7 @@ mutation {
 def gql(url: str, key: str = None, query: str | Path = None, variables: dict = None):
     """GraphQL request helper function"""
 
-    if type(query) == Path:
+    if isinstance(query, Path):
         query = query.read_text()
     headers = {
         "Content-Type": "application/json",

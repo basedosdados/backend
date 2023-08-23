@@ -14,8 +14,6 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="cloudtable",
             name="columns",
-            field=models.ManyToManyField(
-                blank=True, related_name="cloud_tables", to="v1.column"
-            ),
+            field=models.ManyToManyField(blank=True, related_name="cloud_tables", to="v1.column"),
         ),
     ]
