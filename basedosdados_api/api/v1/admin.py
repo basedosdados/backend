@@ -637,9 +637,9 @@ class ObservationLevelAdmin(admin.ModelAdmin):
         "raw_data_source",
         "information_request",
     ]
-    inlines = [
-        ColumnInline,
-    ]
+    # inlines = [
+    #     ColumnInline,
+    # ]
 
 
 class RawDataSourceAdmin(TabbedTranslationAdmin):
