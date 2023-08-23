@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
-from basedosdados_api.api.v1.models import Coverage, Column, ObservationLevel
 from django.contrib import admin
+
+from basedosdados_api.api.v1.models import Column, Coverage, ObservationLevel
 
 
 class OrganizationImageFilter(admin.SimpleListFilter):
@@ -32,10 +33,7 @@ class TableCoverageFilter(admin.SimpleListFilter):
             .values("area__name", "area__slug")
         )
         # Create a tuple of tuples with the format (value, label).
-        return [
-            (value.get("area__slug"), value.get("area__name"))
-            for value in distinct_values
-        ]
+        return [(value.get("area__slug"), value.get("area__name")) for value in distinct_values]
 
     def queryset(self, request, queryset):
         if self.value():
@@ -54,10 +52,7 @@ class TableObservationFilter(admin.SimpleListFilter):
             .values("entity__id", "entity__name")
         )
         # Create a tuple of tuples with the format (value, label).
-        return [
-            (value.get("entity__id"), value.get("entity__name"))
-            for value in distinct_values
-        ]
+        return [(value.get("entity__id"), value.get("entity__name")) for value in distinct_values]
 
     def queryset(self, request, queryset):
         if self.value():
@@ -78,9 +73,7 @@ class DirectoryPrimaryKeyAdminFilter(admin.SimpleListFilter):
             )
         )
         # Create a tuple of tuples with the format (value, label).
-        return [
-            (value.get("directory_primary_key__name"),) for value in distinct_values
-        ]
+        return [(value.get("directory_primary_key__name"),) for value in distinct_values]
 
     def queryset(self, request, queryset):
         if self.value():

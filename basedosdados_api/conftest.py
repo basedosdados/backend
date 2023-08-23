@@ -3,39 +3,38 @@
 Pytest conftest
 """
 import uuid
+
 import pytest
 
-
 from basedosdados_api.account.models import Account
+from basedosdados_api.api.v1.models import (
+    Analysis,
+    AnalysisType,
+    Area,
+    Availability,
+    BigQueryType,
+    Column,
+    Coverage,
+    Dataset,
+    DateTimeRange,
+    Dictionary,
+    Entity,
+    EntityCategory,
+    InformationRequest,
+    Key,
+    License,
+    ObservationLevel,
+    Organization,
+    Pipeline,
+    QualityCheck,
+    RawDataSource,
+    Status,
+    Table,
+    Tag,
+    Theme,
+)
 
 # from django.core.exceptions import ValidationError
-
-from basedosdados_api.api.v1.models import (
-    AnalysisType,
-    Table,
-    Dataset,
-    Organization,
-    Area,
-    License,
-    Theme,
-    Tag,
-    Entity,
-    Pipeline,
-    ObservationLevel,
-    Column,
-    BigQueryType,
-    RawDataSource,
-    Availability,
-    InformationRequest,
-    Status,
-    Coverage,
-    EntityCategory,
-    Analysis,
-    Dictionary,
-    Key,
-    QualityCheck,
-    DateTimeRange,
-)
 
 
 @pytest.fixture(name="area_br")
@@ -532,9 +531,7 @@ def fixture_coluna_state_id_bairros(
 
 @pytest.fixture(name="coluna_nome_bairros")
 @pytest.mark.django_db
-def fixture_coluna_nome_bairros(
-    tabela_bairros, bigquery_type_string, status_em_processamento
-):
+def fixture_coluna_nome_bairros(tabela_bairros, bigquery_type_string, status_em_processamento):
     """Fixture for name column."""
     return Column.objects.create(
         table=tabela_bairros,

@@ -1,8 +1,8 @@
+# -*- coding: utf-8 -*-
 from csv import DictReader
 from os import getenv
 
 from utils.graphql import gql
-
 
 query = """
 query ($offset: Int!) {
@@ -66,7 +66,7 @@ def read(filepath: str):
 
 
 def parse(id_: str = ""):
-    if type(id_) == str:
+    if isinstance(id_, str):
         id_ = id_.replace("AccountNode:", "")
         id_ = id_ or "0"
     return id_ or "0"
@@ -77,13 +77,13 @@ def get_emails(url: str, key: str):
     offset = 0
     emails = {}
     while count > 0:
-      variables = {"offset": offset}
-      response = gql(url=url, query=query, variables=variables)
-      response = response.json()
-      users = response["data"]["allAccount"]["edges"]
-      count = response["data"]["allAccount"]["edgeCount"]
-      emails.update({u["node"]["email"]: parse(u["node"]["id"]) for u in users})
-      offset += 1500
+        variables = {"offset": offset}
+        response = gql(url=url, query=query, variables=variables)
+        response = response.json()
+        users = response["data"]["allAccount"]["edges"]
+        count = response["data"]["allAccount"]["edgeCount"]
+        emails.update({u["node"]["email"]: parse(u["node"]["id"]) for u in users})
+        offset += 1500
     return emails
 
 

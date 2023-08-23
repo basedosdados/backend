@@ -4,7 +4,7 @@ from urllib.parse import urlparse
 from django.http import HttpResponseRedirect
 from django.views import View
 
-from basedosdados_api.api.v1.models import Dataset, CloudTable
+from basedosdados_api.api.v1.models import CloudTable, Dataset
 
 
 class DatasetRedirectView(View):
@@ -26,14 +26,10 @@ class DatasetRedirectView(View):
         redirect_domain = BASE_URL[domain]
 
         try:
-            redirect_url = CloudTable.objects.filter(
-                gcp_dataset_id=dataset_slug
-            ).first()
+            redirect_url = CloudTable.objects.filter(gcp_dataset_id=dataset_slug).first()
             if not redirect_url:
                 raise CloudTable.DoesNotExist
-            redirect_url = (
-                f"http://{redirect_domain}/dataset/{str(redirect_url.table.dataset.id)}"
-            )
+            redirect_url = f"http://{redirect_domain}/dataset/{str(redirect_url.table.dataset.id)}"
         except CloudTable.DoesNotExist:
             # não tem cloud table, procura pelo nome do dataset
             try:

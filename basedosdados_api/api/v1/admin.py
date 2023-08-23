@@ -2,68 +2,57 @@
 import json
 from time import sleep
 
+from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
-from django import forms
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.management import call_command
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import get_object_or_404, render
 
 # from django.db import models
 from django.utils.html import format_html
-
 from google.cloud import bigquery
 from google.oauth2 import service_account
 from haystack import connections
 
 # from martor.widgets import AdminMartorWidget
-from modeltranslation.admin import (
-    TabbedTranslationAdmin,
-    TranslationStackedInline,
-)
-from ordered_model.admin import (
-    OrderedStackedInline,
-    OrderedInlineModelAdminMixin,
-)
+from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
+from ordered_model.admin import OrderedInlineModelAdminMixin, OrderedStackedInline
 
 from basedosdados_api.api.v1.filters import (
     OrganizationImageFilter,
     TableCoverageFilter,
     TableObservationFilter,
 )
-from basedosdados_api.api.v1.forms import (
-    ReorderTablesForm,
-    ReorderColumnsForm,
-)
-
+from basedosdados_api.api.v1.forms import ReorderColumnsForm, ReorderTablesForm
 from basedosdados_api.api.v1.models import (
-    Organization,
-    Dataset,
-    Table,
-    InformationRequest,
-    RawDataSource,
-    BigQueryType,
-    Column,
-    CloudTable,
-    Area,
-    Theme,
-    Tag,
-    Coverage,
-    Status,
-    Update,
-    Availability,
-    License,
-    Language,
-    ObservationLevel,
-    Entity,
-    EntityCategory,
-    Dictionary,
-    Pipeline,
     Analysis,
     AnalysisType,
+    Area,
+    Availability,
+    BigQueryType,
+    CloudTable,
+    Column,
+    Coverage,
+    Dataset,
     DateTimeRange,
+    Dictionary,
+    Entity,
+    EntityCategory,
+    InformationRequest,
     Key,
+    Language,
+    License,
+    ObservationLevel,
+    Organization,
+    Pipeline,
     QualityCheck,
+    RawDataSource,
+    Status,
+    Table,
+    Tag,
+    Theme,
+    Update,
     UUIDHIddenIdForm,
 )
 
@@ -108,9 +97,7 @@ def reorder_columns(modeladmin, request, queryset):
             for table in queryset:
                 if form.cleaned_data["use_database_order"]:
                     cloud_table = CloudTable.objects.get(table=table)
-                    credentials_dict = json.loads(
-                        settings.GOOGLE_APPLICATION_CREDENTIALS
-                    )
+                    credentials_dict = json.loads(settings.GOOGLE_APPLICATION_CREDENTIALS)
                     credentials = service_account.Credentials.from_service_account_info(
                         credentials_dict
                     )
@@ -174,9 +161,7 @@ def update_search_index(modeladmin, request, queryset):
     for instance in queryset:
         try:
             search_backend = connections["default"].get_backend()
-            search_index = search_backend.get_index(
-                "basedosdados_api.api.v1.models.Dataset"
-            )
+            search_index = search_backend.get_index("basedosdados_api.api.v1.models.Dataset")
             search_index.update_object(instance, using="default")
             messages.success(request, "Search index updated successfully")
         except ObjectDoesNotExist:
@@ -435,9 +420,7 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
             "<a class='related-widget-wrapper-link add-related' href='/admin/v1/table/add/?dataset={0}&_to_field=id&_popup=1'>{1} {2}</a>",  # noqa  pylint: disable=line-too-long
             obj.id,
             obj.tables.count(),
-            " ".join(
-                ["tables" if obj.tables.count() > 1 else "table", "(click to add)"]
-            ),
+            " ".join(["tables" if obj.tables.count() > 1 else "table", "(click to add)"]),
         )
 
     related_objects.short_description = "Tables"
@@ -520,9 +503,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
 
             extra_context["table_observations"] = observations_list
 
-        return super().changeform_view(
-            request, object_id, form_url, extra_context=extra_context
-        )
+        return super().changeform_view(request, object_id, form_url, extra_context=extra_context)
 
     def related_columns(self, obj):
         """Adds information of number of columns, with link to add a new column"""
@@ -530,9 +511,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
             "<a href='/admin/v1/column/add/?table={0}'>{1} {2}</a>",
             obj.id,
             obj.columns.count(),
-            " ".join(
-                ["columns" if obj.columns.count() > 1 else "column", "(click to add)"]
-            ),
+            " ".join(["columns" if obj.columns.count() > 1 else "column", "(click to add)"]),
         )
 
     related_columns.short_description = "Columns"
