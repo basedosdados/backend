@@ -500,6 +500,22 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
             extra_context["datetime_ranges"] = [
                 coverage.datetime_ranges.all() for coverage in obj.coverages.all()
             ]
+
+            observations = obj.observation_levels.all()
+            observations_list = []
+            for observation in observations:
+                obs = {
+                    "id": observation.id,
+                    "entity": observation.entity.name,
+                    "columns": "",
+                }
+                columns = [column.name for column in observation.columns.all()]
+                if columns:
+                    obs["columns"] = ",".join(columns)
+                observations_list.append(obs)
+
+            extra_context["table_observations"] = observations_list
+
         return super().changeform_view(
             request, object_id, form_url, extra_context=extra_context
         )

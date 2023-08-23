@@ -7,26 +7,59 @@
                     <div class="tab-pane active" id="coverages_tab">
                         <fieldset class="module">
                             <h3>{% trans "Table Coverages" %}</h3>
-                            <ul>
+                            <div>
                                 {% for coverage in table_coverages %}
-                                    <li>
+                                    <div>
                                         <a class="related-widget-wrapper-link change-related"
                                            id="change_id_coverage"
                                            data-href-template="{% url 'admin:v1_coverage_change' coverage.id %}?_to_field=id&_popup=1"
                                            data-popup="true"
                                            title="Alterar Coverage: {{ coverage.area }} | {{coverage.datetime_range}}"
-                                           href="{% url 'admin:v1_coverage_change' coverage.id %}?_to_field=id&_popup=1">{{ coverage.area }} {{coverage.datetime_range}}</a>
-                                    </li>
+                                           href="{% url 'admin:v1_coverage_change' coverage.id %}?_to_field=id&_popup=1">{{ coverage.area }} Date Time Range: {{coverage.datetime_range}}</a>
+                                    </div>
                                 {% empty %}
-                                    <li>{% trans "No related coverages." %}</li>
+                                    <div>{% trans "No related coverages." %}</div>
                                 {% endfor %}
-                            </ul>
-                            <a class="related-widget-wrapper-link add-related"
-                               id="add_id_coverage"
-                               data-href-template="{% url 'admin:v1_coverage_add' %}?table={{ original.id }}&_to_field=id&_popup=1"
-                               data-popup="true"
-                               title="Adicionar Coverage"
-                               href="{% url 'admin:v1_coverage_add' %}?table={{ original.id }}&_to_field=id&_popup=1">{% trans "Add new coverage" %}</a>
+                            </div>
+                            <div class="add-row">
+                                <a class="related-widget-wrapper-link add-related"
+                                   id="add_id_coverage"
+                                   data-href-template="{% url 'admin:v1_coverage_add' %}?table={{ original.id }}&_to_field=id&_popup=1"
+                                   data-popup="true"
+                                   title="Adicionar Coverage"
+                                   href="{% url 'admin:v1_coverage_add' %}?table={{ original.id }}&_to_field=id&_popup=1">{% trans "Add new coverage" %}
+                                </a>
+                            </div>
+                        </fieldset>
+                    </div>
+                </div>
+                <div class="tab-content">
+                    <div class="tab-pane active" id="observationlevel_tab">
+                        <fieldset class="module">
+                            <h3>{% trans "Observation Levels" %}</h3>
+                            <div>
+                                {% for observationlevel in table_observations %}
+                                    <div>
+                                        <a class="related-widget-wrapper-link change-related"
+                                           id="change_id_observation_level"
+                                           data-href-template="{% url 'admin:v1_observationlevel_change' observationlevel.id %}?_to_field=id&_popup=1"
+                                           data-popup="true"
+                                           title="Alterar Observation Level: {{ observationlevel.entity }} | coluna: {{ observationlevel.columns }}"
+                                           href="{% url 'admin:v1_observationlevel_change' observationlevel.id %}?_to_field=id&_popup=1"><strong>{{ observationlevel.entity }}</strong> - coluna(s): {{observationlevel.columns}}</a>
+                                    </div>
+                                {% empty %}
+                                    <div>{% trans "No related observation levels." %}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="add-row">
+                                <a class="related-widget-wrapper-link add-related"
+                                   id="add_id_observation_level"
+                                   data-href-template="{% url 'admin:v1_observationlevel_add' %}?table={{ original.id }}&_to_field=id&_popup=1"
+                                   data-popup="true"
+                                   title="Adicionar Observation Level"
+                                   href="{% url 'admin:v1_observationlevel_add' %}?table={{ original.id }}&_to_field=id&_popup=1">{% trans "Add new observation level" %}
+                                </a>
+                            </div>
                         </fieldset>
                     </div>
                 </div>
