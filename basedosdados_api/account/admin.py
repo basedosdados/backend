@@ -6,14 +6,13 @@ from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from django.db import models
 from martor.widgets import AdminMartorWidget
 
-
 from basedosdados_api.account.models import (
-    RegistrationToken,
     Account,
-    Career,
-    BDRole,
     BDGroup,
     BDGroupRole,
+    BDRole,
+    Career,
+    RegistrationToken,
 )
 
 
@@ -93,9 +92,7 @@ class UserChangeForm(forms.ModelForm):
             password.help_text = password.help_text.format("../password/")
         user_permissions = self.fields.get("user_permissions")
         if user_permissions:
-            user_permissions.queryset = user_permissions.queryset.select_related(
-                "content_type"
-            )
+            user_permissions.queryset = user_permissions.queryset.select_related("content_type")
 
 
 class UserAdmin(BaseUserAdmin):

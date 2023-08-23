@@ -1,18 +1,18 @@
-### TODO fazer coverage para os trez tipos de recurso utilizando parse_temporal_coverage
-### TODO filtrar pelo id do modelo pai
-### TODO usar dataframe para controle dos packages, coluna migrate 'e alterada para 1 quando o package 'e migrado
+# -*- coding: utf-8 -*-
+# TODO fazer coverage para os trez tipos de recurso utilizando parse_temporal_coverage
+# TODO filtrar pelo id do modelo pai
+# TODO usar dataframe para controle dos packages, coluna migrate 'e alterada para 1 quando o package 'e migrado
 
 
-from datetime import datetime
+import itertools
 import json
 import re
-import requests
-
+from datetime import datetime
 from pathlib import Path
-import pandas as pd
-from tqdm import tqdm
-import itertools
 
+import pandas as pd
+import requests
+from tqdm import tqdm
 from unidecode import unidecode
 
 
@@ -69,9 +69,7 @@ def get_bd_packages():
 
 def build_areas_from_json():
 
-    with open(
-        "./basedosdados_api/schemas/repository/bd_spatial_coverage_tree.json"
-    ) as f:
+    with open("./basedosdados_api/schemas/repository/bd_spatial_coverage_tree.json") as f:
         area = json.load(f)
 
     return area.get("result")
@@ -140,13 +138,10 @@ class Migration:
         }
         self.area_dict = build_areas_from_json()
 
-    def get_id(
-        self, query_class, query_parameters
-    ):  # sourcery skip: avoid-builtin-shadow
+    def get_id(self, query_class, query_parameters):  # sourcery skip: avoid-builtin-shadow
         _filter = ", ".join(list(query_parameters.keys()))
         keys = [
-            parameter.replace("$", "").split(":")[0]
-            for parameter in list(query_parameters.keys())
+            parameter.replace("$", "").split(":")[0] for parameter in list(query_parameters.keys())
         ]
         values = list(query_parameters.values())
         _input = ", ".join([f"{key}:${key}" for key in keys])
@@ -190,7 +185,7 @@ class Migration:
         r, id = self.get_id(query_class=query_class, query_parameters=query_parameters)
         if id is not None:
             r["r"] = "query"
-            if update == False:
+            if update is False:
                 return r, id
 
         _classe = mutation_class.replace("CreateUpdate", "").lower()
@@ -209,7 +204,7 @@ class Migration:
                 }}
             """
 
-        if update == True and id is not None:
+        if update is True and id is not None:
             mutation_parameters["id"] = id
         r = requests.post(
             self.base_url,
@@ -221,9 +216,7 @@ class Migration:
         if "data" in r and r is not None:
             if r.get("data", {}).get(mutation_class, {}).get("errors", []) != []:
                 print(f"create: not found {mutation_class}", mutation_parameters)
-                print(
-                    "create: error\n", json.dumps(r, indent=4, ensure_ascii=False), "\n"
-                )
+                print("create: error\n", json.dumps(r, indent=4, ensure_ascii=False), "\n")
                 id = None
                 raise Exception("create: Error")
             else:
@@ -258,7 +251,7 @@ class Migration:
             headers=self.header,
         ).json()
 
-        if r["data"][f"Delete{classe}"]["ok"] == True:
+        if r["data"][f"Delete{classe}"]["ok"] is True:
             print(f"deleted dataset {id} ")
         else:
             print("delete errors", r["data"][f"Delete{classe}"]["errors"])
@@ -291,9 +284,7 @@ class Migration:
                 mutation_class="CreateUpdateTag",
                 mutation_parameters={
                     "slug": "desconhecida" if tag_slug is None else unidecode(tag_slug),
-                    "name": "desconhecida"
-                    if tag_name is None
-                    else tag_name.replace(" ", "_"),
+                    "name": "desconhecida" if tag_name is None else tag_name.replace(" ", "_"),
                 },
                 query_class="allTag",
                 query_parameters={"$slug: String": unidecode(tag_slug)},
@@ -304,9 +295,7 @@ class Migration:
 
     def create_availability(self, obj):
         availability = (
-            "desconhecida"
-            if obj.get("availability") is None
-            else obj.get("availability")
+            "desconhecida" if obj.get("availability") is None else obj.get("availability")
         )
         r, id = self.create_update(
             mutation_class="CreateUpdateAvailability",
@@ -520,8 +509,7 @@ class Migration:
     def create_temporal_coverage(self, resource, coverage_id):
         temporal_temporal_coverages = (
             [None]
-            if resource.get("temporal_coverage") == []
-            or resource.get("temporal_coverage") is None
+            if resource.get("temporal_coverage") == [] or resource.get("temporal_coverage") is None
             else resource.get("temporal_coverage")
         )
 
@@ -529,15 +517,11 @@ class Migration:
             temporal_temporal_coverages_chain = [
                 s.split(",") if "," in s else [s] for s in temporal_temporal_coverages
             ]
-            temporal_temporal_coverages = list(
-                itertools.chain(*temporal_temporal_coverages_chain)
-            )
+            temporal_temporal_coverages = list(itertools.chain(*temporal_temporal_coverages_chain))
 
         for temporal_coverage in temporal_temporal_coverages:
             if temporal_coverage is not None:
-                resource_to_temporal_coverage = parse_temporal_coverage(
-                    temporal_coverage
-                )
+                resource_to_temporal_coverage = parse_temporal_coverage(temporal_coverage)
                 resource_to_temporal_coverage["coverage"] = coverage_id
 
                 r, id = self.create_update(
@@ -552,8 +536,7 @@ class Migration:
         coverage_value = list(coverage.values())[0]
         area_slugs = (
             ["desconhecida"]
-            if resource.get("spatial_coverage") == []
-            or resource.get("spatial_coverage") is None
+            if resource.get("spatial_coverage") == [] or resource.get("spatial_coverage") is None
             else resource.get("spatial_coverage")
         )
 
@@ -616,12 +599,8 @@ class Migration:
                     mutation_class="CreateUpdateColumn",
                     mutation_parameters={
                         "table": table_id,
-                        "bigqueryType": self.create_bq_type(
-                            column.get("bigquery_type")
-                        ),
-                        "directoryPrimaryKey": self.create_directory_columns(
-                            column, table_id
-                        ),
+                        "bigqueryType": self.create_bq_type(column.get("bigquery_type")),
+                        "directoryPrimaryKey": self.create_directory_columns(column, table_id),
                         "name": column.get("name"),
                         "isInStaging": column.get("is_in_staging"),
                         "isPartition": column.get("is_partition"),
@@ -640,7 +619,7 @@ class Migration:
                     },
                 )
                 if r.get("r") == "mutation":
-                    coverage_id = self.create_coverage(
+                    coverage_id = self.create_coverage(  # noqa
                         resource=resource,
                         coverage={"column": id},
                     )
@@ -672,9 +651,7 @@ class Migration:
             org_description = org_dict.get("description", "desconhecida")
 
             org_id = (
-                org_dict.get("name")
-                if "title" in org_dict
-                else org_dict.get("organization_id")
+                org_dict.get("name") if "title" in org_dict else org_dict.get("organization_id")
             )
             org_slug = "desconhecida" if org_id is None else org_id.replace("-", "_")
 
@@ -702,9 +679,7 @@ class Migration:
             mutation_class="CreateUpdateArea",
             mutation_parameters={
                 "slug": area.replace(".", "_"),
-                "name": self.area_dict.get(area, {})
-                .get("label", {})
-                .get("pt", "Desconhecida"),
+                "name": self.area_dict.get(area, {}).get("label", {}).get("pt", "Desconhecida"),
                 "key": "unknown" if area == "desconhecida" else area,
             },
         )

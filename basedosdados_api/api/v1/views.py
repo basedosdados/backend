@@ -5,17 +5,12 @@ import json
 
 from django.conf import settings
 from django.core.files.storage import get_storage_class
-from django.http import HttpResponseBadRequest, QueryDict, JsonResponse
+from django.http import HttpResponseBadRequest, JsonResponse, QueryDict
+from elasticsearch import Elasticsearch
 from haystack.forms import ModelSearchForm
 from haystack.generic_views import SearchView
 
-from elasticsearch import Elasticsearch
-
-from basedosdados_api.api.v1.models import (
-    Organization,
-    Theme,
-    Entity,
-)
+from basedosdados_api.api.v1.models import Entity, Organization, Theme
 
 
 class DatasetESSearchView(SearchView):
@@ -92,31 +87,22 @@ class DatasetESSearchView(SearchView):
 
         if "theme" in req_args:
             filter_theme = [
-                {"match": {"themes_slug.keyword": theme}}
-                for theme in req_args.getlist("theme")
+                {"match": {"themes_slug.keyword": theme}} for theme in req_args.getlist("theme")
             ]
             for t in filter_theme:
                 all_filters.append(t)
 
         if "tag" in req_args:
-            filter_tag = [
-                {"match": {"tags_slug.keyword": tag}} for tag in req_args.getlist("tag")
-            ]
+            filter_tag = [{"match": {"tags_slug.keyword": tag}} for tag in req_args.getlist("tag")]
             for t in filter_tag:
                 all_filters.append(t)
 
         if "contains_table" in req_args:
-            all_filters.append(
-                {"match": {"contains_tables": req_args.get("contains_table")}}
-            )
+            all_filters.append({"match": {"contains_tables": req_args.get("contains_table")}})
 
         if "observation_level" in req_args:
             all_filters.append(
-                {
-                    "match": {
-                        "observation_levels.keyword": req_args.get("observation_level")
-                    }
-                }
+                {"match": {"observation_levels.keyword": req_args.get("observation_level")}}
             )
 
         if "datasets_with" or "contains" in req_args:
@@ -152,11 +138,7 @@ class DatasetESSearchView(SearchView):
                                     "bool": {
                                         "must": all_filters,
                                         "must_not": [
-                                            {
-                                                "match": {
-                                                    "status_slug.exact": "under_review"
-                                                }
-                                            }
+                                            {"match": {"status_slug.exact": "under_review"}}
                                         ],
                                     }
                                 },
@@ -361,14 +343,10 @@ class DatasetESSearchView(SearchView):
 
             # raw data sources
             cleaned_results["n_raw_data_sources"] = r.get("n_raw_data_sources", 0)
-            cleaned_results["first_raw_data_source_id"] = r.get(
-                "first_raw_data_source_id", []
-            )
+            cleaned_results["first_raw_data_source_id"] = r.get("first_raw_data_source_id", [])
 
             # information requests
-            cleaned_results["n_information_requests"] = r.get(
-                "n_information_requests", 0
-            )
+            cleaned_results["n_information_requests"] = r.get("n_information_requests", 0)
             cleaned_results["first_information_request_id"] = r.get(
                 "first_information_request_id", []
             )
@@ -388,16 +366,10 @@ class DatasetESSearchView(SearchView):
             # boolean fields
             cleaned_results["is_closed"] = r.get("is_closed", False)
             cleaned_results["contains_tables"] = r.get("contains_tables", False)
-            cleaned_results["contains_closed_data"] = r.get(
-                "contains_closed_data", False
-            )
+            cleaned_results["contains_closed_data"] = r.get("contains_closed_data", False)
             cleaned_results["contains_open_data"] = r.get("contains_open_data", False)
-            cleaned_results["contains_closed_tables"] = r.get(
-                "contains_closed_tables", False
-            )
-            cleaned_results["contains_open_tables"] = r.get(
-                "contains_open_tables", False
-            )
+            cleaned_results["contains_closed_tables"] = r.get("contains_closed_tables", False)
+            cleaned_results["contains_open_tables"] = r.get("contains_open_tables", False)
 
             res.append(cleaned_results)
 
@@ -414,12 +386,10 @@ class DatasetESSearchView(SearchView):
         contains_open_data_counts = agg["contains_open_data_counts"]["buckets"]
         contains_open_tables_counts = agg["contains_open_tables_counts"]["buckets"]
         contains_closed_tables_counts = agg["contains_closed_tables_counts"]["buckets"]
-        contains_information_requests_counts = agg[
-            "contains_information_requests_counts"
-        ]["buckets"]
-        contains_raw_data_sources_counts = agg["contains_raw_data_sources_counts"][
+        contains_information_requests_counts = agg["contains_information_requests_counts"][
             "buckets"
         ]
+        contains_raw_data_sources_counts = agg["contains_raw_data_sources_counts"]["buckets"]
 
         # Getting data from DB to aggregate
         orgs = Organization.objects.all().values("slug", "name", "picture")
@@ -560,9 +530,7 @@ class DatasetESSearchView(SearchView):
                     if contains_closed_tables["key"] == 1
                     else "sem tabelas fechadas",
                 }
-                for idx, contains_closed_tables in enumerate(
-                    contains_closed_tables_counts
-                )
+                for idx, contains_closed_tables in enumerate(contains_closed_tables_counts)
             ]
             aggregations["contains_closed_tables"] = agg_contains_closed_tables
 
@@ -579,9 +547,7 @@ class DatasetESSearchView(SearchView):
                     contains_information_requests_counts
                 )
             ]
-            aggregations[
-                "contains_information_requests"
-            ] = agg_contains_information_requests
+            aggregations["contains_information_requests"] = agg_contains_information_requests
 
         if contains_raw_data_sources_counts:
             agg_contains_raw_data_sources = [
@@ -592,9 +558,7 @@ class DatasetESSearchView(SearchView):
                     if contains_raw_data_sources["key"] == 1
                     else "sem fontes originais",
                 }
-                for idx, contains_raw_data_sources in enumerate(
-                    contains_raw_data_sources_counts
-                )
+                for idx, contains_raw_data_sources in enumerate(contains_raw_data_sources_counts)
             ]
             aggregations["contains_raw_data_sources"] = agg_contains_raw_data_sources
 

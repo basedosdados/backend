@@ -3,20 +3,16 @@ import os
 from typing import Tuple
 from uuid import uuid4
 
-from django.core.mail import send_mail
-from django.db import models
-from django.contrib import admin
-from django.contrib.auth.hashers import (
-    check_password,
-    make_password,
-)
+from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.models import (
     AbstractBaseUser,
     BaseUserManager,
-    PermissionsMixin,
-    Permission,
     Group,
+    Permission,
+    PermissionsMixin,
 )
+from django.core.mail import send_mail
+from django.db import models
 
 from basedosdados_api.account.storage import OverwriteStorage
 from basedosdados_api.api.v1.validators import validate_is_valid_image_format
@@ -217,9 +213,7 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
     uuid = models.UUIDField(primary_key=False, default=uuid4)
 
     email = models.EmailField("Email", unique=True)
-    username = models.CharField(
-        "Username", max_length=40, blank=True, null=True, unique=True
-    )
+    username = models.CharField("Username", max_length=40, blank=True, null=True, unique=True)
 
     first_name = models.CharField("Nome", max_length=40, blank=True)
     last_name = models.CharField("Sobrenome", max_length=40, blank=True)
@@ -338,9 +332,7 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
         """
         double_encoded = make_password(password)
         try:
-            target_algorithm, target_iterations, _, _ = self.split_password(
-                double_encoded
-            )
+            target_algorithm, target_iterations, _, _ = self.split_password(double_encoded)
             algorithm, iterations, _, _ = self.split_password(password)
         except ValueError:
             return False

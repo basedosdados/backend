@@ -2,17 +2,16 @@
 import logging
 
 from django.db import models
-
 from haystack.exceptions import NotHandled
 from haystack.signals import BaseSignalProcessor
 
 from basedosdados_api.api.v1.models import (
-    Dataset,
-    Organization,
-    Table,
-    RawDataSource,
-    InformationRequest,
     Coverage,
+    Dataset,
+    InformationRequest,
+    Organization,
+    RawDataSource,
+    Table,
 )
 
 logger = logging.getLogger("django")
@@ -41,9 +40,7 @@ class BDSignalProcessor(BaseSignalProcessor):
                     for instance in ds:
                         index.update_object(instance, using=using)
                 elif sender == Coverage:
-                    instance = (
-                        Coverage.objects.filter(pk=instance.id).first().table.dataset
-                    )
+                    instance = Coverage.objects.filter(pk=instance.id).first().table.dataset
                     index.update_object(instance, using=using)
                 elif sender in [Table, RawDataSource, InformationRequest]:
                     index.update_object(instance.dataset, using=using)

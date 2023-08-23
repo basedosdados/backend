@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
+import json
 from os import getenv
+
 from google.oauth2 import service_account
 
 from basedosdados_api.settings.base import *  # noqa
-import json
 
 
 def nonull_getenv(var):
