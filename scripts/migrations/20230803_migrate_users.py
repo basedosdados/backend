@@ -1,10 +1,10 @@
+# -*- coding: utf-8 -*-
 from csv import DictReader
 from os import getenv
 from random import choice
 from string import ascii_letters, digits, punctuation
 
 from utils.graphql import gql
-
 
 query = """
 query ($offset: Int!) {
@@ -59,7 +59,7 @@ def split(s):
 
 def make_password():
     characters = ascii_letters + digits + punctuation
-    password = ''.join(choice(characters) for _ in range(16))
+    password = "".join(choice(characters) for _ in range(16))
     return password
 
 
@@ -68,13 +68,13 @@ def get_emails(url: str, key: str):
     offset = 0
     emails = []
     while count > 0:
-      variables = {"offset": offset}
-      response = gql(url=url, query=query, variables=variables)
-      response = response.json()
-      users = response["data"]["allAccount"]["edges"]
-      count = response["data"]["allAccount"]["edgeCount"]
-      emails.extend([u["node"]["email"] for u in users])
-      offset += 1500
+        variables = {"offset": offset}
+        response = gql(url=url, query=query, variables=variables)
+        response = response.json()
+        users = response["data"]["allAccount"]["edges"]
+        count = response["data"]["allAccount"]["edgeCount"]
+        emails.extend([u["node"]["email"] for u in users])
+        offset += 1500
     return emails
 
 

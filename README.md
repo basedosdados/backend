@@ -41,10 +41,10 @@
 
 * OBS.: É possível realizar a execução do servidor django com os alias `make run_local` ou `make run_docker` (recomendado). Para mais informações, ver [Makefile](Makefile).
 
-* OBS2: É possível realizar a execução do servidor django com os comandos 
+* OBS2: É possível realizar a execução do servidor django com os comandos
 ```sh
-    
-    python manage.py migrate 
+
+    python manage.py migrate
     python manage.py createsuperuser
     python manage.py runserver 8080
 ```

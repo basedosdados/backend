@@ -6,6 +6,7 @@ Django dev settings for basedosdados_api project.
 import os
 
 from django.utils.log import DEFAULT_LOGGING
+
 from basedosdados_api.settings.base import *  # pylint: disable=wildcard-import,unused-wildcard-import # noqa: F403,F401
 
 

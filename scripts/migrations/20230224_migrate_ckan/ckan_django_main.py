@@ -1,23 +1,17 @@
-### TODO checar filtragem de todos os campos
-### TODO rever observational_level, pede lista de id de colunas que atualmente n esta recebendo
-#  https://staging.api.basedosdados.org/api/v1/graphql
-#  https://staging.api.basedosdados.org/admin/
-
-# "https://staging.backend.dados.rio/api/v1/graphql"
+# -*- coding: utf-8 -*-
+# TODO checar filtragem de todos os campos
+# TODO rever observational_level, pede lista de id de colunas que atualmente n esta recebendo
+# https://staging.api.basedosdados.org/api/v1/graphql
+# https://staging.api.basedosdados.org/admin/
+# https://staging.backend.dados.rio/api/v1/graphql
 
 
 import json
 from datetime import datetime
-from ckan_django_utils import (
-    Migration,
-    get_token,
-    get_package_model,
-    get_bd_packages,
-    parse_temporal_coverage,
-)
-
 from pathlib import Path
+
 import pandas as pd
+from ckan_django_utils import Migration, get_bd_packages, get_token
 
 
 def get_credentials(mode):
@@ -38,7 +32,7 @@ def main(package_name_error=None, tables_error=[]):
     # df = get_package_model(name_or_id=id)
     df = get_bd_packages()
     df = df.head(50)
-    entity_id = m.create_entity()
+    m.create_entity()
     update_frequency_id = m.create_update_frequency()
     # r = m.delete(classe="Dataset", id="77239376-6662-4d64-8950-2f57f1225e53")
     count = 1
@@ -47,14 +41,14 @@ def main(package_name_error=None, tables_error=[]):
         tags_ids = m.create_tags(objs=p.get("tags"))
         themes_ids = m.create_themes(objs=p.get("groups"))
 
-        ## create organization
+        # create organization
         print(
             "\n###############################################################################################\n\n",
             "Create Organization",
         )
         org_id = m.create_org(p.get("organization"))
 
-        ## create dataset
+        # create dataset
         print(
             f"\nCreate Dataset: {count} - {p['name']} - {package_id}",
         )
@@ -79,10 +73,7 @@ def main(package_name_error=None, tables_error=[]):
         for resource in p["resources"]:
             resource_type = resource["resource_type"]
 
-            if (
-                resource_type == "bdm_table"
-                and resource["table_id"] not in tables_error
-            ):
+            if resource_type == "bdm_table" and resource["table_id"] not in tables_error:
 
                 print("\nCreate Table:", resource["table_id"])
                 update_frequency_id = m.create_update_frequency(
@@ -92,17 +83,13 @@ def main(package_name_error=None, tables_error=[]):
                 resource_to_table = {
                     "dataset": dataset_id,
                     "license": m.create_license(),
-                    "partnerOrganization": m.create_org(
-                        resource["partner_organization"]
-                    ),
+                    "partnerOrganization": m.create_org(resource["partner_organization"]),
                     "updateFrequency": update_frequency_id,
                     "slug": resource["table_id"],
                     "name": resource["name"],
                     "pipeline": m.create_update(
                         query_class="allPipeline",
-                        query_parameters={
-                            "$githubUrl: String": "http://desconhecida.com"
-                        },
+                        query_parameters={"$githubUrl: String": "http://desconhecida.com"},
                         mutation_class="CreateUpdatePipeline",
                         mutation_parameters={"githubUrl": "desconhecida.com"},
                     )[1],
@@ -148,7 +135,7 @@ def main(package_name_error=None, tables_error=[]):
                     print(
                         "\nCreate CloudTable:",
                         resource["dataset_id"] + "." + resource["table_id"],
-                        "\n\n_______________________________________________________________________________________________",
+                        "\n\n_______________________________________________________________________________________________",  # noqa
                     )
                     r, cloud_table_id = m.create_update(
                         mutation_class="CreateUpdateCloudTable",
@@ -194,9 +181,7 @@ def main(package_name_error=None, tables_error=[]):
                         "$dataset_Id: ID": dataset_id,
                     },
                 )
-                m.create_coverage(
-                    resource=resource, coverage={"rawDataSource": raw_source_id}
-                )
+                m.create_coverage(resource=resource, coverage={"rawDataSource": raw_source_id})
 
             elif resource_type == "information_request":
                 print("\nCreate InformationRequest: ", resource["name"])
@@ -216,14 +201,11 @@ def main(package_name_error=None, tables_error=[]):
                     )[1],
                     "updateFrequency": update_frequency_id,
                     "origin": resource["origin"],
-                    "slug": resource["name"]
-                    .replace("/", "")
-                    .replace("-", "")
-                    .replace(".", ""),
+                    "slug": resource["name"].replace("/", "").replace("-", "").replace(".", ""),
                     "url": resource.get("data_url", ""),
-                    "startedAt": datetime.strptime(
-                        resource["opening_date"], "%d/%m/%Y"
-                    ).strftime("%Y-%m-%d")
+                    "startedAt": datetime.strptime(resource["opening_date"], "%d/%m/%Y").strftime(
+                        "%Y-%m-%d"
+                    )
                     + "T00:00:00"
                     if "/" in resource["opening_date"]
                     else resource["opening_date"] + "T00:00:00",
@@ -242,9 +224,7 @@ def main(package_name_error=None, tables_error=[]):
                     },
                     # update=True,
                 )
-                m.create_coverage(
-                    resource=resource, coverage={"informationRequest": info_id}
-                )
+                m.create_coverage(resource=resource, coverage={"informationRequest": info_id})
         print(
             "\n\n***********************************************************************************************\n\n"
         )

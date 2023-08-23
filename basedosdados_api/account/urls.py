@@ -1,16 +1,8 @@
 # -*- coding: utf-8 -*-
 
 from django.urls import path
-from basedosdados_api.account.views import (
-    # LoadUserView,
-    # RegisterView,
-    # PasswordResetView,
-    # LoginView,
-    LogoutView,
-    # PasswordResetConfirmView,
-    # PasswordResetCompleteView,
-    # ActivateAccount,
-)
+
+from basedosdados_api.account.views import LogoutView
 
 urlpatterns = [
     # path("user", LoadUserView.as_view(), name="user"),
