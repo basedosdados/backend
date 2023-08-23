@@ -8,8 +8,8 @@ install:
 	$(POETRY) install
 
 # `make install`: installs pre-commit
-.PHONY: install_pre_commit
-install_pre_commit:
+.PHONY: install_precommit
+install_precommit:
 	$(POETRY) run pre-commit install --install-hooks
 
 # `make add`: adds a new dependency
