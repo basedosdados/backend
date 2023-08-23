@@ -1,6 +1,11 @@
 ---
 extends: default
 
+ignore: |
+  charts
+  .github
+  .docker-compose.yaml
+
 rules:
   braces:
     max-spaces-inside: 2

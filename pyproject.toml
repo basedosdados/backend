@@ -34,12 +34,12 @@ google-cloud-bigquery = "^3.11.3"
 
 [tool.poetry.group.dev.dependencies]
 black = "^22.3.0"
-pre-commit = "^2.18.1"
 flake8 = "^6.1.0"
 pygments = "^2.15.1"
 yamllint = "^1.32.0"
-isort = "^5.12.0"
 autoflake = "^2.2.0"
+isort = "^5.12.0"
+pre-commit = "^3.3.3"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.2.1"
@@ -54,6 +54,7 @@ line-length = 100
 target-version = ["py310"]
 
 [tool.isort]
+profile = "black"
 line_length = 100
 multi_line_output = 3
 use_parentheses = true

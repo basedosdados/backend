@@ -12,9 +12,7 @@ from haystack import indexes  # noqa: F401
 from haystack.backends import elasticsearch7_backend as es_backend
 
 
-class AsciifoldingElasticBackend(
-    es_backend.Elasticsearch7SearchBackend, metaclass=ABCMeta
-):
+class AsciifoldingElasticBackend(es_backend.Elasticsearch7SearchBackend, metaclass=ABCMeta):
     def __init__(self, *args, **kwargs):
         super(AsciifoldingElasticBackend, self).__init__(*args, **kwargs)
         analyzer = {
@@ -67,9 +65,7 @@ class AsciifoldingElasticBackend(
         self.DEFAULT_SETTINGS["settings"]["analysis"]["filter"] = filter
 
     def build_schema(self, fields):
-        content_field_name, mapping = super(
-            AsciifoldingElasticBackend, self
-        ).build_schema(fields)
+        content_field_name, mapping = super(AsciifoldingElasticBackend, self).build_schema(fields)
 
         for field_name, field_class in fields.items():
             field_mapping = mapping[field_class.index_fieldname]
