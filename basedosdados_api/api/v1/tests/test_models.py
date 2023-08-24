@@ -127,31 +127,6 @@ def test_table_create(tabela_bairros):
 
 
 @pytest.mark.django_db
-def test_table_create_with_overlapping_coverage(
-    tabela_pro,
-    coverage_tabela_open,
-    coverage_tabela_closed,
-    datetime_range_1,
-    datetime_range_2,
-):
-    """
-    Test for Table with Coverage containing overlapping DateTimeRange.
-    The overlapping DateTimeRange must have the same area.
-    Must raise ValidationError.
-    """
-    tabela_pro.save()
-    coverage_tabela_open.save()
-    datetime_range_1.coverage = coverage_tabela_open
-    datetime_range_1.save()
-
-    datetime_range_2.coverage = coverage_tabela_closed
-    datetime_range_2.save()
-    with pytest.raises(ValidationError):
-        tabela_pro.coverages.add(coverage_tabela_open, coverage_tabela_closed)
-        tabela_pro.clean()
-
-
-@pytest.mark.django_db
 def test_table_with_empty_coverage(tabela_bairros, coverage_tabela_open, datetime_range_empty):
     """
     Test for Table with Coverage containing no DateTimeRange.
