@@ -272,7 +272,7 @@ class Key(BdmModel):
     class Meta:
         """Meta definition for Key."""
 
-        db_table = "keys"
+        db_table = "key"
         verbose_name = "Key"
         verbose_name_plural = "Keys"
         ordering = ["name"]
