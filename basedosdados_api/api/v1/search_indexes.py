@@ -69,8 +69,13 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         data["first_table_id"] = table_ids[0] if table_ids else ""
         if table_ids:
             closed_tables = obj.tables.filter(is_closed=True)
+            published_tables = obj.tables.exclude(
+                status__slug__in=[
+                    "under_review",
+                ]
+            )
             data["n_closed_tables"] = closed_tables.count()
-            data["n_tables"] = len(table_ids)
+            data["n_tables"] = published_tables.count()
 
         # organization
         organization_id = data.get("organization_id", "")
