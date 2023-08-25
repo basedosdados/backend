@@ -5,7 +5,7 @@ on:
     branches:
       - main
     paths:
-      - ".github/workflows/release-helm-chart.yaml"
+      - ".github/workflows/release-chart.yaml"
       - "charts/**/*"
 
 jobs:
