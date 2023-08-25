@@ -68,7 +68,9 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         table_ids = data.get("table_ids", [])
         data["first_table_id"] = table_ids[0] if table_ids else ""
         if table_ids:
-            closed_tables = obj.tables.filter(is_closed=True)
+            closed_tables = obj.tables.filter(is_closed=True).exclude(
+                status__slug__in=["under_review"]
+            )
             published_tables = obj.tables.exclude(
                 status__slug__in=[
                     "under_review",
