@@ -327,7 +327,7 @@ class DatasetESSearchView(SearchView):
             if r.get("tables"):
                 if len(tables := r.get("tables")) > 0:
                     cleaned_results["first_table_id"] = tables[0]["id"]
-                    cleaned_results["n_tables"] = len(tables)
+                    cleaned_results["n_tables"] = r.get("n_tables")
                     cleaned_results["n_open_tables"] = (
                         cleaned_results["n_tables"] - cleaned_results["n_closed_tables"]
                     )
