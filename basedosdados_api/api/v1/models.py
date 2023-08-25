@@ -1099,9 +1099,12 @@ class Table(BdmModel, OrderedModel):
             coverages = self.coverages.all()
             temporal_coverages_by_area = {str(coverage.area.slug): [] for coverage in coverages}
             for coverage in coverages:
-                temporal_coverages_by_area[str(coverage.area.slug)].append(
-                    *list(coverage.datetime_ranges.all())
-                )
+                try:
+                    temporal_coverages_by_area[str(coverage.area.slug)].append(
+                        *list(coverage.datetime_ranges.all())
+                    )
+                except TypeError:
+                    continue
             for area, temporal_coverages in temporal_coverages_by_area.items():
                 dt_ranges = []
                 for _, temporal_coverage in enumerate(temporal_coverages):
