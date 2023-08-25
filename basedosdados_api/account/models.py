@@ -247,7 +247,7 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
         help_text="Indica se tem acesso à administração",
     )
     is_active = models.BooleanField(
-        "Ativo", default=True, help_text="Indica se o usuário está ativo"
+        "Ativo", default=False, help_text="Indica se o usuário está ativo"
     )
 
     profile = models.IntegerField(
