@@ -3,7 +3,7 @@ name: Release Image (Staging)
 on:
   push:
     branches:
-      - staging
+      - main
 
 jobs:
   release-docker:
