@@ -1,8 +1,8 @@
-name: Deployment - Staging
+name: Deployment (Staging)
 
 on:
   workflow_run:
-    workflows: ["Docker - Release Image (Staging)"]
+    workflows: ["Release Image (Staging)"]
     types:
       - completed
 

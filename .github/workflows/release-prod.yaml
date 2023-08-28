@@ -1,53 +1,27 @@
-name: Docker - Release Image (Production)
+name: Release Image (Production)
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/release-docker.yaml"
-      - "app/**/*"
-      - "Dockerfile"
-  pull_request_review:
-    types:
-      - submitted
 
 jobs:
   release-docker:
-    name: Docker - Release image
+    name: Release Image
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push PR image
-        uses: docker/build-push-action@v2
-        if: github.event_name == 'pull_request' && github.event.review.state == 'approved' # If it's an approved PR, build and push with the PR number
-        with:
-          context: .
-          file: ./Dockerfile
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}:pr-${{ github.event.number }}
-          labels: |
-            org.opencontainers.image.source=${{ github.event.repository.html_url }}
-            org.opencontainers.image.revision=${{ github.sha }}
-          build-args: |
-            BUILDKIT_INLINE_CACHE=1
-
       - name: Build and push stable tagged image
         uses: docker/build-push-action@v2
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main' # If it's a push to main, build and push with the stable tag
         with:
           context: .
           file: ./Dockerfile

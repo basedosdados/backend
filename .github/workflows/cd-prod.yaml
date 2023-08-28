@@ -1,8 +1,8 @@
-name: Deployment - Production
+name: Deployment (Production)
 
 on:
   workflow_run:
-    workflows: ["Docker - Release Image (Production)"]
+    workflows: ["Release Image (Production)"]
     branches:
       - main
     types:
