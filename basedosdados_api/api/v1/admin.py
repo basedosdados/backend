@@ -757,6 +757,8 @@ class AvailabilityAdmin(TabbedTranslationAdmin):
 
 
 class CloudTableAdmin(admin.ModelAdmin):
+    """Test for new development flow"""
+
     readonly_fields = [
         "id",
     ]
