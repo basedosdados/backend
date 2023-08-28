@@ -441,6 +441,20 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
 
             extra_context["table_observations"] = observations_list
 
+            cloudtables = obj.cloud_tables.all()
+            cloudtables_list = []
+            for cloudtable in cloudtables:
+                ct = {
+                    "id": cloudtable.id,
+                    "gcp_project_id": cloudtable.gcp_project_id,
+                    "gcp_dataset_id": cloudtable.gcp_dataset_id,
+                    "gcp_table_id": cloudtable.gcp_table_id,
+                    "columns": "",
+                }
+                cloudtables_list.append(ct)
+
+            extra_context["table_cloudtables"] = cloudtables_list
+
         return super().changeform_view(request, object_id, form_url, extra_context=extra_context)
 
     def related_columns(self, obj):
@@ -757,6 +771,16 @@ class CloudTableAdmin(admin.ModelAdmin):
     autocomplete_fields = ["table", "columns"]
     filter_horizontal = [
         "columns",
+    ]
+    fields = [
+        "table",
+        "gcp_project_id",
+        "gcp_dataset_id",
+        "gcp_table_id",
+        "columns",
+    ]
+    readonly_fields = [
+        "id",
     ]
 
 

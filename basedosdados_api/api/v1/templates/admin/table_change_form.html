@@ -63,4 +63,34 @@
                         </fieldset>
                     </div>
                 </div>
+                <div class="tab-content">
+                    <div class="tab-pane active" id="cloudtable_tab">
+                        <fieldset class="module">
+                            <h3>{%  trans "Cloud Tables"  %}</h3>
+                            <div>
+                                {% for cloudtable in table_cloudtables %}
+                                <div>
+                                    <a class="related-widget-wrapper-link change-related"
+                                       id="change_id_cloudtable"
+                                       data-href-template="{% url 'admin:v1_cloudtable_change' cloudtable.id %}?_to_field=id&_popup=1"
+                                       data-popup="true"
+                                       title="Alterar Cloud Table: {{ cloudtable.table }} | {{cloudtable.datetime_range}}"
+                                       href="{% url 'admin:v1_cloudtable_change' cloudtable.id %}?_to_field=id&_popup=1">{{ cloudtable.table }} Cloud Table: {{cloudtable.gcp_project_id}}.{{cloudtable.gcp_dataset_id}}.{{cloudtable.gcp_table_id}}</a>
+                                </div>
+                                {% empty %}
+                                <div {% trans "No related cloud tables." %}</div>
+                                {% endfor %}
+                            </div>
+                            <div class="add-row">
+                                <a class="related-widget-wrapper-link add-related"
+                                   id="add_id_cloud_table"
+                                   data-href-template="{% url 'admin:v1_cloudtable_add' %}?table={{ original.id }}&_to_field=id&_popup=1"
+                                   data-popup="true"
+                                   title="Adicionar Cloud Table"
+                                   href="{% url 'admin:v1_cloudtable_add' %}?table={{ original.id}}&_to_field=id&_popup=1">{% trans "Add new cloud table" %}}
+                                </a>
+                            </div>
+                        </fieldset>
+                    </div>
+                </div>
 {% endblock %}
