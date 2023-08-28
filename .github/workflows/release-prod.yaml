@@ -1,17 +1,17 @@
 name: Release Image (Production)
 
-on:
-  push:
-    branches:
-      - main
+on: workflow_dispatch
 
 jobs:
   release-docker:
     name: Release Image
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          ref: main
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v2
