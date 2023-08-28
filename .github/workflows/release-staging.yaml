@@ -1,27 +1,22 @@
-name: Docker - Release Image (Staging)
+name: Release Image (Staging)
 
 on:
   push:
     branches:
       - staging
-  pull_request:
-    branches:
-      - staging
-    paths:
-      - ".github/workflows/release-docker.yaml"
-      - "app/**/*"
-      - "Dockerfile"
 
 jobs:
   release-docker:
-    name: Docker - Release image
+    name: Release Image
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          ref: main
 
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v1
+        uses: docker/login-action@v2
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -29,7 +24,6 @@ jobs:
 
       - name: Build and push staging tagged image
         uses: docker/build-push-action@v2
-        if: github.event_name == 'push' && github.ref == 'refs/heads/staging' # If it's a push to staging, build and push with the staging tag
         with:
           context: .
           file: ./Dockerfile

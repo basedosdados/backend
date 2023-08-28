@@ -1,8 +1,8 @@
-name: Deployment - Development
+name: Deployment (Development)
 
 on:
   workflow_run:
-    workflows: ["Docker - Release Image (Development)"]
+    workflows: ["Release Image (Development)"]
     types:
       - completed
 

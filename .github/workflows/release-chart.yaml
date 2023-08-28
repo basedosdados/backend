@@ -5,11 +5,11 @@ on:
     branches:
       - main
     paths:
-      - ".github/workflows/release-helm-chart.yaml"
+      - ".github/workflows/release-chart.yaml"
       - "charts/**/*"
 
 jobs:
-  release-helm-chart:
+  release-chart:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
