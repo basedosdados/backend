@@ -19,8 +19,17 @@ from haystack import connections
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
 from ordered_model.admin import OrderedInlineModelAdminMixin, OrderedStackedInline
 
-from basedosdados_api.api.v1.filters import OrganizationImageFilter, TableCoverageFilter
+from basedosdados_api.api.v1.filters import (
+    OrganizationImageFilter,
+    TableCoverageFilter,
+    TableObservationFilter,
+)
 from basedosdados_api.api.v1.forms import ReorderColumnsForm, ReorderTablesForm
+from basedosdados_api.api.v1.forms.admin_forms import (
+    ColumnInlineForm,
+    CoverageInlineForm,
+    TableInlineForm,
+)
 from basedosdados_api.api.v1.models import (
     Analysis,
     AnalysisType,
@@ -49,7 +58,6 @@ from basedosdados_api.api.v1.models import (
     Tag,
     Theme,
     Update,
-    UUIDHIddenIdForm,
 )
 
 
@@ -169,72 +177,6 @@ update_search_index.short_description = "Update search index"
 
 class TranslateOrderedInline(OrderedStackedInline, TranslationStackedInline):
     pass
-
-
-# Forms
-
-
-class TableInlineForm(UUIDHIddenIdForm):
-    class Meta(UUIDHIddenIdForm):
-        model = Table
-        fields = [
-            "id",
-            "slug",
-            "name",
-            "description",
-            "status",
-            "license",
-            "partner_organization",
-            "pipeline",
-            "is_directory",
-            "published_by",
-            "data_cleaned_by",
-            "data_cleaning_description",
-            "data_cleaning_code_url",
-            "raw_data_url",
-            "auxiliary_files_url",
-            "architecture_url",
-            "source_bucket_name",
-            "uncompressed_file_size",
-            "compressed_file_size",
-            "number_rows",
-            "number_columns",
-            "is_closed",
-        ]
-        readonly_fields = [
-            "order",
-            "move_up_down_links",
-        ]
-
-
-class ColumnInlineForm(UUIDHIddenIdForm):
-    class Meta(UUIDHIddenIdForm.Meta):
-        model = Column
-        fields = [
-            "id",
-            "name",
-            "name_staging",
-            "description",
-            "bigquery_type",
-            "is_closed",
-            "status",
-            "is_primary_key",
-            "table",
-        ]
-        readonly_fields = [
-            "order",
-            "move_up_down_links",
-        ]
-
-
-class CoverageInlineForm(UUIDHIddenIdForm):
-    class Meta(UUIDHIddenIdForm.Meta):
-        model = Coverage
-        fields = [
-            "id",
-            "area",
-            "table",
-        ]
 
 
 # Inlines
@@ -483,6 +425,36 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
             extra_context["datetime_ranges"] = [
                 coverage.datetime_ranges.all() for coverage in obj.coverages.all()
             ]
+
+            observations = obj.observation_levels.all()
+            observations_list = []
+            for observation in observations:
+                obs = {
+                    "id": observation.id,
+                    "entity": observation.entity.name,
+                    "columns": "",
+                }
+                columns = [column.name for column in observation.columns.all()]
+                if columns:
+                    obs["columns"] = ",".join(columns)
+                observations_list.append(obs)
+
+            extra_context["table_observations"] = observations_list
+
+            cloudtables = obj.cloud_tables.all()
+            cloudtables_list = []
+            for cloudtable in cloudtables:
+                ct = {
+                    "id": cloudtable.id,
+                    "gcp_project_id": cloudtable.gcp_project_id,
+                    "gcp_dataset_id": cloudtable.gcp_dataset_id,
+                    "gcp_table_id": cloudtable.gcp_table_id,
+                    "columns": "",
+                }
+                cloudtables_list.append(ct)
+
+            extra_context["table_cloudtables"] = cloudtables_list
+
         return super().changeform_view(request, object_id, form_url, extra_context=extra_context)
 
     def related_columns(self, obj):
@@ -539,6 +511,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     list_filter = [
         "dataset__organization__name",
         TableCoverageFilter,
+        TableObservationFilter,
     ]
 
 
@@ -595,9 +568,9 @@ class ObservationLevelAdmin(admin.ModelAdmin):
         "raw_data_source",
         "information_request",
     ]
-    inlines = [
-        ColumnInline,
-    ]
+    # inlines = [
+    #     ColumnInline,
+    # ]
 
 
 class RawDataSourceAdmin(TabbedTranslationAdmin):
@@ -798,6 +771,16 @@ class CloudTableAdmin(admin.ModelAdmin):
     autocomplete_fields = ["table", "columns"]
     filter_horizontal = [
         "columns",
+    ]
+    fields = [
+        "table",
+        "gcp_project_id",
+        "gcp_dataset_id",
+        "gcp_table_id",
+        "columns",
+    ]
+    readonly_fields = [
+        "id",
     ]
 
 
