@@ -34,8 +34,6 @@ from basedosdados_api.api.v1.models import (
     Theme,
 )
 
-# from django.core.exceptions import ValidationError
-
 
 @pytest.fixture(name="area_br")
 @pytest.mark.django_db
