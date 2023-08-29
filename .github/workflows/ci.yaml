@@ -1,10 +1,10 @@
 name: CI - Lint and Test
 
-on:
-  push:
+on: pull_request
 
 jobs:
   lint:
+    name: Lint
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -15,24 +15,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Set up Python
+      - name: Set up python
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
           architecture: ${{ matrix.arch }}
 
-      - name: Set up Poetry and upgrade pip
-        run: |
-          pip install -U pip poetry
+      - name: Set up poetry and upgrade pip
+        run: pip install -U pip poetry
 
       - name: Install this package
-        run: |
-          poetry install
+        run: poetry install
 
-      - name: Lint
-        run: |
-          poetry run lint
+      - name: Lint source code
+        run: poetry run lint
+
+      - name: Lint pull request title
+        uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          subjectPattern: ^(?![A-Z]).+$
+          subjectPatternError: |
+            The subject "{subject}" found in the pull request title "{title}"
+            didn't match the configured pattern. Please ensure that the subject
+            doesn't start with an uppercase character.
 
       - name: Test
-        run: |
-          poetry run test
+        run: poetry run test
