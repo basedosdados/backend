@@ -1410,7 +1410,7 @@ class RawDataSource(BdmModel, OrderedModel):
     )
     languages = models.ManyToManyField("Language", related_name="raw_data_sources", blank=True)
     license = models.ForeignKey(
-        "License", on_delete=models.CASCADE, related_name="raw_data_sources"
+        "License", on_delete=models.CASCADE, related_name="raw_data_sources", blank=True, null=True
     )
     area_ip_address_required = models.ManyToManyField(
         "Area", related_name="raw_data_sources", blank=True
