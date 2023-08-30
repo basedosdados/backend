@@ -1,5 +1,13 @@
 # -*- coding: utf-8 -*-
-from basedosdados_api.api.v1.models import Column, Coverage, Table, UUIDHIddenIdForm
+from django import forms
+
+from basedosdados_api.api.v1.models import (
+    Column,
+    Coverage,
+    ObservationLevel,
+    Table,
+    UUIDHIddenIdForm,
+)
 
 
 class TableInlineForm(UUIDHIddenIdForm):
@@ -53,6 +61,14 @@ class ColumnInlineForm(UUIDHIddenIdForm):
             "order",
             "move_up_down_links",
         ]
+
+
+class ObservationLevelForm(forms.ModelForm):
+    column_choice = forms.ModelChoiceField(queryset=None)
+
+    class Meta:
+        model = ObservationLevel
+        fields = "__all__"
 
 
 class CoverageInlineForm(UUIDHIddenIdForm):

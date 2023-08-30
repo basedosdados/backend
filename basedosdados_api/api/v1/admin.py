@@ -16,20 +16,22 @@ from google.oauth2 import service_account
 from haystack import connections
 
 # from martor.widgets import AdminMartorWidget
-from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
-from ordered_model.admin import OrderedInlineModelAdminMixin, OrderedStackedInline
+from modeltranslation.admin import TabbedTranslationAdmin
+from ordered_model.admin import OrderedInlineModelAdminMixin
 
+from basedosdados_api.api.v1.admin_inlines import (
+    ColumnInline,
+    InformationRequestInline,
+    ObservationLevelInline,
+    RawDataSourceInline,
+    TableInline,
+)
 from basedosdados_api.api.v1.filters import (
     OrganizationImageFilter,
     TableCoverageFilter,
     TableObservationFilter,
 )
 from basedosdados_api.api.v1.forms import ReorderColumnsForm, ReorderTablesForm
-from basedosdados_api.api.v1.forms.admin_forms import (
-    ColumnInlineForm,
-    CoverageInlineForm,
-    TableInlineForm,
-)
 from basedosdados_api.api.v1.models import (
     Analysis,
     AnalysisType,
@@ -173,129 +175,6 @@ def update_search_index(modeladmin, request, queryset):
 
 
 update_search_index.short_description = "Update search index"
-
-
-class TranslateOrderedInline(OrderedStackedInline, TranslationStackedInline):
-    pass
-
-
-# Inlines
-
-
-class ColumnInline(TranslateOrderedInline):
-    model = Column
-    form = ColumnInlineForm
-    extra = 0
-    show_change_link = True
-    show_full_result_count = True
-    autocomplete_fields = [
-        "directory_primary_key",
-        "observation_level",
-    ]
-    fields = [
-        "order",
-        "move_up_down_links",
-    ] + ColumnInlineForm.Meta.fields
-    readonly_fields = [
-        "order",
-        "move_up_down_links",
-    ]
-    ordering = [
-        "order",
-    ]
-
-
-class TableInline(TranslateOrderedInline):
-    model = Table
-    form = TableInlineForm
-    extra = 0
-    show_change_link = True
-    fields = [
-        "order",
-        "move_up_down_links",
-    ] + TableInlineForm.Meta.fields
-    readonly_fields = [
-        "order",
-        "move_up_down_links",
-    ]
-    ordering = [
-        "order",
-    ]
-
-
-class RawDataSourceInline(TranslateOrderedInline):
-    model = RawDataSource
-    extra = 0
-    show_change_link = True
-    fields = [
-        "order",
-        "move_up_down_links",
-        "id",
-        "name",
-        "description",
-        "url",
-    ]
-    readonly_fields = [
-        "order",
-        "move_up_down_links",
-    ]
-    ordering = [
-        "order",
-    ]
-
-
-class InformationRequestInline(TranslateOrderedInline):
-    model = InformationRequest
-    extra = 0
-    show_change_link = True
-    fields = [
-        "order",
-        "move_up_down_links",
-        "id",
-        "origin",
-        "number",
-        "url",
-    ]
-    readonly_fields = [
-        "order",
-        "move_up_down_links",
-    ]
-    ordering = [
-        "order",
-    ]
-
-
-class DateTimeRangeInline(admin.StackedInline):
-    model = DateTimeRange
-    extra = 0
-    show_change_link = True
-
-
-class CoverageTableInline(admin.StackedInline):
-    model = Coverage
-    form = CoverageInlineForm
-    extra = 0
-    show_change_link = True
-    exclude = [
-        "raw_data_source",
-        "information_request",
-        "column",
-        "key",
-        "analysis",
-    ]
-    readonly_fields = [
-        "id",
-        "area",
-        # "table",
-    ]
-    inlines = [
-        DateTimeRangeInline,
-    ]
-    # template = "admin/edit_inline/custom_coverage_model_inline.html"
-    # inlines = [
-    #     TableCoverageFilter,
-    # ]
-    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
 
 
 # Model Admins
@@ -501,6 +380,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     search_fields = ["name", "dataset__name"]
     inlines = [
         ColumnInline,
+        ObservationLevelInline,
     ]
     autocomplete_fields = [
         "dataset",
@@ -568,9 +448,6 @@ class ObservationLevelAdmin(admin.ModelAdmin):
         "raw_data_source",
         "information_request",
     ]
-    # inlines = [
-    #     ColumnInline,
-    # ]
 
 
 class RawDataSourceAdmin(TabbedTranslationAdmin):
