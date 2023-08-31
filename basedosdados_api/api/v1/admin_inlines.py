@@ -31,11 +31,9 @@ class TranslateOrderedInline(OrderedStackedInline, TranslationStackedInline):
 class CustomObservationLevelInlineFormset(BaseInlineFormSet):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        columns_queryset = Column.objects.filter(table=self.instance)
-        print("Columns queryset: ", columns_queryset)
+        columns_queryset = self.instance.columns.all()
 
         for form in self.forms:
-            print("Form fields: ", form.fields)
             form.fields["column_choice"].queryset = columns_queryset
 
 
@@ -45,9 +43,14 @@ class ObservationLevelInline(admin.StackedInline):
     formset = CustomObservationLevelInlineFormset
     template = "admin/edit_inline/stacked_table_observation_level.html"
     extra = 0
+
     fields = [
+        "id",
         "entity",
-        # "column_choice",
+        "column_choice",
+    ]
+    autocomplete_fields = [
+        "entity",
     ]
 
 

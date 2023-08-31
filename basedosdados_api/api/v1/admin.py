@@ -394,6 +394,25 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         TableObservationFilter,
     ]
 
+    def save_formset(self, request, form, formset, change):
+        """Saves the formset, adding the table to the dataset"""
+        if formset.model == ObservationLevel:
+            instances = formset.save(commit=False)  # noqa
+            for form in formset.forms:
+                if form.instance.pk:
+                    Column.objects.filter(observation_level=form.instance).update(
+                        observation_level=None
+                    )
+                form_instance = form.save(commit=False)
+                column_instance = form.cleaned_data.get("column_choice")
+                if column_instance:
+                    column_instance.observation_level = form_instance
+                    column_instance.save()
+                form_instance.save()
+            formset.save_m2m()
+        else:
+            formset.save()
+
 
 class ColumnForm(forms.ModelForm):
     class Meta:

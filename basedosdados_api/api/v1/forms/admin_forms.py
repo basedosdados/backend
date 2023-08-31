@@ -64,11 +64,16 @@ class ColumnInlineForm(UUIDHIddenIdForm):
 
 
 class ObservationLevelForm(forms.ModelForm):
-    column_choice = forms.ModelChoiceField(queryset=None)
+    column_choice = forms.ModelChoiceField(queryset=Column.objects.all())
 
     class Meta:
         model = ObservationLevel
         fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            self.initial["column_choice"] = self.instance.columns.first()
 
 
 class CoverageInlineForm(UUIDHIddenIdForm):
