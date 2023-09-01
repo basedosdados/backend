@@ -63,10 +63,10 @@ class ColumnInlineForm(UUIDHIddenIdForm):
         ]
 
 
-class ObservationLevelForm(forms.ModelForm):
-    column_choice = forms.ModelChoiceField(queryset=Column.objects.all())
+class ObservationLevelForm(UUIDHIddenIdForm):
+    column_choice = forms.ModelChoiceField(label="Column", queryset=Column.objects.all())
 
-    class Meta:
+    class Meta(UUIDHIddenIdForm.Meta):
         model = ObservationLevel
         fields = "__all__"
 
