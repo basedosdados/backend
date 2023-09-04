@@ -16,10 +16,14 @@ services:
     volumes:
       - esdata:/usr/share/elasticsearch/data
     ports:
-      - "127.0.0.1:9200:9200"
-      - "127.0.0.1:9300:9300"
-    networks:
-      - esnet
+      - 9200:9200
+      - 9300:9300
+    healthcheck:
+      test: "curl -s http://localhost:9200 >/dev/null || exit 1"
+      interval: 1m
+      timeout: 20s
+      retries: 5
+      start_period: 30s
 
   database:
     image: postgres:14
@@ -29,7 +33,7 @@ services:
     ports:
       - 5432:5432
     volumes:
-      - vol_database:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}"]
       interval: 1m
@@ -48,7 +52,10 @@ services:
     ports:
       - 8080:80
     depends_on:
-      - database
+      database:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/healthcheck/"]
       interval: 1m
@@ -58,8 +65,5 @@ services:
     restart: unless-stopped
 
 volumes:
-  vol_database:
   esdata:
-
-networks:
-  esnet:
+  pgdata:
