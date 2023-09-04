@@ -6,6 +6,7 @@ if [ "$DJANGO_SETTINGS_MODULE" = "basedosdados_api.settings.dev" ] && [ -f "/app
   (cd /app; python manage.py runscript -v3 scripts.clean)
   (cd /app; python manage.py loaddata data.json)
   (cd /app; chown -R www-data:www-data /app)
+  (cd /app; python manage.py rebuild_index --noinput)
 fi
 if [ -n "$DJANGO_SUPERUSER_USERNAME" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ] ; then
   (cd /app; python manage.py createsuperuser --no-input)

@@ -23,32 +23,42 @@ class BDSignalProcessor(BaseSignalProcessor):
     search engine appropriately.
     """
 
-    def handle_save(self, sender, instance, **kwargs):
+    def handle_save(self, sender, instance, raw, **kwargs):
         """
         Given an individual model instance, determine which backends the
         update should be sent to & update the object on those backends.
+
+        - If the instance is a fixture (raw=True), ignore it
+        - If the instance isn't a fixture, then update the index
         """
+
+        if raw:
+            return None
+
         using_backends = self.connection_router.for_write(instance=instance)
 
         for using in using_backends:
+            datasets = []
             try:
                 index = self.connections[using].get_unified_index().get_index(Dataset)
                 if sender == Dataset:
-                    index.update_object(instance, using=using)
+                    datasets = [instance]
                 elif sender == Organization:
-                    ds = Dataset.objects.filter(organization__id=instance.id)
-                    for instance in ds:
-                        index.update_object(instance, using=using)
+                    datasets = Dataset.objects.filter(organization__id=instance.id)
                 elif sender == Coverage:
-                    instance = Coverage.objects.filter(pk=instance.id).first().table.dataset
-                    index.update_object(instance, using=using)
+                    if coverage := Coverage.objects.filter(pk=instance.id).first():
+                        if table := coverage.table:
+                            if dataset := table.dataset:
+                                datasets = [dataset]
                 elif sender in [Table, RawDataSource, InformationRequest]:
-                    index.update_object(instance.dataset, using=using)
-            except NotHandled:
-                # Maybe log it or let the exception bubble?
-                pass
-            except Exception as e:
-                logger.error(e)
+                    if dataset := instance.dataset:
+                        datasets = [dataset]
+                for ds in datasets or []:
+                    index.update_object(ds, using=using)
+            except NotHandled as error:
+                logger.debug(error)
+            except Exception as error:
+                logger.error(error)
 
     def setup(self):
         # Naive (listen to all model saves).
