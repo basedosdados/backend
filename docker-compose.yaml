@@ -19,7 +19,7 @@ services:
       - 9200:9200
       - 9300:9300
     healthcheck:
-      test: ["CMD", "curl", "-s", "http://localhost:9200", ">/dev/null", "||", "exit 1"]
+      test: "curl -s http://localhost:9200 >/dev/null || exit 1"
       interval: 1m
       timeout: 20s
       retries: 5
