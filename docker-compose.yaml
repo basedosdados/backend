@@ -49,8 +49,6 @@ services:
     container_name: basedosdados_api
     env_file:
       - .env
-    environment:
-      - DJANGO_SETTINGS_MODULE=basedosdados_api.settings.dev
     ports:
       - 8080:80
     depends_on:
