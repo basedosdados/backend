@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
+from logging import getLogger
 from time import sleep
 
 from django import forms
@@ -7,13 +8,10 @@ from django.conf import settings
 from django.contrib import admin, messages
 from django.core.management import call_command
 from django.shortcuts import get_object_or_404, render
-
-# from django.db import models
 from django.utils.html import format_html
-from google.cloud import bigquery
+from google.api_core.exceptions import NotFound
+from google.cloud.bigquery import Client
 from google.oauth2 import service_account
-
-# from martor.widgets import AdminMartorWidget
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
 from ordered_model.admin import OrderedInlineModelAdminMixin, OrderedStackedInline
 
@@ -58,6 +56,38 @@ from basedosdados_api.api.v1.models import (
     Update,
 )
 
+logger = getLogger("django")
+
+
+def get_client() -> Client:
+    credentials_dict = json.loads(settings.GOOGLE_APPLICATION_CREDENTIALS)
+    credentials = service_account.Credentials.from_service_account_info(credentials_dict)
+    return Client(credentials=credentials)
+
+
+def update_table_metadata(modeladmin, request, queryset):
+    """Updates the metadata of all tables in the database"""
+    client = get_client()
+    for dataset in Dataset.objects.all():
+        for table in dataset.tables.all():
+            table_slug = table.slug
+            dataset_slug = dataset.full_slug
+            schema_slug = table.source_bucket_name
+            idx = f"{schema_slug}.{dataset_slug}.{table_slug}"
+            if not schema_slug or not dataset_slug or not table_slug:
+                continue
+            try:
+                bq_table = client.get_table(idx)
+                table.number_rows = bq_table.num_rows
+                table.compressed_file_size = bq_table.num_bytes
+                table.uncompressed_file_size = bq_table.num_bytes
+                table.save()
+            except NotFound as e:
+                logger.debug(e)
+
+
+update_table_metadata.short_description = "Update table metadata"
+
 
 def reorder_tables(modeladmin, request, queryset):
     if queryset.count() != 1:
@@ -99,17 +129,13 @@ def reorder_columns(modeladmin, request, queryset):
             for table in queryset:
                 if form.cleaned_data["use_database_order"]:
                     cloud_table = CloudTable.objects.get(table=table)
-                    credentials_dict = json.loads(settings.GOOGLE_APPLICATION_CREDENTIALS)
-                    credentials = service_account.Credentials.from_service_account_info(
-                        credentials_dict
-                    )
-                    client = bigquery.Client(credentials=credentials)
                     query = f"""
                         SELECT column_name
                         FROM {cloud_table.gcp_project_id}.{cloud_table.gcp_dataset_id}.INFORMATION_SCHEMA.COLUMNS
                         WHERE table_name = '{cloud_table.gcp_table_id}'
                     """
                     try:
+                        client = get_client()
                         query_job = client.query(query, timeout=90)
                     except Exception as e:
                         messages.error(
@@ -344,6 +370,7 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         reorder_tables,
         update_search_index,
         rebuild_search_index,
+        update_table_metadata,
     ]
 
     def related_objects(self, obj):

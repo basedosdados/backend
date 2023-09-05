@@ -4,15 +4,7 @@ from json import loads
 from google.oauth2 import service_account
 
 from basedosdados_api.settings.base import *  # noqa
-from utils import getenv
-
-
-def get_admins():
-    admins = getenv("ADMINS")
-    if admins is None:
-        return []
-    return [admin.split(",") for admin in admins.split(";")]
-
+from utils import getadmins, getenv
 
 DEBUG = False
 SECRET_KEY = getenv("DJANGO_SECRET_KEY")
@@ -30,7 +22,7 @@ DATABASES = {
     }
 }
 
-ADMINS = get_admins()
+ADMINS = getadmins()
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
@@ -52,5 +44,5 @@ GS_CREDENTIALS = service_account.Credentials.from_service_account_info(loads(GS_
 GS_BUCKET_NAME = getenv("GCP_BUCKET_NAME")
 GS_EXPIRATION = timedelta(seconds=604800)  # noqa: F405
 DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
-
+# Google Application Credentials
 GOOGLE_APPLICATION_CREDENTIALS = getenv("GOOGLE_APPLICATION_CREDENTIALS")

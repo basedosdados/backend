@@ -1,17 +1,9 @@
 # -*- coding: utf-8 -*-
+
 from django.utils.log import DEFAULT_LOGGING
 
 from basedosdados_api.settings.base import *  # noqa
 from utils import getenv
-
-
-def nonull_getenv(var, default=None):
-    """Get environment variable or raise exception if not set."""
-    value = getenv(var, default)
-    if value is None:
-        raise ValueError(f"Environment variable {var} not set")
-    return value
-
 
 # CSRF
 # https://docs.djangoproject.com/en/4.2/ref/csrf/
@@ -46,3 +38,6 @@ SERVER_EMAIL = getenv("EMAIL_HOST_USER", "NOT SET")
 DEFAULT_FROM_EMAIL = getenv("EMAIL_HOST_USER", "NOT SET")
 
 INSTALLED_APPS += ["django_extensions"]  # noqa: F405
+
+# Google Application Credentials
+GOOGLE_APPLICATION_CREDENTIALS = getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
