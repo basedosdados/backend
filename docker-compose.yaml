@@ -19,11 +19,11 @@ services:
       - 9200:9200
       - 9300:9300
     healthcheck:
-      test: "curl -s http://localhost:9200 >/dev/null || exit 1"
+      test: ["CMD-SHELL", "curl -s http://localhost:9200 >/dev/null || exit 1"]
       interval: 1m
       timeout: 20s
       retries: 5
-      start_period: 30s
+      start_period: 1m
 
   database:
     image: postgres:14
@@ -39,7 +39,7 @@ services:
       interval: 1m
       timeout: 30s
       retries: 5
-      start_period: 30s
+      start_period: 1m
     restart: unless-stopped
 
   api:
