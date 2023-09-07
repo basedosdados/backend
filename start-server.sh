@@ -2,11 +2,6 @@
 # start-server.sh
 (cd /app; python manage.py makemigrations)
 (cd /app; python manage.py migrate)
-if [ "$DJANGO_SETTINGS_MODULE" = "basedosdados_api.settings.dev" ] && [ -f "/app/data.json" ] ; then
-  (cd /app; python manage.py runscript -v3 scripts.clean)
-  (cd /app; python manage.py loaddata data.json)
-  (cd /app; chown -R www-data:www-data /app)
-fi
 if [ -n "$DJANGO_SUPERUSER_USERNAME" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ] ; then
   (cd /app; python manage.py createsuperuser --no-input)
 fi
