@@ -6,14 +6,7 @@ from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from django.db import models
 from martor.widgets import AdminMartorWidget
 
-from basedosdados_api.account.models import (
-    Account,
-    BDGroup,
-    BDGroupRole,
-    BDRole,
-    Career,
-    RegistrationToken,
-)
+from basedosdados_api.account.models import Account, BDGroup, BDGroupRole, BDRole, Career
 
 
 class UserCreationForm(forms.ModelForm):
@@ -214,7 +207,6 @@ class BDGroupAdmin(admin.ModelAdmin):
     ordering = ("name",)
 
 
-admin.site.register(RegistrationToken)
 admin.site.register(Account, UserAdmin)
 admin.site.register(Career, CareerAdmin)
 admin.site.register(BDRole)
