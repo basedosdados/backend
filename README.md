@@ -54,6 +54,6 @@
 
 * OBS3: É possível realizar a load e dump de fixtures via
 ```sh
-    python manage.py dumpdata > data.json
-    python manage.py loadfixture data.json
+    python manage.py dumpdata > fixture.json
+    python manage.py loadfixture fixture.json
 ```

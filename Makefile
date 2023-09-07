@@ -60,12 +60,12 @@ migrate_docker:
 # `make loadfixture`: load fixtures
 .PHONY: loadfixture
 loadfixture:
-	$(PYTHON) manage.py loadfixture data.json
+	$(PYTHON) manage.py loadfixture fixture.json
 
 # `make loadfixture_docker`: load fixtures using docker-compose
 .PHONY: loadfixture_docker
 loadfixture_docker:
-	docker-compose exec api python manage.py loadfixture /app/data.json
+	docker-compose exec api python manage.py loadfixture /app/fixture.json
 
 # `make superuser`: creates a superuser
 .PHONY: superuser

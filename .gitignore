@@ -251,4 +251,4 @@ fabric.properties
 /basedosdados_api/staticfiles/
 
 # Fixture
-data.json
+fixture.json
