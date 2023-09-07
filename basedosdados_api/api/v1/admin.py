@@ -7,9 +7,10 @@ from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
 from django.core.management import call_command
+from django.db.models.query import QuerySet
 from django.shortcuts import get_object_or_404, render
 from django.utils.html import format_html
-from google.api_core.exceptions import NotFound
+from google.api_core.exceptions import BadRequest, NotFound
 from google.cloud.bigquery import Client
 from google.oauth2 import service_account
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
@@ -66,26 +67,29 @@ def get_credentials():
     return credentials
 
 
-def update_table_metadata(modeladmin, request, queryset):
-    """Updates the metadata of all tables in the database"""
+def update_table_metadata(modeladmin, request, queryset: QuerySet):
+    """Updates the metadata of selected tables in the database"""
     creds = get_credentials()
     client = Client(credentials=creds)
-    for dataset in Dataset.objects.all():
-        for table in dataset.tables.all():
-            table_slug = table.slug
-            dataset_slug = dataset.full_slug
-            schema_slug = table.source_bucket_name
-            idx = f"{schema_slug}.{dataset_slug}.{table_slug}"
-            if not schema_slug or not dataset_slug or not table_slug:
-                continue
-            try:
-                bq_table = client.get_table(idx)
-                table.number_rows = bq_table.num_rows
-                table.compressed_file_size = bq_table.num_bytes
-                table.uncompressed_file_size = bq_table.num_bytes
-                table.save()
-            except NotFound as e:
-                logger.debug(e)
+
+    tables: list[Table] = []
+    match str(modeladmin):
+        case "v1.TableAdmin":
+            tables = queryset
+        case "v1.DatasetAdmin":
+            for database in queryset:
+                for table in database.tables.all():
+                    tables.append(table)
+
+    for table in tables:
+        try:
+            bq_table = client.get_table(table.db_slug)
+            table.number_rows = bq_table.num_rows or None
+            table.compressed_file_size = bq_table.num_bytes or None
+            table.uncompressed_file_size = bq_table.num_bytes or None
+            table.save()
+        except (BadRequest, NotFound, ValueError) as e:
+            logger.debug(e)
 
 
 update_table_metadata.short_description = "Update table metadata"
@@ -419,6 +423,7 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
 class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     actions = [
         reorder_columns,
+        update_table_metadata,
     ]
 
     change_form_template = "admin/table_change_form.html"
