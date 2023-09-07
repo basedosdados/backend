@@ -253,7 +253,7 @@ ALLOWED_UPLOAD_IMAGES = ["png"]
 HAYSTACK_CONNECTIONS = {
     "default": {
         "ENGINE": "basedosdados_api.api.v1.haystack_engines.AsciifoldingElasticSearchEngine",
-        "URL": getenv("ELASTICSEARCH_URL", "http://0.0.0.0:9200"),
+        "URL": getenv("ELASTICSEARCH_URL", "http://elasticsearch:9200"),
         "TIMEOUT": 30,
         "INDEX_NAME": getenv("ELASTICSEARCH_INDEX_NAME", "default"),
         "BATCH_SIZE": 1000,
@@ -452,3 +452,11 @@ ALLOWED_HTML_ATTRIBUTES = [
 CSRF_COOKIE_HTTPONLY = False
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 20000
+
+# Google Application Credentials
+GOOGLE_APPLICATION_CREDENTIALS = getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
+
+# Google Cloud Storage
+GCS_EXPIRATION = timedelta(seconds=604800)
+GCS_BUCKET_NAME = getenv("GCP_BUCKET_NAME")
+DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"

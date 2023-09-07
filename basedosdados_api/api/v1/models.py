@@ -548,11 +548,15 @@ class Dataset(BdmModel):
         return reverse("datasetdetail", kwargs={"pk": self.object.pk})
 
     @property
+    def db_slug(self):
+        """Get the database slug"""
+        return self.full_slug.replace("sa_br", "br")
+
+    @property
     def full_slug(self):
         """Get the full slug or Dataset"""
         if self.organization.area.slug != "unknown":
             return f"{self.organization.area.slug}_{self.organization.slug}_{self.slug}"
-
         return f"{self.organization.slug}_{self.slug}"
 
     @property
@@ -952,6 +956,14 @@ class Table(BdmModel, OrderedModel):
                 fields=["dataset", "slug"], name="constraint_dataset_table_slug"
             )
         ]
+
+    @property
+    def db_slug(self):
+        """Get the database slug"""
+        table_slug = self.slug
+        dataset_slug = self.dataset.db_slug
+        bucket_slug = self.source_bucket_name
+        return f"{bucket_slug}.{dataset_slug}.{table_slug}"
 
     @property
     def partitions(self):
@@ -1410,7 +1422,7 @@ class RawDataSource(BdmModel, OrderedModel):
     )
     languages = models.ManyToManyField("Language", related_name="raw_data_sources", blank=True)
     license = models.ForeignKey(
-        "License", on_delete=models.CASCADE, related_name="raw_data_sources"
+        "License", on_delete=models.CASCADE, related_name="raw_data_sources", blank=True, null=True
     )
     area_ip_address_required = models.ManyToManyField(
         "Area", related_name="raw_data_sources", blank=True

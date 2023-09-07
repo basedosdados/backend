@@ -1,18 +1,19 @@
 # -*- coding: utf-8 -*-
 import json
+from logging import getLogger
 from time import sleep
 
 from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
-from django.core.exceptions import ObjectDoesNotExist
 from django.core.management import call_command
+from django.db.models.query import QuerySet
 from django.forms.models import BaseInlineFormSet
 from django.shortcuts import get_object_or_404, render
 from django.utils.html import format_html
-from google.cloud import bigquery
+from google.api_core.exceptions import BadRequest, NotFound
+from google.cloud.bigquery import Client
 from google.oauth2 import service_account
-from haystack import connections
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
 from ordered_model.admin import OrderedInlineModelAdminMixin, OrderedStackedInline
 
@@ -59,7 +60,12 @@ from basedosdados_api.api.v1.models import (
     Update,
 )
 
-# Inlines
+logger = getLogger("django")
+
+
+################################################################################
+# Model Admins Inlines
+################################################################################
 
 
 class TranslateOrderedInline(OrderedStackedInline, TranslationStackedInline):
@@ -208,6 +214,46 @@ class CoverageTableInline(admin.StackedInline):
     # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
 
 
+################################################################################
+# Model Admins Actions
+################################################################################
+
+
+def get_credentials():
+    """Get google cloud credentials"""
+    credentials_dict = json.loads(settings.GOOGLE_APPLICATION_CREDENTIALS)
+    credentials = service_account.Credentials.from_service_account_info(credentials_dict)
+    return credentials
+
+
+def update_table_metadata(modeladmin, request, queryset: QuerySet):
+    """Updates the metadata of selected tables in the database"""
+    creds = get_credentials()
+    client = Client(credentials=creds)
+
+    tables: list[Table] = []
+    match str(modeladmin):
+        case "v1.TableAdmin":
+            tables = queryset
+        case "v1.DatasetAdmin":
+            for database in queryset:
+                for table in database.tables.all():
+                    tables.append(table)
+
+    for table in tables:
+        try:
+            bq_table = client.get_table(table.db_slug)
+            table.number_rows = bq_table.num_rows or None
+            table.compressed_file_size = bq_table.num_bytes or None
+            table.uncompressed_file_size = bq_table.num_bytes or None
+            table.save()
+        except (BadRequest, NotFound, ValueError) as e:
+            logger.debug(e)
+
+
+update_table_metadata.short_description = "Update table metadata"
+
+
 def reorder_tables(modeladmin, request, queryset):
     if queryset.count() != 1:
         messages.error(
@@ -248,17 +294,14 @@ def reorder_columns(modeladmin, request, queryset):
             for table in queryset:
                 if form.cleaned_data["use_database_order"]:
                     cloud_table = CloudTable.objects.get(table=table)
-                    credentials_dict = json.loads(settings.GOOGLE_APPLICATION_CREDENTIALS)
-                    credentials = service_account.Credentials.from_service_account_info(
-                        credentials_dict
-                    )
-                    client = bigquery.Client(credentials=credentials)
                     query = f"""
                         SELECT column_name
                         FROM {cloud_table.gcp_project_id}.{cloud_table.gcp_dataset_id}.INFORMATION_SCHEMA.COLUMNS
                         WHERE table_name = '{cloud_table.gcp_table_id}'
                     """
                     try:
+                        creds = get_credentials()
+                        client = Client(credentials=creds)
                         query_job = client.query(query, timeout=90)
                     except Exception as e:
                         messages.error(
@@ -300,6 +343,14 @@ def reorder_columns(modeladmin, request, queryset):
 reorder_columns.short_description = "Reorder columns"
 
 
+def update_search_index(modeladmin, request, queryset):
+    call_command("update_index", batchsize=100, workers=4)
+    messages.success(request, "Search index updated successfully")
+
+
+update_search_index.short_description = "Update search index"
+
+
 def rebuild_search_index(modeladmin, request, queryset):
     call_command("rebuild_index", interactive=False, batchsize=100, workers=4)
     messages.success(request, "Search index rebuilt successfully")
@@ -308,21 +359,11 @@ def rebuild_search_index(modeladmin, request, queryset):
 rebuild_search_index.short_description = "Rebuild search index"
 
 
-def update_search_index(modeladmin, request, queryset):
-    for instance in queryset:
-        try:
-            search_backend = connections["default"].get_backend()
-            search_index = search_backend.get_index("basedosdados_api.api.v1.models.Dataset")
-            search_index.update_object(instance, using="default")
-            messages.success(request, "Search index updated successfully")
-        except ObjectDoesNotExist:
-            messages.error(request, f"Search index for {instance} update failed")
-
-
-update_search_index.short_description = "Update search index"
-
-
+################################################################################
 # Model Admins
+################################################################################
+
+
 class AreaAdmin(TabbedTranslationAdmin):
     readonly_fields = [
         "id",
@@ -374,7 +415,9 @@ class TagAdmin(TabbedTranslationAdmin):
 class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     actions = [
         reorder_tables,
+        update_search_index,
         rebuild_search_index,
+        update_table_metadata,
     ]
 
     def related_objects(self, obj):
@@ -420,6 +463,7 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
 class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     actions = [
         reorder_columns,
+        update_table_metadata,
     ]
 
     change_form_template = "admin/table_change_form.html"

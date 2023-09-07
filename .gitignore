@@ -249,3 +249,6 @@ fabric.properties
 /basedosdados_api/media/
 /basedosdados_api/notebooks/
 /basedosdados_api/staticfiles/
+
+# Fixture
+fixture.json

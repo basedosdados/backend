@@ -12,9 +12,9 @@ from basedosdados_api.settings import EMAIL_HOST_USER
 
 
 @receiver(post_save, sender=Account)
-def send_activation_email(sender, instance, created, **kwargs):
-    """Send activation email to instance after registration"""
-    if created:
+def send_activation_email(sender, instance, created, raw, **kwargs):
+    """Send activation email to instance after registration, not fixtures"""
+    if created and not raw:
         to_email = instance.email
         from_email = EMAIL_HOST_USER
         subject = "Bem Vindo à Base dos Dados!"
