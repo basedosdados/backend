@@ -8,6 +8,7 @@ from django.conf import settings
 from django.contrib import admin, messages
 from django.core.management import call_command
 from django.db.models.query import QuerySet
+from django.forms.models import BaseInlineFormSet
 from django.shortcuts import get_object_or_404, render
 from django.utils.html import format_html
 from google.api_core.exceptions import BadRequest, NotFound
@@ -21,10 +22,12 @@ from basedosdados_api.api.v1.filters import (
     TableCoverageFilter,
     TableObservationFilter,
 )
-from basedosdados_api.api.v1.forms import ReorderColumnsForm, ReorderTablesForm
-from basedosdados_api.api.v1.forms.admin_forms import (
+from basedosdados_api.api.v1.forms import (
     ColumnInlineForm,
     CoverageInlineForm,
+    ObservationLevelForm,
+    ReorderColumnsForm,
+    ReorderTablesForm,
     TableInlineForm,
 )
 from basedosdados_api.api.v1.models import (
@@ -58,6 +61,162 @@ from basedosdados_api.api.v1.models import (
 )
 
 logger = getLogger("django")
+
+
+################################################################################
+# Model Admins Inlines
+################################################################################
+
+
+class TranslateOrderedInline(OrderedStackedInline, TranslationStackedInline):
+    pass
+
+
+class CustomObservationLevelInlineFormset(BaseInlineFormSet):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        columns_queryset = self.instance.columns.all()
+
+        for form in self.forms:
+            form.fields["column_choice"].queryset = columns_queryset
+
+
+class ObservationLevelInline(admin.StackedInline):
+    model = ObservationLevel
+    form = ObservationLevelForm
+    formset = CustomObservationLevelInlineFormset
+    template = "admin/edit_inline/stacked_table_observation_level.html"
+    extra = 0
+
+    fields = [
+        "id",
+        "entity",
+        "column_choice",
+    ]
+    autocomplete_fields = [
+        "entity",
+    ]
+
+
+class ColumnInline(TranslateOrderedInline):
+    model = Column
+    form = ColumnInlineForm
+    extra = 0
+    show_change_link = True
+    show_full_result_count = True
+    autocomplete_fields = [
+        "directory_primary_key",
+        "observation_level",
+    ]
+    fields = [
+        "order",
+        "move_up_down_links",
+    ] + ColumnInlineForm.Meta.fields
+    readonly_fields = [
+        "order",
+        "move_up_down_links",
+    ]
+    ordering = [
+        "order",
+    ]
+
+
+class TableInline(TranslateOrderedInline):
+    model = Table
+    form = TableInlineForm
+    extra = 0
+    show_change_link = True
+    fields = [
+        "order",
+        "move_up_down_links",
+    ] + TableInlineForm.Meta.fields
+    readonly_fields = [
+        "order",
+        "move_up_down_links",
+    ]
+    ordering = [
+        "order",
+    ]
+
+
+class RawDataSourceInline(TranslateOrderedInline):
+    model = RawDataSource
+    extra = 0
+    show_change_link = True
+    fields = [
+        "order",
+        "move_up_down_links",
+        "id",
+        "name",
+        "description",
+        "url",
+    ]
+    readonly_fields = [
+        "order",
+        "move_up_down_links",
+    ]
+    ordering = [
+        "order",
+    ]
+
+
+class InformationRequestInline(TranslateOrderedInline):
+    model = InformationRequest
+    extra = 0
+    show_change_link = True
+    fields = [
+        "order",
+        "move_up_down_links",
+        "id",
+        "origin",
+        "number",
+        "url",
+    ]
+    readonly_fields = [
+        "order",
+        "move_up_down_links",
+    ]
+    ordering = [
+        "order",
+    ]
+
+
+class DateTimeRangeInline(admin.StackedInline):
+    model = DateTimeRange
+    extra = 0
+    show_change_link = True
+
+
+class CoverageTableInline(admin.StackedInline):
+    model = Coverage
+    form = CoverageInlineForm
+    extra = 0
+    show_change_link = True
+    exclude = [
+        "raw_data_source",
+        "information_request",
+        "column",
+        "key",
+        "analysis",
+    ]
+    readonly_fields = [
+        "id",
+        "area",
+        # "table",
+    ]
+    inlines = [
+        DateTimeRangeInline,
+    ]
+    # template = "admin/edit_inline/custom_coverage_model_inline.html"
+    # inlines = [
+    #     TableCoverageFilter,
+    # ]
+    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
+
+
+################################################################################
+# Model Admins Actions
+################################################################################
 
 
 def get_credentials():
@@ -200,130 +359,11 @@ def rebuild_search_index(modeladmin, request, queryset):
 rebuild_search_index.short_description = "Rebuild search index"
 
 
-class TranslateOrderedInline(OrderedStackedInline, TranslationStackedInline):
-    pass
-
-
-# Inlines
-
-
-class ColumnInline(TranslateOrderedInline):
-    model = Column
-    form = ColumnInlineForm
-    extra = 0
-    show_change_link = True
-    show_full_result_count = True
-    autocomplete_fields = [
-        "directory_primary_key",
-        "observation_level",
-    ]
-    fields = [
-        "order",
-        "move_up_down_links",
-    ] + ColumnInlineForm.Meta.fields
-    readonly_fields = [
-        "order",
-        "move_up_down_links",
-    ]
-    ordering = [
-        "order",
-    ]
-
-
-class TableInline(TranslateOrderedInline):
-    model = Table
-    form = TableInlineForm
-    extra = 0
-    show_change_link = True
-    fields = [
-        "order",
-        "move_up_down_links",
-    ] + TableInlineForm.Meta.fields
-    readonly_fields = [
-        "order",
-        "move_up_down_links",
-    ]
-    ordering = [
-        "order",
-    ]
-
-
-class RawDataSourceInline(TranslateOrderedInline):
-    model = RawDataSource
-    extra = 0
-    show_change_link = True
-    fields = [
-        "order",
-        "move_up_down_links",
-        "id",
-        "name",
-        "description",
-        "url",
-    ]
-    readonly_fields = [
-        "order",
-        "move_up_down_links",
-    ]
-    ordering = [
-        "order",
-    ]
-
-
-class InformationRequestInline(TranslateOrderedInline):
-    model = InformationRequest
-    extra = 0
-    show_change_link = True
-    fields = [
-        "order",
-        "move_up_down_links",
-        "id",
-        "origin",
-        "number",
-        "url",
-    ]
-    readonly_fields = [
-        "order",
-        "move_up_down_links",
-    ]
-    ordering = [
-        "order",
-    ]
-
-
-class DateTimeRangeInline(admin.StackedInline):
-    model = DateTimeRange
-    extra = 0
-    show_change_link = True
-
-
-class CoverageTableInline(admin.StackedInline):
-    model = Coverage
-    form = CoverageInlineForm
-    extra = 0
-    show_change_link = True
-    exclude = [
-        "raw_data_source",
-        "information_request",
-        "column",
-        "key",
-        "analysis",
-    ]
-    readonly_fields = [
-        "id",
-        "area",
-        # "table",
-    ]
-    inlines = [
-        DateTimeRangeInline,
-    ]
-    # template = "admin/edit_inline/custom_coverage_model_inline.html"
-    # inlines = [
-    #     TableCoverageFilter,
-    # ]
-    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
-
-
+################################################################################
 # Model Admins
+################################################################################
+
+
 class AreaAdmin(TabbedTranslationAdmin):
     readonly_fields = [
         "id",
@@ -529,6 +569,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     search_fields = ["name", "dataset__name"]
     inlines = [
         ColumnInline,
+        ObservationLevelInline,
     ]
     autocomplete_fields = [
         "dataset",
@@ -541,6 +582,25 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         TableCoverageFilter,
         TableObservationFilter,
     ]
+
+    def save_formset(self, request, form, formset, change):
+        """Saves the formset, adding the table to the dataset"""
+        if formset.model == ObservationLevel:
+            instances = formset.save(commit=False)  # noqa
+            for form in formset.forms:
+                if form.instance.pk:
+                    Column.objects.filter(observation_level=form.instance).update(
+                        observation_level=None
+                    )
+                form_instance = form.save(commit=False)
+                column_instance = form.cleaned_data.get("column_choice")
+                if column_instance:
+                    column_instance.observation_level = form_instance
+                    column_instance.save()
+                form_instance.save()
+            formset.save_m2m()
+        else:
+            formset.save()
 
 
 class ColumnForm(forms.ModelForm):
@@ -596,9 +656,6 @@ class ObservationLevelAdmin(admin.ModelAdmin):
         "raw_data_source",
         "information_request",
     ]
-    # inlines = [
-    #     ColumnInline,
-    # ]
 
 
 class RawDataSourceAdmin(TabbedTranslationAdmin):
