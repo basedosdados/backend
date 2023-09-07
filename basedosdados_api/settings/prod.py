@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-from json import loads
-
-from google.oauth2 import service_account
 
 from basedosdados_api.settings.base import *  # noqa
 from utils import getadmins, getenv
@@ -32,17 +29,3 @@ EMAIL_PORT = int(getenv("EMAIL_PORT", "587"))
 EMAIL_USE_TLS = bool(getenv("EMAIL_PORT", "True"))
 SERVER_EMAIL = getenv("EMAIL_HOST_USER")
 DEFAULT_FROM_EMAIL = getenv("EMAIL_HOST_USER")
-
-# Set logging path for production
-# LOGGING["handlers"]["logfile"][  # noqa
-#     "filename"
-# ] = "/var/log/django/basedosdados_api.log"
-
-# Google Cloud Storage
-GS_SERVICE_ACCOUNT = getenv("GCP_SA")
-GS_CREDENTIALS = service_account.Credentials.from_service_account_info(loads(GS_SERVICE_ACCOUNT))
-GS_BUCKET_NAME = getenv("GCP_BUCKET_NAME")
-GS_EXPIRATION = timedelta(seconds=604800)  # noqa: F405
-DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
-# Google Application Credentials
-GOOGLE_APPLICATION_CREDENTIALS = getenv("GOOGLE_APPLICATION_CREDENTIALS")

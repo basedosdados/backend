@@ -5,6 +5,8 @@ from django.utils.log import DEFAULT_LOGGING
 from basedosdados_api.settings.base import *  # noqa
 from utils import getenv
 
+INSTALLED_APPS += ["django_extensions"]  # noqa: F405
+
 # CSRF
 # https://docs.djangoproject.com/en/4.2/ref/csrf/
 # https://docs.djangoproject.com/en/4.2/ref/settings/#std-setting-CSRF_TRUSTED_ORIGINS
@@ -36,8 +38,3 @@ EMAIL_PORT = int(getenv("EMAIL_PORT", "587"))
 EMAIL_USE_TLS = bool(getenv("EMAIL_PORT", "True"))
 SERVER_EMAIL = getenv("EMAIL_HOST_USER", "NOT SET")
 DEFAULT_FROM_EMAIL = getenv("EMAIL_HOST_USER", "NOT SET")
-
-INSTALLED_APPS += ["django_extensions"]  # noqa: F405
-
-# Google Application Credentials
-GOOGLE_APPLICATION_CREDENTIALS = getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
