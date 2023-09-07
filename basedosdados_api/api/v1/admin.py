@@ -59,15 +59,17 @@ from basedosdados_api.api.v1.models import (
 logger = getLogger("django")
 
 
-def get_client() -> Client:
+def get_credentials():
+    """Get google cloud credentials"""
     credentials_dict = json.loads(settings.GOOGLE_APPLICATION_CREDENTIALS)
     credentials = service_account.Credentials.from_service_account_info(credentials_dict)
-    return Client(credentials=credentials)
+    return credentials
 
 
 def update_table_metadata(modeladmin, request, queryset):
     """Updates the metadata of all tables in the database"""
-    client = get_client()
+    creds = get_credentials()
+    client = Client(credentials=creds)
     for dataset in Dataset.objects.all():
         for table in dataset.tables.all():
             table_slug = table.slug
@@ -135,7 +137,8 @@ def reorder_columns(modeladmin, request, queryset):
                         WHERE table_name = '{cloud_table.gcp_table_id}'
                     """
                     try:
-                        client = get_client()
+                        creds = get_credentials()
+                        client = Client(credentials=creds)
                         query_job = client.query(query, timeout=90)
                     except Exception as e:
                         messages.error(
