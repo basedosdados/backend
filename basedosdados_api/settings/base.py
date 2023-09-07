@@ -452,3 +452,11 @@ ALLOWED_HTML_ATTRIBUTES = [
 CSRF_COOKIE_HTTPONLY = False
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 20000
+
+# Google Application Credentials
+GOOGLE_APPLICATION_CREDENTIALS = getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
+
+# Google Cloud Storage
+GCS_EXPIRATION = timedelta(seconds=604800)
+GCS_BUCKET_NAME = getenv("GCP_BUCKET_NAME")
+DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
