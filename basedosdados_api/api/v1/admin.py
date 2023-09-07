@@ -4,8 +4,6 @@ from time import sleep
 
 from django import forms
 from django.conf import settings
-
-# -*- coding: utf-8 -*-
 from django.contrib import admin, messages
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.management import call_command
