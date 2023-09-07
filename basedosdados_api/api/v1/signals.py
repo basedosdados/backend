@@ -28,8 +28,8 @@ class BDSignalProcessor(BaseSignalProcessor):
         Given an individual model instance, determine which backends the
         update should be sent to & update the object on those backends.
 
-        - If the instance is a fixture (raw=True), ignore it
-        - If the instance isn't a fixture, then update the index
+        - If the instance is a fixture, ignore it
+        - If the instance isn't a fixture, then update it
         """
 
         if raw:
