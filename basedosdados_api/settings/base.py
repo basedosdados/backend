@@ -11,9 +11,8 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
-import os
 from datetime import timedelta
-from os import getenv
+from os import getenv, path
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -78,7 +77,7 @@ ROOT_URLCONF = "basedosdados_api.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [os.path.join(BASE_DIR, "templates")],
+        "DIRS": [path.join(BASE_DIR, "templates")],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -452,11 +451,3 @@ ALLOWED_HTML_ATTRIBUTES = [
 CSRF_COOKIE_HTTPONLY = False
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 20000
-
-# Google Application Credentials
-GOOGLE_APPLICATION_CREDENTIALS = getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
-
-# Google Cloud Storage
-GCS_EXPIRATION = timedelta(seconds=604800)
-GCS_BUCKET_NAME = getenv("GCP_BUCKET_NAME")
-DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"

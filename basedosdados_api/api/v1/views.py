@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 
 from django.conf import settings
-from django.core.files.storage import get_storage_class
+from django.core.files.storage import default_storage as storage
 from django.http import HttpResponseBadRequest, JsonResponse, QueryDict
 from elasticsearch import Elasticsearch
 from haystack.forms import ModelSearchForm
@@ -26,8 +26,6 @@ class DatasetESSearchView(SearchView):
         page = int(req_args.get("page", 1))
         # As counts are paginated, we need to get the total number of results
         agg_page_size = 1000
-
-        storage = get_storage_class()
 
         if not q:
             # If query is empty, query all datasets
@@ -296,7 +294,7 @@ class DatasetESSearchView(SearchView):
                 cleaned_results["organization"] = []
                 for _, org in enumerate(organization):
                     if "picture" in org:
-                        picture = storage().url(org["picture"])
+                        picture = storage.url(org["picture"])
                     else:
                         picture = ""
                     d = {
