@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from pathlib import Path
+
 from django.utils.log import DEFAULT_LOGGING
 
 from basedosdados_api.settings.base import *  # noqa
