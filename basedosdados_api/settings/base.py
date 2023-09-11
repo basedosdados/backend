@@ -253,7 +253,7 @@ ALLOWED_UPLOAD_IMAGES = ["png"]
 HAYSTACK_CONNECTIONS = {
     "default": {
         "ENGINE": "basedosdados_api.api.v1.haystack_engines.AsciifoldingElasticSearchEngine",
-        "URL": getenv("ELASTICSEARCH_URL", "http://elasticsearch:9200"),
+        "URL": getenv("ELASTICSEARCH_URL", "http://localhost:9200"),
         "TIMEOUT": 30,
         "INDEX_NAME": getenv("ELASTICSEARCH_INDEX_NAME", "default"),
         "BATCH_SIZE": 1000,
