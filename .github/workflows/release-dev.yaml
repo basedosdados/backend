@@ -4,6 +4,7 @@ on:
   pull_request:
     types:
       - labeled
+  workflow_dispatch:
 
 jobs:
   release-docker:
@@ -36,3 +37,15 @@ jobs:
             org.opencontainers.image.revision=${{ github.sha }}
           build-args: |
             BUILDKIT_INLINE_CACHE=1
+
+      - name: Save branch name artifact
+        run: |
+          mkdir -p ./branch
+          echo -n ${{ github.event.pull_request.head.ref }} > ./branch/branch
+
+      - name: Upload branch name artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: branch
+          path: branch/
+          retention-days: 1
