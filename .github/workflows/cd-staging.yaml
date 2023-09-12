@@ -3,6 +3,8 @@ name: Deployment (Staging)
 on:
   workflow_run:
     workflows: ["Release Image (Staging)"]
+    branches:
+      - main
     types:
       - completed
 
