@@ -13,6 +13,8 @@ from django.contrib.auth.models import (
 )
 from django.core.mail import send_mail
 from django.db import models
+from django.db.models import DateTimeField, F, Q
+from django.db.models.functions import Coalesce
 
 from basedosdados_api.account.storage import OverwriteStorage
 from basedosdados_api.api.v1.validators import validate_is_valid_image_format
@@ -293,6 +295,11 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.email
 
+    def get_short_name(self):
+        return self.first_name
+
+    get_short_name.short_description = "nome"
+
     def get_full_name(self):
         return f"{self.first_name} {self.last_name}"
 
@@ -303,8 +310,17 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
 
     get_organization.short_description = "organização"
 
-    def get_short_name(self):
-        return self.first_name
+    def get_graphql_is_active_staff(self) -> bool:
+        query = (
+            self.careers.annotate(
+                transition_at=Coalesce(F("start_at"), F("end_at"), output_field=DateTimeField())
+            )
+            .filter(Q(start_at__isnull=False) | Q(end_at__isnull=False))
+            .order_by("transition_at")
+        )
+        if len(query.all()) > 0 and query.last().end_at is None:
+            return True
+        return False
 
     @property
     def is_staff(self):
@@ -357,7 +373,7 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
 
 class Career(BdmModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    account = models.ForeignKey(Account, on_delete=models.DO_NOTHING)
+    account = models.ForeignKey(Account, on_delete=models.DO_NOTHING, related_name="careers")
 
     team = models.CharField("Equipe", max_length=40, blank=True)
     role = models.CharField("Cargo", max_length=40, blank=True)
@@ -377,6 +393,7 @@ class Career(BdmModel):
         return f"{self.account.first_name} @{self.role}"
 
     def get_team(self):
+        self.objects.order_by("team")
         return self.team
 
     get_team.short_description = "Equipe"
