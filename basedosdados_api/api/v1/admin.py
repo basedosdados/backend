@@ -244,6 +244,7 @@ def update_table_metadata(modeladmin, request, queryset: QuerySet):
         try:
             bq_table = client.get_table(table.db_slug)
             table.number_rows = bq_table.num_rows or None
+            table.number_columns = len(bq_table.schema) or None
             table.compressed_file_size = bq_table.num_bytes or None
             table.uncompressed_file_size = bq_table.num_bytes or None
             table.save()
