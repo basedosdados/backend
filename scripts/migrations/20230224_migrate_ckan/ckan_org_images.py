@@ -1,14 +1,12 @@
 # -*- coding: utf-8 -*-
 
 import json
+from pathlib import Path
 from typing import Union
 
 import requests
-from pathlib import Path
-
 import urllib3
-
-from utils.migration.ckan_org_utils import load_token, get_url, convert_svg_to_png
+from ckan_org_utils import convert_svg_to_png, get_url, load_token
 
 CKAN_ALL_ORGS_URL = "https://basedosdados.org/api/3/action/organization_list"
 CKAN_ORG_URL = "https://basedosdados.org/api/3/action/organization_show?id={org_id}"
@@ -19,8 +17,6 @@ LOG_PATH = Path(__file__).parent / "logs"
 
 class OrganizationError(Exception):
     """Organization error"""
-
-    pass
 
 
 def get_org_data(org_id: str) -> tuple:
@@ -114,9 +110,7 @@ def get_org_uuid(org: tuple) -> tuple:
         )
         r.raise_for_status()
         uuid = r.json()["data"]["allOrganization"]["edges"][0]["node"]["_id"]
-        has_image = r.json()["data"]["allOrganization"]["edges"][0]["node"][
-            "hasPicture"
-        ]
+        has_image = r.json()["data"]["allOrganization"]["edges"][0]["node"]["hasPicture"]
         return uuid, rename_image(slug, image), has_image
     except IndexError as e:  # noqa
         return None, None, None
@@ -161,12 +155,7 @@ def upload_image(uuid, image, slug, mode="local"):
 
     try:
         response = requests.post(url, data=body, headers=headers)
-        err = (
-            response.json()
-            .get("data", {})
-            .get("CreateUpdateOrganization", {})
-            .get("errors")
-        )
+        err = response.json().get("data", {}).get("CreateUpdateOrganization", {}).get("errors")
         print(response.text)
         print(uuid, image, url)
 

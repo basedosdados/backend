@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 
-from django.http.response import JsonResponse
-from django.views import View
 import json
 from pathlib import Path
+
+from django.http.response import JsonResponse
+from django.views import View
 
 
 class DatasetSchemaView(View):
     def get(self, request):
         with open(
-            Path.cwd().parent
-            / "basedosdados_api/schemas/repository/dataset_schema.json"
+            Path.cwd().parent / "basedosdados_api/schemas/repository/dataset_schema.json"
         ) as f:
             schema = json.load(f)
         return JsonResponse(schema, safe=False)
@@ -18,9 +18,7 @@ class DatasetSchemaView(View):
 
 class TableSchemaView(View):
     def get(self, request):
-        with open(
-            Path.cwd().parent / "basedosdados_api/schemas/repository/table_schema.json"
-        ) as f:
+        with open(Path.cwd().parent / "basedosdados_api/schemas/repository/table_schema.json") as f:
             schema = json.load(f)
         return JsonResponse(schema, safe=False)
 
@@ -28,8 +26,7 @@ class TableSchemaView(View):
 class ColumnSchemaView(View):
     def get(self, request):
         with open(
-            Path.cwd().parent
-            / "basedosdados_api/schemas/repository/columns_schema.json"
+            Path.cwd().parent / "basedosdados_api/schemas/repository/columns_schema.json"
         ) as f:
             schema = json.load(f)
         return JsonResponse(schema, safe=False)
@@ -38,8 +35,7 @@ class ColumnSchemaView(View):
 class BdsSpatialCoverageTreeSchemaView(View):
     def get(self, request):
         with open(
-            Path.cwd().parent
-            / "basedosdados_api/schemas/repository/bd_spatial_coverage_tree.json"
+            Path.cwd().parent / "basedosdados_api/schemas/repository/bd_spatial_coverage_tree.json"
         ) as f:
             schema = json.load(f)
         return JsonResponse(schema, safe=False)

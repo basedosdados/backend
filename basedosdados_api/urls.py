@@ -14,15 +14,15 @@ Including another URLconf
     1. Import the include() function: from django.urls import include, path
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
+from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.http import HttpResponseRedirect
 from django.urls import include, path, re_path
 from django.views.decorators.csrf import csrf_exempt
-from django.conf import settings
 from graphene_file_upload.django import FileUploadGraphQLView
 
-from basedosdados_api.api.v1.views import DatasetSearchView
+from basedosdados_api.api.v1.views import DatasetESSearchView
 
 
 def home_redirect(request):
@@ -39,6 +39,7 @@ def redirect_to_v1_graphql(request):
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("martor/", include("martor.urls")),
     path("account/", include("basedosdados_api.account.urls")),
     re_path(r"^healthcheck/", include("health_check.urls")),
     path("api/", redirect_to_v1, name="api"),
@@ -50,5 +51,6 @@ urlpatterns = [
     ),
     path("schemas/", include("basedosdados_api.schemas.urls")),
     path("", include("basedosdados_api.core.urls")),
-    path("search/", DatasetSearchView.as_view(), name="search_view"),
+    path("search/", DatasetESSearchView.as_view(), name="search_view"),
+    path("busca/", include("haystack.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

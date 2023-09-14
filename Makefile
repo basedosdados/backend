@@ -7,6 +7,11 @@ PYTHON=$(shell poetry run which python)
 install:
 	$(POETRY) install
 
+# `make install`: installs pre-commit
+.PHONY: install_precommit
+install_precommit:
+	$(POETRY) run pre-commit install --install-hooks
+
 # `make add`: adds a new dependency
 ifeq (add,$(firstword $(MAKECMDGOALS)))
 	ADD_ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
@@ -51,6 +56,16 @@ migrate:
 .PHONY: migrate_docker
 migrate_docker:
 	docker-compose exec api python manage.py migrate
+
+# `make loadfixture`: load fixtures
+.PHONY: loadfixture
+loadfixture:
+	$(PYTHON) manage.py loadfixture fixture.json
+
+# `make loadfixture_docker`: load fixtures using docker-compose
+.PHONY: loadfixture_docker
+loadfixture_docker:
+	docker-compose exec api python manage.py loadfixture /app/fixture.json
 
 # `make superuser`: creates a superuser
 .PHONY: superuser

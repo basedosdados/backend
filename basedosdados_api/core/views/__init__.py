@@ -1,6 +1,6 @@
-from .home_view import HomeView
-from .dataset_views import (
-    DatasetCreateView,
-    DatasetUpdateView,
-    DatasetDeleteView,
-)
+# -*- coding: utf-8 -*-
+
+from .dataset_redirect import DatasetRedirectView  # noqa: F401
+from .dataset_views import DatasetCreateView  # noqa: F401
+from .dataset_views import DatasetDeleteView, DatasetUpdateView  # noqa: F401
+from .home_view import HomeView  # noqa

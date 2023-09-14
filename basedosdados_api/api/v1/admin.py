@@ -1,95 +1,104 @@
 # -*- coding: utf-8 -*-
-from django.contrib import admin
-from django import forms
-from django.utils.html import format_html
-from modeltranslation.admin import (
-    TabbedTranslationAdmin,
-    TranslationStackedInline,
-)
+import json
+from logging import getLogger
+from time import sleep
 
-from basedosdados_api.api.v1.filters import OrganizationImageFilter, TableCoverageFilter
+from django import forms
+from django.conf import settings
+from django.contrib import admin, messages
+from django.core.management import call_command
+from django.db.models.query import QuerySet
+from django.forms.models import BaseInlineFormSet
+from django.shortcuts import get_object_or_404, render
+from django.utils.html import format_html
+from google.api_core.exceptions import BadRequest, NotFound
+from google.cloud.bigquery import Client
+from google.oauth2 import service_account
+from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
+from ordered_model.admin import OrderedInlineModelAdminMixin, OrderedStackedInline
+
+from basedosdados_api.api.v1.filters import (
+    OrganizationImageFilter,
+    TableCoverageFilter,
+    TableObservationFilter,
+)
+from basedosdados_api.api.v1.forms import (
+    ColumnInlineForm,
+    CoverageInlineForm,
+    ObservationLevelForm,
+    ReorderColumnsForm,
+    ReorderTablesForm,
+    TableInlineForm,
+)
 from basedosdados_api.api.v1.models import (
-    Organization,
-    Dataset,
-    Table,
-    InformationRequest,
-    RawDataSource,
-    BigQueryType,
-    Column,
-    CloudTable,
-    Area,
-    Theme,
-    Tag,
-    Coverage,
-    Status,
-    Update,
-    Availability,
-    License,
-    Language,
-    ObservationLevel,
-    Entity,
-    EntityCategory,
-    Dictionary,
-    Pipeline,
     Analysis,
     AnalysisType,
+    Area,
+    Availability,
+    BigQueryType,
+    CloudTable,
+    Column,
+    Coverage,
+    Dataset,
     DateTimeRange,
+    Dictionary,
+    Entity,
+    EntityCategory,
+    InformationRequest,
     Key,
+    Language,
+    License,
+    ObservationLevel,
+    Organization,
+    Pipeline,
     QualityCheck,
-    UUIDHIddenIdForm,
+    RawDataSource,
+    Status,
+    Table,
+    Tag,
+    Theme,
+    Update,
 )
 
-
-# Forms
-
-
-class TableInlineForm(UUIDHIddenIdForm):
-    class Meta(UUIDHIddenIdForm):
-        model = Table
-        fields = [
-            "id",
-            "slug",
-            "name",
-            "description",
-            "status",
-            "license",
-            "partner_organization",
-            "pipeline",
-            "is_directory",
-            "published_by",
-            "data_cleaned_by",
-            "data_cleaning_description",
-            "data_cleaning_code_url",
-            "raw_data_url",
-            "auxiliary_files_url",
-            "architecture_url",
-            "source_bucket_name",
-            "uncompressed_file_size",
-            "compressed_file_size",
-            "number_rows",
-            "number_columns",
-            "is_closed",
-        ]
+logger = getLogger("django")
 
 
-class ColumnInlineForm(UUIDHIddenIdForm):
-    class Meta(UUIDHIddenIdForm.Meta):
-        model = Column
-        fields = [
-            "id",
-            "name",
-            "name_staging",
-            "description",
-            "bigquery_type",
-            "is_closed",
-            "table",
-        ]
+################################################################################
+# Model Admins Inlines
+################################################################################
 
 
-# Inlines
+class TranslateOrderedInline(OrderedStackedInline, TranslationStackedInline):
+    pass
 
 
-class ColumnInline(TranslationStackedInline):
+class CustomObservationLevelInlineFormset(BaseInlineFormSet):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        columns_queryset = self.instance.columns.all()
+
+        for form in self.forms:
+            form.fields["column_choice"].queryset = columns_queryset
+
+
+class ObservationLevelInline(admin.StackedInline):
+    model = ObservationLevel
+    form = ObservationLevelForm
+    formset = CustomObservationLevelInlineFormset
+    template = "admin/edit_inline/stacked_table_observation_level.html"
+    extra = 0
+
+    fields = [
+        "id",
+        "entity",
+        "column_choice",
+    ]
+    autocomplete_fields = [
+        "entity",
+    ]
+
+
+class ColumnInline(TranslateOrderedInline):
     model = Column
     form = ColumnInlineForm
     extra = 0
@@ -99,19 +108,262 @@ class ColumnInline(TranslationStackedInline):
         "directory_primary_key",
         "observation_level",
     ]
+    fields = [
+        "order",
+        "move_up_down_links",
+    ] + ColumnInlineForm.Meta.fields
+    readonly_fields = [
+        "order",
+        "move_up_down_links",
+    ]
+    ordering = [
+        "order",
+    ]
 
 
-class TableInline(TranslationStackedInline):
+class TableInline(TranslateOrderedInline):
     model = Table
     form = TableInlineForm
     extra = 0
     show_change_link = True
+    fields = [
+        "order",
+        "move_up_down_links",
+    ] + TableInlineForm.Meta.fields
+    readonly_fields = [
+        "order",
+        "move_up_down_links",
+    ]
+    ordering = [
+        "order",
+    ]
 
 
-# Filters
+class RawDataSourceInline(TranslateOrderedInline):
+    model = RawDataSource
+    extra = 0
+    show_change_link = True
+    fields = [
+        "order",
+        "move_up_down_links",
+        "id",
+        "name",
+        "description",
+        "url",
+    ]
+    readonly_fields = [
+        "order",
+        "move_up_down_links",
+    ]
+    ordering = [
+        "order",
+    ]
 
 
+class InformationRequestInline(TranslateOrderedInline):
+    model = InformationRequest
+    extra = 0
+    show_change_link = True
+    fields = [
+        "order",
+        "move_up_down_links",
+        "id",
+        "origin",
+        "number",
+        "url",
+    ]
+    readonly_fields = [
+        "order",
+        "move_up_down_links",
+    ]
+    ordering = [
+        "order",
+    ]
+
+
+class DateTimeRangeInline(admin.StackedInline):
+    model = DateTimeRange
+    extra = 0
+    show_change_link = True
+
+
+class CoverageTableInline(admin.StackedInline):
+    model = Coverage
+    form = CoverageInlineForm
+    extra = 0
+    show_change_link = True
+    exclude = [
+        "raw_data_source",
+        "information_request",
+        "column",
+        "key",
+        "analysis",
+    ]
+    readonly_fields = [
+        "id",
+        "area",
+        # "table",
+    ]
+    inlines = [
+        DateTimeRangeInline,
+    ]
+    # template = "admin/edit_inline/custom_coverage_model_inline.html"
+    # inlines = [
+    #     TableCoverageFilter,
+    # ]
+    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
+
+
+################################################################################
+# Model Admins Actions
+################################################################################
+
+
+def get_credentials():
+    """Get google cloud credentials"""
+    credentials_dict = json.loads(settings.GOOGLE_APPLICATION_CREDENTIALS)
+    credentials = service_account.Credentials.from_service_account_info(credentials_dict)
+    return credentials
+
+
+def update_table_metadata(modeladmin, request, queryset: QuerySet):
+    """Updates the metadata of selected tables in the database"""
+    creds = get_credentials()
+    client = Client(credentials=creds)
+
+    tables: list[Table] = []
+    match str(modeladmin):
+        case "v1.TableAdmin":
+            tables = queryset
+        case "v1.DatasetAdmin":
+            for database in queryset:
+                for table in database.tables.all():
+                    tables.append(table)
+
+    for table in tables:
+        try:
+            bq_table = client.get_table(table.db_slug)
+            table.number_rows = bq_table.num_rows or None
+            table.compressed_file_size = bq_table.num_bytes or None
+            table.uncompressed_file_size = bq_table.num_bytes or None
+            table.save()
+        except (BadRequest, NotFound, ValueError) as e:
+            logger.debug(e)
+
+
+update_table_metadata.short_description = "Update table metadata"
+
+
+def reorder_tables(modeladmin, request, queryset):
+    if queryset.count() != 1:
+        messages.error(
+            request,
+            "You can only reorder tables for one dataset at a time",
+        )
+        return
+
+    if "do_action" in request.POST:
+        form = ReorderTablesForm(request.POST)
+        if form.is_valid():
+            ordered_slugs = form.cleaned_data["ordered_slugs"].split()
+            for dataset in queryset:
+                call_command("reorder_tables", dataset.id, *ordered_slugs)
+
+            messages.success(request, "Tables reordered successfully")
+            return
+    else:
+        form = ReorderTablesForm()
+    return render(
+        request,
+        "admin/reorder_tables.html",
+        {
+            "title": "Reorder tables",
+            "form": form,
+            "datasets": queryset,
+        },
+    )
+
+
+reorder_tables.short_description = "Reorder tables"
+
+
+def reorder_columns(modeladmin, request, queryset):
+    if "do_action" in request.POST:
+        form = ReorderColumnsForm(request.POST)
+        if form.is_valid():
+            for table in queryset:
+                if form.cleaned_data["use_database_order"]:
+                    cloud_table = CloudTable.objects.get(table=table)
+                    query = f"""
+                        SELECT column_name
+                        FROM {cloud_table.gcp_project_id}.{cloud_table.gcp_dataset_id}.INFORMATION_SCHEMA.COLUMNS
+                        WHERE table_name = '{cloud_table.gcp_table_id}'
+                    """
+                    try:
+                        creds = get_credentials()
+                        client = Client(credentials=creds)
+                        query_job = client.query(query, timeout=90)
+                    except Exception as e:
+                        messages.error(
+                            request,
+                            f"Error while querying BigQuery: {e}",
+                        )
+                        return
+                    ordered_slugs = [row.column_name for row in query_job.result()]
+                else:
+                    if queryset.count() != 1:
+                        messages.error(
+                            request,
+                            "To pass the names manually you must select only one table.",
+                        )
+                        return
+                    ordered_slugs = form.cleaned_data["ordered_columns"].split()
+                try:
+                    call_command("reorder_columns", table.id, *ordered_slugs)
+                    print(f"Columns reordered successfully for {table}")
+                    sleep(1)
+                except Exception as e:
+                    messages.error(
+                        request,
+                        f"Error while reordering columns: {e}",
+                    )
+                    return
+            messages.success(request, "Columns reordered successfully")
+            return
+    else:
+        form = ReorderColumnsForm()
+
+    return render(
+        request,
+        "admin/reorder_columns.html",
+        {"title": "Reorder columns", "tables": queryset, "form": form},
+    )
+
+
+reorder_columns.short_description = "Reorder columns"
+
+
+def update_search_index(modeladmin, request, queryset):
+    call_command("update_index", batchsize=100, workers=4)
+    messages.success(request, "Search index updated successfully")
+
+
+update_search_index.short_description = "Update search index"
+
+
+def rebuild_search_index(modeladmin, request, queryset):
+    call_command("rebuild_index", interactive=False, batchsize=100, workers=4)
+    messages.success(request, "Search index rebuilt successfully")
+
+
+rebuild_search_index.short_description = "Rebuild search index"
+
+
+################################################################################
 # Model Admins
+################################################################################
+
+
 class AreaAdmin(TabbedTranslationAdmin):
     readonly_fields = [
         "id",
@@ -160,22 +412,34 @@ class TagAdmin(TabbedTranslationAdmin):
     ]
 
 
-class DatasetAdmin(TabbedTranslationAdmin):
+class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
+    actions = [
+        reorder_tables,
+        update_search_index,
+        rebuild_search_index,
+        update_table_metadata,
+    ]
+
     def related_objects(self, obj):
         return format_html(
-            "<a href='/admin/v1/table/add/?dataset={0}'>{1} {2}</a>",
+            "<a class='related-widget-wrapper-link add-related' href='/admin/v1/table/add/?dataset={0}&_to_field=id&_popup=1'>{1} {2}</a>",  # noqa  pylint: disable=line-too-long
             obj.id,
             obj.tables.count(),
-            " ".join(
-                ["tables" if obj.tables.count() > 1 else "table", "(click to add)"]
-            ),
+            " ".join(["tables" if obj.tables.count() > 1 else "table", "(click to add)"]),
         )
 
     related_objects.short_description = "Tables"
+
+    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
     readonly_fields = [
         "id",
         "full_slug",
         "coverage",
+        "contains_tables",
+        "contains_open_tables",
+        "contains_closed_tables",
+        "contains_raw_data_sources",
+        "contains_information_requests",
         "created_at",
         "updated_at",
         "related_objects",
@@ -184,6 +448,8 @@ class DatasetAdmin(TabbedTranslationAdmin):
     search_fields = ["name", "slug", "organization__name"]
     inlines = [
         TableInline,
+        RawDataSourceInline,
+        InformationRequestInline,
     ]
     filter_horizontal = [
         "tags",
@@ -194,45 +460,116 @@ class DatasetAdmin(TabbedTranslationAdmin):
     ]
 
 
-class TableAdmin(TabbedTranslationAdmin):
-    def related_objects(self, obj):
+class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
+    actions = [
+        reorder_columns,
+        update_table_metadata,
+    ]
+
+    change_form_template = "admin/table_change_form.html"
+
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        """Adds custom context to the change form view"""
+        extra_context = extra_context or {}
+        obj = get_object_or_404(Table, pk=object_id) if object_id else None
+        if obj:
+            coverages = obj.coverages.all()
+            coverages_list = []
+            for coverage in coverages:
+                cov = {
+                    "id": coverage.id,
+                    "area": coverage.area.name,
+                    "datetime_range": "",
+                }
+                datetime_range = (
+                    coverage.datetime_ranges.first()
+                )  # currently, it gets only the first datetime_range
+                if datetime_range:
+                    cov["datetime_range"] = datetime_range
+                coverages_list.append(cov)
+
+            extra_context["table_coverages"] = coverages_list
+
+            extra_context["datetime_ranges"] = [
+                coverage.datetime_ranges.all() for coverage in obj.coverages.all()
+            ]
+
+            observations = obj.observation_levels.all()
+            observations_list = []
+            for observation in observations:
+                obs = {
+                    "id": observation.id,
+                    "entity": observation.entity.name,
+                    "columns": "",
+                }
+                columns = [column.name for column in observation.columns.all()]
+                if columns:
+                    obs["columns"] = ",".join(columns)
+                observations_list.append(obs)
+
+            extra_context["table_observations"] = observations_list
+
+            cloudtables = obj.cloud_tables.all()
+            cloudtables_list = []
+            for cloudtable in cloudtables:
+                ct = {
+                    "id": cloudtable.id,
+                    "gcp_project_id": cloudtable.gcp_project_id,
+                    "gcp_dataset_id": cloudtable.gcp_dataset_id,
+                    "gcp_table_id": cloudtable.gcp_table_id,
+                    "columns": "",
+                }
+                cloudtables_list.append(ct)
+
+            extra_context["table_cloudtables"] = cloudtables_list
+
+        return super().changeform_view(request, object_id, form_url, extra_context=extra_context)
+
+    def related_columns(self, obj):
+        """Adds information of number of columns, with link to add a new column"""
         return format_html(
             "<a href='/admin/v1/column/add/?table={0}'>{1} {2}</a>",
             obj.id,
             obj.columns.count(),
-            " ".join(
-                ["columns" if obj.columns.count() > 1 else "column", "(click to add)"]
-            ),
+            " ".join(["columns" if obj.columns.count() > 1 else "column", "(click to add)"]),
         )
 
-    related_objects.short_description = "Columns"
+    related_columns.short_description = "Columns"
+
+    def related_coverages(self, obj):
+        qs = DateTimeRange.objects.filter(coverage=obj)
+        lines = []
+        for datetimerange in qs:
+            lines.append(
+                '<a href="/admin/api/v1/datetimerange/{0}/change/" target="_blank">Date Time Range</a>',  # noqa  pylint: disable=line-too-long
+                datetimerange.pk,
+            )
+        return format_html(
+            '<a href="/admin/api/v1/datetimerange/{}/change/" target="_blank">Date Time Range</a>',  # noqa  pylint: disable=line-too-long
+            obj.datetimerange.slug,
+        )
+
+    related_coverages.short_description = "Coverages"
 
     def add_view(self, request, *args, **kwargs):
         parent_model_id = request.GET.get("dataset")
         if parent_model_id:
             # If a parent model ID is provided, add the parent model field to the form
-            # fields = self.get_related_fields
             initial = {"parent_model": parent_model_id}
             self.initial = initial  # noqa
         return super().add_view(request, *args, **kwargs)
 
-    def get_related_fields(self, request, obj=None):  # noqa
-        fields = self.model._meta.fields  # noqa
-        parent_model_id = request.GET.get("dataset")
-        if parent_model_id:
-            parent_model = Dataset.objects.get(id=parent_model_id)
-            fields += parent_model._meta.fields  # noqa
-        return fields
-
     readonly_fields = [
         "id",
+        "partitions",
         "created_at",
         "updated_at",
-        "related_objects",
+        "related_columns",
     ]
     search_fields = ["name", "dataset__name"]
     inlines = [
         ColumnInline,
+        ObservationLevelInline,
     ]
     autocomplete_fields = [
         "dataset",
@@ -243,30 +580,27 @@ class TableAdmin(TabbedTranslationAdmin):
     list_filter = [
         "dataset__organization__name",
         TableCoverageFilter,
+        TableObservationFilter,
     ]
 
-
-class DirectoryPrimaryKeyAdminFilter(admin.SimpleListFilter):
-    title = "directory_primary_key"
-    parameter_name = "directory_primary_key"
-
-    def lookups(self, request, model_admin):
-        distinct_values = (
-            Column.objects.filter(directory_primary_key__id__isnull=False)
-            .order_by("directory_primary_key__name")
-            .distinct()
-            .values(
-                "directory_primary_key__name",
-            )
-        )
-        # Create a tuple of tuples with the format (value, label).
-        return [
-            (value.get("directory_primary_key__name"),) for value in distinct_values
-        ]
-
-    def queryset(self, request, queryset):
-        if self.value():
-            return queryset.filter(directory_primary_key__name=self.value())
+    def save_formset(self, request, form, formset, change):
+        """Saves the formset, adding the table to the dataset"""
+        if formset.model == ObservationLevel:
+            instances = formset.save(commit=False)  # noqa
+            for form in formset.forms:
+                if form.instance.pk:
+                    Column.objects.filter(observation_level=form.instance).update(
+                        observation_level=None
+                    )
+                form_instance = form.save(commit=False)
+                column_instance = form.cleaned_data.get("column_choice")
+                if column_instance:
+                    column_instance.observation_level = form_instance
+                    column_instance.save()
+                form_instance.save()
+            formset.save_m2m()
+        else:
+            formset.save()
 
 
 class ColumnForm(forms.ModelForm):
@@ -285,6 +619,7 @@ class ColumnAdmin(TabbedTranslationAdmin):
     form = ColumnForm
     readonly_fields = [
         "id",
+        "order",
     ]
     list_display = [
         "__str__",
@@ -298,6 +633,7 @@ class ColumnAdmin(TabbedTranslationAdmin):
     list_filter = [
         "table__dataset__organization__name",
     ]
+    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
 
 
 class ObservationLevelAdmin(admin.ModelAdmin):
@@ -320,12 +656,9 @@ class ObservationLevelAdmin(admin.ModelAdmin):
         "raw_data_source",
         "information_request",
     ]
-    inlines = [
-        ColumnInline,
-    ]
 
 
-class RawDataSourceAdmin(admin.ModelAdmin):
+class RawDataSourceAdmin(TabbedTranslationAdmin):
     readonly_fields = ["id", "created_at", "updated_at"]
     list_display = ["name", "dataset", "created_at", "updated_at"]
     search_fields = ["name", "dataset__name"]
@@ -337,6 +670,7 @@ class RawDataSourceAdmin(admin.ModelAdmin):
         "languages",
         "area_ip_address_required",
     ]
+    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
 
 
 class InformationRequestAdmin(TabbedTranslationAdmin):
@@ -346,6 +680,7 @@ class InformationRequestAdmin(TabbedTranslationAdmin):
     autocomplete_fields = [
         "dataset",
     ]
+    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
 
 
 class CoverageTypeAdminFilter(admin.SimpleListFilter):
@@ -514,7 +849,6 @@ class CloudTableAdmin(admin.ModelAdmin):
         "__str__",
     ]
     search_fields = [
-        "table",
         "gcp_project_id",
         "gcp_dataset_id",
         "gcp_table_id",
@@ -522,6 +856,16 @@ class CloudTableAdmin(admin.ModelAdmin):
     autocomplete_fields = ["table", "columns"]
     filter_horizontal = [
         "columns",
+    ]
+    fields = [
+        "table",
+        "gcp_project_id",
+        "gcp_dataset_id",
+        "gcp_table_id",
+        "columns",
+    ]
+    readonly_fields = [
+        "id",
     ]
 
 

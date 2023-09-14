@@ -1,8 +1,9 @@
-from datetime import datetime
-import cairosvg
-
-import requests
+# -*- coding: utf-8 -*-
 import json
+from datetime import datetime
+
+import cairosvg
+import requests
 
 
 def get_credentials(mode="local") -> tuple:
@@ -40,7 +41,7 @@ def refresh_token(token, mode="local") -> dict:
     If token is expired, refresh it
     """
     url, email, password = get_credentials(mode)
-    query = '''
+    query = """
         mutation refreshToken($token: String!) {
             refreshToken(token: $token) {
                 payload,
@@ -48,17 +49,17 @@ def refresh_token(token, mode="local") -> dict:
                 token
             }
         }
-    '''
+    """
     variables = {"token": token}
     r = requests.post(
         url,
         headers={"Content-Type": "application/json"},
         json={"query": query, "variables": variables},
-        timeout=90
+        timeout=90,
     )
     r.raise_for_status()
     if "errors" in r.json():
-        message = r.json()["errors"][0]["message"]
+        r.json()["errors"][0]["message"]
         return get_token(*get_credentials(mode))
     return r.json()["data"]["refreshToken"]["token"]
 
@@ -68,19 +69,19 @@ def verify_token(token, mode="local") -> bool:
     url, username, password = get_credentials(mode)
     if token == "":
         return False
-    query = '''
+    query = """
         mutation verifyToken($token: String!) {
             verifyToken(token: $token) {
                 payload
             }
         }
-    '''
+    """
     variables = {"token": token}
     r = requests.post(
         url,
         headers={"Content-Type": "application/json"},
         json={"query": query, "variables": variables},
-        timeout=90
+        timeout=90,
     )
 
     current_datetime_unix = int(datetime.now().timestamp())

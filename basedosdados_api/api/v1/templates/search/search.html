@@ -16,6 +16,7 @@
 
         {% if query %}
             <h3>Results</h3>
+            <p>Result: {{ page.paginator.count }} found.</p>
 
             {% for result in page.object_list %}
                 <p>

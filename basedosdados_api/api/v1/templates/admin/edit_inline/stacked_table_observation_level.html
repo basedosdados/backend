@@ -1,0 +1,16 @@
+{% load i18n admin_urls static %}
+<div class="js-inline-admin-formset inline-group" id="{{ inline_admin_formset.formset.prefix }}-group" data-inline-type="stacked" data-inline-formset="{{ inline_admin_formset.inline_formset_data }}">
+    <fieldset class="module {{ inline_admin_formset.classes }} card card-outline">
+        <div class="card-body">
+            {{ inline_admin_formset.formset.management_form }}
+            {{ inline_admin_formset.formset.non_form_errors }}
+            {% for field in inline_admin_formset.formset %}
+                {{ field.id}}<br>
+                {{ field.entity.label_tag }} {{field.entity}}<br>
+                {{ field.column_choice.label_tag }}<br>{{ field.column_choice }}
+            <hr>
+            {% endfor %}
+
+        </div>
+    </fieldset>
+</div>

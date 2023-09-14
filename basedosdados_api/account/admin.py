@@ -3,16 +3,10 @@ from django import forms
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
+from django.db import models
+from martor.widgets import AdminMartorWidget
 
-# from django.contrib.auth.models import Group
-
-from basedosdados_api.account.models import (
-    RegistrationToken,
-    Account,
-    BDRole,
-    BDGroup,
-    BDGroupRole,
-)
+from basedosdados_api.account.models import Account, BDGroup, BDGroupRole, BDRole, Career
 
 
 class UserCreationForm(forms.ModelForm):
@@ -91,9 +85,7 @@ class UserChangeForm(forms.ModelForm):
             password.help_text = password.help_text.format("../password/")
         user_permissions = self.fields.get("user_permissions")
         if user_permissions:
-            user_permissions.queryset = user_permissions.queryset.select_related(
-                "content_type"
-            )
+            user_permissions.queryset = user_permissions.queryset.select_related("content_type")
 
 
 class UserAdmin(BaseUserAdmin):
@@ -198,15 +190,24 @@ class BDGroupRoleInline(admin.TabularInline):
     extra = 1
 
 
+class CareerAdmin(admin.ModelAdmin):
+    list_display = ("account", "team", "level", "role", "start_at", "end_at")
+    search_fields = ("account", "team")
+    readonly_fields = ("created_at", "updated_at")
+    ordering = ("account", "start_at")
+
+
 class BDGroupAdmin(admin.ModelAdmin):
+    formfield_overrides = {
+        models.TextField: {"widget": AdminMartorWidget},
+    }
     inlines = (BDGroupRoleInline,)
     list_display = ("name", "description")
     search_fields = ("name", "description")
     ordering = ("name",)
 
 
-admin.site.register(RegistrationToken)
 admin.site.register(Account, UserAdmin)
-# admin.site.unregister(Group)
+admin.site.register(Career, CareerAdmin)
 admin.site.register(BDRole)
 admin.site.register(BDGroup, BDGroupAdmin)

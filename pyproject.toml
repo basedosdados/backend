@@ -27,11 +27,19 @@ graphene = "3.2.1"
 django-storages = {extras = ["google"], version = "^1.13.2"}
 google-api-python-client = "^2.83.0"
 django-jazzmin = "^2.6.0"
+martor = "^1.6.26"
+django-extensions = "^3.2.1"
+django-ordered-model = "^3.7.4"
+google-cloud-bigquery = "^3.11.3"
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev.dependencies]
 black = "^22.3.0"
-pre-commit = "^2.18.1"
-flake8 = "^4.0.1"
+flake8 = "^6.1.0"
+pygments = "^2.15.1"
+yamllint = "^1.32.0"
+autoflake = "^2.2.0"
+isort = "^5.12.0"
+pre-commit = "^3.3.3"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.2.1"
@@ -39,6 +47,18 @@ pytest-django = "^4.5.2"
 
 [tool.poetry.scripts]
 lint = "scripts.lint:main"
+test = "scripts.test:main"
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+[tool.isort]
+profile = "black"
+line_length = 100
+multi_line_output = 3
+use_parentheses = true
+include_trailing_comma = true
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
