@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -10,11 +11,20 @@ from basedosdados_api.account.models import Account
 from basedosdados_api.account.token import token_generator
 from basedosdados_api.settings import EMAIL_HOST_USER
 
+IS_PRODUCTION = "prod" in settings.SETTINGS_MODULE
+
 
 @receiver(post_save, sender=Account)
 def send_activation_email(sender, instance, created, raw, **kwargs):
-    """Send activation email to instance after registration, not fixtures"""
-    if created and not raw:
+    """Send activation email to instance after registration
+
+    It only sends the email if:
+    - The account is new
+    - The account isn't active
+    - The account isn't a fixture
+    - The account is in production
+    """
+    if created and not raw and not instance.is_active and IS_PRODUCTION:
         to_email = instance.email
         from_email = EMAIL_HOST_USER
         subject = "Bem Vindo à Base dos Dados!"
