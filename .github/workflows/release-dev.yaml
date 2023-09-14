@@ -10,12 +10,23 @@ jobs:
   release-docker:
     name: Release Image
     runs-on: ubuntu-latest
-    if: contains(github.event.pull_request.labels.*.name, 'deploy')
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.pull_request.labels.*.name, 'deploy')
     steps:
+      - name: Select branch
+        id: select_branch
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "branch=main" >> $GITHUB_OUTPUT
+          else
+            echo "branch=${{ github.event.pull_request.head.ref }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ steps.select_branch.outputs.branch }}
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v2
@@ -41,7 +52,7 @@ jobs:
       - name: Save branch name artifact
         run: |
           mkdir -p ./branch
-          echo -n ${{ github.event.pull_request.head.ref }} > ./branch/branch
+          echo -n ${{ steps.select_branch.outputs.branch }} > ./branch/branch
 
       - name: Upload branch name artifact
         uses: actions/upload-artifact@v3
