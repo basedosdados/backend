@@ -11,6 +11,7 @@ from basedosdados_api.account.models import Account
 
 
 @pytest.mark.django_db
+@patch("basedosdados_api.account.signals.is_prod", new=lambda: True)
 def test_account_create():
     account = Account.objects.create(
         username="john.doe",
@@ -21,6 +22,7 @@ def test_account_create():
 
 @pytest.mark.django_db
 @patch("basedosdados_api.account.signals.EmailMultiAlternatives")
+@patch("basedosdados_api.account.signals.is_prod", new=lambda: True)
 def test_activate_account_signal(mock: MagicMock):
     Account.objects.create(
         username="john.doe",
@@ -33,6 +35,7 @@ def test_activate_account_signal(mock: MagicMock):
 
 @pytest.mark.django_db
 @patch("basedosdados_api.account.signals.render_to_string")
+@patch("basedosdados_api.account.signals.is_prod", new=lambda: True)
 def test_activate_account_confirmation(mock: MagicMock, client: Client):
     account = Account.objects.create(
         username="john.doe",
@@ -52,6 +55,7 @@ def test_activate_account_confirmation(mock: MagicMock, client: Client):
 
 @pytest.mark.django_db
 @patch("basedosdados_api.account.views.EmailMultiAlternatives")
+@patch("basedosdados_api.account.signals.is_prod", new=lambda: True)
 def test_password_reset_request(mock: MagicMock, client: Client):
     account = Account.objects.create(
         username="john.doe",
@@ -72,6 +76,7 @@ def test_password_reset_request(mock: MagicMock, client: Client):
 @pytest.mark.django_db
 @patch("basedosdados_api.account.views.render_to_string")
 @patch("basedosdados_api.account.signals.render_to_string")
+@patch("basedosdados_api.account.signals.is_prod", new=lambda: True)
 def test_password_reset_confirmation(mock_signal: MagicMock, mock_view: MagicMock, client: Client):
     # Create account
     account = Account.objects.create(

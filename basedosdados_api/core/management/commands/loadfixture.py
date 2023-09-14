@@ -6,9 +6,10 @@ from django.core.management import call_command
 from django.db import connection
 from modeltranslation.management.commands.loaddata import Command as LoadDataCommand
 
+from basedosdados_api.utils import is_prod
+
 IS_SQLITE = "sqlite" in settings.DATABASES.get("default", {}).get("ENGINE")
 IS_POSTGRES = "postgres" in settings.DATABASES.get("default", {}).get("ENGINE")
-IS_PRODUCTION = "prod" in settings.SETTINGS_MODULE
 
 DB_PATH = Path(settings.DATABASES.get("default", {}).get("NAME", "."))
 DB_STATEMENT = "TRUNCATE" if IS_POSTGRES and not IS_SQLITE else "DELETE FROM"
@@ -30,7 +31,7 @@ class Command(LoadDataCommand):
     """
 
     def handle(self, *args, **options) -> str | None:
-        if IS_PRODUCTION:
+        if is_prod():
             return None
 
         print("Purge previous database if exists")
