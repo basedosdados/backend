@@ -431,7 +431,14 @@ def build_query_objs(application_name: str):
         custom_attr_prefix = "get_graphql_"
         custom_attrs = [attr for attr in dir(model) if attr.startswith(custom_attr_prefix)]
         for attr in custom_attrs:
-            attributes.update({attr.split(custom_attr_prefix)[1]: String(source=attr)})
+            attr_name = attr.split(custom_attr_prefix)[1]
+            attributes.update({attr_name: String(source=attr)})
+            try:
+                if getattr(model, f"resolve_graphql_{attr_name}"):
+                    attributes.update({f"resolve_{attr_name}": getattr(model, attr)})
+                    print(attributes["Meta"].__dict__)
+            except AttributeError:
+                pass
         node = type(
             f"{model_name}Node",
             (DjangoObjectType,),
@@ -445,7 +452,6 @@ def build_query_objs(application_name: str):
 def build_mutation_objs(application_name: str):
     mutations = {}
     models = apps.get_app_config(application_name).get_models()
-
     for model in models:
         model_name = model.__name__
         if model_name in EXEMPTED_MODELS:

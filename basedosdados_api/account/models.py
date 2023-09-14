@@ -322,6 +322,9 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
             return True
         return False
 
+    def resolve_graphql_is_active_staff(self) -> bool:
+        return self.get_graphql_is_active_staff()
+
     @property
     def is_staff(self):
         return self.is_admin
