@@ -40,18 +40,13 @@ jobs:
         run: unzip artifact.zip
 
       - name: Read branch name
-        uses: actions/github-script@v6
         id: extract_branch
-        with:
-          script: |
-            let fs = require('fs');
-            let branch = fs.readFileSync('./branch', 'utf8');
-            return branch;
+        run: echo "branch=$(cat branch)" >> "$GITHUB_OUTPUT"
 
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          ref: ${{ steps.extract_branch.outputs.result }}
+          ref: ${{ steps.extract_branch.outputs.branch }}
 
       - name: Import secrets from Vault
         id: import_secrets
