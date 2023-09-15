@@ -31,6 +31,7 @@ martor = "^1.6.26"
 django-extensions = "^3.2.1"
 django-ordered-model = "^3.7.4"
 google-cloud-bigquery = "^3.11.3"
+faker = "^19.6.1"
 
 [tool.poetry.group.dev.dependencies]
 black = "^22.3.0"
