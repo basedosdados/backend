@@ -30,6 +30,15 @@ class Command(LoadDataCommand):
     4. Build index
     """
 
+    def add_arguments(self, parser):
+        super().add_arguments(parser)
+        parser.add_argument(
+            "--skip-index",
+            dest="skip_index",
+            action="store_true",
+            help="Skip index build after loading fixtures",
+        )
+
     def handle(self, *args, **options) -> str | None:
         if is_prod():
             return None
@@ -49,10 +58,11 @@ class Command(LoadDataCommand):
         print("Load fixtures")
         response = super().handle(*args, **options)
 
-        print("Build index")
-        try:
-            call_command("rebuild_index", interactive=False)
-        except Exception:
-            pass
+        if not options["skip_index"]:
+            print("Build index")
+            try:
+                call_command("rebuild_index", interactive=False)
+            except Exception:
+                pass
 
         return response
