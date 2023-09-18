@@ -2,10 +2,10 @@
 from django import forms
 from django.contrib.auth import get_user_model
 
-from basedosdados_api.account.admin import UserCreationForm
+from basedosdados_api.account.admin import AccountCreationForm
 
 
-class RegisterForm(UserCreationForm):
+class RegisterForm(AccountCreationForm):
     # fields we want to include and customize in our form
     first_name = forms.CharField(
         max_length=100,
