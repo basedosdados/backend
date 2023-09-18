@@ -111,16 +111,10 @@ class BDGroupRoleInline(admin.TabularInline):
     extra = 1
 
 
-class CareerInline(admin.TabularInline):
+class CareerInline(admin.StackedInline):
     model = Career
     extra = 1
-    fields = [
-        "team",
-        "role",
-        "level",
-        "start_at",
-        "end_at",
-    ]
+    ordering = ["start_at"]
 
 
 class AccountAdmin(BaseAccountAdmin):
