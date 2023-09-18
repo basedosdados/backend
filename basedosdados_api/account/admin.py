@@ -106,6 +106,23 @@ class AccountChangeForm(forms.ModelForm):
             user_permissions.queryset = user_permissions.queryset.select_related("content_type")
 
 
+class BDGroupRoleInline(admin.TabularInline):
+    model = BDGroupRole
+    extra = 1
+
+
+class CareerInline(admin.TabularInline):
+    model = Career
+    extra = 1
+    fields = [
+        "team",
+        "role",
+        "level",
+        "start_at",
+        "end_at",
+    ]
+
+
 class AccountAdmin(BaseAccountAdmin):
     form = AccountChangeForm
     add_form = AccountCreationForm
@@ -200,12 +217,8 @@ class AccountAdmin(BaseAccountAdmin):
     )
     search_fields = ("email",)
     ordering = ("email",)
+    inlines = (CareerInline,)
     filter_horizontal = ()
-
-
-class BDGroupRoleInline(admin.TabularInline):
-    model = BDGroupRole
-    extra = 1
 
 
 class CareerAdmin(admin.ModelAdmin):
