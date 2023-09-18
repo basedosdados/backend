@@ -15,7 +15,10 @@ FILE=fixtures
 SRC_ENV=api-prod
 
 # Get source pod
-SRC_POD=$(kubectl get po -l app.kubernetes.io/name=$SRC_ENV -o name | head -n 1)
+SRC_POD=$(kubectl get po -l app.kubernetes.io/name=$SRC_ENV -o name | \
+  sed "s/^.\{4\}//" | \
+  head -n 1\
+)
 
 # Dump fixtures in source pod
 kubectl exec $SRC_POD -- /bin/bash -c "\

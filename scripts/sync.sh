@@ -21,8 +21,14 @@ if [[ $# -eq 1 ]]; then
 fi
 
 # Get source and destination pods
-SRC_POD=$(kubectl get po -l app.kubernetes.io/name=$SRC_ENV -o name | head -n 1)
-DST_POD=$(kubectl get po -l app.kubernetes.io/name=$DST_ENV -o name | head -n 1)
+SRC_POD=$(kubectl get po -l app.kubernetes.io/name=$SRC_ENV -o name | \
+  sed "s/^.\{4\}//" | \
+  head -n 1\
+)
+DST_POD=$(kubectl get po -l app.kubernetes.io/name=$DST_ENV -o name | \
+  sed "s/^.\{4\}//" | \
+  head -n 1\
+)
 
 # Dump fixtures in source pod
 kubectl exec $SRC_POD -- /bin/bash -c "\
