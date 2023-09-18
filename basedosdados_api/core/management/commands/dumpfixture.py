@@ -32,7 +32,6 @@ def empty():
         "organizations": [],
         "password": fake.password(),
         "picture": "",
-        "profile": 3,
         "twitter": None,
         "updated_at": ts,
         "username": fake.unique.user_name(),
