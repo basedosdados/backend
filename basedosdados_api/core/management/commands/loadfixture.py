@@ -44,16 +44,16 @@ class Command(LoadDataCommand):
             return None
 
         print("Purge previous database if exists")
-        DB_PATH.unlink(missing_ok=True)
+        call_command("flush", interactive=False)
 
         print("Migrate development database")
         call_command("migrate")
 
         print("Purge database restrictions")
         with connection.cursor() as cursor:
-            cursor.execute(f"{DB_STATEMENT} auth_permission")
-            cursor.execute(f"{DB_STATEMENT} django_admin_log")
-            cursor.execute(f"{DB_STATEMENT} django_content_type")
+            cursor.execute(f"{DB_STATEMENT} auth_permission CASCADE")
+            cursor.execute(f"{DB_STATEMENT} django_admin_log CASCADE")
+            cursor.execute(f"{DB_STATEMENT} django_content_type CASCADE")
 
         print("Load fixtures")
         response = super().handle(*args, **options)
