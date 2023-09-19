@@ -9,12 +9,12 @@ set -euxo pipefail
 # kubectl config set-context --current --namespace=,,,
 
 # Set file
-FILE=fixtures
+FILE="${FILE:-fixtures}"
 
 # If dump doesn't exist
 if [ ! -f "$FILE.tar.gz" ]; then
   # Set source env
-  SRC_ENV=api-prod
+  SRC_ENV="${SRC_ENV:-api-prod}"
 
   # Get source pod
   SRC_POD=$(kubectl get po -l app.kubernetes.io/name=$SRC_ENV -o name | \
@@ -38,9 +38,11 @@ fi
 # Set destination env
 DST_ENV=""
 if [[ $# -eq 1 ]]; then
+  # Staging
   if [[ $1 = s* ]]; then
     DST_ENV=api-staging
   fi
+  # Development
   if [[ $1 = d* ]]; then
     DST_ENV=api-development
   fi
