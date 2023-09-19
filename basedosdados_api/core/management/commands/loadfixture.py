@@ -51,9 +51,9 @@ class Command(LoadDataCommand):
 
         print("Purge database restrictions")
         with connection.cursor() as cursor:
-            cursor.execute(f"{DB_STATEMENT} auth_permission")
-            cursor.execute(f"{DB_STATEMENT} django_admin_log")
-            cursor.execute(f"{DB_STATEMENT} django_content_type")
+            cursor.execute(f"{DB_STATEMENT} auth_permission CASCADE")
+            cursor.execute(f"{DB_STATEMENT} django_admin_log CASCADE")
+            cursor.execute(f"{DB_STATEMENT} django_content_type CASCADE")
 
         print("Load fixtures")
         response = super().handle(*args, **options)
