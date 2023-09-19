@@ -38,6 +38,10 @@ fi
 # Set destination env
 DST_ENV=""
 if [[ $# -eq 1 ]]; then
+  # Local
+  if [[ $1 = l* ]]; then
+    exit 0
+  fi
   # Staging
   if [[ $1 = s* ]]; then
     DST_ENV=api-staging
