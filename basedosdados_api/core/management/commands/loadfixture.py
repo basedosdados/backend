@@ -44,7 +44,7 @@ class Command(LoadDataCommand):
             return None
 
         print("Purge previous database if exists")
-        DB_PATH.unlink(missing_ok=True)
+        call_command("flush", interactive=False)
 
         print("Migrate development database")
         call_command("migrate")
