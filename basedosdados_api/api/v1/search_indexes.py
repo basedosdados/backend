@@ -64,20 +64,18 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
 
     def prepare(self, obj):
         data = super().prepare(obj)
-        # table ids
-        table_ids = data.get("table_ids", [])
-        data["first_table_id"] = table_ids[0] if table_ids else ""
-        if table_ids:
+        if table_ids := data.get("table_ids", []):
+            published_tables = obj.tables.exclude(
+                status__slug__in=["under_review"]
+            )  # fmt: skip
             closed_tables = obj.tables.filter(is_closed=True).exclude(
                 status__slug__in=["under_review"]
             )
-            published_tables = obj.tables.exclude(
-                status__slug__in=[
-                    "under_review",
-                ]
-            )
-            data["n_closed_tables"] = closed_tables.count()
             data["n_tables"] = published_tables.count()
+            data["n_closed_tables"] = closed_tables.count()
+            data["first_table_id"] = table_ids[0]
+            if published_tables.first():
+                data["first_table_id"] = published_tables.first().id
 
         # organization
         organization_id = data.get("organization_id", "")
