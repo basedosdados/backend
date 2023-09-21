@@ -339,11 +339,11 @@ def generate_filter_fields(model: BdmModel):
                         f"{field.name}__{related_model_field_name}"
                     ] = related_model_field_filter
                 continue
-            filter_fields[field.name] = ["exact"]
+            filter_fields[field.name] = ["exact", "isnull", "in"]
             if isinstance(field, string_field_types):
                 filter_fields[field.name] += ["icontains", "istartswith", "iendswith"]
             elif isinstance(field, comparable_field_types):
-                filter_fields[field.name] += ["lt", "lte", "gt", "gte"]
+                filter_fields[field.name] += ["lt", "lte", "gt", "gte", "range"]
         return filter_fields, used_models
 
     filter_fields, _ = _get_filter_fields(model)
