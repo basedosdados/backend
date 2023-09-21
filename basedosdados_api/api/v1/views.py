@@ -324,11 +324,11 @@ class DatasetESSearchView(SearchView):
             cleaned_results["n_closed_tables"] = r.get("n_closed_tables") or 0
             if r.get("tables"):
                 if len(tables := r.get("tables")) > 0:
-                    cleaned_results["first_table_id"] = tables[0]["id"]
                     cleaned_results["n_tables"] = r.get("n_tables")
                     cleaned_results["n_open_tables"] = (
                         cleaned_results["n_tables"] - cleaned_results["n_closed_tables"]
                     )
+                    cleaned_results["first_table_id"] = r.get("first_table_id")
                     cleaned_results["first_closed_table_id"] = None
                     for table in tables:
                         if table["is_closed"]:
