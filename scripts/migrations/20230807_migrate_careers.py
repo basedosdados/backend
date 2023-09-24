@@ -2,7 +2,7 @@
 from csv import DictReader
 from os import getenv
 
-from utils.graphql import gql
+from scripts.utils import gql
 
 query = """
 query ($offset: Int!) {

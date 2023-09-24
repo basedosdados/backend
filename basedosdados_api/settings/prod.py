@@ -6,7 +6,7 @@ from json import loads
 from google.oauth2 import service_account
 
 from basedosdados_api.settings.base import *  # noqa
-from utils import getadmins, getenv
+from basedosdados_api.utils import getadmins, getenv
 
 DEBUG = False
 SECRET_KEY = getenv("DJANGO_SECRET_KEY")

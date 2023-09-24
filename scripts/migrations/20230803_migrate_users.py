@@ -4,7 +4,7 @@ from os import getenv
 from random import choice
 from string import ascii_letters, digits, punctuation
 
-from utils.graphql import gql
+from scripts.utils import gql
 
 query = """
 query ($offset: Int!) {
