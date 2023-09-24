@@ -5,7 +5,7 @@ from pathlib import Path
 from django.utils.log import DEFAULT_LOGGING
 
 from basedosdados_api.settings.base import *  # noqa
-from utils import getenv
+from basedosdados_api.utils import getenv
 
 INSTALLED_APPS += ["django_extensions"]  # noqa: F405
 
