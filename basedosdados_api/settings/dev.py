@@ -2,8 +2,7 @@
 
 from pathlib import Path
 
-from django.utils.log import DEFAULT_LOGGING
-
+from basedosdados_api.logger import setup_logger
 from basedosdados_api.settings.base import *  # noqa
 from basedosdados_api.utils import getenv
 
@@ -30,8 +29,8 @@ DATABASES = {
     }
 }
 
-LOGGING = DEFAULT_LOGGING
-
+# Email
+# https://docs.djangoproject.com/en/4.0/ref/settings/#email-backend
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = getenv("EMAIL_HOST", "smtp.gmail.com")
 EMAIL_HOST_USER = getenv("EMAIL_HOST_USER", "NOT SET")
@@ -40,3 +39,6 @@ EMAIL_PORT = int(getenv("EMAIL_PORT", "587"))
 EMAIL_USE_TLS = bool(getenv("EMAIL_PORT", "True"))
 SERVER_EMAIL = getenv("EMAIL_HOST_USER", "NOT SET")
 DEFAULT_FROM_EMAIL = getenv("EMAIL_HOST_USER", "NOT SET")
+
+# Logging
+setup_logger(serialize=False)

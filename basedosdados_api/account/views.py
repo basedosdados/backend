@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from json import loads
-from logging import getLogger
 from typing import Any
 
 from django.conf import settings
@@ -26,12 +25,11 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.views.generic import CreateView
+from loguru import logger
 
 from basedosdados_api.account.forms import RegisterForm
 from basedosdados_api.account.token import token_generator
 from basedosdados_api.settings import EMAIL_HOST_USER
-
-logger = getLogger("django")
 
 
 class LoadUserView:

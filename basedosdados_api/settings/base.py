@@ -15,6 +15,8 @@ from datetime import timedelta
 from os import getenv, path
 from pathlib import Path
 
+from basedosdados_api.logger import InterceptHandler
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_ROOT = BASE_DIR / "static"
@@ -70,6 +72,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "basedosdados_api.middlewares.LoggerMiddleware",
 ]
 
 ROOT_URLCONF = "basedosdados_api.urls"
@@ -156,52 +159,26 @@ REST_FRAMEWORK = {
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "formatters": {
-        "standard": {
-            "format": "%(levelname)s %(asctime)s %(message)s",
-        },
-    },
     "handlers": {
-        # Include the default Django email handler for errors
-        # This is what you'd get without configuring logging at all.
-        "console": {
-            "level": "ERROR",
-            "class": "logging.StreamHandler",
-            "formatter": "standard",
-        },
-        "mail_admins": {
-            "class": "django.utils.log.AdminEmailHandler",
-            "level": "ERROR",
-            # But the emails are plain text by default - HTML is nicer
-            "include_html": True,
-        },
-        # # Log to a text file that can be rotated by logrotate
-        # "logfile": {
-        #     "level": "DEBUG",
-        #     "class": "logging.handlers.RotatingFileHandler",
-        #     "filename": "/var/log/django/basedosdados_api.log",
-        #     "maxBytes": 1024 * 1024 * 5,  # 5MB
-        #     "backupCount": 5,
-        #     "formatter": "standard",
-        # },
+        "intercept": {
+            "()": InterceptHandler,
+            "level": None,
+        }
     },
     "loggers": {
-        # Again, default Django configuration to email unhandled exceptions
         "django.request": {
-            "handlers": ["mail_admins", "console"],
-            # "handlers": ["mail_admins", "console", "logfile"],
-            "level": "ERROR",
+            "handlers": ["intercept"],
+            "level": None,
             "propagate": True,
         },
-        # Might as well log any errors anywhere else in Django
         "django": {
-            "handlers": ["console"],
-            # "handlers": ["console", "logfile"],
-            "level": "DEBUG",
-            "propagate": False,
+            "handlers": ["intercept"],
+            "level": None,
+            "propagate": True,
         },
     },
 }
+
 
 # Graphene configurations
 GRAPHENE = {
