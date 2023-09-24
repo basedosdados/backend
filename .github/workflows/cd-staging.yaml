@@ -67,7 +67,7 @@ jobs:
                 memory: 500Mi
             env:
               - name: "BASE_URL_FRONTEND"
-                value: "https://homologation.basedosdados.org"
+                value: "https://staging.basedosdados.org"
               - name: "BASE_URL_API"
                 value: "https://staging.api.basedosdados.org"
             envFrom:
