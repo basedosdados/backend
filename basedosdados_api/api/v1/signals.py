@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
-import logging
-
 from django.db import models
 from haystack.exceptions import NotHandled
 from haystack.signals import BaseSignalProcessor
+from loguru import logger
 
 from basedosdados_api.api.v1.models import (
     Coverage,
@@ -13,8 +12,6 @@ from basedosdados_api.api.v1.models import (
     RawDataSource,
     Table,
 )
-
-logger = logging.getLogger("django")
 
 
 class BDSignalProcessor(BaseSignalProcessor):

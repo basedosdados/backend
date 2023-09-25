@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import json
-from logging import getLogger
 from time import sleep
 
 from django import forms
@@ -14,6 +13,7 @@ from django.utils.html import format_html
 from google.api_core.exceptions import BadRequest, NotFound
 from google.cloud.bigquery import Client
 from google.oauth2 import service_account
+from loguru import logger
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
 from ordered_model.admin import OrderedInlineModelAdminMixin, OrderedStackedInline
 
@@ -59,9 +59,6 @@ from basedosdados_api.api.v1.models import (
     Theme,
     Update,
 )
-
-logger = getLogger("django")
-
 
 ################################################################################
 # Model Admins Inlines

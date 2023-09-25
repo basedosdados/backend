@@ -5,11 +5,15 @@ from json import loads
 
 from google.oauth2 import service_account
 
+from basedosdados_api.logger import setup_logger
 from basedosdados_api.settings.base import *  # noqa
 from basedosdados_api.utils import getadmins, getenv
 
 DEBUG = False
 SECRET_KEY = getenv("DJANGO_SECRET_KEY")
+
+# Admins
+ADMINS = getadmins()
 
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
@@ -24,8 +28,8 @@ DATABASES = {
     }
 }
 
-ADMINS = getadmins()
-
+# Email
+# https://docs.djangoproject.com/en/4.0/ref/settings/#email-backend
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
 EMAIL_HOST_USER = getenv("EMAIL_HOST_USER")
@@ -34,6 +38,9 @@ EMAIL_PORT = int(getenv("EMAIL_PORT", "587"))
 EMAIL_USE_TLS = bool(getenv("EMAIL_PORT", "True"))
 SERVER_EMAIL = getenv("EMAIL_HOST_USER")
 DEFAULT_FROM_EMAIL = getenv("EMAIL_HOST_USER")
+
+# Logging
+setup_logger(serialize=True)
 
 # Google Application Credentials
 GOOGLE_APPLICATION_CREDENTIALS = getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
