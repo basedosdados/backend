@@ -39,9 +39,10 @@
 
 - Pronto! Seu ambiente está configurado para desenvolvimento.
 
-* OBS.: É possível realizar a execução do servidor django um dos alias
+* OBS1: É possível realizar a execução do servidor django um dos alias
 ```sh
-    make run_local
+    python manage.py makemigrations
+    python manage.py migrate
     make run_docker
 ```
 

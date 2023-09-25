@@ -1,8 +1,7 @@
 # Byte-compiled / optimized / DLL files
 
 credentials.json
-utils/migration/data/*
-**/data/*
+# utils/migration/data/*
 
 __pycache__/
 *.py[cod]
