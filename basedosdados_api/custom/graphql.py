@@ -7,41 +7,42 @@ from collections import OrderedDict
 from copy import deepcopy
 from typing import Iterable, Optional
 
+import graphql_jwt
 from django.apps import apps
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.forms import ModelForm
 from django.forms import fields as forms_fields
-from django.forms import ModelForm, modelform_factory
+from django.forms import modelform_factory
 from graphene import (
+    ID,
+    UUID,
     Boolean,
     Connection,
     Field,
-    ID,
     InputField,
     Int,
     List,
     Mutation,
     ObjectType,
-    relay,
     Scalar,
     Schema,
     String,
-    UUID,
+    relay,
 )
 from graphene.types.utils import yank_fields_from_attrs
 from graphene_django import DjangoObjectType
 from graphene_django.converter import convert_django_field
+from graphene_django.filter import DjangoFilterConnectionField
 from graphene_django.forms.mutation import (
-    convert_form_field,
     DjangoModelDjangoFormMutationOptions,
     DjangoModelFormMutation,
+    convert_form_field,
 )
-from graphene_django.filter import DjangoFilterConnectionField
 from graphene_django.registry import get_global_registry
 from graphene_file_upload.scalars import Upload
-import graphql_jwt
-from graphql_jwt.decorators import login_required
+from graphql_jwt.decorators import staff_member_required  # login_required,; superuser_required,
 
 from basedosdados_api.custom.model import BdmModel
 
@@ -174,9 +175,7 @@ class CreateUpdateMutation(DjangoModelFormMutation):
         file_fields = [
             field
             for field in cls._meta.form_class.base_fields
-            if isinstance(
-                cls._meta.form_class.base_fields[field], forms_fields.FileField
-            )
+            if isinstance(cls._meta.form_class.base_fields[field], forms_fields.FileField)
         ]
         file_data = {}
         if file_fields:
@@ -234,10 +233,10 @@ def create_mutation_factory(model: BdmModel):
                 ),
             ),
             "mutate_and_get_payload": classmethod(
-                login_required(
-                    lambda cls, root, info, **input: super(
-                        cls, cls
-                    ).mutate_and_get_payload(root, info, **input)
+                staff_member_required(
+                    lambda cls, root, info, **input: super(cls, cls).mutate_and_get_payload(
+                        root, info, **input
+                    )
                 )
             ),
         },
@@ -266,7 +265,7 @@ def delete_mutation_factory(model: BdmModel):
             ),
             "ok": Boolean(),
             "errors": List(String),
-            "mutate": classmethod(login_required(mutate)),
+            "mutate": classmethod(staff_member_required(mutate)),
         },
     )
 
@@ -301,9 +300,7 @@ def generate_filter_fields(model: BdmModel):
     def is_bdm_model(model: models.Model):
         return issubclass(model, BdmModel)
 
-    def _get_filter_fields(
-        model: BdmModel, used_models: Optional[Iterable[BdmModel]] = None
-    ):
+    def _get_filter_fields(model: BdmModel, used_models: Optional[Iterable[BdmModel]] = None):
         if used_models is None:
             used_models = []
             if is_bdm_model(model):
@@ -318,9 +315,7 @@ def generate_filter_fields(model: BdmModel):
         used_models.append(model)
         filter_fields = {}
         foreign_models = [
-            f.related_model
-            for f in model_fields
-            if isinstance(f, foreign_key_field_types)
+            f.related_model for f in model_fields if isinstance(f, foreign_key_field_types)
         ]
         for field in model_fields:
             if (
@@ -344,11 +339,11 @@ def generate_filter_fields(model: BdmModel):
                         f"{field.name}__{related_model_field_name}"
                     ] = related_model_field_filter
                 continue
-            filter_fields[field.name] = ["exact"]
+            filter_fields[field.name] = ["exact", "isnull", "in"]
             if isinstance(field, string_field_types):
                 filter_fields[field.name] += ["icontains", "istartswith", "iendswith"]
             elif isinstance(field, comparable_field_types):
-                filter_fields[field.name] += ["lt", "lte", "gt", "gte"]
+                filter_fields[field.name] += ["lt", "lte", "gt", "gte", "range"]
         return filter_fields, used_models
 
     filter_fields, _ = _get_filter_fields(model)
@@ -384,6 +379,7 @@ def create_model_object_meta(model: BdmModel):
 
 def generate_form_fields(model: BdmModel):
     whitelist_field_types = (
+        models.DateField,
         models.DateTimeField,
         models.SlugField,
         models.CharField,
@@ -396,27 +392,24 @@ def generate_form_fields(model: BdmModel):
         models.OneToOneField,
         models.ManyToManyField,
         models.ImageField,
+        models.UUIDField,
     )
     blacklist_field_names = (
         "_field_status",
         "id",
         "created_at",
         "updated_at",
+        "order",
     )
     fields = []
     for field in model._meta.get_fields():
-        if (
-            isinstance(field, whitelist_field_types)
-            and field.name not in blacklist_field_names
-        ):
+        if isinstance(field, whitelist_field_types) and field.name not in blacklist_field_names:
             fields.append(field.name)
     return fields
 
 
 def generate_form(model: BdmModel):
-    return modelform_factory(
-        model, form=CustomModelForm, fields=generate_form_fields(model)
-    )
+    return modelform_factory(model, form=CustomModelForm, fields=generate_form_fields(model))
 
 
 def build_query_objs(application_name: str):
@@ -436,9 +429,7 @@ def build_query_objs(application_name: str):
         )
         # Custom attributes
         custom_attr_prefix = "get_graphql_"
-        custom_attrs = [
-            attr for attr in dir(model) if attr.startswith(custom_attr_prefix)
-        ]
+        custom_attrs = [attr for attr in dir(model) if attr.startswith(custom_attr_prefix)]
         for attr in custom_attrs:
             attributes.update({attr.split(custom_attr_prefix)[1]: String(source=attr)})
         node = type(
@@ -459,12 +450,8 @@ def build_mutation_objs(application_name: str):
         model_name = model.__name__
         if model_name in EXEMPTED_MODELS:
             continue
-        mutations.update(
-            {f"CreateUpdate{model_name}": create_mutation_factory(model).Field()}
-        )
-        mutations.update(
-            {f"Delete{model_name}": delete_mutation_factory(model).Field()}
-        )
+        mutations.update({f"CreateUpdate{model_name}": create_mutation_factory(model).Field()})
+        mutations.update({f"Delete{model_name}": delete_mutation_factory(model).Field()})
     return mutations
 
 
@@ -499,8 +486,7 @@ def build_schema(application_name: list, add_jwt_mutations: bool = True):
         pass
     queries = [build_query_schema(app) for app in application_name]
     mutations = [
-        build_mutation_schema(app, add_jwt_mutations=add_jwt_mutations)
-        for app in application_name
+        build_mutation_schema(app, add_jwt_mutations=add_jwt_mutations) for app in application_name
     ]
     # query = build_query_schema(application_name)
     # mutation = build_mutation_schema(

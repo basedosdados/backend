@@ -1,33 +1,37 @@
 # -*- coding: utf-8 -*-
-import pytest
+"""
+Pytest conftest
+"""
 import uuid
 
-from django.contrib.auth.models import User
+import pytest
 
 from basedosdados_api.account.models import Account
-
-# from django.core.exceptions import ValidationError
-
 from basedosdados_api.api.v1.models import (
-    # AnalysisType,
-    Table,
-    Dataset,
-    Organization,
+    Analysis,
+    AnalysisType,
     Area,
-    License,
-    Theme,
-    Tag,
-    UpdateFrequency,
-    Entity,
-    Pipeline,
-    ObservationLevel,
-    Column,
-    BigQueryType,
-    RawDataSource,
     Availability,
-    InformationRequest,
-    Status,
+    BigQueryType,
+    Column,
     Coverage,
+    Dataset,
+    DateTimeRange,
+    Dictionary,
+    Entity,
+    EntityCategory,
+    InformationRequest,
+    Key,
+    License,
+    ObservationLevel,
+    Organization,
+    Pipeline,
+    QualityCheck,
+    RawDataSource,
+    Status,
+    Table,
+    Tag,
+    Theme,
 )
 
 
@@ -42,6 +46,16 @@ def fixture_area_br():
     return area_br
 
 
+@pytest.fixture(name="organizacao_invalida")
+@pytest.mark.django_db
+def fixture_organizacao_invalida(area_br):
+    """Fixture for Organization without name (invalid)."""
+    return Organization.objects.create(
+        area=area_br,
+        slug="invalida",
+    )
+
+
 @pytest.fixture(name="organizacao_bd")
 @pytest.mark.django_db
 def fixture_organizacao_bd(area_br):
@@ -49,6 +63,7 @@ def fixture_organizacao_bd(area_br):
     return Organization.objects.create(
         area=area_br,
         slug="basedosdados",
+        name="Base dos Dados",
     )
 
 
@@ -121,9 +136,15 @@ def fixture_licenca_mit():
 @pytest.mark.django_db
 def fixture_entity_anual():
     """Fixture for Entity."""
+    entity_time = EntityCategory.objects.create(
+        slug="time",
+        name="Time",
+    )
+
     return Entity.objects.create(
         slug="anual",
         name="Anual",
+        category=entity_time,
     )
 
 
@@ -131,18 +152,15 @@ def fixture_entity_anual():
 @pytest.mark.django_db
 def fixture_entity_escola():
     """Fixture for Entity."""
+    entity_education = EntityCategory.objects.create(
+        slug="education",
+        name="Educação",
+    )
+
     return Entity.objects.create(
         slug="escola",
         name="Escola",
-    )
-
-
-@pytest.fixture(name="frequencia_anual")
-def fixture_frequencia_anual(entity_anual):
-    """Fixture for UpdateFrequency."""
-    return UpdateFrequency.objects.create(
-        entity=entity_anual,
-        number=1,
+        category=entity_education,
     )
 
 
@@ -200,14 +218,149 @@ def fixture_status_em_processamento():
     )
 
 
-@pytest.fixture(name="coverage_tabela")
+#############################################################################################
+# Coverage fixtures for tables
+#############################################################################################
+
+
+@pytest.fixture(name="coverage_tabela_open")
 @pytest.mark.django_db
-def fixture_coverage_tabela(tabela_bairros, area_br):
-    """Fixture for Coverage."""
-    return Coverage.objects.create(
+def fixture_coverage_tabela_open(
+    tabela_bairros,
+    area_br,
+):
+    """Fixture for open Coverage."""
+    coverage_open = Coverage.objects.create(
         table=tabela_bairros,
         area=area_br,
+        is_closed=False,
     )
+    return coverage_open
+
+
+@pytest.fixture(name="coverage_tabela_closed")
+@pytest.mark.django_db
+def fixture_coverage_closed(
+    tabela_bairros,
+    area_br,
+):
+    """Fixture for closed Coverage."""
+    coverage_closed = Coverage.objects.create(
+        table=tabela_bairros,
+        area=area_br,
+        is_closed=True,
+    )
+    return coverage_closed
+
+
+#############################################################################################
+# Coverage fixtures for columns
+#############################################################################################
+
+
+@pytest.fixture(name="coverage_coluna_open")
+@pytest.mark.django_db
+def fixture_coverage_coluna_open(
+    coluna_nome_bairros,
+    area_br,
+):
+    """Fixture for open Coverage."""
+    coverage_open = Coverage.objects.create(
+        column=coluna_nome_bairros,
+        area=area_br,
+        is_closed=False,
+    )
+    return coverage_open
+
+
+@pytest.fixture(name="coverage_coluna_closed")
+@pytest.mark.django_db
+def fixture_coverage_coluna_closed(
+    coluna_nome_bairros,
+    area_br,
+):
+    """Fixture for closed Coverage."""
+    coverage_closed = Coverage.objects.create(
+        column=coluna_nome_bairros,
+        area=area_br,
+        is_closed=True,
+    )
+    return coverage_closed
+
+
+#############################################################################################
+# Date Time Ranges fixtures
+# The following two date time ranges overlaps
+# The third one is disjoint with the first
+#############################################################################################
+
+
+@pytest.fixture(name="datetime_range_1")
+@pytest.mark.django_db
+def fixture_datetime_range_1():
+    """
+    Basic fixture for DateTimeRange.
+    Old format: YYYY-MM (1) YYYY-MM
+    """
+    datetime_range_1 = DateTimeRange(
+        start_year=2021,
+        start_month=6,
+        end_year=2023,
+        end_month=6,
+        interval=1,
+    )
+    return datetime_range_1
+
+
+@pytest.fixture(name="datetime_range_2")
+@pytest.mark.django_db
+def fixture_datetime_range_2():
+    """
+    Basic fixture for DateTimeRange.
+    Old format: YYYY-MM (1) YYYY-MM
+    """
+    datetime_range_2 = DateTimeRange(
+        start_year=2022,
+        start_month=6,
+        end_year=2024,
+        end_month=6,
+        interval=1,
+    )
+    return datetime_range_2
+
+
+@pytest.fixture(name="datetime_range_3")
+@pytest.mark.django_db
+def fixture_datetime_range_3():
+    """
+    Basic fixture for DateTimeRange.
+    Old format: YYYY-MM (1) YYYY-MM
+    """
+    datetime_range_3 = DateTimeRange(
+        start_year=2023,
+        start_month=7,
+        end_year=2026,
+        end_month=6,
+        interval=1,
+    )
+    return datetime_range_3
+
+
+@pytest.fixture(name="datetime_range_empty")
+@pytest.mark.django_db
+def fixture_datetime_range_empty():
+    """
+    Fixture for empty DateTimeRange for columns.
+    Must be inherited from table.
+    """
+    datetime_range_empty = DateTimeRange(
+        start_year=None,
+        start_month=None,
+        end_year=None,
+        end_month=None,
+        interval=None,
+    )
+    return datetime_range_empty
 
 
 #############################################################################################
@@ -218,7 +371,8 @@ def fixture_coverage_tabela(tabela_bairros, area_br):
 @pytest.fixture(name="dataset_dados_mestres")
 @pytest.mark.django_db
 def fixture_dataset_dados_mestres(
-    organizacao_bd, tema_saude, tema_educacao, tag_aborto, tag_covid
+    organizacao_bd,
+    status_em_processamento,
 ):
     """Test for Dataset."""
     return Dataset.objects.create(
@@ -226,6 +380,8 @@ def fixture_dataset_dados_mestres(
         slug="dados_mestres",
         name="Dados Mestres",
         description="Descrição dos dados mestres",
+        status=status_em_processamento,
+        version=1,
     )
 
 
@@ -240,16 +396,13 @@ def fixture_tabela_bairros(
     dataset_dados_mestres,
     licenca_mit,
     organizacao_parceira,
-    frequencia_anual,
     pipeline,
-    observation_level_anual,
 ):
     """Fixture for Table."""
     return Table.objects.create(
         dataset=dataset_dados_mestres,
         license=licenca_mit,
         partner_organization=organizacao_parceira,
-        update_frequency=frequencia_anual,
         pipeline=pipeline,
         slug="bairros",
         name="Tabela de bairros do Rio de Janeiro",
@@ -265,6 +418,41 @@ def fixture_tabela_bairros(
         compressed_file_size=20,
         number_rows=100,
         number_columns=10,
+        version=1,
+        order=0,
+    )
+
+
+@pytest.fixture(name="tabela_pro")
+@pytest.mark.django_db
+def fixture_tabela_pro(
+    dataset_dados_mestres,
+    licenca_mit,
+    organizacao_parceira,
+    pipeline,
+):
+    """Fixture for Pro Table"""
+    return Table.objects.create(
+        dataset=dataset_dados_mestres,
+        license=licenca_mit,
+        partner_organization=organizacao_parceira,
+        pipeline=pipeline,
+        slug="pro_table",
+        name="Tabela Pro With Multiple Coverages",
+        description="Descrição da tabela Pro With Multiple Coverages",
+        is_directory=False,
+        data_cleaning_description="Descrição da limpeza de dados",
+        data_cleaning_code_url="http://cleaning.com/pro_table",
+        raw_data_url="http://raw.com/pro_table",
+        auxiliary_files_url="http://aux.com/pro_table",
+        architecture_url="http://arch.com/pro_table",
+        source_bucket_name="basedosdados-dev",
+        uncompressed_file_size=1000,
+        compressed_file_size=20,
+        number_rows=100,
+        number_columns=10,
+        version=1,
+        order=0,
     )
 
 
@@ -274,16 +462,13 @@ def fixture_tabela_diretorios_brasil_uf(
     dataset_dados_mestres,
     licenca_mit,
     organizacao_parceira,
-    frequencia_anual,
     pipeline,
-    observation_level_anual,
 ):
     """Fixture for Table."""
     return Table.objects.create(
         dataset=dataset_dados_mestres,
         license=licenca_mit,
         partner_organization=organizacao_parceira,
-        update_frequency=frequencia_anual,
         pipeline=pipeline,
         slug="brasil_uf",
         name="Tabela de estados do Brasil",
@@ -338,23 +523,25 @@ def fixture_coluna_state_id_bairros(
         is_in_staging=True,
         is_partition=False,
         directory_primary_key=coluna_state_id_diretorio,
+        order=1,
     )
 
 
 @pytest.fixture(name="coluna_nome_bairros")
 @pytest.mark.django_db
-def fixture_coluna_nome_bairros(
-    tabela_bairros,
-    bigquery_type_string,
-):
+def fixture_coluna_nome_bairros(tabela_bairros, bigquery_type_string, status_em_processamento):
     """Fixture for name column."""
     return Column.objects.create(
         table=tabela_bairros,
         name="Nome do bairro",
+        name_staging="Nome do bairro",
         description="Descrição da coluna nome",
         bigquery_type=bigquery_type_string,
         is_in_staging=True,
         is_partition=False,
+        status=status_em_processamento,
+        is_primary_key=True,
+        order=2,
     )
 
 
@@ -372,6 +559,9 @@ def fixture_coluna_populacao_bairros(
         bigquery_type=bigquery_type_int64,
         is_in_staging=True,
         is_partition=False,
+        version=1,
+        is_primary_key=False,
+        order=3,
     )
 
 
@@ -383,18 +573,17 @@ def fixture_coluna_populacao_bairros(
 @pytest.fixture(name="raw_data_source")
 @pytest.mark.django_db
 def fixture_raw_data_source(
-    dataset_dados_mestres,
-    disponibilidade_online,
-    licenca_mit,
-    frequencia_anual,
+    dataset_dados_mestres, disponibilidade_online, licenca_mit, status_em_processamento
 ):
     """Fixture for RawData."""
     return RawDataSource.objects.create(
         dataset=dataset_dados_mestres,
         availability=disponibilidade_online,
         license=licenca_mit,
-        update_frequency=frequencia_anual,
         name="Fonte de dados",
+        status=status_em_processamento,
+        version=1,
+        order=0,
     )
 
 
@@ -420,17 +609,93 @@ def fixture_usuario_inicio():
 @pytest.mark.django_db
 def fixture_pedido_informacao(
     dataset_dados_mestres,
-    tabela_bairros,
-    coluna_nome_bairros,
-    coluna_populacao_bairros,
     status_em_processamento,
-    frequencia_anual,
     usuario_inicio,
 ):
     """Fixture for InformationRequest."""
     return InformationRequest.objects.create(
         dataset=dataset_dados_mestres,
         status=status_em_processamento,
-        update_frequency=frequencia_anual,
         started_by=usuario_inicio,
+        version=1,
+        order=0,
     )
+
+
+#############################################################################################
+# Analysis fixtures
+#############################################################################################
+
+
+@pytest.fixture(name="analise_tipo1")
+@pytest.mark.django_db
+def fixture_analise_tipo1():
+    """Fixture for AnalysisType."""
+    return AnalysisType.objects.create(
+        name="Análise tipo 1",
+        slug="analise-tipo-1",
+    )
+
+
+@pytest.fixture(name="analise_bairros")
+@pytest.mark.django_db
+def fixture_analise_bairros(
+    analise_tipo1,
+):
+    """Fixture for Analysis."""
+    analysis = Analysis.objects.create(
+        name="Análise de bairros",
+        description="Descrição da análise de bairros",
+        analysis_type=analise_tipo1,
+        url="https://analise.com/bairros",
+    )
+    return analysis
+
+
+@pytest.fixture(name="dicionario_1")
+@pytest.mark.django_db
+def test_dictionary(
+    coluna_nome_bairros,
+):
+    """Fixture for Dictionary."""
+    return Dictionary.objects.create(
+        column=coluna_nome_bairros,
+    )
+
+
+@pytest.fixture(name="chave_1")
+@pytest.mark.django_db
+def fixture_chave_1(dicionario_1):
+    """Fixture for Key."""
+    chave = Key.objects.create(dictionary=dicionario_1, name="Chave 1", value="Valor 1")
+
+    return chave
+
+
+@pytest.fixture(name="teste_qualidade")
+@pytest.mark.django_db
+def fixture_teste_qualidade(  # pylint: disable=too-many-arguments
+    pipeline,
+    analise_bairros,
+    dataset_dados_mestres,
+    tabela_bairros,
+    coluna_nome_bairros,
+    chave_1,
+    raw_data_source,
+    pedido_informacao,
+):
+    """Fixture for QualityCheck."""
+    teste_qualidade = QualityCheck.objects.create(
+        name="Teste de qualidade",
+        description="Descrição do teste de qualidade",
+        passed=True,
+        pipeline=pipeline,
+        analysis=analise_bairros,
+        dataset=dataset_dados_mestres,
+        table=tabela_bairros,
+        column=coluna_nome_bairros,
+        key=chave_1,
+        raw_data_source=raw_data_source,
+        information_request=pedido_informacao,
+    )
+    return teste_qualidade

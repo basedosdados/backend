@@ -1,30 +1,37 @@
 # -*- coding: utf-8 -*-
-from modeltranslation.translator import translator, TranslationOptions
+from modeltranslation.translator import TranslationOptions, translator
 
 from .models import (
+    Analysis,
     AnalysisType,
+    Area,
     Availability,
     Column,
     Dataset,
     Entity,
+    EntityCategory,
     InformationRequest,
     Language,
     License,
     Organization,
+    QualityCheck,
     RawDataSource,
     Status,
     Table,
     Tag,
     Theme,
-    Area, EntityCategory,
 )
 
 
-class AnalysisTypeTranslationOptions(TranslationOptions):
+class AnalysisTranslationOptions(TranslationOptions):
     fields = (
         "name",
-        "tag",
+        "description",
     )
+
+
+class AnalysisTypeTranslationOptions(TranslationOptions):
+    fields = ("name",)
 
 
 class AreaTranslationOptions(TranslationOptions):
@@ -36,7 +43,7 @@ class AvailabilityTranslationOptions(TranslationOptions):
 
 
 class ColumnTranslationOptions(TranslationOptions):
-    fields = ("name", "description", "observations")
+    fields = ("name", "name_staging", "description", "observations")
 
 
 class DatasetTranslationOptions(TranslationOptions):
@@ -67,6 +74,13 @@ class OrganizationTranslationOptions(TranslationOptions):
     fields = ("name", "description")
 
 
+class QualityCheckTranslationOptions(TranslationOptions):
+    fields = (
+        "name",
+        "description",
+    )
+
+
 class RawDataSourceTranslationOptions(TranslationOptions):
     fields = (
         "name",
@@ -93,6 +107,7 @@ class ThemeTranslationOptions(TranslationOptions):
     fields = ("name",)
 
 
+translator.register(Analysis, AnalysisTranslationOptions)
 translator.register(AnalysisType, AnalysisTypeTranslationOptions)
 translator.register(Area, AreaTranslationOptions)
 translator.register(Availability, AvailabilityTranslationOptions)
@@ -104,6 +119,7 @@ translator.register(InformationRequest, InformationRequestTranslationOptions)
 translator.register(Language, LanguageTranslationOptions)
 translator.register(License, LicenseTranslationOptions)
 translator.register(Organization, OrganizationTranslationOptions)
+translator.register(QualityCheck, QualityCheckTranslationOptions)
 translator.register(RawDataSource, RawDataSourceTranslationOptions)
 translator.register(Status, StatusTranslationOptions)
 translator.register(Table, TableTranslationOptions)

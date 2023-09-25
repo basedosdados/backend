@@ -4,7 +4,7 @@
 
 <h1>Dataset View</h1>
 
-<p>Olá, {{ name }}!</p>
+<p>Olá, {% if user.first_name %}{{ user.first_name}}{% else %}{{ user.username }}{% endif%}!</p>
 
 {% if not user.is_authenticated %}
 <p>Your account doesn't have access to this page. To proceed,
@@ -13,9 +13,6 @@ please login with an account that has access.</p>
 {% else %}
 <p>Visualização autorizada.</p>
 
-{% for field in form %}
-<p>{{ field }}</p>
-{% endfor %}
 
 {% endif %}
 

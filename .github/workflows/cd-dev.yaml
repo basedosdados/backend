@@ -1,0 +1,125 @@
+name: Deployment (Development)
+
+on:
+  workflow_run:
+    workflows: ["Release Image (Development)"]
+    types:
+      - completed
+
+jobs:
+  deploy-dev:
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment:
+      name: development
+      url: https://api.development.basedosdados.org
+
+    steps:
+      - name: Download branch name
+        uses: actions/github-script@v6
+        with:
+          script: |
+            let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               run_id: context.payload.workflow_run.id,
+            });
+            let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
+              return artifact.name == "branch"
+            })[0];
+            let download = await github.rest.actions.downloadArtifact({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               artifact_id: matchArtifact.id,
+               archive_format: 'zip',
+            });
+            let fs = require('fs');
+            fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/artifact.zip`, Buffer.from(download.data));
+
+      - name: Extract branch name
+        run: unzip artifact.zip
+
+      - name: Read branch name
+        id: extract_branch
+        run: echo "branch=$(cat branch)" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ steps.extract_branch.outputs.branch }}
+
+      - name: Import secrets from Vault
+        id: import_secrets
+        uses: hashicorp/vault-action@v2.4.1
+        with:
+          url: https://vault.basedosdados.org
+          token: ${{ secrets.VAULT_TOKEN }}
+          secrets: |
+            secret/data/gcp_credentials/basedosdados-dev GCP_PROJECT_ID   | GCP_PROJECT_ID ;
+            secret/data/gcp_credentials/basedosdados-dev GH_ACTIONS_SA    | GCP_SA ;
+            secret/data/gcp_credentials/basedosdados-dev GKE_CLUSTER_NAME | GKE_CLUSTER_NAME ;
+            secret/data/gcp_credentials/basedosdados-dev GKE_CLUSTER_ZONE | GKE_CLUSTER_ZONE ;
+
+      - name: Setup Google Cloud CLI
+        uses: google-github-actions/setup-gcloud@v0.2.1
+        with:
+          service_account_key: ${{ steps.import_secrets.outputs.GCP_SA }}
+          project_id: ${{ steps.import_secrets.outputs.GCP_PROJECT_ID }}
+          export_default_credentials: true
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v0.2.1
+        with:
+          cluster_name: ${{ steps.import_secrets.outputs.GKE_CLUSTER_NAME }}
+          location: ${{ steps.import_secrets.outputs.GKE_CLUSTER_ZONE }}
+          credentials: ${{ steps.import_secrets.outputs.GCP_SA }}
+
+      - name: Write values.yaml file
+        run: |
+          cat << EOF > values.yaml
+          api:
+            name: "api-development"
+            image:
+              name: "ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}"
+              tag: "development"
+              pullPolicy: "Always"
+            replicas: 1
+            resources:
+              limits:
+                cpu: 2000m
+                memory: 2048Mi
+              requests:
+                cpu: 1000m
+                memory: 1024Mi
+            env:
+              - name: "BASE_URL_FRONTEND"
+                value: "https://development.basedosdados.org"
+              - name: "BASE_URL_API"
+                value: "https://development.api.basedosdados.org"
+            envFrom:
+              - secretRef:
+                  name: api-development-secrets
+            settingsModule: "basedosdados_api.settings.prod"
+          database:
+            host: "cloud-sql-proxy"
+            port: 5432
+            name: "api_development"
+            user: "api_development"
+            passwordSecret: "api-development-database-password"
+          ingress:
+            enabled: true
+            host: "development.api.basedosdados.org"
+            annotations:
+              kubernetes.io/ingress.class: nginx
+              nginx.ingress.kubernetes.io/rewrite-target: /
+              cert-manager.io/issuer: "letsencrypt-production"
+              nginx.ingress.kubernetes.io/ssl-redirect: "true"
+            tls:
+              - hosts:
+                  - development.api.basedosdados.org
+                secretName: api-development-basedosdados-org-tls
+          EOF
+
+      - name: Deploy using Helm
+        run: |
+          helm upgrade --install api-dev charts/basedosdados-api/. -n website -f values.yaml --wait

@@ -1,0 +1,40 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+    <form action="" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="reorder_columns">
+        <input type="hidden" name="do_action" value="yes">
+
+        <div style="margin-bottom: 10px;">
+            {{ form.ordered_columns.label_tag}}
+            <div>
+                {{ form.ordered_columns }}
+                {{ form.ordered_columns.help_text }}
+                {{ form.ordered_columns.errors }}
+            </div>
+        </div>
+
+        <div style="margin-bottom: 10px;">
+            {{ form.use_database_order.label_tag}}
+            {{ form.use_database_order }}
+            {{ form.use_database_order.help_text }}
+            {{ form.use_database_order.errors }}
+        </div>
+
+        <div style="margin-bottom: 10px;">
+            <input type="submit" class="default" style="float: none" value="Reorder">
+        </div>
+
+        <h2>Reorder columns for table</h2>
+
+        <ul>
+            {% for table in tables %}
+                <li>
+                    <a href="{{ table.pk }}/">{{ table.slug }}</a>
+                    <input type="hidden" name="_selected_action" value="{{ table.pk }}">
+                </li>
+            {% endfor %}
+        </ul>
+    </form>
+{% endblock %}

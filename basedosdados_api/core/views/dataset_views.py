@@ -1,9 +1,10 @@
+# -*- coding: utf-8 -*-
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.urls import reverse
-from django.views.generic.edit import CreateView, UpdateView, DeleteView
+from django.views.generic.edit import CreateView, DeleteView, UpdateView
 
 from basedosdados_api.account.models import BDRole
-from basedosdados_api.api.v1.models import Organization, Dataset
+from basedosdados_api.api.v1.models import Dataset, Organization
 
 
 class DatasetCreateView(
@@ -11,6 +12,7 @@ class DatasetCreateView(
     CreateView,
 ):
     """Dataset view."""
+
     model = Dataset
     # template_name = "core/dataset.html"
     fields = ["name", "description", "organization"]
@@ -27,6 +29,7 @@ class DatasetUpdateView(
     UpdateView,
 ):
     """Dataset view."""
+
     model = Dataset
     template_name = "core/dataset_form.html"
     fields = [
@@ -60,18 +63,18 @@ class DatasetUpdateView(
                 role = group.roles.get(bdgrouprole__organization__slug=organization)
                 if role:
                     perms += [r.codename for r in role.permissions.all()]
-        except BDRole.DoesNotExist as e:
+        except BDRole.DoesNotExist:
             pass
 
         return "view_dataset" in perms
 
     def get_success_url(self):
-        return reverse('dataset-detail', kwargs={'pk': self.object.pk})
+        return reverse("dataset-detail", kwargs={"pk": self.object.pk})
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['name'] = self.request.user.get_full_name()
-        context['dataset'] = self.object
+        context["name"] = self.request.user.get_full_name()
+        context["dataset"] = self.object
         return context
 
 
@@ -81,6 +84,7 @@ class DatasetDeleteView(
     DeleteView,
 ):
     """Dataset view."""
+
     model = Dataset
     # template_name = "core/dataset.html"
     fields = ["name", "description", "organization"]
@@ -103,8 +107,7 @@ class DatasetDeleteView(
                 role = group.roles.get(bdgrouprole__organization__slug=organization)
                 if role:
                     perms += [r.codename for r in role.permissions.all()]
-        except BDRole.DoesNotExist as e:
+        except BDRole.DoesNotExist:
             pass
 
         return "view_dataset" in perms
-

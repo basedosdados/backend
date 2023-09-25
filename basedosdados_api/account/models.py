@@ -1,14 +1,20 @@
 # -*- coding: utf-8 -*-
 import os
+from typing import Tuple
 from uuid import uuid4
 
-from django.db import models
+from django.contrib.auth.hashers import check_password, make_password
 from django.contrib.auth.models import (
     AbstractBaseUser,
     BaseUserManager,
-    PermissionsMixin,
+    Group,
     Permission,
+    PermissionsMixin,
 )
+from django.core.mail import send_mail
+from django.db import models
+from django.db.models import DateTimeField, F, Q
+from django.db.models.functions import Coalesce
 
 from basedosdados_api.account.storage import OverwriteStorage
 from basedosdados_api.api.v1.validators import validate_is_valid_image_format
@@ -186,7 +192,6 @@ class AccountManager(BaseUserManager):
         return account
 
     def create_superuser(self, email, password, **kwargs):
-
         account = self.create_user(email, password, profile=1, **kwargs)
 
         account.is_admin = True
@@ -207,13 +212,14 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
         (COLABORADOR, "Colaborador"),
     )
 
+    uuid = models.UUIDField(primary_key=False, default=uuid4)
+
     email = models.EmailField("Email", unique=True)
-    username = models.CharField(
-        "Username", max_length=40, blank=True, null=True, unique=True
-    )
+    username = models.CharField("Username", max_length=40, blank=True, null=True, unique=True)
 
     first_name = models.CharField("Nome", max_length=40, blank=True)
     last_name = models.CharField("Sobrenome", max_length=40, blank=True)
+    full_name = models.CharField("Nome Completo", max_length=100, blank=True, null=True)
     birth_date = models.DateField("Data de Nascimento", null=True, blank=True)
     picture = models.ImageField(
         "Imagem",
@@ -221,7 +227,7 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
         null=True,
         blank=True,
         validators=[validate_is_valid_image_format],
-        storage=OverwriteStorage()
+        storage=OverwriteStorage(),
     )
     twitter = models.CharField("Twitter", max_length=255, null=True, blank=True)
     linkedin = models.CharField("Linkedin", max_length=255, null=True, blank=True)
@@ -243,7 +249,7 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
         help_text="Indica se tem acesso à administração",
     )
     is_active = models.BooleanField(
-        "Ativo", default=True, help_text="Indica se o usuário está ativo"
+        "Ativo", default=False, help_text="Indica se o usuário está ativo"
     )
 
     profile = models.IntegerField(
@@ -255,9 +261,19 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
     groups = models.ManyToManyField(
         BDGroup,
         related_name="users",
-        verbose_name="Grupos",
+        verbose_name="Grupos Externos",
         related_query_name="user",
         blank=True,
+        help_text="Grupos de acesso ao app externo da BD",
+    )
+
+    staff_groups = models.ManyToManyField(
+        Group,
+        related_name="users",
+        verbose_name="Grupos Internos",
+        related_query_name="user",
+        blank=True,
+        help_text="Grupos de acesso ao admin",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -279,6 +295,11 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
     def __str__(self):
         return self.email
 
+    def get_short_name(self):
+        return self.first_name
+
+    get_short_name.short_description = "nome"
+
     def get_full_name(self):
         return f"{self.first_name} {self.last_name}"
 
@@ -289,9 +310,89 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
 
     get_organization.short_description = "organização"
 
-    def get_short_name(self):
-        return self.first_name
+    def get_graphql_is_active_staff(self) -> bool:
+        query = (
+            self.careers.annotate(
+                transition_at=Coalesce(F("start_at"), F("end_at"), output_field=DateTimeField())
+            )
+            .filter(Q(start_at__isnull=False) | Q(end_at__isnull=False))
+            .order_by("transition_at")
+        )
+        if len(query.all()) > 0 and query.last().end_at is None:
+            return True
+        return False
 
     @property
     def is_staff(self):
         return self.is_admin
+
+    def email_user(self, *args, **kwargs):
+        send_mail(
+            "{}".format(args[0]),
+            "{}".format(args[1]),
+            "{}".format(args[2]),
+            [self.email],
+            fail_silently=False,
+        )
+
+    def split_password(self, password: str) -> Tuple[str, str, str, str]:
+        """
+        Split a password into four parts: algorithm, iterations, salt, and hash.
+        """
+        algorithm, iterations, salt, hash = password.split("$", 3)
+        return algorithm, iterations, salt, hash
+
+    def is_valid_encoded_password(self, password: str) -> bool:
+        """
+        Check if a password is valid.
+        """
+        double_encoded = make_password(password)
+        try:
+            target_algorithm, target_iterations, _, _ = self.split_password(double_encoded)
+            algorithm, iterations, _, _ = self.split_password(password)
+        except ValueError:
+            return False
+        return algorithm == target_algorithm and iterations == target_iterations
+
+    def save(self, *args, **kwargs) -> None:
+        # If self._password is set and check_password(self._password, self.password) is True, then
+        # just save the model without changing the password.
+        if self._password and check_password(self._password, self.password):
+            super().save(*args, **kwargs)
+            return
+        # If self._password is not set, we're probably not trying to modify the password, so if
+        # self.password is valid, just save the model without changing the password.
+        elif self.is_valid_encoded_password(self.password):
+            super().save(*args, **kwargs)
+            return
+        # If self.password is not usable, then we're probably trying to set self.password as the
+        # new password, so set it and save the model.
+        self.set_password(self.password)
+        super().save(*args, **kwargs)
+
+
+class Career(BdmModel):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    account = models.ForeignKey(Account, on_delete=models.DO_NOTHING, related_name="careers")
+
+    team = models.CharField("Equipe", max_length=40, blank=True)
+    role = models.CharField("Cargo", max_length=40, blank=True)
+    level = models.CharField("Nível", max_length=40, blank=True)
+
+    start_at = models.DateField("Data de Início", null=True, blank=True)
+    end_at = models.DateField("Data de Término", null=True, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Career"
+        verbose_name_plural = "Careers"
+
+    def __str__(self):
+        return f"{self.account.first_name} @{self.role}"
+
+    def get_team(self):
+        return self.team
+
+    get_team.short_description = "Equipe"

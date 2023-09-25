@@ -1,0 +1,28 @@
+<div class="inline-related">
+   <div class="tabular inline-related-body">
+       {% for fieldset in inline_admin_form %}
+           {% for line in fieldset %}
+               <div class="form-row{% if line.fields|length_is:'1' and line.fields.0.field.widget.is_hidden %} hidden{% endif %}">
+                   {% for field in line.fields %}
+                       {% if field.name != 'parent_model' %} {# Exclude the parent model field #}
+                           {% if field.is_readonly %}
+                               <div class="readonly">{{ field.contents }}</div>
+                           {% else %}
+                               <div class="field-box{% if field.errors %} errors{% endif %}">
+                                   {{ field.label_tag }}
+                                   <div class="field-content">{{ field.field.widget.render(name=field.html_name, value=field.value, attrs=field.field.widget.attrs) }}</div>
+                                   {% if field.field.help_text %}
+                                       <p class="help">{{ field.field.help_text|safe }}</p>
+                                   {% endif %}
+                                   {% for error in field.errors %}
+                                       <div class="errors">{{ error }}</div>
+                                   {% endfor %}
+                               </div>
+                           {% endif %}
+                       {% endif %}
+                   {% endfor %}
+               </div>
+           {% endfor %}
+       {% endfor %}
+   </div>
+</div>

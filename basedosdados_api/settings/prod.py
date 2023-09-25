@@ -1,51 +1,46 @@
 # -*- coding: utf-8 -*-
-from os import getenv
+
+from datetime import timedelta
+from json import loads
+
+from google.oauth2 import service_account
 
 from basedosdados_api.settings.base import *  # noqa
-
-
-def nonull_getenv(var):
-    value = getenv(var)
-    if value is None:
-        raise ValueError(f"Environment variable {var} not set")
-    return value
-
-
-def get_admins():
-    admins = getenv("ADMINS")
-    if admins is None:
-        return []
-    return [admin.split(",") for admin in admins.split(";")]
-
+from basedosdados_api.utils import getadmins, getenv
 
 DEBUG = False
-SECRET_KEY = nonull_getenv("DJANGO_SECRET_KEY")
+SECRET_KEY = getenv("DJANGO_SECRET_KEY")
 
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
-
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql_psycopg2",
-        "NAME": nonull_getenv("DB_NAME"),
-        "USER": nonull_getenv("DB_USER"),
-        "PASSWORD": nonull_getenv("DB_PASSWORD"),
-        "HOST": nonull_getenv("DB_HOST"),
-        "PORT": nonull_getenv("DB_PORT"),
+        "NAME": getenv("DB_NAME"),
+        "USER": getenv("DB_USER"),
+        "PASSWORD": getenv("DB_PASSWORD"),
+        "HOST": getenv("DB_HOST"),
+        "PORT": getenv("DB_PORT"),
     }
 }
 
-ADMINS = get_admins()
+ADMINS = getadmins()
+
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = "smtp.gmail.com"
-EMAIL_HOST_USER = nonull_getenv("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = nonull_getenv("EMAIL_HOST_PASSWORD")
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-DEFAULT_FROM_EMAIL = nonull_getenv("EMAIL_HOST_USER")
-SERVER_EMAIL = nonull_getenv("EMAIL_HOST_USER")
+EMAIL_HOST_USER = getenv("EMAIL_HOST_USER")
+EMAIL_HOST_PASSWORD = getenv("EMAIL_HOST_PASSWORD")
+EMAIL_PORT = int(getenv("EMAIL_PORT", "587"))
+EMAIL_USE_TLS = bool(getenv("EMAIL_PORT", "True"))
+SERVER_EMAIL = getenv("EMAIL_HOST_USER")
+DEFAULT_FROM_EMAIL = getenv("EMAIL_HOST_USER")
 
-# Set logging path for production
-LOGGING["handlers"]["logfile"][  # noqa
-    "filename"
-] = "/var/log/django/basedosdados_api.log"
+# Google Application Credentials
+GOOGLE_APPLICATION_CREDENTIALS = getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
+
+# Google Cloud Storage
+GS_SERVICE_ACCOUNT = getenv("GCP_SA")
+GS_CREDENTIALS = service_account.Credentials.from_service_account_info(loads(GS_SERVICE_ACCOUNT))
+GS_BUCKET_NAME = getenv("GCP_BUCKET_NAME")
+GS_EXPIRATION = timedelta(seconds=604800)
+DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"

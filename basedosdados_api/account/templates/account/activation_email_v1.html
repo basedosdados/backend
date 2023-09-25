@@ -1,0 +1,5 @@
+Olá, {{ name }},
+Por favor, clique no link abaixo para confirmar seu cadastro na Base dos Dados:
+{% autoescape off %}
+https://{{ domain }}/activate_account/{{ uid }}/{{ token }}/
+{% endautoescape %}

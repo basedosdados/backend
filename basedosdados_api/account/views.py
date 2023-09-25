@@ -1,101 +1,195 @@
 # -*- coding: utf-8 -*-
-from django.contrib.auth.models import User
-from rest_framework import permissions, status
-from rest_framework.response import Response
-from rest_framework.views import APIView
+from json import loads
+from logging import getLogger
+from typing import Any
 
-from basedosdados_api.account.models import RegistrationToken
-from basedosdados_api.account.serializers import UserSerializer
+from django.conf import settings
+from django.contrib import messages
+from django.contrib.auth import get_user_model
+from django.contrib.auth.views import (
+    LoginView,
+    LogoutView,
+    PasswordChangeView,
+    PasswordResetCompleteView,
+    PasswordResetConfirmView,
+    PasswordResetView,
+)
+from django.contrib.messages.views import SuccessMessageMixin
+from django.contrib.sites.shortcuts import get_current_site
+from django.core.mail import EmailMultiAlternatives
+from django.http import JsonResponse
+from django.template.loader import render_to_string
+from django.urls import reverse_lazy as r
+from django.utils.decorators import method_decorator
+from django.utils.encoding import force_bytes, force_str
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from django.views import View
+from django.views.decorators.csrf import csrf_exempt
+from django.views.generic import CreateView
+
+from basedosdados_api.account.forms import RegisterForm
+from basedosdados_api.account.token import token_generator
+from basedosdados_api.settings import EMAIL_HOST_USER
+
+logger = getLogger("django")
 
 
-class RegisterView(APIView):
+class LoadUserView:
+    pass
 
-    permission_classes = (permissions.AllowAny,)
 
-    def post(self, request):
+class LoginView(SuccessMessageMixin, LoginView):
+    template_name = "account/login.html"
+    success_message = "Você está logado como %(username)s."
+    success_url = r("home")
+
+
+class LogoutView(SuccessMessageMixin, LogoutView):
+    success_message = "Você saiu com sucesso."
+    success_url = r("home")
+
+
+class PasswordChangeView(SuccessMessageMixin, PasswordChangeView):
+    template_name = "account/password_change.html"
+    success_message = "Sua senha foi alterada com sucesso."
+    success_url = r("home")
+
+
+class PasswordResetView(SuccessMessageMixin, PasswordResetView):
+    template_name = "account/password_reset.html"
+    success_message = (
+        "Enviamos um email com as instruções para você configurar uma nova senha, "
+        "caso exista uma conta com o email fornecido. Você deve recebê-lo em breve."
+        " Se você não receber o email, "
+        "verifique se você digitou o endereço correto e verifique sua caixa de spam."
+    )
+    success_url = r("home")
+
+    @method_decorator(csrf_exempt, name="dispatch")
+    def dispatch(self, request, uidb64):
+        """Generate token and send password reset email"""
+        user_model = get_user_model()
         try:
-            data = request.data
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = user_model.objects.get(id=uid)
+        except (TypeError, ValueError, OverflowError, user_model.DoesNotExist) as e:
+            logger.error(e)
+            user = None
 
-            first_name = data["first_name"]
-            last_name = data["last_name"]
-            username = data["username"]
-            email = data["email"]
-            password = data["password"]
-            re_password = data["re_password"]
-            registration_token = data["registration_token"]
+        if user:
+            to_email = user.email
+            from_email = EMAIL_HOST_USER
+            subject = "Base dos Dados: Redefinição de Senha"
 
-            try:
-                token: RegistrationToken = RegistrationToken.objects.get(
-                    token=registration_token
-                )
-                if not token.active:
-                    return Response(
-                        {"error": "Token is not active"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-            except RegistrationToken.DoesNotExist:
-                return Response(
-                    {"error": "Token is not valid"}, status=status.HTTP_400_BAD_REQUEST
-                )
+            token = token_generator.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
 
-            if password != re_password:
-                return Response(
-                    {"error": "Passwords do not match"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            if len(password) < 8:
-                return Response(
-                    {"error": "Password must be at least 8 characters long"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            if User.objects.filter(username=username).exists():
-                return Response(
-                    {"error": "Username already exists"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            user: User = User.objects.create_user(
-                username=username,
-                password=password,
-                email=email,
-                first_name=first_name,
-                last_name=last_name,
+            content = render_to_string(
+                "account/password_reset_email_v1.html",
+                {
+                    "name": user.full_name,
+                    "domain": "basedosdados.org",
+                    "uid": uid,
+                    "token": token,
+                },
             )
+
+            msg = EmailMultiAlternatives(subject, "", from_email, [to_email])
+            msg.attach_alternative(content, "text/html")
+            msg.send()
+
+            return JsonResponse({}, status=200)
+        else:
+            return JsonResponse({}, status=422)
+
+
+class PasswordResetConfirmView(SuccessMessageMixin, PasswordResetConfirmView):
+    template_name = "account/password_reset_confirm.html"
+    success_message = "Sua senha foi alterada com sucesso."
+    success_url = r("home")
+
+    @method_decorator(csrf_exempt, name="dispatch")
+    def dispatch(self, request, uidb64, token):
+        """Verify token and reset password"""
+        user_model = get_user_model()
+
+        try:
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = user_model.objects.get(id=uid)
+        except (TypeError, ValueError, OverflowError, user_model.DoesNotExist) as e:
+            logger.error(e)
+            user = None
+
+        if user and token_generator.check_token(user, token):
+            body = loads(request.body)
+            user.set_password(body["password"])
             user.save()
-
-            token.active = False
-            token.save()
-
-            if User.objects.filter(username=username).exists():
-                return Response(
-                    {"success": "User created successfully"},
-                    status=status.HTTP_201_CREATED,
-                )
-
-            return Response(
-                {"error": "Something went wrong when trying to create a new user."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-        except:  # noqa
-            return Response(
-                {"error": "Something went wrong when trying to create a new user."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            return JsonResponse({}, status=200)
+        else:
+            return JsonResponse({}, status=422)
 
 
-class LoadUserView(APIView):
-    def get(self, request, format=None):
+class PasswordResetCompleteView(SuccessMessageMixin, PasswordResetCompleteView):
+    template_name = "account/password_reset_complete.html"
+    success_message = "Sua senha foi alterada com sucesso."
+    success_url = r("home")
+
+
+class RegisterView(SuccessMessageMixin, CreateView):
+    form_class = RegisterForm
+    model = get_user_model()
+    template_name = "account/register.html"
+    success_message = "Sua conta foi criada com sucesso."
+    success_url = r("home")
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+        form.cleaned_data.get("username")
+        form.cleaned_data.get("password1")
+        user = form.save(commit=False)
+        user.is_active = False
+        user.save()
+
+        subject = "Bem vindo(a) à Base dos Dados! Ative sua conta."
+        message = render_to_string(
+            "account/activation_email.html",
+            {
+                "user": user,
+                "domain": get_current_site(self.request).domain,
+                "uid": urlsafe_base64_encode(force_bytes(user.pk)),
+                "token": token_generator.make_token(user),
+            },
+        )
+        user.email_user(subject, message, settings.DEFAULT_FROM_EMAIL)
+
+        messages.add_message(
+            self.request,
+            messages.SUCCESS,
+            "Sua conta foi criada com sucesso. Enviamos um email com as instruções para você ativar sua conta, "
+            "caso exista uma conta com o email fornecido. Você deve recebê-lo em breve. "
+            "Se você não receber o email, verifique se você digitou o endereço correto e verifique sua caixa de spam.",
+        )
+        return response
+
+
+class ActivateAccountView(View):
+    @method_decorator(csrf_exempt, name="dispatch")
+    def dispatch(self, request, *args: Any, **kwargs: Any):
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, uidb64, token):
+        """Verify token and activate account"""
+        user_model = get_user_model()
         try:
-            user = request.user
-            user = UserSerializer(user)
+            uid = force_str(urlsafe_base64_decode(uidb64))
+            user = user_model.objects.get(id=uid)
+        except (TypeError, ValueError, OverflowError, user_model.DoesNotExist) as e:
+            logger.error(e)
+            user = None
 
-            return Response({"user": user.data}, status=status.HTTP_200_OK)
-
-        except:  # noqa
-            return Response(
-                {"error": "Something went wrong when trying to load the user."},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+        if user and token_generator.check_token(user, token):
+            user.is_active = True
+            user.save()
+            return JsonResponse({}, status=200)
+        else:
+            return JsonResponse({}, status=422)
