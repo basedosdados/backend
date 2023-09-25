@@ -1,10 +1,8 @@
 # -*- coding: utf-8 -*-
 from os import getenv as _getenv
 
-from django.conf import settings
-
-DB_NAME = settings.DATABASES.get("default", {}).get("NAME", "")
-DB_ENGINE = settings.DATABASES.get("default", {}).get("ENGINE", "")
+API_URL = _getenv("BASE_URL_API", "https://localhost:8080")
+SETTINGS = _getenv("DJANGO_SETTINGS_MODULE", "basedosdados_api.settings")
 
 
 def getadmins():
@@ -25,19 +23,21 @@ def getenv(var, default=None):
 
 def is_remote():
     """Check if it is remote environment"""
-    return "prod" in settings.SETTINGS_MODULE
+    if "prod" in SETTINGS and "basedosdados.org" in API_URL:
+        return True
+    return False
 
 
 def is_dev():
     """Check if it is remote development environment"""
-    if is_remote() and "dev" in DB_NAME:
+    if is_remote() and "development" in API_URL:
         return True
     return False
 
 
 def is_stag():
     """Check if it is remote staging environment"""
-    if is_remote() and "stag" in DB_NAME:
+    if is_remote() and "staging" in API_URL:
         return True
     return False
 
