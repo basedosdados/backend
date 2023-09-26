@@ -224,7 +224,8 @@ def get_credentials():
 
 
 def update_table_metadata(modeladmin, request, queryset: QuerySet):
-    """Updates the metadata of selected tables in the database"""
+    """Update the metadata of selected tables in the database"""
+
     creds = get_credentials()
     client = Client(credentials=creds)
 
@@ -248,15 +249,15 @@ def update_table_metadata(modeladmin, request, queryset: QuerySet):
             logger.debug(e)
 
 
-update_table_metadata.short_description = "Update table metadata"
+update_table_metadata.short_description = "Atualizar metadados das tabelas"
 
 
 def reorder_tables(modeladmin, request, queryset):
+    """Reorder tables in respect to dataset"""
+
     if queryset.count() != 1:
-        messages.error(
-            request,
-            "You can only reorder tables for one dataset at a time",
-        )
+        message = "Você só pode selecionar um conjunto de dados por vez"
+        messages.error(request, message)
         return
 
     if "do_action" in request.POST:
@@ -265,26 +266,46 @@ def reorder_tables(modeladmin, request, queryset):
             ordered_slugs = form.cleaned_data["ordered_slugs"].split()
             for dataset in queryset:
                 call_command("reorder_tables", dataset.id, *ordered_slugs)
-
-            messages.success(request, "Tables reordered successfully")
-            return
+            messages.success(request, "Tabelas reordenadas com sucesso")
     else:
         form = ReorderTablesForm()
-    return render(
-        request,
-        "admin/reorder_tables.html",
-        {
-            "title": "Reorder tables",
-            "form": form,
-            "datasets": queryset,
-        },
-    )
+        dataset = queryset.first()
+        tables = dataset.tables.all()
+        return render(
+            request,
+            "admin/reorder_tables.html",
+            {
+                "title": "Editar ordem das tabelas",
+                "form": form,
+                "tables": tables,
+                "dataset": dataset,
+            },
+        )
 
 
-reorder_tables.short_description = "Reorder tables"
+reorder_tables.short_description = "Editar ordem das tabelas"
+
+
+def reset_table_order(modeladmin, request, queryset):
+    """Reset table order in respect to dataset"""
+
+    if queryset.count() != 1:
+        message = "Você só pode selecionar um conjunto de dados por vez"
+        messages.error(request, message)
+        return
+
+    dataset = queryset.first()
+    for i, table in enumerate(dataset.tables.order_by("name").all()):
+        table.order = i
+        table.save()
+
+
+reset_table_order.short_description = "Reiniciar ordem das tabelas"
 
 
 def reorder_columns(modeladmin, request, queryset):
+    """Reorder columns in respect to table"""
+
     if "do_action" in request.POST:
         form = ReorderColumnsForm(request.POST)
         if form.is_valid():
@@ -326,34 +347,51 @@ def reorder_columns(modeladmin, request, queryset):
                     )
                     return
             messages.success(request, "Columns reordered successfully")
-            return
     else:
         form = ReorderColumnsForm()
+        return render(
+            request,
+            "admin/reorder_columns.html",
+            {"title": "Reorder columns", "tables": queryset, "form": form},
+        )
 
-    return render(
-        request,
-        "admin/reorder_columns.html",
-        {"title": "Reorder columns", "tables": queryset, "form": form},
-    )
+
+reorder_columns.short_description = "Alterar ordem das colunas"
 
 
-reorder_columns.short_description = "Reorder columns"
+def reset_column_order(modeladmin, request, queryset):
+    """Reset column order in respect to dataset"""
+
+    if queryset.count() != 1:
+        message = "Você só pode selecionar um conjunto de dados por vez"
+        messages.error(request, message)
+        return
+
+    table = queryset.first()
+    for i, table in enumerate(table.columns.order_by("name").all()):
+        table.order = i
+        table.save()
+
+
+reset_table_order.short_description = "Reiniciar ordem das colunas"
 
 
 def update_search_index(modeladmin, request, queryset):
+    """Update the search index"""
     call_command("update_index", batchsize=100, workers=4)
     messages.success(request, "Search index updated successfully")
 
 
-update_search_index.short_description = "Update search index"
+update_search_index.short_description = "Atualizar index de busca"
 
 
-def rebuild_search_index(modeladmin, request, queryset):
+def reset_search_index(modeladmin, request, queryset):
+    """Reset the search index"""
     call_command("rebuild_index", interactive=False, batchsize=100, workers=4)
     messages.success(request, "Search index rebuilt successfully")
 
 
-rebuild_search_index.short_description = "Rebuild search index"
+reset_search_index.short_description = "Reiniciar index de busca"
 
 
 ################################################################################
@@ -412,9 +450,10 @@ class TagAdmin(TabbedTranslationAdmin):
 class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     actions = [
         reorder_tables,
-        update_search_index,
-        rebuild_search_index,
+        reset_table_order,
         update_table_metadata,
+        update_search_index,
+        reset_search_index,
     ]
 
     def related_objects(self, obj):
@@ -460,6 +499,7 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
 class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     actions = [
         reorder_columns,
+        reset_column_order,
         update_table_metadata,
     ]
 
