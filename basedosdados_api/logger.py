@@ -40,7 +40,7 @@ def setup_logger(
 
     logger.add(
         stdout,
-        level="INFO",
+        level="DEBUG",
         format=format,
         serialize=serialize,
     )
