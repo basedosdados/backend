@@ -20,10 +20,11 @@ class LoggerMiddleware(MiddlewareMixin):
                 user = request.user
                 endpoint = request.get_full_path()
                 logger.warning(
-                    f"VALIDATION_ERROR: {repr(errors)}",
+                    f"{repr(errors)}",
                     user=user,
                     errors=errors,
                     endpoint=endpoint,
+                    type="validation",
                 )
         except Exception as e:
             logger.error(e)
