@@ -373,7 +373,7 @@ def reset_column_order(modeladmin, request, queryset):
         table.save()
 
 
-reset_table_order.short_description = "Reiniciar ordem das colunas"
+reset_column_order.short_description = "Reiniciar ordem das colunas"
 
 
 def update_search_index(modeladmin, request, queryset):
