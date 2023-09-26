@@ -3,6 +3,7 @@
 {% block content %}
     <form action="" method="post">
         {% csrf_token %}
+
         <input type="hidden" name="action" value="reorder_tables">
         <input type="hidden" name="do_action" value="yes">
 
@@ -12,15 +13,20 @@
             {{ form.ordered_slugs.errors }}
         </div>
 
-        <h2>Reorder tables for next datasets</h2>
-
+        <h3>Reordernar o seguinte dataset e tabelas:</h3>
         <ul>
-            {% for dataset in datasets %}
-                <li>
-                    <a href="{{ dataset.pk }}/">{{ dataset.slug }}</a>
-                    <input type="hidden" name="_selected_action" value="{{ dataset.pk }}">
-                </li>
-            {% endfor %}
+            <li>
+                <a href="{{ dataset.pk }}/">{{ dataset.slug }}</a>
+                <input type="hidden" name="_selected_action" value="{{ dataset.pk }}">
+                <ul>
+                    {% for table in tables %}
+                        <li>
+                            <a href="/admin/v1/table/{{ table.pk }}/">{{ table.slug }}</a>
+                            <input type="hidden" name="_selected_action" value="{{ table.pk }}">
+                        </li>
+                    {% endfor %}
+                </ul>
+            </li>
         </ul>
     </form>
 {% endblock %}
