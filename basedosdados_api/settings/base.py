@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     "health_check",
     "health_check.db",
     "ordered_model",
+    "huey.contrib.djhuey",
     "basedosdados_api.account",
     "basedosdados_api.core",
     "basedosdados_api.api.v1",
@@ -405,3 +406,17 @@ ALLOWED_HTML_ATTRIBUTES = [
 CSRF_COOKIE_HTTPONLY = False
 
 DATA_UPLOAD_MAX_NUMBER_FIELDS = 20000
+
+HUEY = {
+    "name": "api.queue",
+    "huey_class": "huey.SqliteHuey",
+    "results": True,
+    "immediate": False,
+    "filename": path.join(BASE_DIR, "queue.sqlite3"),
+    "consumer": {
+        "workers": 2,
+        "worker_type": "thread",
+        "check_worker_health": True,
+        "periodic": True,
+    },
+}
