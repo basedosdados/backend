@@ -10,7 +10,6 @@ repository = "https://github.com/basedosdados/backend"
 [tool.poetry.dependencies]
 python = "^3.10"
 Django = "^4.1.3"
-djangorestframework = "^3.14.0"
 psycopg2-binary = "^2.9.5"
 django-cors-headers = "^3.13.0"
 gunicorn = "^20.1.0"

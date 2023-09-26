@@ -52,10 +52,6 @@ INSTALLED_APPS = [
     "haystack",
     "health_check",
     "health_check.db",
-    # "health_check.cache",
-    # "health_check.storage",
-    # "health_check.contrib.migrations",
-    "rest_framework",
     "ordered_model",
     "basedosdados_api.account",
     "basedosdados_api.core",
@@ -129,7 +125,6 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
-
 STATIC_URL = "static/"
 
 # Media files
@@ -142,18 +137,8 @@ LOGOUT_REDIRECT_URL = "/"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
-
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# REST Framework
-# https://www.django-rest-framework.org/
-REST_FRAMEWORK = {
-    "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
-    "DEFAULT_PERMISSION_CLASSES": [
-        "rest_framework.permissions.IsAuthenticatedOrReadOnly",
-    ],
-    "PAGE_SIZE": 20,
-}
 
 # Logging
 LOGGING = {
