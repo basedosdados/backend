@@ -41,4 +41,4 @@ SERVER_EMAIL = getenv("EMAIL_HOST_USER", "NOT SET")
 DEFAULT_FROM_EMAIL = getenv("EMAIL_HOST_USER", "NOT SET")
 
 # Logging
-setup_logger(serialize=False)
+setup_logger(level="DEBUG", serialize=False)
