@@ -26,6 +26,7 @@ class InterceptHandler(Handler):
 
 
 def setup_logger(
+    level: str = "INFO",
     serialize: bool = False,
     format: str = "[{time:YYYY-MM-DD HH:mm:ss}] <lvl>{message}</>",
 ):
@@ -40,7 +41,7 @@ def setup_logger(
 
     logger.add(
         stdout,
-        level="INFO",
+        level=level,
         format=format,
         serialize=serialize,
     )
