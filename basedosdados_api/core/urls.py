@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 from django.urls import path
+from django.views.generic import RedirectView
 
 from basedosdados_api.core.views import (
     DatasetCreateView,
     DatasetDeleteView,
     DatasetRedirectView,
     DatasetUpdateView,
-    HomeView,
 )
 
 urlpatterns = [
-    path("", HomeView.as_view(), name="home"),
+    path("", RedirectView.as_view(url="admin", permanent=True)),
     path("dataset/", DatasetCreateView.as_view(), name="dataset"),
     path("dataset_redirect/", DatasetRedirectView.as_view(), name="dataset_redirect"),
     path("dataset/<uuid:pk>/", DatasetUpdateView.as_view(), name="dataset-detail"),
