@@ -637,7 +637,12 @@ class ObservationLevelAdmin(admin.ModelAdmin):
     readonly_fields = [
         "id",
     ]
-    search_fields = ["name", "entity__name"]
+    search_fields = [
+        "table__name",
+        "entity__name",
+        "raw_data_source__name",
+        "information_request__dataset__name",
+    ]
     autocomplete_fields = [
         "entity",
         "table",
