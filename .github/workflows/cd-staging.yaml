@@ -20,7 +20,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
         with:
-          ref: staging
+          ref: main
 
       - name: Import secrets from Vault
         id: import_secrets
