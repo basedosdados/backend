@@ -22,10 +22,15 @@ from basedosdados_api.api.v1.validators import validate_is_valid_image_format
 from basedosdados_api.custom.model import BdmModel
 
 
+def to_str(value: str | None, zfill: int = 0):
+    """Parse and pad to string if not null"""
+    if value is None:
+        return None
+    return str(value).zfill(zfill)
+
+
 def image_path_and_rename(instance, filename):
-    """
-    Rename file to be the username
-    """
+    """Rename file to be the username"""
     upload_to = instance.__class__.__name__.lower()
     ext = filename.split(".")[-1]
     # get filename
@@ -1038,29 +1043,17 @@ class Table(BdmModel, OrderedModel):
         if first_open_datetime_range:
             full_coverage.append(
                 {
-                    "year": str(first_open_datetime_range.start_year)
-                    if first_open_datetime_range.start_year
-                    else None,
-                    "month": str(first_open_datetime_range.start_month).zfill(2)
-                    if first_open_datetime_range.end_month
-                    else None,
-                    "day": str(first_open_datetime_range.start_day).zfill(2)
-                    if first_open_datetime_range.start_day
-                    else None,
+                    "year": to_str(first_open_datetime_range.start_year),
+                    "month": to_str(first_open_datetime_range.start_month, 2),
+                    "day": to_str(first_open_datetime_range.start_day, 2),
                     "type": "open",
                 }
             )
             full_coverage.append(
                 {
-                    "year": str(first_open_datetime_range.end_year)
-                    if first_open_datetime_range.end_year
-                    else None,
-                    "month": str(first_open_datetime_range.end_month).zfill(2)
-                    if first_open_datetime_range.end_month
-                    else None,
-                    "day": str(first_open_datetime_range.end_day).zfill(2)
-                    if first_open_datetime_range.end_day
-                    else None,
+                    "year": to_str(first_open_datetime_range.end_year, 2),
+                    "month": to_str(first_open_datetime_range.end_month, 2),
+                    "day": to_str(first_open_datetime_range.end_day, 2),
                     "type": "open",
                 }
             )
@@ -1068,29 +1061,17 @@ class Table(BdmModel, OrderedModel):
             if not first_open_datetime_range:
                 full_coverage.append(
                     {
-                        "year": str(first_closed_datetime_range.start_year)
-                        if first_closed_datetime_range.start_year
-                        else None,
-                        "month": str(first_closed_datetime_range.start_month).zfill(2)
-                        if first_closed_datetime_range.start_month
-                        else None,
-                        "day": str(first_closed_datetime_range.start_day).zfill(2)
-                        if first_closed_datetime_range.start_day
-                        else None,
+                        "year": to_str(first_closed_datetime_range.start_year),
+                        "month": to_str(first_closed_datetime_range.start_month, 2),
+                        "day": to_str(first_closed_datetime_range.start_day, 2),
                         "type": "closed",
                     }
                 )
             full_coverage.append(
                 {
-                    "year": str(first_closed_datetime_range.end_year)
-                    if first_closed_datetime_range.end_year
-                    else None,
-                    "month": str(first_closed_datetime_range.end_month).zfill(2)
-                    if first_closed_datetime_range.end_month
-                    else None,
-                    "day": str(first_closed_datetime_range.end_day).zfill(2)
-                    if first_closed_datetime_range.end_day
-                    else None,
+                    "year": to_str(first_closed_datetime_range.end_year),
+                    "month": to_str(first_closed_datetime_range.end_month, 2),
+                    "day": to_str(first_closed_datetime_range.end_day, 2),
                     "type": "closed",
                 }
             )
@@ -1272,14 +1253,14 @@ class Column(BdmModel, OrderedModel):
         elif coverages[0].datetime_ranges.first().start_year is not None:
             dt_range = coverages[0].datetime_ranges.first()
             temporal_coverage_start = {
-                "year": str(dt_range.start_year),
-                "month": str(dt_range.start_month).zfill(2),
-                "day": str(dt_range.start_day).zfill(2),
+                "year": to_str(dt_range.start_year),
+                "month": to_str(dt_range.start_month, 2),
+                "day": to_str(dt_range.start_day, 2),
             }
             temporal_coverage_end = {
-                "year": str(dt_range.end_year),
-                "month": str(dt_range.end_month).zfill(2),
-                "day": str(dt_range.end_day).zfill(2),
+                "year": to_str(dt_range.end_year),
+                "month": to_str(dt_range.end_month, 2),
+                "day": to_str(dt_range.end_day, 2),
             }
         else:
             temporal_coverage_start = {"year": "", "month": "", "day": ""}
@@ -1292,7 +1273,6 @@ class Column(BdmModel, OrderedModel):
 
     @property
     def get_graphql_full_coverage(self):
-        """Coverage for GraphQL"""
         return self.full_coverage
 
 
