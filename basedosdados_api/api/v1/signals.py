@@ -53,7 +53,7 @@ class BDSignalProcessor(BaseSignalProcessor):
                 for ds in datasets or []:
                     index.update_object(ds, using=using)
             except NotHandled as error:
-                logger.debug(error)
+                logger.warning(error)
             except Exception as error:
                 logger.error(error)
 

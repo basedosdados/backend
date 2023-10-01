@@ -258,6 +258,8 @@ def update_table_metadata(modeladmin=None, request=None, queryset: QuerySet = No
             table.save()
         except (BadRequest, NotFound, ValueError) as e:
             logger.warning(e)
+        except Exception as e:
+            logger.error(e)
 
 
 update_table_metadata.short_description = "Atualizar metadados das tabelas"
