@@ -20,13 +20,10 @@ from django.contrib import admin
 from django.http import HttpResponseRedirect
 from django.urls import include, path, re_path
 from django.views.decorators.csrf import csrf_exempt
+from django.views.generic.base import TemplateView
 from graphene_file_upload.django import FileUploadGraphQLView
 
 from basedosdados_api.api.v1.views import DatasetESSearchView
-
-
-def home_redirect(request):
-    return HttpResponseRedirect("/api")
 
 
 def redirect_to_v1(request):
@@ -37,20 +34,25 @@ def redirect_to_v1_graphql(request):
     return HttpResponseRedirect("/api/v1/graphql")
 
 
+def render_robots():
+    return TemplateView.as_view(template_name="robots.txt", content_type="text/plain")
+
+
 urlpatterns = [
+    re_path(r"^healthcheck/", include("health_check.urls")),
     path("admin/", admin.site.urls),
     path("martor/", include("martor.urls")),
     path("account/", include("basedosdados_api.account.urls")),
-    re_path(r"^healthcheck/", include("health_check.urls")),
     path("api/", redirect_to_v1, name="api"),
     path("api/v1/", redirect_to_v1_graphql),
     path(
         "api/v1/graphql",
         csrf_exempt(FileUploadGraphQLView.as_view(graphiql=True)),
-        name="graphiql",
     ),
     path("schemas/", include("basedosdados_api.schemas.urls")),
     path("", include("basedosdados_api.core.urls")),
-    path("search/", DatasetESSearchView.as_view(), name="search_view"),
-    path("busca/", include("haystack.urls")),
-] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    path("search/", DatasetESSearchView.as_view()),
+    path("search/debug/", include("haystack.urls")),
+    path("robots.txt", render_robots()),
+]
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
