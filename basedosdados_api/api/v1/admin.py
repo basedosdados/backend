@@ -16,6 +16,7 @@ from google.oauth2 import service_account
 from loguru import logger
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
 from ordered_model.admin import OrderedInlineModelAdminMixin, OrderedStackedInline
+from pandas import read_gbq
 
 from basedosdados_api.api.v1.filters import (
     OrganizationImageFilter,
@@ -247,6 +248,13 @@ def update_table_metadata(modeladmin=None, request=None, queryset: QuerySet = No
             table.number_rows = bq_table.num_rows or None
             table.number_columns = len(bq_table.schema) or None
             table.uncompressed_file_size = bq_table.num_bytes or None
+            if bq_table.table_type == "VIEW":
+                table.number_rows = read_gbq(
+                    """
+                    SELECT COUNT(1) AS n_rows
+                    FROM `{table.db_slug}`
+                """
+                ).loc[0, "n_rows"]
             table.save()
         except (BadRequest, NotFound, ValueError) as e:
             logger.warning(e)
