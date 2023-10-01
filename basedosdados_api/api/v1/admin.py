@@ -223,7 +223,7 @@ def get_credentials():
     return credentials
 
 
-def update_table_metadata(modeladmin, request, queryset: QuerySet):
+def update_table_metadata(modeladmin=None, request=None, queryset: QuerySet = None):
     """Update the metadata of selected tables in the database"""
 
     creds = get_credentials()
@@ -231,12 +231,15 @@ def update_table_metadata(modeladmin, request, queryset: QuerySet):
 
     tables: list[Table] = []
     match str(modeladmin):
-        case "v1.TableAdmin":
-            tables = queryset
         case "v1.DatasetAdmin":
-            for database in queryset:
-                for table in database.tables.all():
-                    tables.append(table)
+            tables = Table.objects.filter(
+                dataset__in=queryset,
+                source_bucket_name__isnull=False,
+            )
+        case "v1.TableAdmin":
+            tables = queryset.filter(source_bucket_name__isnull=False)
+        case _:
+            tables = Table.objects.filter(source_bucket_name__isnull=False)
 
     for table in tables:
         try:
@@ -246,7 +249,7 @@ def update_table_metadata(modeladmin, request, queryset: QuerySet):
             table.uncompressed_file_size = bq_table.num_bytes or None
             table.save()
         except (BadRequest, NotFound, ValueError) as e:
-            logger.debug(e)
+            logger.warning(e)
 
 
 update_table_metadata.short_description = "Atualizar metadados das tabelas"
