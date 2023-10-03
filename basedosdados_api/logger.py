@@ -51,6 +51,4 @@ def setup_logger(
         format=format,
         rotation="30 MB",
         retention="7 days",
-        backtrace=True,
-        serialize=serialize,
     )
