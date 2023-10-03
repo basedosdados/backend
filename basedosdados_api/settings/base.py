@@ -409,10 +409,16 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 20000
 
 HUEY = {
     "name": "api.queue",
-    "huey_class": "huey.SqliteHuey",
+    "huey_class": "huey.RedisHuey",
     "results": True,
     "immediate": False,
-    "filename": path.join(BASE_DIR, "queue.sqlite3"),
+    "connection": {
+        "host": getenv("REDIS_URL", "localhost"),
+        "port": getenv("REDIS_PORT", 6379),
+        "db": getenv("REDIS_DB", 1),
+        "read_timeout": 1,
+        "connection_pool": None,
+    },
     "consumer": {
         "workers": 2,
         "worker_type": "thread",
