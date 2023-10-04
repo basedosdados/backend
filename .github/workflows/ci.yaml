@@ -1,6 +1,7 @@
-name: CI - Lint and Test
+name: CI
 
-on: pull_request
+on:
+  pull_request:
 
 jobs:
   lint:
@@ -8,28 +9,23 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest]
         arch: [x64]
+        os: [ubuntu-latest]
         python-version: ["3.10.x"]
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
-
+        uses: actions/checkout@v3
       - name: Set up python
         uses: actions/setup-python@v2
         with:
           python-version: ${{ matrix.python-version }}
           architecture: ${{ matrix.arch }}
-
       - name: Set up poetry and upgrade pip
         run: pip install -U pip poetry
-
       - name: Install this package
         run: poetry install
-
       - name: Lint source code
         run: poetry run lint
-
       - name: Lint pull request title
         uses: amannn/action-semantic-pull-request@v5
         env:
@@ -40,6 +36,25 @@ jobs:
             The subject "{subject}" found in the pull request title "{title}"
             didn't match the configured pattern. Please ensure that the subject
             doesn't start with an uppercase character.
-
+  test:
+    name: Test
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        arch: [x64]
+        os: [ubuntu-latest]
+        python-version: ["3.10.x"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Set up python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+          architecture: ${{ matrix.arch }}
+      - name: Set up poetry and upgrade pip
+        run: pip install -U pip poetry
+      - name: Install this package
+        run: poetry install
       - name: Test
         run: poetry run test
