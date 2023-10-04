@@ -7,7 +7,6 @@ from django.conf import settings
 from django.contrib import admin, messages
 from django.core.management import call_command
 from django.db.models.query import QuerySet
-from django.forms.models import BaseInlineFormSet
 from django.shortcuts import get_object_or_404, render
 from django.utils.html import format_html
 from google.api_core.exceptions import BadRequest, NotFound
@@ -71,26 +70,13 @@ class TranslateOrderedInline(OrderedStackedInline, TranslationStackedInline):
     pass
 
 
-class CustomObservationLevelInlineFormset(BaseInlineFormSet):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        columns_queryset = self.instance.columns.all()
-
-        for form in self.forms:
-            form.fields["column_choice"].queryset = columns_queryset
-
-
 class ObservationLevelInline(admin.StackedInline):
     model = ObservationLevel
     form = ObservationLevelForm
-    formset = CustomObservationLevelInlineFormset
-    template = "admin/edit_inline/stacked_table_observation_level.html"
     extra = 0
-
     fields = [
         "id",
         "entity",
-        "column_choice",
     ]
     autocomplete_fields = [
         "entity",
@@ -103,21 +89,31 @@ class ColumnInline(TranslateOrderedInline):
     extra = 0
     show_change_link = True
     show_full_result_count = True
-    autocomplete_fields = [
-        "directory_primary_key",
-        "observation_level",
-    ]
-    fields = [
+    fields = ColumnInlineForm.Meta.fields + [
         "order",
         "move_up_down_links",
-    ] + ColumnInlineForm.Meta.fields
+    ]
     readonly_fields = [
         "order",
         "move_up_down_links",
     ]
+    autocomplete_fields = [
+        "directory_primary_key",
+    ]
     ordering = [
         "order",
     ]
+
+    def get_formset(self, request, obj=None, **kwargs):
+        """Save the parent object to the inline (Not thread safe)"""
+        self.parent_inline_obj = obj
+        return super().get_formset(request, obj, **kwargs)
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        """Limit the observation level queryset to the parent object"""
+        if db_field.name == "observation_level":
+            kwargs["queryset"] = ObservationLevel.objects.filter(table=self.parent_inline_obj)
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
 class TableInline(TranslateOrderedInline):
@@ -527,7 +523,32 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         reset_column_order,
         update_table_metadata,
     ]
-
+    inlines = [
+        ColumnInline,
+        ObservationLevelInline,
+    ]
+    readonly_fields = [
+        "id",
+        "partitions",
+        "created_at",
+        "updated_at",
+        "related_columns",
+    ]
+    search_fields = [
+        "name",
+        "dataset__name",
+    ]
+    autocomplete_fields = [
+        "dataset",
+        "partner_organization",
+        "published_by",
+        "data_cleaned_by",
+    ]
+    list_filter = [
+        "dataset__organization__name",
+        TableCoverageFilter,
+        TableObservationFilter,
+    ]
     change_form_template = "admin/table_change_form.html"
 
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
@@ -620,49 +641,6 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
             initial = {"parent_model": parent_model_id}
             self.initial = initial  # noqa
         return super().add_view(request, *args, **kwargs)
-
-    readonly_fields = [
-        "id",
-        "partitions",
-        "created_at",
-        "updated_at",
-        "related_columns",
-    ]
-    search_fields = ["name", "dataset__name"]
-    inlines = [
-        ColumnInline,
-        ObservationLevelInline,
-    ]
-    autocomplete_fields = [
-        "dataset",
-        "partner_organization",
-        "published_by",
-        "data_cleaned_by",
-    ]
-    list_filter = [
-        "dataset__organization__name",
-        TableCoverageFilter,
-        TableObservationFilter,
-    ]
-
-    def save_formset(self, request, form, formset, change):
-        """Saves the formset, adding the table to the dataset"""
-        if formset.model == ObservationLevel:
-            instances = formset.save(commit=False)  # noqa
-            for form in formset.forms:
-                if form.instance.pk:
-                    Column.objects.filter(observation_level=form.instance).update(
-                        observation_level=None
-                    )
-                form_instance = form.save(commit=False)
-                column_instance = form.cleaned_data.get("column_choice")
-                if column_instance:
-                    column_instance.observation_level = form_instance
-                    column_instance.save()
-                form_instance.save()
-            formset.save_m2m()
-        else:
-            formset.save()
 
 
 class ColumnForm(forms.ModelForm):

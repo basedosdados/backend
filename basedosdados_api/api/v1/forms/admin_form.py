@@ -1,6 +1,4 @@
 # -*- coding: utf-8 -*-
-from django import forms
-
 from basedosdados_api.api.v1.models import (
     Column,
     Coverage,
@@ -56,6 +54,7 @@ class ColumnInlineForm(UUIDHIddenIdForm):
             "status",
             "is_primary_key",
             "table",
+            "observation_level",
         ]
         readonly_fields = [
             "order",
@@ -64,16 +63,9 @@ class ColumnInlineForm(UUIDHIddenIdForm):
 
 
 class ObservationLevelForm(UUIDHIddenIdForm):
-    column_choice = forms.ModelChoiceField(label="Column", queryset=Column.objects.all())
-
     class Meta(UUIDHIddenIdForm.Meta):
         model = ObservationLevel
         fields = "__all__"
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        if self.instance.pk:
-            self.initial["column_choice"] = self.instance.columns.first()
 
 
 class CoverageInlineForm(UUIDHIddenIdForm):
