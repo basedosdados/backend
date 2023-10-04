@@ -9,7 +9,6 @@ from django.utils.http import urlsafe_base64_encode
 from basedosdados_api.account.models import Account
 from basedosdados_api.account.token import token_generator
 from basedosdados_api.settings import EMAIL_HOST_USER
-from basedosdados_api.utils import is_prod
 
 
 @receiver(post_save, sender=Account)
@@ -20,9 +19,8 @@ def send_activation_email(sender, instance, created, raw, **kwargs):
     - The account is new
     - The account isn't active
     - The account isn't a fixture
-    - The account is in production environment
     """
-    if created and not raw and not instance.is_active and is_prod():
+    if created and not raw and not instance.is_active:
         to_email = instance.email
         from_email = EMAIL_HOST_USER
         subject = "Bem Vindo à Base dos Dados!"
