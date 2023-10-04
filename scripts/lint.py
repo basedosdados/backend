@@ -10,9 +10,10 @@ def run(*args):
 def main():
     """Lint all python files in the project"""
     code = 0
+    code |= run(["poetry", "check"])
     code |= run(["yamllint", "."])
-    code |= run(["isort", "--check-only", "."])
     code |= run(["black", "--check", "."])
+    code |= run(["isort", "--check-only", "."])
     code |= run(["autoflake", "--check", "--recursive", "--quiet", "."])
     code |= run(["flake8", "."])
     exit(code)
