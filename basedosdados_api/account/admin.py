@@ -27,6 +27,7 @@ class AccountCreationForm(forms.ModelForm):
     is_active = forms.BooleanField(
         label="Está ativo?",
         initial=True,
+        required=False,
         help_text="Marque ativo para não enviar email de confirmação",
     )
 
