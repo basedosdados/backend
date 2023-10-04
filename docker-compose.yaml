@@ -1,9 +1,9 @@
 version: "3"
 
 services:
-  elasticsearch:
+  index:
     image: docker.elastic.co/elasticsearch/elasticsearch:7.17.3
-    container_name: elasticsearch
+    container_name: index
     environment:
       - cluster.name=docker-cluster
       - bootstrap.memory_lock=true
@@ -26,6 +26,17 @@ services:
       retries: 5
       start_period: 1m
 
+  queue:
+    image: redis:6.0
+    container_name: queue
+    ports:
+      - 6379:6379
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
   database:
     image: postgres:14
     container_name: database
@@ -47,15 +58,15 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: basedosdados_api
+    container_name: api
     env_file:
       - .env
     ports:
       - 8080:80
     depends_on:
-      database:
+      index:
         condition: service_healthy
-      elasticsearch:
+      database:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/healthcheck/"]

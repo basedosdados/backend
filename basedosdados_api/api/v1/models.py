@@ -558,6 +558,10 @@ class Dataset(BdmModel):
         return self.full_slug.replace("sa_br", "br")
 
     @property
+    def get_graphql_db_slug(self):
+        return self.db_slug
+
+    @property
     def full_slug(self):
         """Get the full slug or Dataset"""
         if self.organization.area.slug != "unknown":
@@ -969,6 +973,10 @@ class Table(BdmModel, OrderedModel):
         dataset_slug = self.dataset.db_slug
         bucket_slug = self.source_bucket_name
         return f"{bucket_slug}.{dataset_slug}.{table_slug}"
+
+    @property
+    def get_graphql_db_slug(self):
+        return self.db_slug
 
     @property
     def partitions(self):

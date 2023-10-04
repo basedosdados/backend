@@ -11,11 +11,13 @@ from django.forms.models import BaseInlineFormSet
 from django.shortcuts import get_object_or_404, render
 from django.utils.html import format_html
 from google.api_core.exceptions import BadRequest, NotFound
-from google.cloud.bigquery import Client
+from google.cloud.bigquery import Client as GBQClient
+from google.cloud.storage import Client as GCSClient
 from google.oauth2 import service_account
 from loguru import logger
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
 from ordered_model.admin import OrderedInlineModelAdminMixin, OrderedStackedInline
+from pandas import read_gbq
 
 from basedosdados_api.api.v1.filters import (
     OrganizationImageFilter,
@@ -223,30 +225,53 @@ def get_credentials():
     return credentials
 
 
-def update_table_metadata(modeladmin, request, queryset: QuerySet):
+def update_table_metadata(modeladmin=None, request=None, queryset: QuerySet = None):
     """Update the metadata of selected tables in the database"""
 
     creds = get_credentials()
-    client = Client(credentials=creds)
+    bq_client = GBQClient(credentials=creds)
+    cs_client = GCSClient(credentials=creds)
+
+    bucket_name = "basedosdados"
+    bucket = cs_client.get_bucket(bucket_name)
 
     tables: list[Table] = []
     match str(modeladmin):
-        case "v1.TableAdmin":
-            tables = queryset
         case "v1.DatasetAdmin":
-            for database in queryset:
-                for table in database.tables.all():
-                    tables.append(table)
+            tables = Table.objects.filter(
+                dataset__in=queryset,
+                source_bucket_name__isnull=False,
+            )
+        case "v1.TableAdmin":
+            tables = queryset.filter(source_bucket_name__isnull=False)
+        case _:
+            tables = Table.objects.filter(source_bucket_name__isnull=False)
 
     for table in tables:
         try:
-            bq_table = client.get_table(table.db_slug)
+            bq_table = bq_client.get_table(table.db_slug)
             table.number_rows = bq_table.num_rows or None
             table.number_columns = len(bq_table.schema) or None
             table.uncompressed_file_size = bq_table.num_bytes or None
+            if bq_table.table_type == "VIEW":
+                # Get number of rows from big query
+                table.number_rows = read_gbq(
+                    """
+                    SELECT COUNT(1) AS n_rows
+                    FROM `{table.db_slug}`
+                """
+                ).loc[0, "n_rows"]
+                # Get file size in bytes from storage
+                file_size = 0
+                folder_prefix = f"staging/{table.dataset.db_slug}/{table.db_slug}"
+                for blob in bucket.list_blobs(prefix=folder_prefix):
+                    file_size += blob.size
+                table.uncompressed_file_size = file_size
             table.save()
         except (BadRequest, NotFound, ValueError) as e:
-            logger.debug(e)
+            logger.warning(e)
+        except Exception as e:
+            logger.error(e)
 
 
 update_table_metadata.short_description = "Atualizar metadados das tabelas"
@@ -319,7 +344,7 @@ def reorder_columns(modeladmin, request, queryset):
                     """
                     try:
                         creds = get_credentials()
-                        client = Client(credentials=creds)
+                        client = GBQClient(credentials=creds)
                         query_job = client.query(query, timeout=90)
                     except Exception as e:
                         messages.error(
