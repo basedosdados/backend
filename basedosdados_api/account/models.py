@@ -244,7 +244,7 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
     )
 
     is_admin = models.BooleanField(
-        "Membro da equipe",
+        "Admin",
         default=False,
         help_text="Indica se tem acesso à administração",
     )
