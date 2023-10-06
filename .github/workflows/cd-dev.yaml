@@ -96,6 +96,8 @@ jobs:
                 value: "https://development.basedosdados.org"
               - name: "BASE_URL_API"
                 value: "https://development.api.basedosdados.org"
+              - name: "REDIS_DB"
+                value: 1
             envFrom:
               - secretRef:
                   name: api-development-secrets
