@@ -413,7 +413,7 @@ HUEY = {
     "results": True,
     "immediate": False,
     "connection": {
-        "host": getenv("REDIS_URL", "localhost"),
+        "host": getenv("REDIS_HOST", "localhost"),
         "port": getenv("REDIS_PORT", 6379),
         "db": getenv("REDIS_DB", 1),
         "read_timeout": 1,
