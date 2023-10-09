@@ -413,8 +413,7 @@ HUEY = {
     "results": True,
     "immediate": False,
     "connection": {
-        # TODO: Delete this hotfix
-        "host": getenv("REDIS_URL", "localhost").replace("http://", ""),
+        "host": getenv("REDIS_URL", "localhost"),
         "port": getenv("REDIS_PORT", 6379),
         "db": getenv("REDIS_DB", 1),
         "read_timeout": 1,
