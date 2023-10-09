@@ -47,3 +47,13 @@ def is_prod():
     if is_remote() and not is_dev() and not is_stag():
         return True
     return False
+
+
+def prod_task(func):
+    """Decorator that avoids function call if it isn't production"""
+
+    def wrapper(*args, **kwargs):
+        if is_prod():
+            return func(*args, **kwargs)
+
+    return wrapper
