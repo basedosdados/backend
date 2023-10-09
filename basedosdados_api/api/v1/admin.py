@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
-import json
+from json import loads
+from pathlib import Path
 from time import sleep
 
 from django import forms
@@ -216,8 +217,14 @@ class CoverageTableInline(admin.StackedInline):
 
 def get_credentials():
     """Get google cloud credentials"""
-    credentials_dict = json.loads(settings.GOOGLE_APPLICATION_CREDENTIALS)
-    credentials = service_account.Credentials.from_service_account_info(credentials_dict)
+    creds_env = settings.GOOGLE_APPLICATION_CREDENTIALS
+    try:
+        creds_path = Path(creds_env)
+        assert creds_path.is_absolute() or creds_path.is_relative_to('.')
+        credentials = service_account.Credentials.from_service_account_file(creds_path)
+    except (TypeError, ValueError):
+        credentials_dict = loads(creds_env)
+        credentials = service_account.Credentials.from_service_account_info(credentials_dict)
     return credentials
 
 
