@@ -42,3 +42,6 @@ DEFAULT_FROM_EMAIL = getenv("EMAIL_HOST_USER", "NOT SET")
 
 # Logging
 setup_logger(level="DEBUG", serialize=False)
+
+# Google Application Credentials
+GOOGLE_APPLICATION_CREDENTIALS = getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
