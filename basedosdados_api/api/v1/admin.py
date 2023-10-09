@@ -220,7 +220,7 @@ def get_credentials():
     creds_env = settings.GOOGLE_APPLICATION_CREDENTIALS
     try:
         creds_path = Path(creds_env)
-        assert creds_path.is_absolute() or creds_path.is_relative_to('.')
+        assert creds_path.is_absolute() or creds_path.is_relative_to(".")
         credentials = service_account.Credentials.from_service_account_file(creds_path)
     except (TypeError, ValueError):
         credentials_dict = loads(creds_env)
