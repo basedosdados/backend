@@ -1,0 +1,62 @@
+name: Sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Destination environment
+        required: true
+        type: choice
+        options:
+        - staging
+        - development
+
+jobs:
+  sync:
+    name: Sync
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Import secrets
+        id: import_secrets
+        uses: hashicorp/vault-action@v2.4.1
+        with:
+          url: https://vault.basedosdados.org
+          token: ${{ secrets.VAULT_TOKEN }}
+          secrets: |
+            secret/data/gcp_credentials/basedosdados-dev GCP_PROJECT_ID   | GCP_PROJECT_ID ;
+            secret/data/gcp_credentials/basedosdados-dev GH_ACTIONS_SA    | GCP_SA ;
+            secret/data/gcp_credentials/basedosdados-dev GKE_CLUSTER_NAME | GKE_CLUSTER_NAME ;
+            secret/data/gcp_credentials/basedosdados-dev GKE_CLUSTER_ZONE | GKE_CLUSTER_ZONE ;
+
+      - name: Authenticate GCP
+        id: auth
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ steps.import_secrets.outputs.GCP_SA }}
+
+      - name: Set up GCP SDK
+        uses: google-github-actions/setup-gcloud@v1
+        with:
+          version: ">= 363.0.0"
+
+      - name: Install kubectl
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y kubectl
+
+      - name: Set up kubectl
+        run: |
+          gcloud container clusters get-credentials\
+            ${{ steps.import_secrets.outputs.GKE_CLUSTER_NAME }}\
+            --zone ${{ steps.import_secrets.outputs.GKE_CLUSTER_ZONE }}
+          kubectl config set-context --current --namespace=website
+
+      - name: Sync databases
+        run: |
+          ./scripts/sync.sh ${{ inputs.environment }}
