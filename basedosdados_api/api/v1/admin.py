@@ -198,16 +198,10 @@ class CoverageTableInline(admin.StackedInline):
     readonly_fields = [
         "id",
         "area",
-        # "table",
     ]
     inlines = [
         DateTimeRangeInline,
     ]
-    # template = "admin/edit_inline/custom_coverage_model_inline.html"
-    # inlines = [
-    #     TableCoverageFilter,
-    # ]
-    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
 
 
 ################################################################################
@@ -494,7 +488,6 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
 
     related_objects.short_description = "Tables"
 
-    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
     readonly_fields = [
         "id",
         "full_slug",
@@ -680,7 +673,6 @@ class ColumnAdmin(TabbedTranslationAdmin):
     list_filter = [
         "table__dataset__organization__name",
     ]
-    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
 
 
 class ObservationLevelAdmin(admin.ModelAdmin):
@@ -722,7 +714,6 @@ class RawDataSourceAdmin(TabbedTranslationAdmin):
         "languages",
         "area_ip_address_required",
     ]
-    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
 
 
 class InformationRequestAdmin(TabbedTranslationAdmin):
@@ -732,7 +723,6 @@ class InformationRequestAdmin(TabbedTranslationAdmin):
     autocomplete_fields = [
         "dataset",
     ]
-    # formfield_overrides = {models.TextField: {"widget": AdminMartorWidget}}
 
 
 class CoverageTypeAdminFilter(admin.SimpleListFilter):

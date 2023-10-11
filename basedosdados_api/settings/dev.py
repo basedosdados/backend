@@ -6,8 +6,6 @@ from basedosdados_api.logger import setup_logger
 from basedosdados_api.settings.base import *  # noqa
 from basedosdados_api.utils import getenv
 
-INSTALLED_APPS += ["django_extensions"]  # noqa: F405
-
 # CSRF
 # https://docs.djangoproject.com/en/4.2/ref/csrf/
 # https://docs.djangoproject.com/en/4.2/ref/settings/#std-setting-CSRF_TRUSTED_ORIGINS
