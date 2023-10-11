@@ -55,6 +55,7 @@ jobs:
 
       - name: Set up kubectl
         run: |
+          gcloud components install gke-gcloud-auth-plugin
           gcloud container clusters get-credentials\
             ${{ steps.import_secrets.outputs.GKE_CLUSTER_NAME }}\
             --zone ${{ steps.import_secrets.outputs.GKE_CLUSTER_ZONE }}
