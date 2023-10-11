@@ -50,4 +50,8 @@ GS_SERVICE_ACCOUNT = getenv("GCP_SA")
 GS_CREDENTIALS = service_account.Credentials.from_service_account_info(loads(GS_SERVICE_ACCOUNT))
 GS_BUCKET_NAME = getenv("GCP_BUCKET_NAME")
 GS_EXPIRATION = timedelta(seconds=604800)
-DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
+    }
+}
