@@ -275,9 +275,15 @@ def id_resolver(self, *_):
 
 
 def generate_filter_fields(model: BdmModel):
-    exempted_field_types = (models.ImageField,)
     exempted_field_names = ("_field_status",)
-    string_field_types = (models.CharField, models.TextField)
+    exempted_field_types = (
+        models.ImageField,
+        models.JSONField,
+    )
+    string_field_types = (
+        models.CharField,
+        models.TextField,
+    )
     comparable_field_types = (
         models.BigIntegerField,
         models.IntegerField,
@@ -320,6 +326,7 @@ def generate_filter_fields(model: BdmModel):
         for field in model_fields:
             if (
                 isinstance(field, exempted_field_types)
+                or "djstripe" in field.name
                 or field.name in exempted_field_names
                 or model.__module__.startswith("django")
             ):
