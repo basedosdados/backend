@@ -41,7 +41,6 @@ def render_robots():
 urlpatterns = [
     re_path(r"^healthcheck/", include("health_check.urls")),
     path("admin/", admin.site.urls),
-    path("martor/", include("martor.urls")),
     path("account/", include("basedosdados_api.account.urls")),
     path("api/", redirect_to_v1, name="api"),
     path("api/v1/", redirect_to_v1_graphql),

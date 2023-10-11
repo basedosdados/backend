@@ -38,22 +38,24 @@ CORS_ORIGIN_ALLOW_ALL = True
 # Application definition
 
 INSTALLED_APPS = [
-    "modeltranslation",
     "jazzmin",
-    "martor",
+    "modeltranslation",
+    #
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "corsheaders",
-    "graphene_django",
-    "haystack",
     "health_check",
     "health_check.db",
+    #
+    "corsheaders",
+    "haystack",
+    "graphene_django",
     "ordered_model",
     "huey.contrib.djhuey",
+    # Apps
     "basedosdados_api.account",
     "basedosdados_api.core",
     "basedosdados_api.api.v1",
@@ -280,128 +282,6 @@ JAZZMIN_UI_TWEAKS = {
     },
     "actions_sticky_top": True,
 }
-
-
-MARTOR_THEME = "bootstrap"
-MARTOR_ENABLE_CONFIGS = {
-    "emoji": "true",  # to enable/disable emoji icons.
-    "imgur": "false",  # to enable/disable imgur/custom uploader.
-    "mention": "false",  # to enable/disable mention
-    "jquery": "true",  # to include/revoke jquery (require for admin default django)
-    "living": "false",  # to enable/disable live updates in preview
-    "spellcheck": "false",  # to enable/disable spellcheck in form textareas
-    "hljs": "true",  # to enable/disable hljs highlighting in preview
-}
-MARTOR_TOOLBAR_BUTTONS = [
-    "bold",
-    "italic",
-    "horizontal",
-    "heading",
-    "pre-code",
-    "blockquote",
-    "unordered-list",
-    "ordered-list",
-    "link",
-    "image-link",
-    "image-upload",
-    "emoji",
-    "direct-mention",
-    "toggle-maximize",
-    "help",
-]
-MARTOR_MARKDOWNIFY_FUNCTION = "martor.utils.markdownify"  # default
-MARTOR_MARKDOWNIFY_URL = "/martor/markdownify/"  # default
-MARTOR_MARKDOWN_EXTENSIONS = [
-    "markdown.extensions.extra",
-    "markdown.extensions.nl2br",
-    "markdown.extensions.smarty",
-    "markdown.extensions.fenced_code",
-    # Custom markdown extensions.
-    "martor.extensions.urlize",
-    "martor.extensions.del_ins",  # ~~strikethrough~~ and ++underscores++
-    "martor.extensions.mention",  # to parse markdown mention
-    "martor.extensions.emoji",  # to parse markdown emoji
-    "martor.extensions.mdx_video",  # to parse embed/iframe video
-    "martor.extensions.escape_html",  # to handle the XSS vulnerabilities
-]
-MARTOR_MARKDOWN_EXTENSION_CONFIGS = {}
-MARTOR_UPLOAD_URL = ""  # Completely disable the endpoint
-MARTOR_SEARCH_USERS_URL = ""  # Completely disables the endpoint
-MARTOR_MARKDOWN_BASE_EMOJI_URL = (
-    "https://github.githubassets.com/images/icons/emoji/"  # default from github
-)
-ALLOWED_HTML_TAGS = [
-    "a",
-    "abbr",
-    "b",
-    "blockquote",
-    "br",
-    "cite",
-    "code",
-    "command",
-    "dd",
-    "del",
-    "dl",
-    "dt",
-    "em",
-    "fieldset",
-    "h1",
-    "h2",
-    "h3",
-    "h4",
-    "h5",
-    "h6",
-    "hr",
-    "i",
-    "iframe",
-    "img",
-    "input",
-    "ins",
-    "kbd",
-    "label",
-    "legend",
-    "li",
-    "ol",
-    "optgroup",
-    "option",
-    "p",
-    "pre",
-    "small",
-    "span",
-    "strong",
-    "sub",
-    "sup",
-    "table",
-    "tbody",
-    "td",
-    "tfoot",
-    "th",
-    "thead",
-    "tr",
-    "u",
-    "ul",
-]
-
-# https://github.com/decal/werdlists/blob/master/html-words/html-attributes-list.txt
-ALLOWED_HTML_ATTRIBUTES = [
-    "alt",
-    "class",
-    "color",
-    "colspan",
-    "datetime",  # "data",
-    "height",
-    "href",
-    "id",
-    "name",
-    "reversed",
-    "rowspan",
-    "scope",
-    "src",
-    "style",
-    "title",
-    "type",
-    "width",
-]
 
 CSRF_COOKIE_HTTPONLY = False
 
