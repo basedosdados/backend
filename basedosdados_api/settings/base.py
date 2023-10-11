@@ -44,18 +44,17 @@ INSTALLED_APPS = [
     "health_check",
     "health_check.db",
     #
-    "djstripe",
     "corsheaders",
+    "ordered_model",
     "haystack",
     "graphene_django",
-    "ordered_model",
     "huey.contrib.djhuey",
     # Apps
     "basedosdados_api.account",
     "basedosdados_api.core",
     "basedosdados_api.api.v1",
     "basedosdados_api.schemas",
-    "basedosdados_api.payments",
+    "basedosdados_api.payments.apps.PaymentsConfig",
 ]
 
 MIDDLEWARE = [
