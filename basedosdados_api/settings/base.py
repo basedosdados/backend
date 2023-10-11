@@ -25,12 +25,6 @@ STATIC_ROOT = BASE_DIR / "static"
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-h@^ve4439x+m8mzd7ii(l%offc65@g-t0dtb7m$(z1j2u_wzav"
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
 ALLOWED_HOSTS = ["*"]
 CORS_ORIGIN_ALLOW_ALL = True
 
@@ -50,6 +44,7 @@ INSTALLED_APPS = [
     "health_check",
     "health_check.db",
     #
+    "djstripe",
     "corsheaders",
     "haystack",
     "graphene_django",
@@ -60,6 +55,7 @@ INSTALLED_APPS = [
     "basedosdados_api.core",
     "basedosdados_api.api.v1",
     "basedosdados_api.schemas",
+    "basedosdados_api.payments",
 ]
 
 MIDDLEWARE = [
@@ -124,7 +120,6 @@ TIME_ZONE = "America/Sao_Paulo"
 USE_I18N = True
 
 USE_TZ = True
-
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
