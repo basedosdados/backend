@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
-from django.apps import AppConfig
+from djstripe.apps import DjstripeAppConfig
 
 
-class PaymentsConfig(AppConfig):
-    name = "basedosdados_api.payments"
-    app_label = "payments"
+class PaymentsConfig(DjstripeAppConfig):
+    verbose_name = "Stripe"
