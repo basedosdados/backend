@@ -3,9 +3,7 @@ from django import forms
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseAccountAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
-from django.db import models
 from faker import Faker
-from martor.widgets import AdminMartorWidget
 
 from basedosdados_api.account.models import Account, BDGroup, BDGroupRole, BDRole, Career
 
@@ -224,9 +222,6 @@ class CareerAdmin(admin.ModelAdmin):
 
 
 class BDGroupAdmin(admin.ModelAdmin):
-    formfield_overrides = {
-        models.TextField: {"widget": AdminMartorWidget},
-    }
     inlines = (BDGroupRoleInline,)
     list_display = ("name", "description")
     search_fields = ("name", "description")

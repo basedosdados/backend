@@ -9,11 +9,23 @@ from basedosdados_api.logger import setup_logger
 from basedosdados_api.settings.base import *  # noqa
 from basedosdados_api.utils import getadmins, getenv
 
+# SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = False
+
+# SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = getenv("DJANGO_SECRET_KEY")
+
+# CSRF
+# https://docs.djangoproject.com/en/4.2/ref/csrf/
+# https://docs.djangoproject.com/en/4.2/ref/settings/#std-setting-CSRF_TRUSTED_ORIGINS
+...
 
 # Admins
 ADMINS = getadmins()
+
+# Static files (CSS, JavaScript, Images)
+# https://docs.djangoproject.com/en/4.1/howto/static-files/
+STATIC_URL = "static/"
 
 # Database
 # https://docs.djangoproject.com/en/4.0/ref/settings/#databases
@@ -50,4 +62,19 @@ GS_SERVICE_ACCOUNT = getenv("GCP_SA")
 GS_CREDENTIALS = service_account.Credentials.from_service_account_info(loads(GS_SERVICE_ACCOUNT))
 GS_BUCKET_NAME = getenv("GCP_BUCKET_NAME")
 GS_EXPIRATION = timedelta(seconds=604800)
-DEFAULT_FILE_STORAGE = "storages.backends.gcloud.GoogleCloudStorage"
+STORAGES = {
+    "default": {
+        "BACKEND": "storages.backends.gcloud.GoogleCloudStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
+# Stripe
+STRIPE_LIVE_SECRET_KEY = getenv("STRIPE_LIVE_SECRET_KEY", "")
+STRIPE_TEST_SECRET_KEY = getenv("STRIPE_TEST_SECRET_KEY", "")
+STRIPE_LIVE_MODE = True
+DJSTRIPE_WEBHOOK_SECRET = getenv("STRIPE_WEBHOOK_SECRET", "")
+DJSTRIPE_USE_NATIVE_JSONFIELD = True
+DJSTRIPE_FOREIGN_KEY_TO_FIELD = "id"

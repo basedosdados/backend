@@ -6,13 +6,19 @@ from basedosdados_api.logger import setup_logger
 from basedosdados_api.settings.base import *  # noqa
 from basedosdados_api.utils import getenv
 
-INSTALLED_APPS += ["django_extensions"]  # noqa: F405
+# SECURITY WARNING: don't run with debug turned on in production!
+DEBUG = True
+
+# SECURITY WARNING: keep the secret key used in production secret!
+SECRET_KEY = "django-insecure-h@^ve4439x+m8mzd7ii(l%offc65@g-t0dtb7m$(z1j2u_wzav"
 
 # CSRF
 # https://docs.djangoproject.com/en/4.2/ref/csrf/
 # https://docs.djangoproject.com/en/4.2/ref/settings/#std-setting-CSRF_TRUSTED_ORIGINS
 CSRF_TRUSTED_ORIGINS = ["http://localhost:8080"]
 
+# Admins
+ADMINS = []
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
@@ -45,3 +51,14 @@ setup_logger(level="DEBUG", serialize=False)
 
 # Google Application Credentials
 GOOGLE_APPLICATION_CREDENTIALS = getenv("GOOGLE_APPLICATION_CREDENTIALS", "")
+
+# Google Cloud Storage
+...
+
+# Stripe
+STRIPE_LIVE_SECRET_KEY = getenv("STRIPE_LIVE_SECRET_KEY", "")
+STRIPE_TEST_SECRET_KEY = getenv("STRIPE_TEST_SECRET_KEY", "")
+STRIPE_LIVE_MODE = True
+DJSTRIPE_WEBHOOK_SECRET = getenv("STRIPE_WEBHOOK_SECRET", "")
+DJSTRIPE_USE_NATIVE_JSONFIELD = True
+DJSTRIPE_FOREIGN_KEY_TO_FIELD = "id"

@@ -11,10 +11,7 @@ from django.contrib.auth.models import (
     Permission,
     PermissionsMixin,
 )
-from django.core.mail import send_mail
 from django.db import models
-from django.db.models import DateTimeField, F, Q
-from django.db.models.functions import Coalesce
 
 from basedosdados_api.account.storage import OverwriteStorage
 from basedosdados_api.api.v1.validators import validate_is_valid_image_format
@@ -22,14 +19,28 @@ from basedosdados_api.custom.model import BdmModel
 
 
 def image_path_and_rename(instance, filename):
-    """
-    Rename file to be the username
-    """
+    """Rename file to be the username"""
     upload_to = instance.__class__.__name__.lower()
     ext = filename.split(".")[-1]
-    # get filename
     filename = f"{instance.username}.{ext}"
     return os.path.join(upload_to, filename)
+
+
+def split_password(password: str) -> Tuple[str, str, str, str]:
+    """Split a password into four parts: algorithm, iterations, salt, and hash"""
+    algorithm, iterations, salt, hash = password.split("$", 3)
+    return algorithm, iterations, salt, hash
+
+
+def is_valid_encoded_password(password: str) -> bool:
+    """Check if a password is valid"""
+    double_encoded = make_password(password)
+    try:
+        target_algorithm, target_iterations, _, _ = split_password(double_encoded)
+        algorithm, iterations, _, _ = split_password(password)
+    except ValueError:
+        return False
+    return algorithm == target_algorithm and iterations == target_iterations
 
 
 class RegistrationToken(BdmModel):
@@ -292,6 +303,10 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
         verbose_name_plural = "accounts"
         ordering = ["first_name", "last_name"]
 
+    @property
+    def is_staff(self):
+        return self.is_admin
+
     def __str__(self):
         return self.email
 
@@ -310,50 +325,6 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
 
     get_organization.short_description = "organização"
 
-    def get_graphql_is_active_staff(self) -> bool:
-        query = (
-            self.careers.annotate(
-                transition_at=Coalesce(F("start_at"), F("end_at"), output_field=DateTimeField())
-            )
-            .filter(Q(start_at__isnull=False) | Q(end_at__isnull=False))
-            .order_by("transition_at")
-        )
-        if len(query.all()) > 0 and query.last().end_at is None:
-            return True
-        return False
-
-    @property
-    def is_staff(self):
-        return self.is_admin
-
-    def email_user(self, *args, **kwargs):
-        send_mail(
-            "{}".format(args[0]),
-            "{}".format(args[1]),
-            "{}".format(args[2]),
-            [self.email],
-            fail_silently=False,
-        )
-
-    def split_password(self, password: str) -> Tuple[str, str, str, str]:
-        """
-        Split a password into four parts: algorithm, iterations, salt, and hash.
-        """
-        algorithm, iterations, salt, hash = password.split("$", 3)
-        return algorithm, iterations, salt, hash
-
-    def is_valid_encoded_password(self, password: str) -> bool:
-        """
-        Check if a password is valid.
-        """
-        double_encoded = make_password(password)
-        try:
-            target_algorithm, target_iterations, _, _ = self.split_password(double_encoded)
-            algorithm, iterations, _, _ = self.split_password(password)
-        except ValueError:
-            return False
-        return algorithm == target_algorithm and iterations == target_iterations
-
     def save(self, *args, **kwargs) -> None:
         # If self._password is set and check_password(self._password, self.password) is True, then
         # just save the model without changing the password.
@@ -362,7 +333,7 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
             return
         # If self._password is not set, we're probably not trying to modify the password, so if
         # self.password is valid, just save the model without changing the password.
-        elif self.is_valid_encoded_password(self.password):
+        elif is_valid_encoded_password(self.password):
             super().save(*args, **kwargs)
             return
         # If self.password is not usable, then we're probably trying to set self.password as the

@@ -41,10 +41,14 @@ def empty():
 
 
 class Command(DumpDataCommand):
-    """Dump data, limiting account profiles"""
+    """Dump data, avoiding profiles and payments"""
 
     def handle(self, *args, **options) -> str | None:
         print("Dump fixtures")
+        options["exclude"] = [
+            "djstripe",
+            *options["exclude"],
+        ]
         response = super().handle(*args, **options)
 
         print("Filter fixtures")

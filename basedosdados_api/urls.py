@@ -17,21 +17,10 @@ Including another URLconf
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.http import HttpResponseRedirect
 from django.urls import include, path, re_path
-from django.views.decorators.csrf import csrf_exempt
 from django.views.generic.base import TemplateView
-from graphene_file_upload.django import FileUploadGraphQLView
 
 from basedosdados_api.api.v1.views import DatasetESSearchView
-
-
-def redirect_to_v1(request):
-    return HttpResponseRedirect("/api/v1/")
-
-
-def redirect_to_v1_graphql(request):
-    return HttpResponseRedirect("/api/v1/graphql")
 
 
 def render_robots():
@@ -39,20 +28,18 @@ def render_robots():
 
 
 urlpatterns = [
+    # Meta
+    path("robots.txt", render_robots()),
     re_path(r"^healthcheck/", include("health_check.urls")),
+    # Admin
     path("admin/", admin.site.urls),
-    path("martor/", include("martor.urls")),
-    path("account/", include("basedosdados_api.account.urls")),
-    path("api/", redirect_to_v1, name="api"),
-    path("api/v1/", redirect_to_v1_graphql),
-    path(
-        "api/v1/graphql",
-        csrf_exempt(FileUploadGraphQLView.as_view(graphiql=True)),
-    ),
-    path("schemas/", include("basedosdados_api.schemas.urls")),
+    # Applications
     path("", include("basedosdados_api.core.urls")),
+    path("account/", include("basedosdados_api.account.urls")),
+    path("api/", include("basedosdados_api.api.v1.urls")),
+    path("schemas/", include("basedosdados_api.schemas.urls")),
     path("search/", DatasetESSearchView.as_view()),
     path("search/debug/", include("haystack.urls")),
-    path("robots.txt", render_robots()),
+    path("payments/", include("basedosdados_api.payments.urls")),
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
