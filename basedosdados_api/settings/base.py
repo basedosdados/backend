@@ -286,7 +286,7 @@ HUEY = {
     "results": True,
     "immediate": False,
     "connection": {
-        "host": getenv("REDIS_HOST", "localhost"),
+        "host": getenv("REDIS_HOST", "queue"),
         "port": getenv("REDIS_PORT", 6379),
         "db": getenv("REDIS_DB", 1),
         "read_timeout": 1,
