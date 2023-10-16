@@ -229,7 +229,7 @@ def update_table_metadata(modeladmin=None, request=None, queryset: QuerySet = No
         """Get number of rows from big query"""
 
         if bq_table.num_rows:
-            return bq_table.num_rows
+            return bq_table.num_rows or None
 
         if bq_table.table_type == "VIEW":
             try:
@@ -239,7 +239,7 @@ def update_table_metadata(modeladmin=None, request=None, queryset: QuerySet = No
                 """
                 number_rows = read_gbq(query)
                 number_rows = number_rows.loc[0, "n_rows"]
-                return number_rows
+                return number_rows or None
             except Exception as e:
                 logger.warning(e)
 
