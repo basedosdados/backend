@@ -88,5 +88,5 @@ spec:
           secret:
             secretName: api-{{ .Values.environment }}-secrets
             items:
-              - key: GOOGLE_APPLICATION_CREDENTIALS
+              - key: GCP_SA
                 path: gcp-sa.json
