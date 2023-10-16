@@ -225,6 +225,44 @@ def get_credentials():
 def update_table_metadata(modeladmin=None, request=None, queryset: QuerySet = None):
     """Update the metadata of selected tables in the database"""
 
+    def get_number_of_rows(table, bq_table):
+        """Get number of rows from big query"""
+
+        if bq_table.num_rows:
+            return bq_table.num_rows
+
+        if bq_table.table_type == "VIEW":
+            try:
+                query = f"""
+                    SELECT COUNT(1) AS n_rows
+                    FROM `{table.db_slug}`
+                """
+                number_rows = read_gbq(query)
+                number_rows = number_rows.loc[0, "n_rows"]
+                return number_rows
+            except Exception as e:
+                logger.warning(e)
+
+    def get_number_of_columns(table, bq_table):
+        """Get number of columns from big query"""
+
+        return len(bq_table.schema or [])
+
+    def get_uncompressed_file_size(table, bq_table):
+        """Get file size in bytes from big query or storage"""
+
+        if bq_table.num_bytes:
+            return bq_table.num_bytes
+
+        if bq_table.table_type == "VIEW":
+            try:
+                file_size = 0
+                folder_prefix = f"staging/{table.dataset.db_slug}/{table.db_slug}"
+                for blob in bucket.list_blobs(prefix=folder_prefix):
+                    file_size += blob.size
+            except Exception as e:
+                logger.warning(e)
+
     creds = get_credentials()
     bq_client = GBQClient(credentials=creds)
     cs_client = GCSClient(credentials=creds)
@@ -247,23 +285,9 @@ def update_table_metadata(modeladmin=None, request=None, queryset: QuerySet = No
     for table in tables:
         try:
             bq_table = bq_client.get_table(table.db_slug)
-            table.number_rows = bq_table.num_rows or None
-            table.number_columns = len(bq_table.schema) or None
-            table.uncompressed_file_size = bq_table.num_bytes or None
-            if bq_table.table_type == "VIEW":
-                # Get number of rows from big query
-                table.number_rows = read_gbq(
-                    """
-                    SELECT COUNT(1) AS n_rows
-                    FROM `{table.db_slug}`
-                """
-                ).loc[0, "n_rows"]
-                # Get file size in bytes from storage
-                file_size = 0
-                folder_prefix = f"staging/{table.dataset.db_slug}/{table.db_slug}"
-                for blob in bucket.list_blobs(prefix=folder_prefix):
-                    file_size += blob.size
-                table.uncompressed_file_size = file_size
+            table.number_rows = get_number_of_rows(table, bq_table)
+            table.number_columns = get_number_of_columns(table, bq_table)
+            table.uncompressed_file_size = get_uncompressed_file_size(table, bq_table)
             table.save()
         except (BadRequest, NotFound, ValueError) as e:
             logger.warning(e)
