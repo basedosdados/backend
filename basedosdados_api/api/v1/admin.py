@@ -229,7 +229,7 @@ def update_table_metadata(modeladmin=None, request=None, queryset: QuerySet = No
     bq_client = GBQClient(credentials=creds)
     cs_client = GCSClient(credentials=creds)
 
-    bucket_name = "basedosdados"
+    bucket_name = "basedosdados-dev"
     bucket = cs_client.get_bucket(bucket_name)
 
     tables: list[Table] = []
