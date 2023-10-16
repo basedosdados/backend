@@ -30,6 +30,10 @@ spec:
         - name: basedosdados-api
           image: "{{ .Values.api.image.name }}:{{ .Values.api.image.tag }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          volumeMounts:
+            - mountPath: /var/secrets/
+              name: gcp-sa
+              readOnly: true
           ports:
             - name: http
               containerPort: 80
@@ -79,3 +83,10 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 5
             successThreshold: 1
+      volumes:
+        - name: gcp-sa
+          secret:
+            secretName: api-{{ .Values.environment }}-secrets
+            items:
+              - key: GCP_SA
+                path: gcp-sa.json

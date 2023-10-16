@@ -51,6 +51,7 @@ jobs:
       - name: Write values.yaml file
         run: |
           cat << EOF > values.yaml
+          environment: "prod"
           api:
             name: "api-prod"
             image:

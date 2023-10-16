@@ -51,6 +51,7 @@ jobs:
       - name: Write values.yaml file
         run: |
           cat << EOF > values.yaml
+          environment: "staging"
           api:
             name: "api-staging"
             image:
