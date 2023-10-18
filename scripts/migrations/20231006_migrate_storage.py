@@ -10,7 +10,7 @@ bucket_name = getenv("BUCKET_NAME")
 source_path = Path(getenv("SOURCE_PATH", "."))
 
 url_prefix = "https://basedosdados-static.s3.us-east-2.amazonaws.com/"
-url_prefix_exp = r'(https:\/\/basedosdados-static\.s3\.us-east-2\.amazonaws\.com\/[^"]*)'
+url_prefix_exp = r'(https:\/\/basedosdados-static\.s3\.us-east-2\.amazonaws\.com\/[^\\" ]*)'
 
 
 def run():
