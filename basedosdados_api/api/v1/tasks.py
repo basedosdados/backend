@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from huey import crontab
 from huey.contrib.djhuey import periodic_task
-from loguru import logger
 
 from basedosdados_api.api.v1.admin import update_table_metadata
 from basedosdados_api.logger import setup_logger
@@ -13,8 +12,8 @@ setup_logger(level=level, serialize=serialize)
 
 
 @periodic_task(crontab(minute="*/10"))
-def every_ten_mins_task():
-    logger.info("Am I alive between these periods?")
+def healthcheck_task():
+    ...
 
 
 @prod_task
