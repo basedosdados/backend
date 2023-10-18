@@ -10,7 +10,35 @@ bucket_name = getenv("BUCKET_NAME")
 source_path = Path(getenv("SOURCE_PATH", "."))
 
 url_prefix = "https://basedosdados-static.s3.us-east-2.amazonaws.com/"
-url_prefix_exp = r'(https:\/\/basedosdados-static\.s3\.us-east-2\.amazonaws\.com\/[^"]*)'
+url_prefix_exp = r'(https:\/\/basedosdados-static\.s3\.us-east-2\.amazonaws\.com\/[^\\" ]*)'
+
+icon_url = (
+    "https://basedosdados-static.s3.us-east-2.amazonaws.com/category_icons/2022/icone_${icon}.svg"
+)
+icon_themes = [
+    "agropecuaria",
+    "ciencia-tec-inov",
+    "comunicacao",
+    "cultura-arte",
+    "diversidade",
+    "economia",
+    "educacao",
+    "energia",
+    "esportes",
+    "gov-fin-pub",
+    "historia",
+    "infra-transp",
+    "justica",
+    "meio-ambiente",
+    "politica",
+    "populacao",
+    "religiao",
+    "saude",
+    "seguranca",
+    "territorio",
+    "turismo",
+    "urbanizacao",
+]
 
 
 def run():
@@ -39,6 +67,12 @@ def run():
             urlpath = url.replace(url_prefix, "").lower()
             filepath = Path(".").resolve() / ".blobs" / urlpath
             download_and_upload(url, urlpath, filepath)
+
+    for icon_theme in icon_themes:
+        url = icon_url.replace("${icon}", icon_theme)
+        urlpath = url.replace(url_prefix, "").lower()
+        filepath = Path(".").resolve() / ".blobs" / urlpath
+        download_and_upload(url, urlpath, filepath)
 
 
 if __name__ == "__main__":
