@@ -93,7 +93,7 @@ def get_package_model(name_or_id):
 
 
 def build_areas_from_json():
-    with open("./basedosdados_api/schemas/repository/bd_spatial_coverage_tree.json") as f:
+    with open("./bd_api/schemas/repository/bd_spatial_coverage_tree.json") as f:
         area = json.load(f)
 
     return area.get("result")
