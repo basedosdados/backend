@@ -6,8 +6,8 @@ import uuid
 
 import pytest
 
-from app.account.models import Account
-from app.api.v1.models import (
+from app.apps.account.models import Account
+from app.apps.api.v1.models import (
     Analysis,
     AnalysisType,
     Area,

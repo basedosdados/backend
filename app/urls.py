@@ -20,7 +20,7 @@ from django.contrib import admin
 from django.urls import include, path, re_path
 from django.views.generic.base import TemplateView
 
-from app.api.v1.views import DatasetESSearchView
+from app.apps.api.v1.views import DatasetESSearchView
 
 
 def render_robots():
@@ -34,12 +34,12 @@ urlpatterns = [
     # Admin
     path("admin/", admin.site.urls),
     # Applications
-    path("", include("app.core.urls")),
-    path("account/", include("app.account.urls")),
-    path("api/", include("app.api.v1.urls")),
-    path("schemas/", include("app.schemas.urls")),
+    path("", include("app.apps.core.urls")),
+    path("account/", include("app.apps.account.urls")),
+    path("api/", include("app.apps.api.v1.urls")),
+    path("schemas/", include("app.apps.schemas.urls")),
     path("search/", DatasetESSearchView.as_view()),
     path("search/debug/", include("haystack.urls")),
-    path("payments/", include("app.payments.urls")),
+    path("payments/", include("app.apps.payments.urls")),
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
