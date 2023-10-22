@@ -756,9 +756,9 @@ class ObservationLevelAdmin(admin.ModelAdmin):
 
 
 class RawDataSourceAdmin(TabbedTranslationAdmin):
-    readonly_fields = ["id", "created_at", "updated_at"]
     list_display = ["name", "dataset", "created_at", "updated_at"]
     search_fields = ["name", "dataset__name"]
+    readonly_fields = ["id", "created_at", "updated_at"]
     autocomplete_fields = [
         "dataset",
         "languages",
@@ -770,12 +770,11 @@ class RawDataSourceAdmin(TabbedTranslationAdmin):
 
 
 class InformationRequestAdmin(TabbedTranslationAdmin):
-    readonly_fields = ["id", "created_at", "updated_at"]
     list_display = ["__str__", "dataset", "created_at", "updated_at"]
     search_fields = ["__str__", "dataset__name"]
-    autocomplete_fields = [
-        "dataset",
-    ]
+    readonly_fields = ["id", "created_at", "updated_at"]
+    autocomplete_fields = ["dataset"]
+    inlines = [ObservationLevelInline]
 
 
 class CoverageTypeAdminFilter(admin.SimpleListFilter):
