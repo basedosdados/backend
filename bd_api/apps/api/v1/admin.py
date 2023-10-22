@@ -25,12 +25,14 @@ from bd_api.apps.api.v1.filters import (
     TableObservationFilter,
 )
 from bd_api.apps.api.v1.forms import (
+    CloudTableForm,
     ColumnInlineForm,
     CoverageInlineForm,
     ObservationLevelForm,
     ReorderColumnsForm,
     ReorderTablesForm,
     TableInlineForm,
+    UpdateForm,
 )
 from bd_api.apps.api.v1.models import (
     Analysis,
@@ -67,24 +69,11 @@ from bd_api.apps.api.v1.models import (
 ################################################################################
 
 
-class TranslateOrderedInline(OrderedStackedInline, TranslationStackedInline):
+class OrderedTranslatedInline(OrderedStackedInline, TranslationStackedInline):
     pass
 
 
-class ObservationLevelInline(admin.StackedInline):
-    model = ObservationLevel
-    form = ObservationLevelForm
-    extra = 0
-    fields = [
-        "id",
-        "entity",
-    ]
-    autocomplete_fields = [
-        "entity",
-    ]
-
-
-class ColumnInline(TranslateOrderedInline):
+class ColumnInline(OrderedTranslatedInline):
     model = Column
     form = ColumnInlineForm
     extra = 0
@@ -117,7 +106,32 @@ class ColumnInline(TranslateOrderedInline):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
-class TableInline(TranslateOrderedInline):
+class CloudTableInline(admin.StackedInline):
+    model = CloudTable
+    form = CloudTableForm
+    extra = 0
+    fields = [
+        "id",
+        "gcp_project_id",
+        "gcp_dataset_id",
+        "gcp_table_id",
+    ]
+
+
+class ObservationLevelInline(admin.StackedInline):
+    model = ObservationLevel
+    form = ObservationLevelForm
+    extra = 0
+    fields = [
+        "id",
+        "entity",
+    ]
+    autocomplete_fields = [
+        "entity",
+    ]
+
+
+class TableInline(OrderedTranslatedInline):
     model = Table
     form = TableInlineForm
     extra = 0
@@ -135,7 +149,7 @@ class TableInline(TranslateOrderedInline):
     ]
 
 
-class RawDataSourceInline(TranslateOrderedInline):
+class RawDataSourceInline(OrderedTranslatedInline):
     model = RawDataSource
     extra = 0
     show_change_link = True
@@ -156,7 +170,7 @@ class RawDataSourceInline(TranslateOrderedInline):
     ]
 
 
-class InformationRequestInline(TranslateOrderedInline):
+class InformationRequestInline(OrderedTranslatedInline):
     model = InformationRequest
     extra = 0
     show_change_link = True
@@ -201,6 +215,19 @@ class CoverageTableInline(admin.StackedInline):
     ]
     inlines = [
         DateTimeRangeInline,
+    ]
+
+
+class UpdateInline(admin.StackedInline):
+    model = Update
+    form = UpdateForm
+    extra = 0
+    fields = [
+        "id",
+        "entity",
+        "lag",
+        "latest",
+        "frequency",
     ]
 
 
@@ -549,7 +576,9 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     ]
     inlines = [
         ColumnInline,
+        CloudTableInline,
         ObservationLevelInline,
+        UpdateInline,
     ]
     readonly_fields = [
         "id",
