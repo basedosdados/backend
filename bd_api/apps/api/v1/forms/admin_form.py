@@ -1,5 +1,13 @@
 # -*- coding: utf-8 -*-
-from bd_api.apps.api.v1.models import Column, Coverage, ObservationLevel, Table, UUIDHIddenIdForm
+from bd_api.apps.api.v1.models import (
+    CloudTable,
+    Column,
+    Coverage,
+    ObservationLevel,
+    Table,
+    Update,
+    UUIDHIddenIdForm,
+)
 
 
 class TableInlineForm(UUIDHIddenIdForm):
@@ -56,6 +64,12 @@ class ColumnInlineForm(UUIDHIddenIdForm):
         ]
 
 
+class CloudTableForm(UUIDHIddenIdForm):
+    class Meta(UUIDHIddenIdForm.Meta):
+        model = CloudTable
+        fields = "__all__"
+
+
 class ObservationLevelForm(UUIDHIddenIdForm):
     class Meta(UUIDHIddenIdForm.Meta):
         model = ObservationLevel
@@ -70,3 +84,9 @@ class CoverageInlineForm(UUIDHIddenIdForm):
             "area",
             "table",
         ]
+
+
+class UpdateForm(UUIDHIddenIdForm):
+    class Meta(UUIDHIddenIdForm.Meta):
+        model = Update
+        fields = "__all__"

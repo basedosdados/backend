@@ -25,12 +25,14 @@ from bd_api.apps.api.v1.filters import (
     TableObservationFilter,
 )
 from bd_api.apps.api.v1.forms import (
+    CloudTableForm,
     ColumnInlineForm,
     CoverageInlineForm,
     ObservationLevelForm,
     ReorderColumnsForm,
     ReorderTablesForm,
     TableInlineForm,
+    UpdateForm,
 )
 from bd_api.apps.api.v1.models import (
     Analysis,
@@ -71,19 +73,6 @@ class OrderedTranslatedInline(OrderedStackedInline, TranslationStackedInline):
     pass
 
 
-class ObservationLevelInline(admin.StackedInline):
-    model = ObservationLevel
-    form = ObservationLevelForm
-    extra = 0
-    fields = [
-        "id",
-        "entity",
-    ]
-    autocomplete_fields = [
-        "entity",
-    ]
-
-
 class ColumnInline(OrderedTranslatedInline):
     model = Column
     form = ColumnInlineForm
@@ -115,6 +104,31 @@ class ColumnInline(OrderedTranslatedInline):
         if db_field.name == "observation_level":
             kwargs["queryset"] = ObservationLevel.objects.filter(table=self.parent_inline_obj)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+
+class CloudTableInline(admin.StackedInline):
+    model = CloudTable
+    form = CloudTableForm
+    extra = 0
+    fields = [
+        "id",
+        "gcp_project_id",
+        "gcp_dataset_id",
+        "gcp_table_id",
+    ]
+
+
+class ObservationLevelInline(admin.StackedInline):
+    model = ObservationLevel
+    form = ObservationLevelForm
+    extra = 0
+    fields = [
+        "id",
+        "entity",
+    ]
+    autocomplete_fields = [
+        "entity",
+    ]
 
 
 class TableInline(OrderedTranslatedInline):
@@ -201,6 +215,19 @@ class CoverageTableInline(admin.StackedInline):
     ]
     inlines = [
         DateTimeRangeInline,
+    ]
+
+
+class UpdateInline(admin.StackedInline):
+    model = Update
+    form = UpdateForm
+    extra = 0
+    fields = [
+        "id",
+        "entity",
+        "lag",
+        "latest",
+        "frequency",
     ]
 
 
@@ -549,7 +576,9 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     ]
     inlines = [
         ColumnInline,
+        CloudTableInline,
         ObservationLevelInline,
+        UpdateInline,
     ]
     readonly_fields = [
         "id",

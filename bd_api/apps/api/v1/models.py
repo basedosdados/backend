@@ -1328,7 +1328,6 @@ class CloudTable(BdmModel):
         return f"{self.gcp_project_id}.{self.gcp_dataset_id}.{self.gcp_table_id}"
 
     def clean(self) -> None:
-        """Clean method for CloudTable model"""
         errors = {}
         if self.gcp_project_id and not check_kebab_case(self.gcp_project_id):
             errors["gcp_project_id"] = "gcp_project_id must be in kebab-case."
