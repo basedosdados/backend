@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "basedosdados-api"
+name = "bd_api"
 version = "0.0.1"
 description = "Base dos Dados API"
 authors = ["Gabriel Gazola Milan <gabriel.gazola@poli.ufrj.br>", "Guilherme Peres <contact@gperes.dev>"]

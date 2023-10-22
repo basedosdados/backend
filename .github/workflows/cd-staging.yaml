@@ -76,7 +76,7 @@ jobs:
             envFrom:
               - secretRef:
                   name: api-staging-secrets
-            settingsModule: "basedosdados_api.settings.prod"
+            settingsModule: "bd_api.settings.prod"
           database:
             host: "cloud-sql-proxy"
             port: 5432

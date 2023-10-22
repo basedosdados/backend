@@ -247,9 +247,12 @@ fabric.properties
 
 .vscode/
 .DS_Store
-/basedosdados_api/media/
-/basedosdados_api/notebooks/
-/basedosdados_api/staticfiles/
+/bd_api/media/
+/bd_api/notebooks/
+/bd_api/staticfiles/
 
 # Fixture
 fixture.json
+
+# Version manager
+.tool-versions
