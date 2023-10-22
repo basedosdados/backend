@@ -102,7 +102,7 @@ jobs:
             envFrom:
               - secretRef:
                   name: api-development-secrets
-            settingsModule: "app.settings.prod"
+            settingsModule: "app.settings.remote"
           database:
             host: "cloud-sql-proxy"
             port: 5432
