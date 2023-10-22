@@ -165,16 +165,16 @@ class Coverage(BdmModel):
     def __str__(self):  # noqa: D105 pylint: disable=too-many-return-statements
         if self.coverage_type() == "table":
             return f"Table: {self.table} - {self.area}"
+        if self.coverage_type() == "column":
+            return f"Column: {self.column} - {self.area}"
         if self.coverage_type() == "raw_data_source":
             return f"Raw data source: {self.raw_data_source} - {self.area}"
         if self.coverage_type() == "information_request":
             return f"Information request: {self.information_request} - {self.area}"
-        if self.coverage_type() == "column":
-            return f"Column: {self.column} - {self.area}"
         if self.coverage_type() == "key":
             return f"Key: {self.key} - {self.area}"
         if self.coverage_type() == "analysis":
-            return f"Key: {self.key} - {self.area}"
+            return f"Analysis: {self.analysis} - {self.area}"
 
         return str(self.id)
 
