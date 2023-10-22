@@ -35,7 +35,7 @@ api:
     #     name: some-secret
 
   # Django settings module
-  settingsModule: "bd_api.settings.prod"
+  settingsModule: "bd_api.settings.remote"
 
 # Database configuration
 database:
