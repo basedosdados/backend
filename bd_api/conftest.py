@@ -6,8 +6,8 @@ import uuid
 
 import pytest
 
-from bd_api.account.models import Account
-from bd_api.api.v1.models import (
+from bd_api.apps.account.models import Account
+from bd_api.apps.api.v1.models import (
     Analysis,
     AnalysisType,
     Area,

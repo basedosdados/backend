@@ -50,11 +50,11 @@ INSTALLED_APPS = [
     "graphene_django",
     "huey.contrib.djhuey",
     # Apps
-    "bd_api.account",
-    "bd_api.core",
-    "bd_api.api.v1",
-    "bd_api.schemas",
-    "bd_api.payments.apps.PaymentsConfig",
+    "bd_api.apps.account",
+    "bd_api.apps.core",
+    "bd_api.apps.api.v1",
+    "bd_api.apps.schemas",
+    "bd_api.apps.payments.apps.PaymentsConfig",
 ]
 
 MIDDLEWARE = [
@@ -163,7 +163,7 @@ LOGGING = {
 
 # Graphene configurations
 GRAPHENE = {
-    "SCHEMA": "bd_api.api.v1.schema.schema",
+    "SCHEMA": "bd_api.apps.api.v1.schema.schema",
     "MIDDLEWARE": [
         "graphql_jwt.middleware.JSONWebTokenMiddleware",
     ],
@@ -201,7 +201,7 @@ ALLOWED_UPLOAD_IMAGES = ["png"]
 # Haystack
 HAYSTACK_CONNECTIONS = {
     "default": {
-        "ENGINE": "bd_api.api.v1.haystack_engines.AsciifoldingElasticSearchEngine",
+        "ENGINE": "bd_api.apps.api.v1.haystack_engines.AsciifoldingElasticSearchEngine",
         "URL": getenv("ELASTICSEARCH_URL", "http://elasticsearch:9200"),
         "TIMEOUT": 30,
         "INDEX_NAME": getenv("ELASTICSEARCH_INDEX_NAME", "default"),
@@ -214,7 +214,7 @@ HAYSTACK_FUZZY_MIN_SIM = 0.25
 HAYSTACK_ITERATOR_LOAD_PER_QUERY = 200
 HAYSTACK_LIMIT_TO_REGISTERED_MODELS = True
 HAYSTACK_SEARCH_RESULTS_PER_PAGE = 100
-HAYSTACK_SIGNAL_PROCESSOR = "bd_api.api.v1.signals.BDSignalProcessor"
+HAYSTACK_SIGNAL_PROCESSOR = "bd_api.apps.api.v1.signals.BDSignalProcessor"
 
 X_FRAME_OPTIONS = "SAMEORIGIN"
 
