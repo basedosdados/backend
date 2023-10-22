@@ -67,7 +67,7 @@ from bd_api.apps.api.v1.models import (
 ################################################################################
 
 
-class TranslateOrderedInline(OrderedStackedInline, TranslationStackedInline):
+class OrderedTranslatedInline(OrderedStackedInline, TranslationStackedInline):
     pass
 
 
@@ -84,7 +84,7 @@ class ObservationLevelInline(admin.StackedInline):
     ]
 
 
-class ColumnInline(TranslateOrderedInline):
+class ColumnInline(OrderedTranslatedInline):
     model = Column
     form = ColumnInlineForm
     extra = 0
@@ -117,7 +117,7 @@ class ColumnInline(TranslateOrderedInline):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
-class TableInline(TranslateOrderedInline):
+class TableInline(OrderedTranslatedInline):
     model = Table
     form = TableInlineForm
     extra = 0
@@ -135,7 +135,7 @@ class TableInline(TranslateOrderedInline):
     ]
 
 
-class RawDataSourceInline(TranslateOrderedInline):
+class RawDataSourceInline(OrderedTranslatedInline):
     model = RawDataSource
     extra = 0
     show_change_link = True
@@ -156,7 +156,7 @@ class RawDataSourceInline(TranslateOrderedInline):
     ]
 
 
-class InformationRequestInline(TranslateOrderedInline):
+class InformationRequestInline(OrderedTranslatedInline):
     model = InformationRequest
     extra = 0
     show_change_link = True
