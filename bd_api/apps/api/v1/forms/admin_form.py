@@ -82,7 +82,7 @@ class CoverageInlineForm(UUIDHIddenIdForm):
         fields = [
             "id",
             "area",
-            "table",
+            "is_closed",
         ]
 
 

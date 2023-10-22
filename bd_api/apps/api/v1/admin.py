@@ -197,25 +197,11 @@ class DateTimeRangeInline(admin.StackedInline):
     show_change_link = True
 
 
-class CoverageTableInline(admin.StackedInline):
+class CoverageInline(admin.StackedInline):
     model = Coverage
     form = CoverageInlineForm
     extra = 0
     show_change_link = True
-    exclude = [
-        "raw_data_source",
-        "information_request",
-        "column",
-        "key",
-        "analysis",
-    ]
-    readonly_fields = [
-        "id",
-        "area",
-    ]
-    inlines = [
-        DateTimeRangeInline,
-    ]
 
 
 class UpdateInline(admin.StackedInline):
@@ -576,6 +562,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     ]
     inlines = [
         ColumnInline,
+        CoverageInline,
         CloudTableInline,
         ObservationLevelInline,
         UpdateInline,
@@ -726,6 +713,7 @@ class ColumnAdmin(TabbedTranslationAdmin):
     list_filter = [
         "table__dataset__organization__name",
     ]
+    inlines = [CoverageInline]
 
 
 class ObservationLevelAdmin(admin.ModelAdmin):
@@ -767,6 +755,7 @@ class RawDataSourceAdmin(TabbedTranslationAdmin):
         "languages",
         "area_ip_address_required",
     ]
+    inlines = [CoverageInline]
 
 
 class InformationRequestAdmin(TabbedTranslationAdmin):
@@ -774,7 +763,7 @@ class InformationRequestAdmin(TabbedTranslationAdmin):
     search_fields = ["__str__", "dataset__name"]
     readonly_fields = ["id", "created_at", "updated_at"]
     autocomplete_fields = ["dataset"]
-    inlines = [ObservationLevelInline]
+    inlines = [CoverageInline, ObservationLevelInline]
 
 
 class CoverageTypeAdminFilter(admin.SimpleListFilter):
@@ -801,12 +790,6 @@ class CoverageTypeAdminFilter(admin.SimpleListFilter):
             return queryset.filter(information_request__isnull=False)
         if self.value() == "key":
             return queryset.filter(key__isnull=False)
-
-
-class DateTimeRangeInline(admin.StackedInline):
-    model = DateTimeRange
-    extra = 0
-    show_change_link = True
 
 
 class DateTimeRangeAdmin(admin.ModelAdmin):
@@ -1019,6 +1002,7 @@ class KeyAdmin(admin.ModelAdmin):
         "name",
         "value",
     ]
+    inlines = [CoverageInline]
 
 
 class QualityCheckAdmin(TabbedTranslationAdmin):
