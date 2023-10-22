@@ -15,7 +15,7 @@ from datetime import timedelta
 from os import getenv, path
 from pathlib import Path
 
-from bd_api.logger import InterceptHandler
+from bd_api.custom.logger import InterceptHandler
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -49,7 +49,7 @@ INSTALLED_APPS = [
     "haystack",
     "graphene_django",
     "huey.contrib.djhuey",
-    # Apps
+    #
     "bd_api.apps.account",
     "bd_api.apps.core",
     "bd_api.apps.api.v1",
@@ -66,7 +66,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "bd_api.middlewares.LoggerMiddleware",
+    "bd_api.custom.middleware.LoggerMiddleware",
 ]
 
 ROOT_URLCONF = "bd_api.urls"

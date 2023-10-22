@@ -3,7 +3,7 @@ from huey import crontab
 from huey.contrib.djhuey import periodic_task
 
 from bd_api.apps.api.v1.admin import update_table_metadata
-from bd_api.logger import setup_logger
+from bd_api.custom.logger import setup_logger
 from bd_api.utils import is_remote, prod_task
 
 level = "INFO" if is_remote() else "DEBUG"

@@ -5,7 +5,7 @@ from json import loads
 
 from google.oauth2 import service_account
 
-from bd_api.logger import setup_logger
+from bd_api.custom.logger import setup_logger
 from bd_api.settings.base import *  # noqa
 from bd_api.utils import getadmins, getenv
 

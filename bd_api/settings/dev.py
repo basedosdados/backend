@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from bd_api.logger import setup_logger
+from bd_api.custom.logger import setup_logger
 from bd_api.settings.base import *  # noqa
 from bd_api.utils import getenv
 
