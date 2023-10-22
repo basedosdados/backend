@@ -81,7 +81,7 @@ superuser_docker:
 .PHONY: run_local
 run_local:
 	@echo "Touching the log file to ensure it exists..."
-	@touch basedosdados_api/django.log
+	@touch app/django.log
 	@echo "Checking for model changes..."
 	@make migrations
 	@echo "Applying migrations..."

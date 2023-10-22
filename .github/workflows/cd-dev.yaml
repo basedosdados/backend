@@ -102,7 +102,7 @@ jobs:
             envFrom:
               - secretRef:
                   name: api-development-secrets
-            settingsModule: "basedosdados_api.settings.prod"
+            settingsModule: "app.settings.prod"
           database:
             host: "cloud-sql-proxy"
             port: 5432

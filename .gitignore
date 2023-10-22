@@ -247,9 +247,9 @@ fabric.properties
 
 .vscode/
 .DS_Store
-/basedosdados_api/media/
-/basedosdados_api/notebooks/
-/basedosdados_api/staticfiles/
+/app/media/
+/app/notebooks/
+/app/staticfiles/
 
 # Fixture
 fixture.json
