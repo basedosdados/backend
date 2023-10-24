@@ -68,7 +68,7 @@ def get_date_time(date_times):
     )
 
 
-class UUIDHIddenIdForm(forms.ModelForm):
+class UUIDHiddenIdForm(forms.ModelForm):
     """Form to include UUID in inline formes (Table, Column and Coverage)"""
 
     id = forms.UUIDField(widget=forms.HiddenInput(), required=False)
@@ -135,6 +135,13 @@ class Coverage(BdmModel):
         on_delete=models.CASCADE,
         related_name="coverages",
     )
+    column_original_name = models.ForeignKey(
+        "ColumnOriginalName",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="coverages",
+    )
     key = models.ForeignKey(
         "Key",
         blank=True,
@@ -149,7 +156,13 @@ class Coverage(BdmModel):
         on_delete=models.CASCADE,
         related_name="coverages",
     )
-    area = models.ForeignKey("Area", on_delete=models.CASCADE, related_name="coverages")
+    area = models.ForeignKey(
+        "Area",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="coverages",
+    )
     is_closed = models.BooleanField("Is Closed", default=False)
 
     graphql_nested_filter_fields_whitelist = ["id"]
@@ -162,10 +175,12 @@ class Coverage(BdmModel):
         verbose_name_plural = "Coverages"
         ordering = ["id"]
 
-    def __str__(self):  # noqa: D105 pylint: disable=too-many-return-statements
+    def __str__(self):
         if self.coverage_type() == "table":
             return f"Table: {self.table} - {self.area}"
         if self.coverage_type() == "column":
+            return f"Column: {self.column} - {self.area}"
+        if self.coverage_type() == "column_original_name":
             return f"Column: {self.column} - {self.area}"
         if self.coverage_type() == "raw_data_source":
             return f"Raw data source: {self.raw_data_source} - {self.area}"
@@ -175,7 +190,6 @@ class Coverage(BdmModel):
             return f"Key: {self.key} - {self.area}"
         if self.coverage_type() == "analysis":
             return f"Analysis: {self.analysis} - {self.area}"
-
         return str(self.id)
 
     def coverage_type(self):
@@ -185,22 +199,18 @@ class Coverage(BdmModel):
         """
         if self.table:
             return "table"
-
-        if self.raw_data_source:
-            return "raw_data_source"
-
-        if self.information_request:
-            return "information_request"
-
         if self.column:
             return "column"
-
+        if self.column_original_name:
+            return "column_original_name"
+        if self.raw_data_source:
+            return "raw_data_source"
+        if self.information_request:
+            return "information_request"
         if self.key:
             return "key"
-
         if self.analysis:
             return "analysis"
-
         return ""
 
     coverage_type.short_description = "Coverage Type"
@@ -213,11 +223,13 @@ class Coverage(BdmModel):
         count = 0
         if self.table:
             count += 1
+        if self.column:
+            count += 1
+        if self.column_original_name:
+            count += 1
         if self.raw_data_source:
             count += 1
         if self.information_request:
-            count += 1
-        if self.column:
             count += 1
         if self.key:
             count += 1
@@ -225,7 +237,8 @@ class Coverage(BdmModel):
             count += 1
         if count != 1:
             raise ValidationError(
-                "One and only one of 'table', 'raw_data_source', 'information_request', 'column', 'key', 'analysis' must be set."  # noqa  #pylint: disable=line-too-long
+                "One and only one of 'table', 'raw_data_source', "
+                "'information_request', 'column', 'key', 'analysis' must be set."
             )
 
 
@@ -451,7 +464,7 @@ class Organization(BdmModel):
         """Check if the organization has a picture"""
         try:
             hasattr(self.picture, "url")
-        except Exception:  # noqa  pylint: disable=broad-except
+        except Exception:
             return False
         return self.picture is not None
 
@@ -876,7 +889,7 @@ class Update(BdmModel):
             count += 1
         if count != 1:
             raise ValidationError(
-                "One and only one of 'table', 'raw_data_source', or 'information_request' must be set."  # noqa  pylint: disable=line-too-long
+                "One and only one of 'table', 'raw_data_source', or 'information_request' must be set."
             )
 
         if self.entity.category.slug != "datetime":
@@ -1284,6 +1297,28 @@ class Column(BdmModel, OrderedModel):
         return self.full_coverage
 
 
+class ColumnOriginalName(BdmModel):
+    """Model definition for ColumnOriginalName."""
+
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    column = models.ForeignKey(
+        "Column", on_delete=models.CASCADE, related_name="column_original_names"
+    )
+    name = models.CharField(max_length=255)
+
+    graphql_nested_filter_fields_whitelist = ["id", "name"]
+
+    def __str__(self):
+        return f"{self.column.table.dataset.slug}.{self.column.table.slug}.{self.column.name}.{self.name}"
+
+    class Meta:
+        """Meta definition for ColumnOriginalName."""
+
+        db_table = "column_original_name"
+        verbose_name = "Column Original Name"
+        verbose_name_plural = "Column Original Names"
+
+
 class Dictionary(BdmModel):
     """Model definition for Dictionary."""
 
@@ -1300,7 +1335,7 @@ class Dictionary(BdmModel):
         ordering = ["column"]
 
     def __str__(self):
-        return f"{str(self.column.table.dataset.slug)}.{self.column.table.slug}.{str(self.column.name)}"  # noqa pylint: disable=line-too-long
+        return f"{str(self.column.table.dataset.slug)}.{self.column.table.slug}.{str(self.column.name)}"
 
 
 class CloudTable(BdmModel):
@@ -1607,7 +1642,7 @@ class ObservationLevel(BdmModel):
             count += 1
         if count != 1:
             raise ValidationError(
-                "One and only one of 'table', 'raw_data_source', 'information_request', 'analysis' must be set."  # noqa pylint: disable=line-too-long
+                "One and only one of 'table', 'raw_data_source', 'information_request', 'analysis' must be set."
             )
         return super().clean()
 
@@ -1654,7 +1689,10 @@ class DateTimeRange(BdmModel):
         end_minute = f":{self.end_minute}" if self.end_minute else ""
         end_second = f":{self.end_second}" if self.end_second else ""
         interval = f"({self.interval})" if self.interval else ""
-        return f"{start_year}{start_month}{start_day}{start_hour}{start_minute}{start_second}{interval}{end_year}{end_month}{end_day}{end_hour}{end_minute}{end_second}"  # noqa pylint: disable=line-too-long
+        return (
+            f"{start_year}{start_month}{start_day}{start_hour}{start_minute}{start_second}"
+            f"{interval}{end_year}{end_month}{end_day}{end_hour}{end_minute}{end_second}"
+        )
 
     class Meta:
         """Meta definition for DateTimeRange."""
@@ -1840,6 +1878,7 @@ class QualityCheck(BdmModel):
             count += 1
         if count != 1:
             raise ValidationError(
-                "One and only one of 'analysis', 'dataset, 'table', 'column', 'key, 'raw_data_source', 'information_request' must be set."  # noqa pylint: disable=line-too-long
+                "One and only one of 'analysis', 'dataset, 'table', "
+                "'column', 'key, 'raw_data_source', 'information_request' must be set."
             )
         return super().clean()
