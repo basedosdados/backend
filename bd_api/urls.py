@@ -40,6 +40,6 @@ urlpatterns = [
     path("schemas/", include("bd_api.apps.schemas.urls")),
     path("search/", DatasetESSearchView.as_view()),
     path("search/debug/", include("haystack.urls")),
-    path("payments/", include("bd_api.apps.payments.urls")),
+    path("payment/", include("bd_api.apps.payment.urls")),
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
