@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "ordered_model",
     "haystack",
     "graphene_django",
+    "django_extensions",
     "huey.contrib.djhuey",
     #
     "bd_api.apps.account",
