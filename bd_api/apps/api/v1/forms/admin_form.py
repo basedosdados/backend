@@ -2,16 +2,17 @@
 from bd_api.apps.api.v1.models import (
     CloudTable,
     Column,
+    ColumnOriginalName,
     Coverage,
     ObservationLevel,
     Table,
     Update,
-    UUIDHIddenIdForm,
+    UUIDHiddenIdForm,
 )
 
 
-class TableInlineForm(UUIDHIddenIdForm):
-    class Meta(UUIDHIddenIdForm):
+class TableInlineForm(UUIDHiddenIdForm):
+    class Meta(UUIDHiddenIdForm):
         model = Table
         fields = [
             "id",
@@ -43,8 +44,8 @@ class TableInlineForm(UUIDHIddenIdForm):
         ]
 
 
-class ColumnInlineForm(UUIDHIddenIdForm):
-    class Meta(UUIDHIddenIdForm.Meta):
+class ColumnInlineForm(UUIDHiddenIdForm):
+    class Meta(UUIDHiddenIdForm.Meta):
         model = Column
         fields = [
             "id",
@@ -64,20 +65,26 @@ class ColumnInlineForm(UUIDHIddenIdForm):
         ]
 
 
-class CloudTableForm(UUIDHIddenIdForm):
-    class Meta(UUIDHIddenIdForm.Meta):
+class ColumnOriginalNameInlineForm(UUIDHiddenIdForm):
+    class Meta(UUIDHiddenIdForm.Meta):
+        model = ColumnOriginalName
+        fields = "__all__"
+
+
+class CloudTableInlineForm(UUIDHiddenIdForm):
+    class Meta(UUIDHiddenIdForm.Meta):
         model = CloudTable
         fields = "__all__"
 
 
-class ObservationLevelForm(UUIDHIddenIdForm):
-    class Meta(UUIDHIddenIdForm.Meta):
+class ObservationLevelInlineForm(UUIDHiddenIdForm):
+    class Meta(UUIDHiddenIdForm.Meta):
         model = ObservationLevel
         fields = "__all__"
 
 
-class CoverageInlineForm(UUIDHIddenIdForm):
-    class Meta(UUIDHIddenIdForm.Meta):
+class CoverageInlineForm(UUIDHiddenIdForm):
+    class Meta(UUIDHiddenIdForm.Meta):
         model = Coverage
         fields = [
             "id",
@@ -86,7 +93,7 @@ class CoverageInlineForm(UUIDHIddenIdForm):
         ]
 
 
-class UpdateForm(UUIDHIddenIdForm):
-    class Meta(UUIDHIddenIdForm.Meta):
+class UpdateInlineForm(UUIDHiddenIdForm):
+    class Meta(UUIDHiddenIdForm.Meta):
         model = Update
         fields = "__all__"

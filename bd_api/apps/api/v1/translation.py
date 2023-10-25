@@ -7,6 +7,7 @@ from .models import (
     Area,
     Availability,
     Column,
+    ColumnOriginalName,
     Dataset,
     Entity,
     EntityCategory,
@@ -44,6 +45,10 @@ class AvailabilityTranslationOptions(TranslationOptions):
 
 class ColumnTranslationOptions(TranslationOptions):
     fields = ("name", "name_staging", "description", "observations")
+
+
+class ColumnOriginalNameTranslationOptions(TranslationOptions):
+    fields = ("name",)
 
 
 class DatasetTranslationOptions(TranslationOptions):
@@ -112,6 +117,7 @@ translator.register(AnalysisType, AnalysisTypeTranslationOptions)
 translator.register(Area, AreaTranslationOptions)
 translator.register(Availability, AvailabilityTranslationOptions)
 translator.register(Column, ColumnTranslationOptions)
+translator.register(ColumnOriginalName, ColumnOriginalNameTranslationOptions)
 translator.register(Dataset, DatasetTranslationOptions)
 translator.register(Entity, EntityTranslationOptions)
 translator.register(EntityCategory, EntityCategoryTranslationOptions)

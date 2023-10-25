@@ -25,14 +25,15 @@ from bd_api.apps.api.v1.filters import (
     TableObservationFilter,
 )
 from bd_api.apps.api.v1.forms import (
-    CloudTableForm,
+    CloudTableInlineForm,
     ColumnInlineForm,
+    ColumnOriginalNameInlineForm,
     CoverageInlineForm,
-    ObservationLevelForm,
+    ObservationLevelInlineForm,
     ReorderColumnsForm,
     ReorderTablesForm,
     TableInlineForm,
-    UpdateForm,
+    UpdateInlineForm,
 )
 from bd_api.apps.api.v1.models import (
     Analysis,
@@ -42,6 +43,7 @@ from bd_api.apps.api.v1.models import (
     BigQueryType,
     CloudTable,
     Column,
+    ColumnOriginalName,
     Coverage,
     Dataset,
     DateTimeRange,
@@ -106,9 +108,19 @@ class ColumnInline(OrderedTranslatedInline):
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
+class ColumnOriginalNameInline(TranslationStackedInline):
+    model = ColumnOriginalName
+    form = ColumnOriginalNameInlineForm
+    extra = 0
+    fields = [
+        "id",
+        "name",
+    ]
+
+
 class CloudTableInline(admin.StackedInline):
     model = CloudTable
-    form = CloudTableForm
+    form = CloudTableInlineForm
     extra = 0
     fields = [
         "id",
@@ -120,7 +132,7 @@ class CloudTableInline(admin.StackedInline):
 
 class ObservationLevelInline(admin.StackedInline):
     model = ObservationLevel
-    form = ObservationLevelForm
+    form = ObservationLevelInlineForm
     extra = 0
     fields = [
         "id",
@@ -206,7 +218,7 @@ class CoverageInline(admin.StackedInline):
 
 class UpdateInline(admin.StackedInline):
     model = Update
-    form = UpdateForm
+    form = UpdateInlineForm
     extra = 0
     fields = [
         "id",
@@ -697,21 +709,39 @@ class ColumnForm(forms.ModelForm):
 
 class ColumnAdmin(TabbedTranslationAdmin):
     form = ColumnForm
-    readonly_fields = [
-        "id",
-        "order",
-    ]
     list_display = [
         "__str__",
         "table",
     ]
-    search_fields = ["name", "table__name"]
+    list_filter = [
+        "table__dataset__organization__name",
+    ]
     autocomplete_fields = [
         "table",
         "observation_level",
     ]
-    list_filter = [
-        "table__dataset__organization__name",
+    readonly_fields = [
+        "id",
+        "order",
+    ]
+    search_fields = ["name", "table__name"]
+    inlines = [
+        CoverageInline,
+        ColumnOriginalNameInline,
+    ]
+
+
+class ColumnOriginalNameAdmin(TabbedTranslationAdmin):
+    readonly_fields = [
+        "id",
+    ]
+    list_display = [
+        "__str__",
+    ]
+    fields = [
+        "id",
+        "name",
+        "column",
     ]
     inlines = [CoverageInline]
 
@@ -1037,6 +1067,7 @@ admin.site.register(Availability, AvailabilityAdmin)
 admin.site.register(BigQueryType)
 admin.site.register(CloudTable, CloudTableAdmin)
 admin.site.register(Column, ColumnAdmin)
+admin.site.register(ColumnOriginalName, ColumnOriginalNameAdmin)
 admin.site.register(Coverage, CoverageAdmin)
 admin.site.register(Dataset, DatasetAdmin)
 admin.site.register(DateTimeRange, DateTimeRangeAdmin)
