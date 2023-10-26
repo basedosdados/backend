@@ -77,6 +77,8 @@ jobs:
                 value: "${{ secrets.STRIPE_LIVE_SECRET_KEY }}"
               - name: "STRIPE_TEST_SECRET_KEY"
                 value: "${{ secrets.STRIPE_TEST_SECRET_KEY }}"
+              - name: "DJSTRIPE_WEBHOOK_SECRET"
+                value: "${{ secrets.DJSTRIPE_WEBHOOK_SECRET }}"
             envFrom:
               - secretRef:
                   name: api-staging-secrets
