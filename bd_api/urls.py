@@ -37,7 +37,6 @@ urlpatterns = [
     path("", include("bd_api.apps.core.urls")),
     path("account/", include("bd_api.apps.account.urls")),
     path("api/", include("bd_api.apps.api.v1.urls")),
-    path("schemas/", include("bd_api.apps.schemas.urls")),
     path("search/", DatasetESSearchView.as_view()),
     path("search/debug/", include("haystack.urls")),
     path("payment/", include("bd_api.apps.payment.urls")),

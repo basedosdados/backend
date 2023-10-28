@@ -54,7 +54,6 @@ INSTALLED_APPS = [
     "bd_api.apps.account",
     "bd_api.apps.core",
     "bd_api.apps.api.v1",
-    "bd_api.apps.schemas",
     "bd_api.apps.payment.apps.PaymentsConfig",
 ]
 
