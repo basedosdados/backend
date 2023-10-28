@@ -227,6 +227,9 @@ class UpdateInline(admin.StackedInline):
         "latest",
         "frequency",
     ]
+    autocomplete_fields = [
+        "entity",
+    ]
 
 
 ################################################################################
