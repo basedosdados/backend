@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 from json import JSONDecodeError, loads
 
-from django.http import JsonResponse
+from django.contrib.auth.decorators import login_required
+from django.http import HttpRequest, JsonResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from djstripe.models import Customer as DJStripeCustomer
@@ -12,20 +13,51 @@ from stripe import Customer as StripeCustomer
 from bd_api.apps.account.models import Account
 
 
-@csrf_exempt
 class StripeCustomerView(View):
-    """Update stripe customer fields:
-    - name
-    - email
-    - address
-      - line1: "Rua Augusta, 100"
-      - city: "São Paulo"
-      - state: "SP"
-      - country: "BR"
-      - postal_code: "01304-000"
-    """
+    @csrf_exempt
+    @login_required
+    def post(self, request: HttpRequest):
+        """Create a stripe customer
+        - name
+        - email
+        - address
+            - line1: "Rua Augusta, 100"
+            - city: "São Paulo"
+            - state: "SP"
+            - country: "BR"
+            - postal_code: "01304-000"
+        """
+        try:
+            body = loads(request.body)
+            assert "name" in body
+            assert "email" in body
+            assert "address" in body
 
-    def put(self, request, account_id):
+            account = Account.objects.get(id=body.account_id)
+            customer = DJStripeCustomer.create(account)
+            customer = StripeCustomer.modify(customer.id, **body)
+
+            return JsonResponse(customer.values())
+        except (JSONDecodeError, KeyError) as e:
+            logger.error(e)
+            return JsonResponse({}, status=400)
+        except Exception as e:
+            logger.error(e)
+            return JsonResponse({"error": str(e)}, status=422)
+
+    @csrf_exempt
+    @login_required
+    def put(self, request: HttpRequest, account_id: str):
+        """Update a stripe customer
+        - name
+        - email
+        - address
+            - line1: "Rua Augusta, 100"
+            - city: "São Paulo"
+            - state: "SP"
+            - country: "BR"
+            - postal_code: "01304-000"
+        """
         try:
             body = loads(request.body)
             assert "name" in body
@@ -45,16 +77,17 @@ class StripeCustomerView(View):
             return JsonResponse({"error": str(e)}, status=422)
 
 
-@csrf_exempt
 class StripeSubscriptionView(View):
-    """Create a stripe subscription"""
-
-    def post(self, request, account_id, price_id):
+    @csrf_exempt
+    @login_required
+    def post(self, request: HttpRequest):
+        """Create a stripe subscription"""
         try:
-            account = Account.objects.get(id=account_id)
+            body = loads(request.body)
+            account = Account.objects.get(id=body.account_id)
             customer: DJStripeCustomer = account.djstripe_customers[0]
             subscription: DJStripeSubscription = customer.subscribe(
-                price=price_id,
+                price=body.price_id,
                 payment_behaviour="default_incomplete",
                 payment_settings={"save_default_payment_method": "on_subscription"},
             )
@@ -70,6 +103,33 @@ class StripeSubscriptionView(View):
         except Exception as e:
             logger.error(e)
             return JsonResponse({"error": str(e)}, status=422)
+
+    @csrf_exempt
+    @login_required
+    def delete(self, request: HttpRequest, subscription_id: str):
+        """Delete a stripe subscription"""
+
+        try:
+            subscription = DJStripeSubscription.objects.get(id=subscription_id)
+            subscription = subscription.cancel()
+            return JsonResponse({})
+        except Exception as e:
+            logger.error(e)
+            return JsonResponse({"error": str(e)}, status=422)
+
+
+class StripeCustomerSubscriptionView(View):
+    @csrf_exempt
+    @login_required
+    def post(self, request: HttpRequest, account_id: str, subscription_id: str):
+        """Add a customer to a stripe subscription"""
+        ...
+
+    @csrf_exempt
+    @login_required
+    def delete(self, request: HttpRequest, account_id: str, subscription_id: str):
+        """Remove a customer from a stripe subscription"""
+        ...
 
 
 # Reference
