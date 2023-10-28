@@ -17,26 +17,15 @@ Including another URLconf
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path, re_path
-from django.views.generic.base import TemplateView
+from django.urls import include, path
 
 from bd_api.apps.api.v1.views import DatasetESSearchView
 
-
-def render_robots():
-    return TemplateView.as_view(template_name="robots.txt", content_type="text/plain")
-
-
 urlpatterns = [
-    # Meta
-    path("robots.txt", render_robots()),
-    re_path(r"^healthcheck/", include("health_check.urls")),
-    # Admin
     path("admin/", admin.site.urls),
-    # Applications
     path("", include("bd_api.apps.core.urls")),
-    path("account/", include("bd_api.apps.account.urls")),
     path("api/", include("bd_api.apps.api.v1.urls")),
+    path("account/", include("bd_api.apps.account.urls")),
     path("search/", DatasetESSearchView.as_view()),
     path("search/debug/", include("haystack.urls")),
     path("payment/", include("bd_api.apps.payment.urls")),
