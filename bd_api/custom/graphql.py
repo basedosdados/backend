@@ -42,8 +42,9 @@ from graphene_django.forms.mutation import (
 )
 from graphene_django.registry import get_global_registry
 from graphene_file_upload.scalars import Upload
-from graphql_jwt.decorators import staff_member_required  # login_required,; superuser_required,
+from graphql_jwt.decorators import staff_member_required
 
+from bd_api.custom.graphql_jwt import ownership_required
 from bd_api.custom.model import BdmModel
 
 EXEMPTED_MODELS = ("RegistrationToken",)
@@ -219,6 +220,18 @@ def fields_for_form(form, only_fields, exclude_fields):
 
 
 def create_mutation_factory(model: BdmModel):
+    def mutate_and_get_payload():
+        """Create mutation endpoints with authorization"""
+
+        def _mutate(cls, root, info, **input):
+            return super(cls, cls).mutate_and_get_payload(root, info, **input)
+
+        if "account" in model.__name__.lower():
+            _mutate = ownership_required(_mutate)
+        else:
+            _mutate = staff_member_required(_mutate)
+        return classmethod(_mutate)
+
     return type(
         f"CreateUpdate{model.__name__}",
         (CreateUpdateMutation,),
@@ -232,25 +245,28 @@ def create_mutation_factory(model: BdmModel):
                     return_field_name=model.__name__.lower(),
                 ),
             ),
-            "mutate_and_get_payload": classmethod(
-                staff_member_required(
-                    lambda cls, root, info, **input: super(cls, cls).mutate_and_get_payload(
-                        root, info, **input
-                    )
-                )
-            ),
+            "mutate_and_get_payload": mutate_and_get_payload(),
         },
     )
 
 
 def delete_mutation_factory(model: BdmModel):
-    def mutate(cls, root, info, id):
-        try:
-            obj = model.objects.get(pk=id)
-        except model.DoesNotExist:
-            return cls(ok=False, errors=["Object does not exist."])
-        obj.delete()
-        return cls(ok=True, errors=[])
+    def mutate():
+        """Create mutation endpoints with authorization"""
+
+        def _mutate(cls, root, info, _id):
+            try:
+                obj = model.objects.get(pk=_id)
+                obj.delete()
+            except model.DoesNotExist:
+                return cls(ok=False, errors=["Object does not exist."])
+            return cls(ok=True, errors=[])
+
+        if "account" in model.__name__.lower():
+            _mutate = ownership_required(_mutate)
+        else:
+            _mutate = staff_member_required(_mutate)
+        return classmethod(_mutate)
 
     return type(
         f"Delete{model.__name__}",
@@ -265,7 +281,7 @@ def delete_mutation_factory(model: BdmModel):
             ),
             "ok": Boolean(),
             "errors": List(String),
-            "mutate": classmethod(staff_member_required(mutate)),
+            "mutate": mutate(),
         },
     )
 
