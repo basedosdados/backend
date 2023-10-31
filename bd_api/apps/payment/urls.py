@@ -4,6 +4,7 @@ from django.urls import include, path
 from bd_api.apps.payment.views import (
     StripeCustomerSubscriptionView,
     StripeCustomerView,
+    StripePriceView,
     StripeSubscriptionView,
 )
 
@@ -20,6 +21,11 @@ urlpatterns = [
         "customer/<account_id>/subscription/<subscription_id>",
         StripeCustomerSubscriptionView.as_view(),
         name="payment_subscription",
+    ),
+    path(
+        "price/",
+        StripePriceView.as_view(),
+        name="payment_price",
     ),
     path(
         "subscription/",

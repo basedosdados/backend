@@ -2,10 +2,12 @@
 from json import JSONDecodeError, loads
 
 from django.contrib.auth.decorators import login_required
+from django.db.models import F
 from django.http import HttpRequest, JsonResponse
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from djstripe.models import Customer as DJStripeCustomer
+from djstripe.models import Price as DJStripePrice
 from djstripe.models import Subscription as DJStripeSubscription
 from loguru import logger
 from stripe import Customer as StripeCustomer
@@ -13,11 +15,33 @@ from stripe import Customer as StripeCustomer
 from bd_api.apps.account.models import Account
 
 
+class StripePriceView(View):
+    @csrf_exempt
+    def get(self, request: HttpRequest):
+        """Get stripe prices"""
+        price = (
+            DJStripePrice.objects.select_related("product")
+            .filter(active=True)
+            .filter(product__active=True)
+            .filter(product__name__icontains="bd pro")
+            .annotate(price_id=F("id"))
+            .annotate(amount=F("unit_amount") / 100)
+            .annotate(product_name=F("product__name"))
+            .all()
+        )
+        values = price.values(
+            "price_id",
+            "product_name",
+            "amount",
+        )
+        return JsonResponse({"price": list(values)})
+
+
 class StripeCustomerView(View):
     @csrf_exempt
     @login_required
     def post(self, request: HttpRequest):
-        """Create a stripe customer
+        """Create stripe customer
         - name
         - email
         - address
@@ -48,7 +72,7 @@ class StripeCustomerView(View):
     @csrf_exempt
     @login_required
     def put(self, request: HttpRequest, account_id: str):
-        """Update a stripe customer
+        """Update stripe customer
         - name
         - email
         - address
@@ -81,7 +105,7 @@ class StripeSubscriptionView(View):
     @csrf_exempt
     @login_required
     def post(self, request: HttpRequest):
-        """Create a stripe subscription"""
+        """Create stripe subscription"""
         try:
             body = loads(request.body)
             account = Account.objects.get(id=body.account_id)
@@ -107,7 +131,7 @@ class StripeSubscriptionView(View):
     @csrf_exempt
     @login_required
     def delete(self, request: HttpRequest, subscription_id: str):
-        """Delete a stripe subscription"""
+        """Delete stripe subscription"""
 
         try:
             subscription = DJStripeSubscription.objects.get(id=subscription_id)
@@ -122,13 +146,13 @@ class StripeCustomerSubscriptionView(View):
     @csrf_exempt
     @login_required
     def post(self, request: HttpRequest, account_id: str, subscription_id: str):
-        """Add a customer to a stripe subscription"""
+        """Add customer to a stripe subscription"""
         ...
 
     @csrf_exempt
     @login_required
     def delete(self, request: HttpRequest, account_id: str, subscription_id: str):
-        """Remove a customer from a stripe subscription"""
+        """Remove customer from a stripe subscription"""
         ...
 
 
