@@ -49,8 +49,16 @@ DEFAULT_FROM_EMAIL = getenv("EMAIL_HOST_USER")
 # Logging
 setup_logger(level="DEBUG", ignore=["faker"], serialize=False)
 
-# Google Application Credentials
+# Google Auth
 GOOGLE_APPLICATION_CREDENTIALS = getenv("GOOGLE_APPLICATION_CREDENTIALS")
+
+# Google Directory
+GOOGLE_DIRECTORY_SCOPES = [
+    "https://www.googleapis.com/auth/admin.directory.user",
+    "https://www.googleapis.com/auth/admin.directory.group",
+]
+GOOGLE_DIRECTORY_SUBJECT = getenv("GOOGLE_DIRECTORY_SUBJECT")
+GOOGLE_DIRECTORY_GROUP_KEY = getenv("GOOGLE_DIRECTORY_GROUP_KEY")
 
 # Google Cloud Storage
 ...

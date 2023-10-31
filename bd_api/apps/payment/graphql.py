@@ -2,14 +2,15 @@
 from djstripe.models import Customer as DJStripeCustomer
 from djstripe.models import Price as DJStripePrice
 from djstripe.models import Subscription as DJStripeSubscription
-from graphene import ID, Field, Float, InputObjectType, List, Mutation, ObjectType, String
+from graphene import ID, Boolean, Field, Float, InputObjectType, List, Mutation, ObjectType, String
 from graphene_django import DjangoObjectType
 from graphene_django.filter import DjangoFilterConnectionField
 from graphql_jwt.decorators import login_required
 from loguru import logger
 from stripe import Customer as StripeCustomer
 
-from bd_api.apps.account.models import Account
+from bd_api.apps.account.models import Account, Subscription
+from bd_api.apps.payment.webhooks import add_user, remove_user
 from bd_api.custom.graphql_base import CountableConnection, PlainTextNode
 
 
@@ -146,7 +147,7 @@ class StripeCustomerUpdateMutation(Mutation):
             return cls(customer=customer)
         except Exception as e:
             logger.error(e)
-            return cls(errors=str(e))
+            return cls(errors=[str(e)])
 
 
 class StripeCustomerMutation(ObjectType):
@@ -189,6 +190,7 @@ class StripeSubscriptionCreateMutation(Mutation):
                 payment_behaviour="default_incomplete",
                 payment_settings={"save_default_payment_method": "on_subscription"},
             )
+            # Criar inscrição interna
             return cls(subscription=subscription)
         except Exception as e:
             logger.error(e)
@@ -219,6 +221,66 @@ class StripeSubscriptionDeleteMutation(Mutation):
 class StripeSubscriptionMutation(ObjectType):
     create_stripe_subscription = StripeSubscriptionCreateMutation.Field()
     delete_stripe_subscription = StripeSubscriptionDeleteMutation.Field()
+
+
+class StripeSubscriptionCustomerInput(InputObjectType):
+    account_id = ID(required=True)
+    subscription_id = ID(required=True)
+
+
+class StripeSubscriptionCustomerCreateMutation(Mutation):
+    """Add account to subscription"""
+
+    ok = Boolean()
+    errors = List(String)
+
+    class Arguments:
+        input = StripeSubscriptionCustomerInput()
+
+    @classmethod
+    @login_required
+    def mutate(cls, root, info, input):
+        try:
+            admin = info.context.user
+            admin = Account.objects.get(id=admin.id)
+            account = Account.objects.get(id=input.account_id).first()
+            subscription = Subscription.objects.get(id=input.subscription_id).first()
+            assert admin.id == subscription.admin.id
+            add_user(account.email)
+            return cls(ok=True)
+        except Exception as e:
+            logger.error(e)
+            return cls(errors=[str(e)])
+
+
+class StripeSubscriptionCustomerDeleteMutation(Mutation):
+    """Remove account from subscription"""
+
+    ok = Boolean()
+    errors = List(String)
+
+    class Arguments:
+        input = StripeSubscriptionCustomerInput()
+
+    @classmethod
+    @login_required
+    def mutate(cls, root, info, input):
+        try:
+            admin = info.context.user
+            admin = Account.objects.get(id=admin.id)
+            account = Account.objects.get(id=input.account_id).first()
+            subscription = Subscription.objects.get(id=input.subscription_id).first()
+            assert admin.id == subscription.admin.id
+            remove_user(account.email)
+            return cls(ok=True)
+        except Exception as e:
+            logger.error(e)
+            return cls(errors=[str(e)])
+
+
+class StripeSubscriptionCustomerMutation(ObjectType):
+    create_stripe_customer_subscription = StripeSubscriptionCustomerCreateMutation.Field()
+    update_stripe_customer_subscription = StripeSubscriptionCustomerDeleteMutation.Field()
 
 
 # Reference
