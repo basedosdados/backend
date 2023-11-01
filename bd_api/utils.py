@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
-from os import getenv as _getenv
+from os import getenv
 
-API_URL = _getenv("BASE_URL_API", "https://localhost:8080")
-SETTINGS = _getenv("DJANGO_SETTINGS_MODULE", "bd_api.settings")
+API_URL = getenv("BASE_URL_API", "https://localhost:8080")
+SETTINGS = getenv("DJANGO_SETTINGS_MODULE", "bd_api.settings")
 
 
 def getadmins():
@@ -13,9 +13,9 @@ def getadmins():
     return [admin.split(",") for admin in admins.split(";")]
 
 
-def getenv(var, default=None):
+def getenvp(var, default=None):
     """Get environment variable or raise exception if not set"""
-    value = _getenv(var, default)
+    value = getenv(var, default)
     if value is None:
         raise ValueError(f"Environment variable {var} not set")
     return value
