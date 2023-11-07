@@ -4,6 +4,7 @@ from json import JSONDecodeError, loads
 from django.contrib.auth.decorators import login_required
 from django.db.models import F
 from django.http import HttpRequest, JsonResponse
+from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from djstripe.models import Customer as DJStripeCustomer
@@ -16,7 +17,6 @@ from bd_api.apps.account.models import Account
 
 
 class StripePriceView(View):
-    @csrf_exempt
     def get(self, request: HttpRequest):
         """Get stripe prices"""
         price = (
@@ -37,9 +37,9 @@ class StripePriceView(View):
         return JsonResponse({"price": list(values)})
 
 
+@method_decorator(csrf_exempt, "dispatch")
+@method_decorator(login_required, "dispatch")
 class StripeCustomerView(View):
-    @csrf_exempt
-    @login_required
     def post(self, request: HttpRequest):
         """Create stripe customer
         - name
@@ -69,8 +69,6 @@ class StripeCustomerView(View):
             logger.error(e)
             return JsonResponse({"error": str(e)}, status=422)
 
-    @csrf_exempt
-    @login_required
     def put(self, request: HttpRequest, account_id: str):
         """Update stripe customer
         - name
@@ -101,9 +99,9 @@ class StripeCustomerView(View):
             return JsonResponse({"error": str(e)}, status=422)
 
 
+@method_decorator(csrf_exempt, "dispatch")
+@method_decorator(login_required, "dispatch")
 class StripeSubscriptionView(View):
-    @csrf_exempt
-    @login_required
     def post(self, request: HttpRequest):
         """Create stripe subscription"""
         try:
@@ -128,8 +126,6 @@ class StripeSubscriptionView(View):
             logger.error(e)
             return JsonResponse({"error": str(e)}, status=422)
 
-    @csrf_exempt
-    @login_required
     def delete(self, request: HttpRequest, subscription_id: str):
         """Delete stripe subscription"""
 
@@ -142,15 +138,13 @@ class StripeSubscriptionView(View):
             return JsonResponse({"error": str(e)}, status=422)
 
 
+@method_decorator(csrf_exempt, "dispatch")
+@method_decorator(login_required, "dispatch")
 class StripeCustomerSubscriptionView(View):
-    @csrf_exempt
-    @login_required
     def post(self, request: HttpRequest, account_id: str, subscription_id: str):
         """Add customer to a stripe subscription"""
         ...
 
-    @csrf_exempt
-    @login_required
     def delete(self, request: HttpRequest, account_id: str, subscription_id: str):
         """Remove customer from a stripe subscription"""
         ...
