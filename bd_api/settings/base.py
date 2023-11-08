@@ -163,7 +163,7 @@ LOGGING = {
 
 # Graphene configurations
 GRAPHENE = {
-    "SCHEMA": "bd_api.apps.api.v1.schema.schema",
+    "SCHEMA": "bd_api.apps.schema.schema",
     "MIDDLEWARE": [
         "graphql_jwt.middleware.JSONWebTokenMiddleware",
     ],
