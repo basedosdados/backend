@@ -246,6 +246,7 @@ class StripeSubscriptionCustomerCreateMutation(Mutation):
             account = Account.objects.get(id=input.account_id).first()
             subscription = Subscription.objects.get(id=input.subscription_id).first()
             assert admin.id == subscription.admin.id
+            subscription.subscribers.add(account)
             add_user(account.email)
             return cls(ok=True)
         except Exception as e:
