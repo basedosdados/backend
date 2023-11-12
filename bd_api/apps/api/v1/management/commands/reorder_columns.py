@@ -20,7 +20,6 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"Table with ID {table_id} does not exist"))
             return
 
-        # TODO improve validation
         for i, column_name in enumerate(ordered_slugs):
             column = Column.objects.get(table=table, name=column_name)
             column.order = i

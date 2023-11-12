@@ -1,7 +1,5 @@
 # -*- coding: utf-8 -*-
 # flake8: noqa
-# TODO: Rever observational_level, pede lista de id de colunas que atualmente n esta recebendo
-# TODO: DatetimeRange da coluna esta pegando o da tabela mae, mas deve pegar do proprio columns
 # https://staging.api.basedosdados.org/api/v1/graphql
 # https://staging.api.basedosdados.org/admin/
 

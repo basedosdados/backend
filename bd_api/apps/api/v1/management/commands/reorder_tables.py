@@ -21,7 +21,6 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR(f"Dataset with ID {dataset_id} does not exist"))
             return
 
-        # TODO improve validation
         for i, slug in enumerate(ordered_slugs):
             try:
                 table = dataset.tables.get(slug=slug)
