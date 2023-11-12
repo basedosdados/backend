@@ -48,10 +48,3 @@ def setup_logger(
         format=format,
         serialize=serialize,
     )
-    logger.add(
-        "debug.log",
-        level="DEBUG",
-        format=format,
-        rotation="30 MB",
-        retention="7 days",
-    )
