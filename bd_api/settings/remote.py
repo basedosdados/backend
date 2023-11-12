@@ -52,7 +52,7 @@ SERVER_EMAIL = getenvp("EMAIL_HOST_USER")
 DEFAULT_FROM_EMAIL = getenvp("EMAIL_HOST_USER")
 
 # Logging
-setup_logger(level="INFO", serialize=True)
+setup_logger(level="INFO", ignore=["faker"], serialize=True)
 
 # Google Application Credentials
 GOOGLE_APPLICATION_CREDENTIALS = getenvp("GOOGLE_APPLICATION_CREDENTIALS", "")
