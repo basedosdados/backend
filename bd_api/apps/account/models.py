@@ -367,3 +367,26 @@ class Career(BdmModel):
         return self.team
 
     get_team.short_description = "Equipe"
+
+
+class Subscription(BdmModel):
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    is_active = models.BooleanField(
+        "Ativo",
+        default=False,
+        help_text="Indica se a inscrição está ativa",
+    )
+
+    admin = models.OneToOneField(
+        "Account",
+        on_delete=models.DO_NOTHING,
+        related_name="admin_subscription",
+    )
+    subscribers = models.ManyToManyField(Account)
+
+    class Meta:
+        verbose_name = "Subscription"
+        verbose_name_plural = "Subscriptions"

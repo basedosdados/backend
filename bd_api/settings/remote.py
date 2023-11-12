@@ -54,8 +54,16 @@ DEFAULT_FROM_EMAIL = getenvp("EMAIL_HOST_USER")
 # Logging
 setup_logger(level="INFO", ignore=["faker"], serialize=True)
 
-# Google Application Credentials
-GOOGLE_APPLICATION_CREDENTIALS = getenvp("GOOGLE_APPLICATION_CREDENTIALS", "")
+# Google Auth
+GOOGLE_APPLICATION_CREDENTIALS = getenvp("GOOGLE_APPLICATION_CREDENTIALS")
+
+# Google Directory
+GOOGLE_DIRECTORY_SCOPES = [
+    "https://www.googleapis.com/auth/admin.directory.user",
+    "https://www.googleapis.com/auth/admin.directory.group",
+]
+GOOGLE_DIRECTORY_SUBJECT = getenvp("GOOGLE_DIRECTORY_SUBJECT")
+GOOGLE_DIRECTORY_GROUP_KEY = getenvp("GOOGLE_DIRECTORY_GROUP_KEY")
 
 # Google Cloud Storage
 GS_SERVICE_ACCOUNT = getenvp("GCP_SA")

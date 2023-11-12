@@ -8,3 +8,4 @@ class PaymentsConfig(DjstripeAppConfig):
     def ready(self):
         super().ready()
         import bd_api.apps.payment.signals  # noqa
+        import bd_api.apps.payment.webhooks  # noqa
