@@ -1,10 +1,10 @@
 # Build arguments
-ARG PYTHON_VERSION=3.10-slim
+ARG PYTHON_VERSION=3.11-slim
 
 FROM python:${PYTHON_VERSION}
 
 # Install virtualenv and create a virtual environment
-RUN pip install --no-cache-dir -U virtualenv>=20.13.1 && virtualenv /env --python=python3.10
+RUN pip install --no-cache-dir -U virtualenv>=20.13.1 && virtualenv /env --python=python3.11
 ENV PATH /env/bin:$PATH
 
 # Install pip requirements

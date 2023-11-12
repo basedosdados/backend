@@ -5,7 +5,7 @@
 ### Requisitos
 
 - Um editor de texto (recomendado VS Code)
-- Python 3.10
+- Python 3.11
 - `pip`
 - (Opcional, mas recomendado) Um ambiente virtual para desenvolvimento (`miniconda`, `virtualenv` ou similares)
 
