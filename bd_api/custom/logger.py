@@ -27,6 +27,7 @@ class InterceptHandler(Handler):
 
 def setup_logger(
     level: str = "INFO",
+    ignore: list[str] = [],
     serialize: bool = False,
     format: str = "[{time:YYYY-MM-DD HH:mm:ss}] <lvl>{message}</>",
 ):
@@ -36,6 +37,8 @@ def setup_logger(
     for name in root.manager.loggerDict.keys():
         getLogger(name).handlers = []
         getLogger(name).propagate = True
+        if name in ignore:
+            getLogger(name).setLevel("ERROR")
 
     logger.remove()
 
