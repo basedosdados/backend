@@ -18,13 +18,21 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
+from django.views.decorators.csrf import csrf_exempt
+from graphene_file_upload.django import FileUploadGraphQLView
 
 from bd_api.apps.api.v1.views import DatasetESSearchView
+
+
+def graphql_view():
+    return csrf_exempt(FileUploadGraphQLView.as_view(graphiql=True))
+
 
 urlpatterns = [
     path("admin/", admin.site.urls),
     path("", include("bd_api.apps.core.urls")),
     path("api/", include("bd_api.apps.api.v1.urls")),
+    path("api/graphql/", graphql_view()),
     path("account/", include("bd_api.apps.account.urls")),
     path("search/", DatasetESSearchView.as_view()),
     path("search/debug/", include("haystack.urls")),

@@ -1,0 +1,73 @@
+mutation login($email: String!, $password: String!) {
+  tokenAuth(email: $email, password: $password) {
+    token
+  }
+}
+
+query AllStripePrice {
+  allStripePrice {
+    edges {
+      node {
+        id
+        productName
+      }
+    }
+  }
+}
+
+mutation CreateStripeCustomer {
+  createStripeCustomer(
+    input: {
+      name: "John"
+      email: "john@basedosdados.org"
+      address: {
+        line: "Rua Augusta, 100"
+        city: "São Paulo"
+        state: "SP"
+        country: "BR"
+        postalCode: "01304-000"
+      }
+    }
+  ) {
+    customer {
+      id
+    }
+  }
+}
+
+mutation UpdateStripeCustomer {
+  updateStripeCustomer(
+    input: {
+      name: "John Doe"
+      email: "john.doe@basedosdados.org"
+      address: {
+        line: "Rua Augusta, 100"
+        city: "São Paulo"
+        state: "SP"
+        country: "BR"
+        postalCode: "01304-000"
+      }
+    }
+  ) {
+    customer {
+      id
+    }
+  }
+}
+
+mutation CreateStripeSubscription {
+  createStripeSubscription(priceId: 1) {
+    subscription {
+      id
+      clientSecret
+    }
+  }
+}
+
+mutation DeleteStripeSubscription {
+  deleteStripeSubscription(subscriptionId: 1) {
+    subscription {
+      id
+    }
+  }
+}

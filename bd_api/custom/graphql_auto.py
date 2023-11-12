@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-Utilities for building auto-generated GraphQL schemas. Primarily based on
+Utilities for building auto-generated GraphQL schemas.
 https://github.com/timothyjlaurent/auto-graphene-django
 """
+
 from collections import OrderedDict
 from copy import deepcopy
 from typing import Iterable, Optional
 
 import graphql_jwt
 from django.apps import apps
-from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.forms import ModelForm
@@ -19,17 +19,13 @@ from graphene import (
     ID,
     UUID,
     Boolean,
-    Connection,
     Field,
     InputField,
-    Int,
     List,
     Mutation,
     ObjectType,
-    Scalar,
     Schema,
     String,
-    relay,
 )
 from graphene.types.utils import yank_fields_from_attrs
 from graphene_django import DjangoObjectType
@@ -44,39 +40,65 @@ from graphene_django.registry import get_global_registry
 from graphene_file_upload.scalars import Upload
 from graphql_jwt.decorators import staff_member_required
 
+from bd_api.custom.graphql_base import CountableConnection, FileFieldScalar, PlainTextNode
 from bd_api.custom.graphql_jwt import ownership_required
 from bd_api.custom.model import BdmModel
 
 EXEMPTED_MODELS = ("RegistrationToken",)
 
 
-class FileFieldScalar(Scalar):
-    @staticmethod
-    def serialize(value):
-        if not value:
-            return ""
-        return value.url
-
-    @staticmethod
-    def parse_literal(node):
-        return node
-
-    @staticmethod
-    def parse_value(value):
-        return value
+@convert_django_field.register(models.FileField)
+def convert_file_to_url(field, registry=None):
+    return FileFieldScalar(description=field.help_text, required=not field.null)
 
 
-class PlainTextNode(relay.Node):
-    class Meta:
-        name = "Node"
+def fields_for_form(form, only_fields, exclude_fields):
+    fields = OrderedDict()
+    for name, field in form.fields.items():
+        is_excluded = name in exclude_fields
+        is_not_in_only = only_fields and name not in only_fields
+        if is_excluded or is_not_in_only:
+            continue
+        if isinstance(field, forms_fields.FileField):
+            fields[name] = Upload(description=field.help_text)
+        else:
+            fields[name] = convert_form_field(field)
+    return fields
 
-    @staticmethod
-    def to_global_id(type, id):
-        return "{}:{}".format(type, id)
 
-    @staticmethod
-    def from_global_id(global_id):
-        return global_id.split(":")
+def generate_form_fields(model: BdmModel):
+    whitelist_field_types = (
+        models.DateField,
+        models.DateTimeField,
+        models.SlugField,
+        models.CharField,
+        models.URLField,
+        models.ForeignKey,
+        models.TextField,
+        models.BooleanField,
+        models.BigIntegerField,
+        models.IntegerField,
+        models.OneToOneField,
+        models.ManyToManyField,
+        models.ImageField,
+        models.UUIDField,
+    )
+    blacklist_field_names = (
+        "_field_status",
+        "id",
+        "created_at",
+        "updated_at",
+        "order",
+    )
+    fields = []
+    for field in model._meta.get_fields():
+        if isinstance(field, whitelist_field_types) and field.name not in blacklist_field_names:
+            fields.append(field.name)
+    return fields
+
+
+def generate_form(model: BdmModel):
+    return modelform_factory(model, form=CustomModelForm, fields=generate_form_fields(model))
 
 
 class CustomModelForm(ModelForm):
@@ -194,31 +216,6 @@ class CreateUpdateMutation(DjangoModelFormMutation):
         return kwargs
 
 
-@convert_django_field.register(models.FileField)
-def convert_file_to_url(field, registry=None):
-    return FileFieldScalar(description=field.help_text, required=not field.null)
-
-
-def fields_for_form(form, only_fields, exclude_fields):
-    fields = OrderedDict()
-    for name, field in form.fields.items():
-        is_not_in_only = only_fields and name not in only_fields
-        is_excluded = (
-            name
-            in exclude_fields  # or
-            # name in already_created_fields
-        )
-
-        if is_not_in_only or is_excluded:
-            continue
-
-        if isinstance(field, forms_fields.FileField):
-            fields[name] = Upload(description=field.help_text)
-        else:
-            fields[name] = convert_form_field(field)
-    return fields
-
-
 def create_mutation_factory(model: BdmModel):
     def mutate_and_get_payload():
         """Create mutation endpoints with authorization"""
@@ -284,10 +281,6 @@ def delete_mutation_factory(model: BdmModel):
             "mutate": mutate(),
         },
     )
-
-
-def id_resolver(self, *_):
-    return self.id
 
 
 def generate_filter_fields(model: BdmModel):
@@ -373,20 +366,6 @@ def generate_filter_fields(model: BdmModel):
     return filter_fields
 
 
-class CountableConnection(Connection):
-    class Meta:
-        abstract = True
-
-    total_count = Int()
-    edge_count = Int()
-
-    def resolve_total_count(self, info, **kwargs):
-        return self.length
-
-    def resolve_edge_count(self, info, **kwargs):
-        return len(self.edges)
-
-
 def create_model_object_meta(model: BdmModel):
     return type(
         "Meta",
@@ -400,42 +379,14 @@ def create_model_object_meta(model: BdmModel):
     )
 
 
-def generate_form_fields(model: BdmModel):
-    whitelist_field_types = (
-        models.DateField,
-        models.DateTimeField,
-        models.SlugField,
-        models.CharField,
-        models.URLField,
-        models.ForeignKey,
-        models.TextField,
-        models.BooleanField,
-        models.BigIntegerField,
-        models.IntegerField,
-        models.OneToOneField,
-        models.ManyToManyField,
-        models.ImageField,
-        models.UUIDField,
-    )
-    blacklist_field_names = (
-        "_field_status",
-        "id",
-        "created_at",
-        "updated_at",
-        "order",
-    )
-    fields = []
-    for field in model._meta.get_fields():
-        if isinstance(field, whitelist_field_types) and field.name not in blacklist_field_names:
-            fields.append(field.name)
-    return fields
-
-
-def generate_form(model: BdmModel):
-    return modelform_factory(model, form=CustomModelForm, fields=generate_form_fields(model))
-
-
 def build_query_objs(application_name: str):
+    def build_custom_attrs(attributes: dict, model):
+        custom_attr_prefix = "get_graphql_"
+        custom_attrs = [attr for attr in dir(model) if attr.startswith(custom_attr_prefix)]
+        for attr in custom_attrs:
+            attributes.update({attr.split(custom_attr_prefix)[1]: String(source=attr)})
+        return attributes
+
     queries = {}
     models = apps.get_app_config(application_name).get_models()
 
@@ -443,23 +394,10 @@ def build_query_objs(application_name: str):
         model_name = model.__name__
         if model_name in EXEMPTED_MODELS:
             continue
-        meta_class = create_model_object_meta(model)
-
-        attributes = dict(
-            Meta=meta_class,
-            _id=UUID(name="_id"),
-            resolve__id=id_resolver,
-        )
-        # Custom attributes
-        custom_attr_prefix = "get_graphql_"
-        custom_attrs = [attr for attr in dir(model) if attr.startswith(custom_attr_prefix)]
-        for attr in custom_attrs:
-            attributes.update({attr.split(custom_attr_prefix)[1]: String(source=attr)})
-        node = type(
-            f"{model_name}Node",
-            (DjangoObjectType,),
-            attributes,
-        )
+        meta = create_model_object_meta(model)
+        attributes = dict(Meta=meta)
+        attributes = build_custom_attrs(attributes, model)
+        node = type(f"{model_name}Node", (DjangoObjectType,), attributes)
         queries.update({f"{model_name}Node": PlainTextNode.Field(node)})
         queries.update({f"all_{model_name}": DjangoFilterConnectionField(node)})
     return queries
@@ -483,49 +421,28 @@ def build_query_schema(application_name: str):
     return query
 
 
-def build_mutation_schema(application_name: str, add_jwt_mutations: bool = True):
+def build_mutation_schema(application_name: str):
     base_mutations = build_mutation_objs(application_name)
-    if add_jwt_mutations:
-        base_mutations.update(
-            {
-                "token_auth": graphql_jwt.ObtainJSONWebToken.Field(),
-                "verify_token": graphql_jwt.Verify.Field(),
-                "refresh_token": graphql_jwt.Refresh.Field(),
-            }
-        )
+    base_mutations.update(
+        {
+            "token_auth": graphql_jwt.ObtainJSONWebToken.Field(),
+            "verify_token": graphql_jwt.Verify.Field(),
+            "refresh_token": graphql_jwt.Refresh.Field(),
+        }
+    )
     mutation = type("Mutation", (ObjectType,), base_mutations)
     return mutation
 
 
-def build_schema(application_name: list, add_jwt_mutations: bool = True):
-    # schema_cache_key = f"graphql_schema_{application_name}"
-    schema_cache_key = "graphql_schema_v1"
-    schema_cache_dict = settings.GRAPHENE_SCHEMAS_CACHE
-    # Try to fetch schema from cache
-    try:
-        if schema_cache_key in schema_cache_dict:
-            return schema_cache_dict[schema_cache_key]
-    except Exception:
-        pass
-    queries = [build_query_schema(app) for app in application_name]
-    mutations = [
-        build_mutation_schema(app, add_jwt_mutations=add_jwt_mutations) for app in application_name
-    ]
-    # query = build_query_schema(application_name)
-    # mutation = build_mutation_schema(
-    #     application_name, add_jwt_mutations=add_jwt_mutations
-    # )
+def build_schema(applications: list[str], extra_queries=[], extra_mutations=[]):
+    queries = [build_query_schema(app) for app in applications] + extra_queries
+    mutations = [build_mutation_schema(app) for app in applications] + extra_mutations
 
     class Query(*queries):
         pass
 
-    class Mutations(*mutations):
+    class Mutation(*mutations):
         pass
 
-    schema = Schema(query=Query, mutation=Mutations)
-    # Try to cache schema
-    try:
-        schema_cache_dict[schema_cache_key] = schema
-    except Exception:
-        pass
+    schema = Schema(query=Query, mutation=Mutation)
     return schema
