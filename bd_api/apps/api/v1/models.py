@@ -971,17 +971,28 @@ class Table(BdmModel, OrderedModel):
         ]
 
     @property
-    def bq_slug(self):
-        """Get the table slug used in Big Query"""
+    def gbq_slug(self):
+        """Get the slug used in Google Big Query"""
         if cloud_table := self.cloud_tables.first():
-            project = cloud_table.gcp_project_id
             dataset = cloud_table.gcp_dataset_id
             table = cloud_table.gcp_table_id
-            return f"{project}.{dataset}.{table}"
+            return f"basedosdados.{dataset}.{table}"
 
     @property
-    def get_graphql_bq_slug(self):
-        return self.bq_slug
+    def gcs_slug(self):
+        """Get the slug used in Google Cloud Storage"""
+        if cloud_table := self.cloud_tables.first():
+            dataset = cloud_table.gcp_dataset_id
+            table = cloud_table.gcp_table_id
+            return f"staging/{dataset}/{table}"
+
+    @property
+    def get_graphql_gbq_slug(self):
+        return self.gbq_slug
+
+    @property
+    def get_graphql_gcs_slug(self):
+        return self.gcs_slug
 
     @property
     def partitions(self):
