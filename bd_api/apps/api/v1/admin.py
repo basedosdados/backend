@@ -263,7 +263,7 @@ def update_table_metadata(modeladmin=None, request=None, queryset: QuerySet = No
             try:
                 query = f"""
                     SELECT COUNT(1) AS n_rows
-                    FROM `{table.db_slug}`
+                    FROM `{table.gbq_slug}`
                 """
                 number_rows = read_gbq(query)
                 number_rows = number_rows.loc[0, "n_rows"]
@@ -285,18 +285,18 @@ def update_table_metadata(modeladmin=None, request=None, queryset: QuerySet = No
         if bq_table.table_type == "VIEW":
             try:
                 file_size = 0
-                folder_prefix = f"staging/{table.dataset.db_slug}/{table.db_slug}"
-                for blob in bucket.list_blobs(prefix=folder_prefix):
+                for blob in bucket.list_blobs(prefix=table.gcs_slug):
                     file_size += blob.size
             except Exception as e:
                 logger.warning(e)
+
+    return
 
     creds = get_credentials()
     bq_client = GBQClient(credentials=creds)
     cs_client = GCSClient(credentials=creds)
 
-    bucket_name = "basedosdados-dev"
-    bucket = cs_client.get_bucket(bucket_name)
+    bucket = cs_client.get_bucket("basedosdados")
 
     tables: list[Table] = []
     match str(modeladmin):
@@ -312,7 +312,7 @@ def update_table_metadata(modeladmin=None, request=None, queryset: QuerySet = No
 
     for table in tables:
         try:
-            bq_table = bq_client.get_table(table.db_slug)
+            bq_table = bq_client.get_table(table.gbq_slug)
             table.number_rows = get_number_of_rows(table, bq_table)
             table.number_columns = get_number_of_columns(table, bq_table)
             table.uncompressed_file_size = get_uncompressed_file_size(table, bq_table)
