@@ -566,15 +566,6 @@ class Dataset(BdmModel):
         return reverse("datasetdetail", kwargs={"pk": self.object.pk})
 
     @property
-    def db_slug(self):
-        """Get the database slug"""
-        return self.full_slug.replace("sa_br", "br")
-
-    @property
-    def get_graphql_db_slug(self):
-        return self.db_slug
-
-    @property
     def full_slug(self):
         """Get the full slug or Dataset"""
         if self.organization.area.slug != "unknown":
@@ -980,16 +971,17 @@ class Table(BdmModel, OrderedModel):
         ]
 
     @property
-    def db_slug(self):
-        """Get the database slug"""
-        table_slug = self.slug
-        dataset_slug = self.dataset.db_slug
-        bucket_slug = self.source_bucket_name
-        return f"{bucket_slug}.{dataset_slug}.{table_slug}"
+    def bq_slug(self):
+        """Get the table slug used in Big Query"""
+        if cloud_table := self.cloud_tables.first():
+            project = cloud_table.gcp_project_id
+            dataset = cloud_table.gcp_dataset_id
+            table = cloud_table.gcp_table_id
+            return f"{project}.{dataset}.{table}"
 
     @property
-    def get_graphql_db_slug(self):
-        return self.db_slug
+    def get_graphql_bq_slug(self):
+        return self.bq_slug
 
     @property
     def partitions(self):
