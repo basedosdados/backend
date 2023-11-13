@@ -104,7 +104,7 @@ jobs:
               - name: "REDIS_DB"
                 value: "0"
               - name: "STRIPE_LIVE_MODE"
-                value: "False"
+                value: ""
               - name: "STRIPE_LIVE_SECRET_KEY"
                 value: "${{ secrets.STRIPE_LIVE_SECRET_KEY }}"
               - name: "STRIPE_TEST_SECRET_KEY"
