@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import stripe
+from django.conf import settings
 from djstripe.models import Customer as DJStripeCustomer
 from djstripe.models import Price as DJStripePrice
 from djstripe.models import Subscription as DJStripeSubscription
@@ -13,10 +15,15 @@ from bd_api.apps.account.models import Account, Subscription
 from bd_api.apps.payment.webhooks import add_user, remove_user
 from bd_api.custom.graphql_base import CountableConnection, PlainTextNode
 
+if settings.STRIPE_LIVE_MODE:
+    stripe.api_key = settings.STRIPE_LIVE_SECRET_KEY
+else:
+    stripe.api_key = settings.STRIPE_TEST_SECRET_KEY
+
 
 class StripePriceNode(DjangoObjectType):
-    product_name = String()
     amount = Float()
+    product_name = String()
 
     class Meta:
         model = DJStripePrice
@@ -61,16 +68,7 @@ class StripeCustomerInput(InputObjectType):
 
 
 class StripeCustomerCreateMutation(Mutation):
-    """Create stripe customer
-    - name
-    - email
-    - address
-        - line: "Rua Augusta, 100"
-        - city: "São Paulo"
-        - state: "SP"
-        - country: "BR"
-        - postal_code: "01304-000"
-    """
+    """Create stripe customer"""
 
     customer = Field(StripeCustomerNode)
     errors = List(String)
@@ -83,20 +81,17 @@ class StripeCustomerCreateMutation(Mutation):
     def mutate(cls, root, info, input):
         try:
             account = info.context.user
-            account = Account.objects.get(id=account.id)
             customer = DJStripeCustomer.create(account)
-            customer = StripeCustomer.modify(
+            StripeCustomer.modify(
                 customer.id,
-                {
-                    "name": input.name,
-                    "email": input.email,
-                    "address": {
-                        "city": input.address.city,
-                        "line1": input.address.line,
-                        "state": input.address.state,
-                        "country": input.address.country,
-                        "postal_code": input.address.postal_code,
-                    },
+                name=input.name,
+                email=input.email,
+                address={
+                    "city": input.address.city,
+                    "line1": input.address.line,
+                    "state": input.address.state,
+                    "country": input.address.country,
+                    "postal_code": input.address.postal_code,
                 },
             )
             return cls(customer=customer)
@@ -106,16 +101,7 @@ class StripeCustomerCreateMutation(Mutation):
 
 
 class StripeCustomerUpdateMutation(Mutation):
-    """Update stripe customer
-    - name
-    - email
-    - address
-        - line1: "Rua Augusta, 100"
-        - city: "São Paulo"
-        - state: "SP"
-        - country: "BR"
-        - postal_code: "01304-000"
-    """
+    """Update stripe customer"""
 
     customer = Field(StripeCustomerNode)
     errors = String()
@@ -126,22 +112,20 @@ class StripeCustomerUpdateMutation(Mutation):
     @classmethod
     @login_required
     def mutate(cls, root, info, input):
+        customer: DJStripeCustomer
         try:
             account = info.context.user
-            account = Account.objects.get(id=account.id)
-            customer: DJStripeCustomer = account.djstripe_customers.first()
-            customer = StripeCustomer.modify(
+            customer = account.djstripe_customers.first()
+            StripeCustomer.modify(
                 customer.id,
-                {
-                    "name": input.name,
-                    "email": input.email,
-                    "address": {
-                        "city": input.address.city,
-                        "line1": input.address.line,
-                        "state": input.address.state,
-                        "country": input.address.country,
-                        "postal_code": input.address.postal_code,
-                    },
+                name=input.name,
+                email=input.email,
+                address={
+                    "city": input.address.city,
+                    "line1": input.address.line,
+                    "state": input.address.state,
+                    "country": input.address.country,
+                    "postal_code": input.address.postal_code,
                 },
             )
             return cls(customer=customer)
@@ -183,14 +167,13 @@ class StripeSubscriptionCreateMutation(Mutation):
     def mutate(cls, root, info, price_id):
         try:
             account = info.context.user
-            account = Account.objects.get(id=account.id)
-            customer: DJStripeCustomer = account.djstripe_customers[0]
+            customer: DJStripeCustomer = account.djstripe_customers.first()
+            price: DJStripePrice = DJStripePrice.objects.get(djstripe_id=price_id)
             subscription: DJStripeSubscription = customer.subscribe(
-                price=price_id,
-                payment_behaviour="default_incomplete",
+                price=price.id,
+                payment_behavior="default_incomplete",
                 payment_settings={"save_default_payment_method": "on_subscription"},
             )
-            # Criar inscrição interna
             return cls(subscription=subscription)
         except Exception as e:
             logger.error(e)
@@ -223,11 +206,6 @@ class StripeSubscriptionMutation(ObjectType):
     delete_stripe_subscription = StripeSubscriptionDeleteMutation.Field()
 
 
-class StripeSubscriptionCustomerInput(InputObjectType):
-    account_id = ID(required=True)
-    subscription_id = ID(required=True)
-
-
 class StripeSubscriptionCustomerCreateMutation(Mutation):
     """Add account to subscription"""
 
@@ -235,19 +213,19 @@ class StripeSubscriptionCustomerCreateMutation(Mutation):
     errors = List(String)
 
     class Arguments:
-        input = StripeSubscriptionCustomerInput()
+        account_id = ID(required=True)
+        subscription_id = ID(required=True)
 
     @classmethod
     @login_required
-    def mutate(cls, root, info, input):
+    def mutate(cls, root, info, account_id, subscription_id):
         try:
             admin = info.context.user
-            admin = Account.objects.get(id=admin.id)
-            account = Account.objects.get(id=input.account_id).first()
-            subscription = Subscription.objects.get(id=input.subscription_id).first()
+            account = Account.objects.get(id=account_id)
+            subscription = Subscription.objects.get(id=subscription_id)
             assert admin.id == subscription.admin.id
-            subscription.subscribers.add(account)
             add_user(account.email)
+            subscription.subscribers.add(account)
             return cls(ok=True)
         except Exception as e:
             logger.error(e)
@@ -261,18 +239,19 @@ class StripeSubscriptionCustomerDeleteMutation(Mutation):
     errors = List(String)
 
     class Arguments:
-        input = StripeSubscriptionCustomerInput()
+        account_id = ID(required=True)
+        subscription_id = ID(required=True)
 
     @classmethod
     @login_required
-    def mutate(cls, root, info, input):
+    def mutate(cls, root, info, account_id, subscription_id):
         try:
             admin = info.context.user
-            admin = Account.objects.get(id=admin.id)
-            account = Account.objects.get(id=input.account_id).first()
-            subscription = Subscription.objects.get(id=input.subscription_id).first()
+            account = Account.objects.get(id=account_id)
+            subscription = Subscription.objects.get(id=subscription_id)
             assert admin.id == subscription.admin.id
             remove_user(account.email)
+            subscription.subscribers.remove(account)
             return cls(ok=True)
         except Exception as e:
             logger.error(e)
