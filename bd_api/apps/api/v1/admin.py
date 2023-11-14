@@ -611,57 +611,41 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         extra_context = extra_context or {}
         obj = get_object_or_404(Table, pk=object_id) if object_id else None
         if obj:
-            coverages = obj.coverages.all()
-            coverages_list = []
-            for coverage in coverages:
-                cov = {
-                    "id": coverage.id,
-                    "area": coverage.area.name,
-                    "datetime_range": "",
-                }
-                datetime_range = (
-                    coverage.datetime_ranges.first()
-                )  # currently, it gets only the first datetime_range
-                if datetime_range:
-                    cov["datetime_range"] = datetime_range
-                coverages_list.append(cov)
+            extra_context["table_coverages"] = []
+            extra_context["datetime_ranges"] = []
+            for coverage in obj.coverages.all():
+                extra_context["table_coverages"].append(
+                    {
+                        "id": coverage.id,
+                        "area": coverage.area.name if coverage.area else "",
+                        "datetime_range": coverage.datetime_ranges.first() or "",
+                    }
+                )
+                extra_context["datetime_ranges"].append(coverage.datetime_ranges.all())
 
-            extra_context["table_coverages"] = coverages_list
+            extra_context["table_observations"] = []
+            for observation in obj.observation_levels.all():
+                extra_context["table_observations"].append(
+                    {
+                        "id": observation.id,
+                        "entity": observation.entity.name if observation.entity else "",
+                        "columns": "".join([column.name for column in observation.columns.all()]),
+                    }
+                )
 
-            extra_context["datetime_ranges"] = [
-                coverage.datetime_ranges.all() for coverage in obj.coverages.all()
-            ]
+            extra_context["table_cloudtables"] = []
+            for cloudtable in obj.cloud_tables.all():
+                extra_context["table_cloudtables"].append(
+                    {
+                        "id": cloudtable.id,
+                        "gcp_project_id": cloudtable.gcp_project_id,
+                        "gcp_dataset_id": cloudtable.gcp_dataset_id,
+                        "gcp_table_id": cloudtable.gcp_table_id,
+                        "columns": "",
+                    }
+                )
 
-            observations = obj.observation_levels.all()
-            observations_list = []
-            for observation in observations:
-                obs = {
-                    "id": observation.id,
-                    "entity": observation.entity.name,
-                    "columns": "",
-                }
-                columns = [column.name for column in observation.columns.all()]
-                if columns:
-                    obs["columns"] = ",".join(columns)
-                observations_list.append(obs)
-
-            extra_context["table_observations"] = observations_list
-
-            cloudtables = obj.cloud_tables.all()
-            cloudtables_list = []
-            for cloudtable in cloudtables:
-                ct = {
-                    "id": cloudtable.id,
-                    "gcp_project_id": cloudtable.gcp_project_id,
-                    "gcp_dataset_id": cloudtable.gcp_dataset_id,
-                    "gcp_table_id": cloudtable.gcp_table_id,
-                    "columns": "",
-                }
-                cloudtables_list.append(ct)
-
-            extra_context["table_cloudtables"] = cloudtables_list
-
-        return super().changeform_view(request, object_id, form_url, extra_context=extra_context)
+        return super().changeform_view(request, object_id, form_url, extra_context)
 
     def related_columns(self, obj):
         """Adds information of number of columns, with link to add a new column"""
