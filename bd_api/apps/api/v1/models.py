@@ -6,6 +6,7 @@ Models for API v1
 import calendar
 import json
 import os
+from collections import defaultdict
 from datetime import datetime
 from uuid import uuid4
 
@@ -1113,19 +1114,19 @@ class Table(BdmModel, OrderedModel):
         """
         errors = {}
         try:
-            coverages = self.coverages.all()
-            temporal_coverages_by_area = {str(coverage.area.slug): [] for coverage in coverages}
-            for coverage in coverages:
-                try:
-                    temporal_coverages_by_area[str(coverage.area.slug)].append(
-                        *list(coverage.datetime_ranges.all())
-                    )
-                except TypeError:
-                    continue
+            temporal_coverages_by_area = defaultdict(lambda: [])
+            for coverage in self.coverages.all():
+                if area := coverage.area:
+                    try:
+                        temporal_coverages_by_area[str(area.slug)].append(
+                            *list(coverage.datetime_ranges.all())
+                        )
+                    except TypeError:
+                        continue
             for area, temporal_coverages in temporal_coverages_by_area.items():
-                dt_ranges = []
-                for _, temporal_coverage in enumerate(temporal_coverages):
-                    dt_ranges.append(
+                datetime_ranges = []
+                for temporal_coverage in temporal_coverages:
+                    datetime_ranges.append(
                         (
                             datetime(
                                 temporal_coverage.start_year,
@@ -1139,9 +1140,9 @@ class Table(BdmModel, OrderedModel):
                             ),
                         )
                     )
-                dt_ranges.sort(key=lambda x: x[0])
-                for i in range(1, len(dt_ranges)):
-                    if dt_ranges[i - 1][1] > dt_ranges[i][0]:
+                datetime_ranges.sort(key=lambda x: x[0])
+                for i in range(1, len(datetime_ranges)):
+                    if datetime_ranges[i - 1][1] > datetime_ranges[i][0]:
                         errors = f"Temporal coverages in area {area} overlap"
         except ValueError:
             pass
