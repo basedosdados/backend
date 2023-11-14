@@ -7,7 +7,7 @@ from django.views import View
 from bd_api.apps.api.v1.models import CloudTable, Dataset
 
 URL_MAPPING = {
-    "localhost:8001": "localhost:3000",
+    "localhost:8080": "localhost:3000",
     "api.basedosdados.org": "basedosdados.org",
     "staging.api.basedosdados.org": "staging.basedosdados.org",
     "development.api.basedosdados.org": "development.basedosdados.org",
