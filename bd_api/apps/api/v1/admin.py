@@ -290,8 +290,6 @@ def update_table_metadata(modeladmin=None, request=None, queryset: QuerySet = No
             except Exception as e:
                 logger.warning(e)
 
-    return
-
     creds = get_credentials()
     bq_client = GBQClient(credentials=creds)
     cs_client = GCSClient(credentials=creds)
