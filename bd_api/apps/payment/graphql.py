@@ -22,6 +22,7 @@ else:
 
 
 class StripePriceNode(DjangoObjectType):
+    _id = ID(name="_id")
     amount = Float()
     product_name = String()
 
@@ -32,11 +33,14 @@ class StripePriceNode(DjangoObjectType):
         interfaces = (PlainTextNode,)
         connection_class = CountableConnection
 
-    def resolve_product_name(root, info):
-        return root.product.name
+    def resolve__id(root, info):
+        return root.djstripe_id
 
     def resolve_amount(root, info):
         return root.unit_amount / 100
+
+    def resolve_product_name(root, info):
+        return root.product.name
 
 
 class StripePriceQuery(ObjectType):
