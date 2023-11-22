@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from django.core.management import call_command
 from huey import crontab
 from huey.contrib.djhuey import periodic_task
 
@@ -20,3 +21,9 @@ def healthcheck_task():
 @periodic_task(crontab(day_of_week="0", hour="0", minute="0"))
 def update_table_metadata_task():
     update_table_metadata()
+
+
+@prod_task
+@periodic_task(crontab(day_of_week="0", hour="2", minute="0"))
+def rebuild_search_index_task():
+    call_command("rebuild_index", interactive=False, batchsize=100, workers=4)
