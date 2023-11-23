@@ -24,6 +24,12 @@ def update_table_metadata_task():
 
 
 @prod_task
+@periodic_task(crontab(day_of_week="1-6", hour="5", minute="0"))
+def update_search_index_task():
+    call_command("update_index", batchsize=100, workers=4)
+
+
+@prod_task
 @periodic_task(crontab(day_of_week="0", hour="5", minute="0"))
 def rebuild_search_index_task():
     call_command("rebuild_index", interactive=False, batchsize=100, workers=4)
