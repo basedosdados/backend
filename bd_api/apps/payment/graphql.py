@@ -58,17 +58,17 @@ class StripeCustomerNode(DjangoObjectType):
 
 
 class StripeCustomerAddressInput(InputObjectType):
-    line = String(required=True)
-    city = String(required=True)
-    state = String(required=True)
-    country = String(required=True)
-    postal_code = String(required=True)
+    line = String()
+    city = String()
+    state = String()
+    country = String()
+    postal_code = String()
 
 
 class StripeCustomerInput(InputObjectType):
     name = String(required=True)
     email = String(required=True)
-    address = StripeCustomerAddressInput(required=True)
+    address = StripeCustomerAddressInput()
 
 
 class StripeCustomerCreateMutation(Mutation):
@@ -85,19 +85,26 @@ class StripeCustomerCreateMutation(Mutation):
     def mutate(cls, root, info, input):
         try:
             account = info.context.user
-            customer = DJStripeCustomer.create(account)
-            StripeCustomer.modify(
-                customer.id,
-                name=input.name,
-                email=input.email,
-                address={
-                    "city": input.address.city,
-                    "line1": input.address.line,
-                    "state": input.address.state,
-                    "country": input.address.country,
-                    "postal_code": input.address.postal_code,
-                },
-            )
+            if customer := account.djstripe_customers.first():
+                ...
+            else:
+                customer = DJStripeCustomer.create(account)
+                parameters = {
+                    "name": input.name,
+                    "email": input.email,
+                }
+                if input.address:
+                    parameters["address"] = {
+                        "city": input.address.city,
+                        "line1": input.address.line,
+                        "state": input.address.state,
+                        "country": input.address.country,
+                        "postal_code": input.address.postal_code,
+                    }
+                StripeCustomer.modify(
+                    customer.id,
+                    **parameters,
+                )
             return cls(customer=customer)
         except Exception as e:
             logger.error(e)
@@ -116,7 +123,6 @@ class StripeCustomerUpdateMutation(Mutation):
     @classmethod
     @login_required
     def mutate(cls, root, info, input):
-        customer: DJStripeCustomer
         try:
             account = info.context.user
             customer = account.djstripe_customers.first()
