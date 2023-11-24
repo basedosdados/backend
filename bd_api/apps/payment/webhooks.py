@@ -33,7 +33,7 @@ def get_service() -> Resource:
     return build("admin", "directory_v1", credentials=credentials)
 
 
-def add_user(email: str, group_key: str, role: str = "MEMBER"):
+def add_user(email: str, group_key: str = None, role: str = "MEMBER"):
     """Add user to google group"""
     if not group_key:
         group_key = settings.GOOGLE_DIRECTORY_GROUP_KEY
@@ -51,7 +51,7 @@ def add_user(email: str, group_key: str, role: str = "MEMBER"):
             raise e
 
 
-def remove_user(email: str, group_key: str) -> None:
+def remove_user(email: str, group_key: str = None) -> None:
     """Remove user from google group"""
     if not group_key:
         group_key = settings.GOOGLE_DIRECTORY_GROUP_KEY
