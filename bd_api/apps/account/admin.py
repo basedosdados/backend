@@ -5,7 +5,7 @@ from django.contrib.auth.admin import UserAdmin as BaseAccountAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from faker import Faker
 
-from bd_api.apps.account.models import Account, BDGroup, BDGroupRole, BDRole, Career
+from bd_api.apps.account.models import Account, BDGroup, BDGroupRole, BDRole, Career, Subscription
 
 
 class AccountCreationForm(forms.ModelForm):
@@ -228,7 +228,18 @@ class BDGroupAdmin(admin.ModelAdmin):
     ordering = ("name",)
 
 
+class SubscriptionAdmin(admin.ModelAdmin):
+    list_display = (
+        "admin_name",
+        "stripe_subscription",
+        "stripe_subscription_status",
+    )
+    search_fields = ("admin__full_name",)
+    ordering = ("admin__full_name",)
+
+
 admin.site.register(Account, AccountAdmin)
 admin.site.register(Career, CareerAdmin)
 admin.site.register(BDRole)
 admin.site.register(BDGroup, BDGroupAdmin)
+admin.site.register(Subscription, SubscriptionAdmin)

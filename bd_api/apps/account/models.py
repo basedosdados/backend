@@ -390,3 +390,25 @@ class Subscription(BdmModel):
     class Meta:
         verbose_name = "Subscription"
         verbose_name_plural = "Subscriptions"
+
+    @property
+    def admin_name(self):
+        return f"{self.admin.first_name} {self.admin.last_name}"
+
+    @property
+    def stripe_subscription(self):
+        try:
+            customer = self.admin.djstripe_customers.first()
+            product = customer.subscription.plan.product.name
+            return product
+        except Exception:
+            return ""
+
+    @property
+    def stripe_subscription_status(self):
+        try:
+            customer = self.admin.djstripe_customers.first()
+            status = customer.subscription.status
+            return status
+        except Exception:
+            return ""
