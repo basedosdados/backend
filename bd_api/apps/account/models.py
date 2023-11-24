@@ -325,6 +325,24 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
 
     get_organization.short_description = "organização"
 
+    def get_graphql_current_subscription(self):
+        """Current stripe active subscription product"""
+        try:
+            subscription = self.subscription_set.filter(is_active=True).first()
+            return subscription.stripe_subscription
+        except Exception:
+            return ""
+
+    def get_graphql_current_subscription_status(self):
+        """Current stripe active subscription status:
+        - Incomplete, Incomplete Expired, Trialing, Active, Past Due, Canceled, Unpaid
+        """
+        try:
+            subscription = self.subscription_set.filter(is_active=True).first()
+            return subscription.stripe_subscription_status
+        except Exception:
+            return ""
+
     def save(self, *args, **kwargs) -> None:
         # If self._password is set and check_password(self._password, self.password) is True, then
         # just save the model without changing the password.
@@ -399,8 +417,7 @@ class Subscription(BdmModel):
     def stripe_subscription(self):
         try:
             customer = self.admin.djstripe_customers.first()
-            product = customer.subscription.plan.product.name
-            return product
+            return customer.subscription.plan.product.name
         except Exception:
             return ""
 
@@ -408,7 +425,6 @@ class Subscription(BdmModel):
     def stripe_subscription_status(self):
         try:
             customer = self.admin.djstripe_customers.first()
-            status = customer.subscription.status
-            return status
+            return customer.subscription.status
         except Exception:
             return ""
