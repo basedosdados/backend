@@ -12,7 +12,7 @@ serialize = True if is_remote() else False
 setup_logger(level=level, serialize=serialize)
 
 
-@periodic_task(crontab(minute="*/10"))
+@periodic_task(crontab(hour="*"))
 def healthcheck_task():
     ...
 
