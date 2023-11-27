@@ -84,11 +84,11 @@ class StripeCustomerCreateMutation(Mutation):
     @login_required
     def mutate(cls, root, info, input):
         try:
-            account = info.context.user
-            if customer := account.djstripe_customers.first():
+            admin = info.context.user
+            if customer := admin.customer:
                 ...
             else:
-                customer = DJStripeCustomer.create(account)
+                customer = DJStripeCustomer.create(admin)
                 parameters = {
                     "name": input.name,
                     "email": input.email,
@@ -125,7 +125,7 @@ class StripeCustomerUpdateMutation(Mutation):
     def mutate(cls, root, info, input):
         try:
             account = info.context.user
-            customer = account.djstripe_customers.first()
+            customer = account.customer
             StripeCustomer.modify(
                 customer.id,
                 name=input.name,
@@ -176,14 +176,14 @@ class StripeSubscriptionCreateMutation(Mutation):
     @login_required
     def mutate(cls, root, info, price_id):
         try:
-            account = info.context.user
-            customer: DJStripeCustomer = account.djstripe_customers.first()
-            price: DJStripePrice = DJStripePrice.objects.get(djstripe_id=price_id)
-            subscription: DJStripeSubscription = customer.subscribe(
+            admin = info.context.user
+            price = DJStripePrice.objects.get(djstripe_id=price_id)
+            subscription: DJStripeSubscription = admin.customer.subscribe(
                 price=price.id,
                 payment_behavior="default_incomplete",
                 payment_settings={"save_default_payment_method": "on_subscription"},
             )
+            Subscription.objects.create(admin=admin, subscription=subscription)
             return cls(subscription=subscription)
         except Exception as e:
             logger.error(e)
