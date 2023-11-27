@@ -12,11 +12,6 @@ serialize = True if is_remote() else False
 setup_logger(level=level, serialize=serialize)
 
 
-@periodic_task(crontab(hour="*"))
-def healthcheck_task():
-    ...
-
-
 @prod_task
 @periodic_task(crontab(day_of_week="0", hour="3", minute="0"))
 def update_table_metadata_task():
