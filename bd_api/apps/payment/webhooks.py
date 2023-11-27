@@ -15,9 +15,14 @@ logger = logger.bind(codename="payment_webhook")
 
 def get_subscription(event: Event) -> Subscription:
     """Get internal subscription model, mirror of stripe"""
-    dj_subscription = DJStripeSubscription.objects.get(id=event.data["id"])
-    in_subscription = dj_subscription.internal_subscription
-    return in_subscription
+    subscription = DJStripeSubscription.objects.get(id=event.data["object"]["id"])
+    if hasattr(subscription, "internal_subscription"):
+        return subscription.internal_subscription
+    else:
+        return Subscription.objects.create(
+            subscription=subscription,
+            admin=event.customer.subscriber,
+        )
 
 
 def get_credentials(scopes: list[str] = None, impersonate: str = None):
@@ -90,6 +95,15 @@ def unsubscribe(event: Event, **kwargs):
     remove_user(event.customer.email)
     subscription.is_active = False
     subscription.save()
+
+
+@webhooks.handler("customer.updated")
+def update_customer(event: Event, **kwargs):
+    """Propagate customer email update"""
+    account = event.customer.subscriber
+    if account.email != event.data["object"]["email"]:
+        account.email = event.data["object"]["email"]
+        account.save()
 
 
 # Reference

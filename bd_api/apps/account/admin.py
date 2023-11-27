@@ -1,11 +1,23 @@
 # -*- coding: utf-8 -*-
 from django import forms
 from django.contrib import admin
+from django.contrib.admin import ModelAdmin
 from django.contrib.auth.admin import UserAdmin as BaseAccountAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
+from django.db.models.query import QuerySet
+from django.http import HttpRequest
 from faker import Faker
 
 from bd_api.apps.account.models import Account, BDGroup, BDGroupRole, BDRole, Career, Subscription
+from bd_api.apps.account.tasks import sync_subscription_task
+
+
+def sync_subscription(modeladmin: ModelAdmin, request: HttpRequest, queryset: QuerySet):
+    """Create internal subscriptions from stripe subscriptions"""
+    sync_subscription_task(modeladmin, request, queryset)
+
+
+sync_subscription.short_description = "Sincronizar inscrições"
 
 
 class AccountCreationForm(forms.ModelForm):
@@ -229,13 +241,22 @@ class BDGroupAdmin(admin.ModelAdmin):
 
 
 class SubscriptionAdmin(admin.ModelAdmin):
+    actions = [sync_subscription]
     list_display = (
-        "admin_name",
+        "admin_email",
         "stripe_subscription",
         "stripe_subscription_status",
     )
     search_fields = ("admin__full_name",)
-    ordering = ("admin__full_name",)
+    readonly_fields = (
+        "id",
+        "admin",
+        "subscription",
+    )
+    ordering = ("admin__email",)
+
+    def has_add_permission(self, request: HttpRequest):
+        return False
 
 
 admin.site.register(Account, AccountAdmin)

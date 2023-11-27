@@ -422,8 +422,8 @@ class Subscription(BdmModel):
         verbose_name_plural = "Subscriptions"
 
     @property
-    def admin_name(self):
-        return f"{self.admin.first_name} {self.admin.last_name}"
+    def admin_email(self):
+        return f"{self.admin.email}"
 
     @property
     def stripe_subscription(self):
