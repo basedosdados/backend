@@ -2,14 +2,22 @@
 from django.conf import settings
 from djstripe import webhooks
 from djstripe.models import Event
+from djstripe.models import Subscription as DJStripeSubscription
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 from loguru import logger
 
-from bd_api.apps.account.models import Account, Subscription
+from bd_api.apps.account.models import Subscription
 
 logger = logger.bind(codename="payment_webhook")
+
+
+def get_subscription(event: Event) -> Subscription:
+    """Get internal subscription model, mirror of stripe"""
+    dj_subscription = DJStripeSubscription.objects.get(id=event.data["id"])
+    in_subscription = dj_subscription.internal_subscription
+    return in_subscription
 
 
 def get_credentials(scopes: list[str] = None, impersonate: str = None):
@@ -69,18 +77,19 @@ def remove_user(email: str, group_key: str = None) -> None:
 @webhooks.handler("customer.subscription.created")
 def subscribe(event: Event, **kwargs):
     """Add customer to allowed google groups"""
+    subscription = get_subscription(event)
     add_user(event.customer.email)
-    admin = Account.objects.get(email=event.customer.email).first()
-    Subscription.objects.create(admin=admin, is_active=True)
+    subscription.is_active = True
+    subscription.save()
 
 
 @webhooks.handler("customer.subscription.deleted")
 def unsubscribe(event: Event, **kwargs):
     """Remove customer from allowed google groups"""
+    subscription = get_subscription(event)
     remove_user(event.customer.email)
-    admin = Account.objects.get(email=event.customer.email).first()
-    admin.subscription.is_active = False
-    admin.subscription.save()
+    subscription.is_active = False
+    subscription.save()
 
 
 # Reference

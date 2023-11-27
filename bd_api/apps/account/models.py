@@ -307,6 +307,10 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
     def is_staff(self):
         return self.is_admin
 
+    @property
+    def customer(self):
+        return self.djstripe_customers.first()
+
     def __str__(self):
         return self.email
 
@@ -392,6 +396,7 @@ class Subscription(BdmModel):
     updated_at = models.DateTimeField(auto_now=True)
 
     id = models.UUIDField(primary_key=True, default=uuid4)
+
     is_active = models.BooleanField(
         "Ativo",
         default=False,
@@ -402,6 +407,13 @@ class Subscription(BdmModel):
         "Account",
         on_delete=models.DO_NOTHING,
         related_name="admin_subscription",
+    )
+    subscription = models.OneToOneField(
+        "djstripe.Subscription",
+        null=True,
+        blank=True,
+        on_delete=models.DO_NOTHING,
+        related_name="internal_subscription",
     )
     subscribers = models.ManyToManyField(Account)
 
@@ -416,15 +428,13 @@ class Subscription(BdmModel):
     @property
     def stripe_subscription(self):
         try:
-            customer = self.admin.djstripe_customers.first()
-            return customer.subscription.plan.product.name
+            return self.subscription.plan.product.name
         except Exception:
             return ""
 
     @property
     def stripe_subscription_status(self):
         try:
-            customer = self.admin.djstripe_customers.first()
-            return customer.subscription.status
+            return self.subscription.status
         except Exception:
             return ""
