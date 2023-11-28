@@ -246,6 +246,7 @@ class SubscriptionAdmin(admin.ModelAdmin):
         "admin_email",
         "stripe_subscription",
         "stripe_subscription_status",
+        "stripe_subscription_created_at",
     )
     search_fields = ("admin__full_name",)
     readonly_fields = (
@@ -253,7 +254,7 @@ class SubscriptionAdmin(admin.ModelAdmin):
         "admin",
         "subscription",
     )
-    ordering = ("admin__email",)
+    ordering = ("admin__email", "subscription__created")
 
     def has_add_permission(self, request: HttpRequest):
         return False
