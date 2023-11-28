@@ -30,8 +30,7 @@ class BDSignalProcessor(BaseSignalProcessor):
         - If the instance isn't a fixture, then update it
         """
 
-        if raw:
-            return None
+        return None
 
         using_backends = self.connection_router.for_write(instance=instance)
 
