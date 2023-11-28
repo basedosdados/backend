@@ -44,7 +44,7 @@ from bd_api.custom.graphql_base import CountableConnection, FileFieldScalar, Pla
 from bd_api.custom.graphql_jwt import ownership_required
 from bd_api.custom.model import BdmModel
 
-EXEMPTED_MODELS = ("RegistrationToken",)
+EXEMPTED_MODELS = ("RegistrationToken", "Subscription")
 
 
 @convert_django_field.register(models.FileField)
@@ -340,6 +340,7 @@ def generate_filter_fields(model: BdmModel):
             if (
                 isinstance(field, exempted_field_types)
                 or "djstripe" in field.name
+                or "subscription" in field.name
                 or field.name in exempted_field_names
                 or model.__module__.startswith("django")
             ):
