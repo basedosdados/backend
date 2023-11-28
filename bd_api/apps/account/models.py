@@ -403,7 +403,7 @@ class Subscription(BdmModel):
         help_text="Indica se a inscrição está ativa",
     )
 
-    admin = models.OneToOneField(
+    admin = models.ForeignKey(
         "Account",
         on_delete=models.DO_NOTHING,
         related_name="admin_subscription",
@@ -423,18 +423,16 @@ class Subscription(BdmModel):
 
     @property
     def admin_email(self):
-        return f"{self.admin.email}"
+        return self.admin.email or "test@stripe.com"
 
     @property
     def stripe_subscription(self):
-        try:
-            return self.subscription.plan.product.name
-        except Exception:
-            return ""
+        return self.subscription.plan.product.name
 
     @property
     def stripe_subscription_status(self):
-        try:
-            return self.subscription.status
-        except Exception:
-            return ""
+        return self.subscription.status
+
+    @property
+    def stripe_subscription_created_at(self):
+        return self.subscription.created
