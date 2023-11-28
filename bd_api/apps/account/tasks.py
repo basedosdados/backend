@@ -32,6 +32,7 @@ def sync_subscription_task(
                 email=subscription.customer.email,
             ).first()  # fmt: skip
             admin = admin or Account.objects.create(
+                is_active=True,
                 email=subscription.customer.email,
                 username=subscription.customer.email.split("@")[0],
             )
