@@ -40,14 +40,17 @@ services:
   database:
     image: postgres:14
     container_name: database
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_HOST_AUTH_METHOD=trust
     env_file:
-      - .env
+      - .env.docker
     ports:
       - 5432:5432
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "${POSTGRES_USER}"]
+      test: ["CMD", "pg_isready", "-U", "postgres"]
       interval: 1m
       timeout: 30s
       retries: 5
@@ -60,7 +63,7 @@ services:
       dockerfile: Dockerfile
     container_name: api
     env_file:
-      - .env
+      - .env.docker
     ports:
       - 8080:80
     depends_on:
