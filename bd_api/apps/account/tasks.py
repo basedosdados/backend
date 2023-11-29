@@ -9,6 +9,7 @@ from bd_api.apps.account.models import Account, Subscription
 from bd_api.custom.logger import setup_logger
 from bd_api.utils import is_remote
 
+logger = logger.bind(module="account")
 level = "INFO" if is_remote() else "DEBUG"
 serialize = True if is_remote() else False
 setup_logger(level=level, serialize=serialize)
@@ -27,6 +28,7 @@ def sync_subscription_task(
     """
     for subscription in DJStripeSubscription.objects.order_by("-created").all():
         admin = None
+        is_active = subscription.status == "active"
         if getattr(subscription, "internal_subscription", None):
             continue
         if getattr(subscription.customer, "subscriber", None):
@@ -46,4 +48,9 @@ def sync_subscription_task(
             except Exception as error:
                 logger.error(error)
         if admin and subscription:
-            Subscription.objects.create(admin=admin, subscription=subscription)
+            Subscription.objects.create(
+                admin=admin,
+                is_active=is_active,
+                subscription=subscription,
+            )
+            logger.info(f"Create subscription for {admin}")

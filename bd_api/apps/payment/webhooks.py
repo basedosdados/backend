@@ -10,7 +10,7 @@ from loguru import logger
 
 from bd_api.apps.account.models import Subscription
 
-logger = logger.bind(codename="payment_webhook")
+logger = logger.bind(module="payment")
 
 
 def get_subscription(event: Event) -> Subscription:
