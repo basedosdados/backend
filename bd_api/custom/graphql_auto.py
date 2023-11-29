@@ -44,7 +44,7 @@ from bd_api.custom.graphql_base import CountableConnection, FileFieldScalar, Pla
 from bd_api.custom.graphql_jwt import ownership_required
 from bd_api.custom.model import BdmModel
 
-EXEMPTED_MODELS = ("RegistrationToken", "Subscription")
+EXEMPTED_MODELS = ("RegistrationToken",)
 
 
 @convert_django_field.register(models.FileField)
@@ -316,58 +316,60 @@ def generate_filter_fields(model: BdmModel):
         models.ManyToOneRel,
     )
 
-    def is_bdm_model(model: models.Model):
-        return issubclass(model, BdmModel)
+    def get_filter_fields(
+        model: models.Model, processed_models: Optional[Iterable[models.Model]] = None
+    ):
+        if processed_models is None:
+            processed_models = []
+        if len(processed_models) > 3:
+            return {}, processed_models
 
-    def _get_filter_fields(model: BdmModel, used_models: Optional[Iterable[BdmModel]] = None):
-        if used_models is None:
-            used_models = []
-            if is_bdm_model(model):
-                model_fields = model.get_graphql_filter_fields_whitelist()
-            else:
-                model_fields = model._meta.get_fields()
-        else:
-            if is_bdm_model(model):
-                model_fields = model.get_graphql_nested_filter_fields_whitelist()
-            else:
-                model_fields = model._meta.get_fields()
-        used_models.append(model)
+        if not issubclass(model, BdmModel):
+            model_fields = model._meta.get_fields()
+        if issubclass(model, BdmModel) and not processed_models:
+            model_fields = model.get_graphql_filter_fields_whitelist()
+        if issubclass(model, BdmModel) and len(processed_models):
+            model_fields = model.get_graphql_nested_filter_fields_whitelist()
+
         filter_fields = {}
-        foreign_models = [
-            f.related_model for f in model_fields if isinstance(f, foreign_key_field_types)
-        ]
+        processed_models.append(model)
+
+        foreign_models = []
+        for field in model_fields:
+            if isinstance(field, foreign_key_field_types):
+                foreign_models.append(field.related_model)
+
         for field in model_fields:
             if (
-                isinstance(field, exempted_field_types)
+                False
                 or "djstripe" in field.name
-                or "subscription" in field.name
                 or field.name in exempted_field_names
                 or model.__module__.startswith("django")
+                or isinstance(field, exempted_field_types)
             ):
                 continue
+            if isinstance(field, string_field_types):
+                filter_fields[field.name] = ["exact", "isnull", "in"]
+                filter_fields[field.name] += ["icontains", "istartswith", "iendswith"]
+            if isinstance(field, comparable_field_types):
+                filter_fields[field.name] = ["exact", "isnull", "in"]
+                filter_fields[field.name] += ["lt", "lte", "gt", "gte", "range"]
             if isinstance(field, foreign_key_field_types):
-                related_model: BdmModel = field.related_model
-                if related_model in used_models:
+                if field.related_model in processed_models:
                     continue
-                related_model_filter_fields, _ = _get_filter_fields(
-                    related_model, used_models=used_models + foreign_models
+                related_model_filter_fields, _ = get_filter_fields(
+                    field.related_model,
+                    processed_models,
                 )
                 for (
                     related_model_field_name,
                     related_model_field_filter,
                 ) in related_model_filter_fields.items():
-                    filter_fields[
-                        f"{field.name}__{related_model_field_name}"
-                    ] = related_model_field_filter
-                continue
-            filter_fields[field.name] = ["exact", "isnull", "in"]
-            if isinstance(field, string_field_types):
-                filter_fields[field.name] += ["icontains", "istartswith", "iendswith"]
-            elif isinstance(field, comparable_field_types):
-                filter_fields[field.name] += ["lt", "lte", "gt", "gte", "range"]
-        return filter_fields, used_models
+                    name = f"{field.name}__{related_model_field_name}"
+                    filter_fields[name] = related_model_field_filter
+        return filter_fields, processed_models
 
-    filter_fields, _ = _get_filter_fields(model)
+    filter_fields, _ = get_filter_fields(model)
     return filter_fields
 
 
@@ -378,8 +380,8 @@ def create_model_object_meta(model: BdmModel):
         dict(
             model=(model),
             interfaces=((PlainTextNode,)),
-            filter_fields=(generate_filter_fields(model)),
             connection_class=CountableConnection,
+            filter_fields=(generate_filter_fields(model)),
         ),
     )
 
@@ -387,8 +389,7 @@ def create_model_object_meta(model: BdmModel):
 def build_query_objs(application_name: str):
     def build_custom_attrs(attributes: dict, model):
         custom_attr_prefix = "get_graphql_"
-        custom_attrs = [attr for attr in dir(model) if attr.startswith(custom_attr_prefix)]
-        for attr in custom_attrs:
+        for attr in [attr for attr in dir(model) if attr.startswith(custom_attr_prefix)]:
             attributes.update({attr.split(custom_attr_prefix)[1]: String(source=attr)})
         return attributes
 
@@ -400,13 +401,13 @@ def build_query_objs(application_name: str):
         if model_name in EXEMPTED_MODELS:
             continue
         meta = create_model_object_meta(model)
-        attributes = dict(
+        attr = dict(
             Meta=meta,
             _id=UUID(name="_id"),
             resolve__id=id_resolver,
         )
-        attributes = build_custom_attrs(attributes, model)
-        node = type(f"{model_name}Node", (DjangoObjectType,), attributes)
+        attr = build_custom_attrs(attr, model)
+        node = type(f"{model_name}Node", (DjangoObjectType,), attr)
         queries.update({f"{model_name}Node": PlainTextNode.Field(node)})
         queries.update({f"all_{model_name}": DjangoFilterConnectionField(node)})
     return queries

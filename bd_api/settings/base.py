@@ -169,7 +169,6 @@ GRAPHENE = {
     ],
     "RELAY_CONNECTION_MAX_LIMIT": 1500,
 }
-GRAPHENE_SCHEMAS_CACHE = {}
 
 # Authentication backends
 AUTHENTICATION_BACKENDS = [
