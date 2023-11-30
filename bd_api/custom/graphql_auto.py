@@ -6,7 +6,9 @@ https://github.com/timothyjlaurent/auto-graphene-django
 
 from collections import OrderedDict
 from copy import deepcopy
-from typing import Iterable, Optional
+from functools import partial
+from inspect import isfunction
+from typing import Iterable, Optional, get_type_hints
 
 import graphql_jwt
 from django.apps import apps
@@ -50,10 +52,6 @@ EXEMPTED_MODELS = ("RegistrationToken",)
 @convert_django_field.register(models.FileField)
 def convert_file_to_url(field, registry=None):
     return FileFieldScalar(description=field.help_text, required=not field.null)
-
-
-def id_resolver(self, *_):
-    return self.id
 
 
 def fields_for_form(form, only_fields, exclude_fields):
@@ -387,11 +385,28 @@ def create_model_object_meta(model: BdmModel):
 
 
 def build_query_objs(application_name: str):
-    def build_custom_attrs(attributes: dict, model):
-        custom_attr_prefix = "get_graphql_"
-        for attr in [attr for attr in dir(model) if attr.startswith(custom_attr_prefix)]:
-            attributes.update({attr.split(custom_attr_prefix)[1]: String(source=attr)})
-        return attributes
+    def get_type(model, attr):
+        """Get type of an attribute of a class"""
+        name = getattr(model, attr)
+        name = get_type_hints(name)
+        name = name.get("return", "")
+        return str(name)
+
+    def match_type(model, attr):
+        """Match python types to graphene types"""
+        if "list" in get_type(model, attr):
+            return partial(List, of_type=String)
+        return String
+
+    def build_custom_attrs(model, attrs):
+        attr_prefix = "get_graphql_"
+        for attr in dir(model):
+            if attr.startswith(attr_prefix):
+                if isfunction(getattr(model, attr)):
+                    attr_type = match_type(model, attr)
+                    attr_name = attr.split(attr_prefix)[1]
+                    attrs.update({attr_name: attr_type(source=attr)})
+        return attrs
 
     queries = {}
     models = apps.get_app_config(application_name).get_models()
@@ -404,9 +419,9 @@ def build_query_objs(application_name: str):
         attr = dict(
             Meta=meta,
             _id=UUID(name="_id"),
-            resolve__id=id_resolver,
+            resolve__id=lambda self, *_: self.id,
         )
-        attr = build_custom_attrs(attr, model)
+        attr = build_custom_attrs(model, attr)
         node = type(f"{model_name}Node", (DjangoObjectType,), attr)
         queries.update({f"{model_name}Node": PlainTextNode.Field(node)})
         queries.update({f"all_{model_name}": DjangoFilterConnectionField(node)})

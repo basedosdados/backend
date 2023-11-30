@@ -292,6 +292,7 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
 
     objects = AccountManager()
 
+    graphql_filter_fields_blacklist = ["internal_subscription"]
     graphql_nested_filter_fields_whitelist = ["email", "username"]
 
     USERNAME_FIELD = "email"
@@ -311,6 +312,12 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
     def customer(self):
         return self.djstripe_customers.first()
 
+    @property
+    def subscriptions(self):
+        all = self.subscription_set.filter(is_active=True).all() or []
+        one = self.internal_subscription.filter(is_active=True).first()
+        return [s for s in [*all, one] if s]
+
     def __str__(self):
         return self.email
 
@@ -329,23 +336,15 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
 
     get_organization.short_description = "organização"
 
-    def get_graphql_current_subscription(self):
+    def get_graphql_current_subscription(self) -> list[str]:
         """Current stripe active subscription product"""
-        try:
-            subscription = self.subscription_set.filter(is_active=True).first()
-            return subscription.stripe_subscription
-        except Exception:
-            return ""
+        return [s.stripe_subscription for s in self.subscriptions]
 
-    def get_graphql_current_subscription_status(self):
+    def get_graphql_current_subscription_status(self) -> list[str]:
         """Current stripe active subscription status:
         - Incomplete, Incomplete Expired, Trialing, Active, Past Due, Canceled, Unpaid
         """
-        try:
-            subscription = self.subscription_set.filter(is_active=True).first()
-            return subscription.stripe_subscription_status
-        except Exception:
-            return ""
+        return [s.stripe_subscription_status for s in self.subscriptions]
 
     def save(self, *args, **kwargs) -> None:
         # If self._password is set and check_password(self._password, self.password) is True, then
@@ -406,7 +405,7 @@ class Subscription(BdmModel):
     admin = models.ForeignKey(
         "Account",
         on_delete=models.DO_NOTHING,
-        related_name="admin_subscription",
+        related_name="internal_subscription",
     )
     subscription = models.OneToOneField(
         "djstripe.Subscription",
