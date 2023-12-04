@@ -3,16 +3,11 @@ from django.contrib.admin import ModelAdmin
 from django.db.models.query import QuerySet
 from django.http import HttpRequest
 from djstripe.models import Subscription as DJStripeSubscription
-from loguru import logger
 
 from bd_api.apps.account.models import Account, Subscription
-from bd_api.custom.logger import setup_logger
-from bd_api.utils import is_remote
+from bd_api.custom.logger import setup_task_logger
 
-logger = logger.bind(module="account")
-level = "INFO" if is_remote() else "DEBUG"
-serialize = True if is_remote() else False
-setup_logger(level=level, serialize=serialize)
+logger = setup_task_logger()
 
 
 def sync_subscription_task(
