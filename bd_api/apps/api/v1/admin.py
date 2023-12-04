@@ -1,23 +1,17 @@
 # -*- coding: utf-8 -*-
-from json import loads
-from pathlib import Path
 from time import sleep
 
 from django import forms
-from django.conf import settings
 from django.contrib import admin, messages
+from django.contrib.admin import ModelAdmin
 from django.core.management import call_command
 from django.db.models.query import QuerySet
+from django.http import HttpRequest
 from django.shortcuts import get_object_or_404, render
 from django.utils.html import format_html
-from google.api_core.exceptions import BadRequest, NotFound
 from google.cloud.bigquery import Client as GBQClient
-from google.cloud.storage import Client as GCSClient
-from google.oauth2 import service_account
-from loguru import logger
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
 from ordered_model.admin import OrderedInlineModelAdminMixin, OrderedStackedInline
-from pandas import read_gbq
 
 from bd_api.apps.api.v1.filters import (
     OrganizationImageFilter,
@@ -65,6 +59,12 @@ from bd_api.apps.api.v1.models import (
     Theme,
     Update,
 )
+from bd_api.apps.api.v1.tasks import (
+    rebuild_search_index_task,
+    update_search_index_task,
+    update_table_metadata_task,
+)
+from bd_api.custom.client import get_credentials
 
 ################################################################################
 # Model Admins Inlines
@@ -237,88 +237,8 @@ class UpdateInline(admin.StackedInline):
 ################################################################################
 
 
-def get_credentials():
-    """Get google cloud credentials"""
-    creds_env = settings.GOOGLE_APPLICATION_CREDENTIALS
-    try:
-        creds_path = Path(creds_env)
-        assert creds_path.is_absolute() or creds_path.is_relative_to(".")
-        credentials = service_account.Credentials.from_service_account_file(creds_path)
-    except (TypeError, ValueError):
-        credentials_dict = loads(creds_env)
-        credentials = service_account.Credentials.from_service_account_info(credentials_dict)
-    return credentials
-
-
-def update_table_metadata(modeladmin=None, request=None, queryset: QuerySet = None):
-    """Update the metadata of selected tables in the database"""
-
-    def get_number_of_rows(table, bq_table):
-        """Get number of rows from big query"""
-
-        if bq_table.num_rows:
-            return bq_table.num_rows or None
-
-        if bq_table.table_type == "VIEW":
-            try:
-                query = f"""
-                    SELECT COUNT(1) AS n_rows
-                    FROM `{table.gbq_slug}`
-                """
-                number_rows = read_gbq(query)
-                number_rows = number_rows.loc[0, "n_rows"]
-                return number_rows or None
-            except Exception as e:
-                logger.warning(e)
-
-    def get_number_of_columns(table, bq_table):
-        """Get number of columns from big query"""
-
-        return len(bq_table.schema or [])
-
-    def get_uncompressed_file_size(table, bq_table):
-        """Get file size in bytes from big query or storage"""
-
-        if bq_table.num_bytes:
-            return bq_table.num_bytes
-
-        if bq_table.table_type == "VIEW":
-            try:
-                file_size = 0
-                for blob in bucket.list_blobs(prefix=table.gcs_slug):
-                    file_size += blob.size
-            except Exception as e:
-                logger.warning(e)
-
-    creds = get_credentials()
-    bq_client = GBQClient(credentials=creds)
-    cs_client = GCSClient(credentials=creds)
-
-    bucket = cs_client.get_bucket("basedosdados")
-
-    tables: list[Table] = []
-    match str(modeladmin):
-        case "v1.DatasetAdmin":
-            tables = Table.objects.filter(
-                dataset__in=queryset,
-                source_bucket_name__isnull=False,
-            )
-        case "v1.TableAdmin":
-            tables = queryset.filter(source_bucket_name__isnull=False)
-        case _:
-            tables = Table.objects.filter(source_bucket_name__isnull=False)
-
-    for table in tables:
-        try:
-            bq_table = bq_client.get_table(table.gbq_slug)
-            table.number_rows = get_number_of_rows(table, bq_table)
-            table.number_columns = get_number_of_columns(table, bq_table)
-            table.uncompressed_file_size = get_uncompressed_file_size(table, bq_table)
-            table.save()
-        except (BadRequest, NotFound, ValueError) as e:
-            logger.warning(e)
-        except Exception as e:
-            logger.error(e)
+def update_table_metadata(modeladmin: ModelAdmin, request: HttpRequest, queryset: QuerySet):
+    update_table_metadata_task(modeladmin, request, queryset)
 
 
 update_table_metadata.short_description = "Atualizar metadados das tabelas"
@@ -439,8 +359,9 @@ def reset_column_order(modeladmin, request, queryset):
         messages.error(request, message)
         return
 
-    table = queryset.first()
-    for i, table in enumerate(table.columns.order_by("name").all()):
+    tables = queryset.first()
+    tables = tables.columns.order_by("name").all()
+    for i, table in enumerate(tables):
         table.order = i
         table.save()
 
@@ -449,21 +370,17 @@ reset_column_order.short_description = "Reiniciar ordem das colunas"
 
 
 def update_search_index(modeladmin, request, queryset):
-    """Update the search index"""
-    call_command("update_index", batchsize=100, workers=4)
-    messages.success(request, "Search index updated successfully")
+    update_search_index_task()
 
 
 update_search_index.short_description = "Atualizar index de busca"
 
 
-def reset_search_index(modeladmin, request, queryset):
-    """Reset the search index"""
-    call_command("rebuild_index", interactive=False, batchsize=100, workers=4)
-    messages.success(request, "Search index rebuilt successfully")
+def rebuild_search_index(modeladmin, request, queryset):
+    rebuild_search_index_task()
 
 
-reset_search_index.short_description = "Reiniciar index de busca"
+rebuild_search_index.short_description = "Reconstruir index de busca"
 
 
 ################################################################################
@@ -525,7 +442,7 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         reset_table_order,
         update_table_metadata,
         update_search_index,
-        reset_search_index,
+        rebuild_search_index,
     ]
 
     def related_objects(self, obj):

@@ -4,6 +4,8 @@ from sys import stdout
 
 from loguru import logger
 
+from bd_api.utils import is_remote
+
 
 class InterceptHandler(Handler):
     """Intercepts standard logging records and emits them with loguru"""
@@ -41,10 +43,17 @@ def setup_logger(
             getLogger(name).setLevel("ERROR")
 
     logger.remove()
-
     logger.add(
         stdout,
         level=level,
         format=format,
         serialize=serialize,
     )
+
+    return logger
+
+
+def setup_task_logger():
+    level = "INFO" if is_remote() else "DEBUG"
+    serialize = True if is_remote() else False
+    return setup_logger(level=level, serialize=serialize)
