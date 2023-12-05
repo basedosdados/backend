@@ -337,12 +337,18 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
     get_organization.short_description = "organização"
 
     def get_graphql_current_subscription(self) -> list[str]:
-        """Current stripe active subscription product"""
+        """Current stripe active subscription product:
+        - bd_edu, bd_pro
+        """
         return [s.stripe_subscription for s in self.subscriptions]
+
+    def get_graphql_current_subscription_slots(self) -> list[str]:
+        """Current stripe active subscription slots"""
+        return [s.stripe_subscription_slots for s in self.subscriptions]
 
     def get_graphql_current_subscription_status(self) -> list[str]:
         """Current stripe active subscription status:
-        - Incomplete, Incomplete Expired, Trialing, Active, Past Due, Canceled, Unpaid
+        - incomplete, incomplete_expired, trialing, active, past_due, canceled, unpaid
         """
         return [s.stripe_subscription_status for s in self.subscriptions]
 
@@ -426,11 +432,15 @@ class Subscription(BdmModel):
 
     @property
     def stripe_subscription(self):
-        return self.subscription.plan.product.name
+        return self.subscription.plan.product.metadata.get("code", "")
+
+    @property
+    def stripe_subscription_slots(self):
+        return self.subscription.plan.product.metadata.get("slots", "0")
 
     @property
     def stripe_subscription_status(self):
-        return self.subscription.status
+        return self.subscription.status.lower().replace(" ", "_")
 
     @property
     def stripe_subscription_created_at(self):
