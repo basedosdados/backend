@@ -53,6 +53,10 @@ def convert_file_to_url(field, registry=None):
     return FileFieldScalar(description=field.help_text, required=not field.null)
 
 
+def id_resolver(self, *_):
+    return self.id
+
+
 def fields_for_form(form, only_fields, exclude_fields):
     fields = OrderedDict()
     for name, field in form.fields.items():
@@ -328,8 +332,8 @@ def generate_filter_fields(model: BdmModel):
         if issubclass(model, BdmModel) and len(processed_models):
             model_fields = model.get_graphql_nested_filter_fields_whitelist()
 
-        filter_fields = {}
         processed_models.append(model)
+        filter_fields = {"id": ["exact", "isnull", "in"]}
 
         foreign_models = []
         for field in model_fields:
@@ -420,7 +424,7 @@ def build_query_objs(application_name: str):
         attr = dict(
             Meta=meta,
             _id=UUID(name="_id"),
-            resolve__id=lambda self, *_: self.id,
+            resolve__id=id_resolver,
         )
         attr = build_custom_attrs(model, attr)
         node = type(f"{model_name}Node", (DjangoObjectType,), attr)
