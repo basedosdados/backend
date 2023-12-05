@@ -203,7 +203,8 @@ class StripeSubscriptionDeleteMutation(Mutation):
     @login_required
     def mutate(cls, root, info, subscription_id):
         try:
-            subscription = DJStripeSubscription.objects.get(id=subscription_id)
+            subscription = Subscription.objects.get(id=subscription_id)
+            subscription = subscription.subscription
             subscription = subscription.cancel()
             return None
         except Exception as e:
