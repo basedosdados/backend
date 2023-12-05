@@ -22,6 +22,7 @@ from graphene import (
     Boolean,
     Field,
     InputField,
+    Int,
     List,
     Mutation,
     ObjectType,
@@ -401,7 +402,10 @@ def build_query_objs(application_name: str):
     def match_type(model, attr):
         """Match python types to graphene types"""
         if "list" in get_type(model, attr):
-            return partial(List, of_type=String)
+            if "int" in get_type(model, attr):
+                return partial(List, of_type=Int)
+            if "str" in get_type(model, attr):
+                return partial(List, of_type=String)
         return String
 
     def build_custom_attrs(model, attrs):
