@@ -350,13 +350,13 @@ def generate_filter_fields(model: BdmModel):
                 or isinstance(field, exempted_field_types)
             ):
                 continue
+            filter_fields[field.name] = ["exact", "isnull", "in"]
             if isinstance(field, string_field_types):
-                filter_fields[field.name] = ["exact", "isnull", "in"]
                 filter_fields[field.name] += ["icontains", "istartswith", "iendswith"]
             if isinstance(field, comparable_field_types):
-                filter_fields[field.name] = ["exact", "isnull", "in"]
                 filter_fields[field.name] += ["lt", "lte", "gt", "gte", "range"]
             if isinstance(field, foreign_key_field_types):
+                filter_fields[field.name] = []
                 if field.related_model in processed_models:
                     continue
                 related_model_filter_fields, _ = get_filter_fields(
