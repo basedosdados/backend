@@ -7,7 +7,6 @@ https://github.com/timothyjlaurent/auto-graphene-django
 from collections import OrderedDict
 from copy import deepcopy
 from functools import partial
-from inspect import isfunction
 from typing import Iterable, Optional, get_type_hints
 
 import graphql_jwt
@@ -319,7 +318,7 @@ def generate_filter_fields(model: BdmModel):
     ):
         if processed_models is None:
             processed_models = []
-        if len(processed_models) > 3:
+        if len(processed_models) > 5:
             return {}, processed_models
 
         if not issubclass(model, BdmModel):
@@ -387,10 +386,13 @@ def create_model_object_meta(model: BdmModel):
 def build_query_objs(application_name: str):
     def get_type(model, attr):
         """Get type of an attribute of a class"""
-        name = getattr(model, attr)
-        name = get_type_hints(name)
-        name = name.get("return", "")
-        return str(name)
+        try:
+            name = getattr(model, attr)
+            name = get_type_hints(name)
+            name = name.get("return", "")
+            return str(name)
+        except Exception:
+            return ""
 
     def match_type(model, attr):
         """Match python types to graphene types"""
@@ -402,10 +404,9 @@ def build_query_objs(application_name: str):
         attr_prefix = "get_graphql_"
         for attr in dir(model):
             if attr.startswith(attr_prefix):
-                if isfunction(getattr(model, attr)):
-                    attr_type = match_type(model, attr)
-                    attr_name = attr.split(attr_prefix)[1]
-                    attrs.update({attr_name: attr_type(source=attr)})
+                attr_type = match_type(model, attr)
+                attr_name = attr.split(attr_prefix)[1]
+                attrs.update({attr_name: attr_type(source=attr)})
         return attrs
 
     queries = {}
