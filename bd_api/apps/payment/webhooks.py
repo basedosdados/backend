@@ -79,13 +79,23 @@ def remove_user(email: str, group_key: str = None) -> None:
         raise e
 
 
-@webhooks.handler("customer.subscription.created")
+@webhooks.handler("customer.updated")
+def update_customer(event: Event, **kwargs):
+    """Propagate customer email update"""
+    account = event.customer.subscriber
+    if account.email != event.data["object"]["email"]:
+        account.email = event.data["object"]["email"]
+        account.save()
+
+
+@webhooks.handler("customer.subscription.updated")
 def subscribe(event: Event, **kwargs):
     """Add customer to allowed google groups"""
-    subscription = get_subscription(event)
-    add_user(event.customer.email)
-    subscription.is_active = True
-    subscription.save()
+    if event.data["object"]["status"] in ["trialing", "active"]:
+        subscription = get_subscription(event)
+        add_user(event.customer.email)
+        subscription.is_active = True
+        subscription.save()
 
 
 @webhooks.handler("customer.subscription.deleted")
@@ -95,15 +105,6 @@ def unsubscribe(event: Event, **kwargs):
     remove_user(event.customer.email)
     subscription.is_active = False
     subscription.save()
-
-
-@webhooks.handler("customer.updated")
-def update_customer(event: Event, **kwargs):
-    """Propagate customer email update"""
-    account = event.customer.subscriber
-    if account.email != event.data["object"]["email"]:
-        account.email = event.data["object"]["email"]
-        account.save()
 
 
 # Reference
