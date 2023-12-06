@@ -8,14 +8,12 @@ from google.cloud.bigquery import Client as GBQClient
 from google.cloud.storage import Client as GCSClient
 from huey import crontab
 from huey.contrib.djhuey import periodic_task
+from loguru import logger
 from pandas import read_gbq
 
 from bd_api.apps.api.v1.models import Table
 from bd_api.custom.client import get_credentials
-from bd_api.custom.logger import setup_logger
 from bd_api.utils import prod_task
-
-logger = setup_logger()
 
 
 @prod_task
