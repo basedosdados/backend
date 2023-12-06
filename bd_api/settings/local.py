@@ -1,10 +1,9 @@
 # -*- coding: utf-8 -*-
 
+from os import getenv
 from pathlib import Path
 
-from bd_api.custom.logger import setup_logger
 from bd_api.settings.base import *  # noqa
-from bd_api.utils import getenv
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
@@ -47,7 +46,7 @@ SERVER_EMAIL = getenv("EMAIL_HOST_USER")
 DEFAULT_FROM_EMAIL = getenv("EMAIL_HOST_USER")
 
 # Logging
-setup_logger(level="DEBUG", ignore=["faker"], serialize=False)
+LOGGING_CONFIG = "bd_api.custom.logger.setup_logger"
 
 # Google Auth
 GOOGLE_APPLICATION_CREDENTIALS = getenv("GOOGLE_APPLICATION_CREDENTIALS")

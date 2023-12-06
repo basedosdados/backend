@@ -29,7 +29,6 @@ from loguru import logger
 
 from bd_api.apps.account.forms import RegisterForm
 from bd_api.apps.account.token import token_generator
-from bd_api.settings import EMAIL_HOST_USER
 
 
 class LoadUserView:
@@ -76,7 +75,7 @@ class PasswordResetView(SuccessMessageMixin, PasswordResetView):
 
         if user:
             to_email = user.email
-            from_email = EMAIL_HOST_USER
+            from_email = settings.EMAIL_HOST_USER
             subject = "Base dos Dados: Redefinição de Senha"
 
             token = token_generator.make_token(user)

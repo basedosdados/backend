@@ -12,10 +12,10 @@ from pandas import read_gbq
 
 from bd_api.apps.api.v1.models import Table
 from bd_api.custom.client import get_credentials
-from bd_api.custom.logger import setup_task_logger
+from bd_api.custom.logger import setup_logger
 from bd_api.utils import prod_task
 
-logger = setup_task_logger()
+logger = setup_logger()
 
 
 @prod_task

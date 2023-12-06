@@ -5,9 +5,9 @@ from django.http import HttpRequest
 from djstripe.models import Subscription as DJStripeSubscription
 
 from bd_api.apps.account.models import Account, Subscription
-from bd_api.custom.logger import setup_task_logger
+from bd_api.custom.logger import setup_logger
 
-logger = setup_task_logger()
+logger = setup_logger()
 
 
 def sync_subscription_task(
