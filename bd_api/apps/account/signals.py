@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -8,7 +9,6 @@ from django.utils.http import urlsafe_base64_encode
 
 from bd_api.apps.account.models import Account
 from bd_api.apps.account.token import token_generator
-from bd_api.settings import EMAIL_HOST_USER
 
 
 @receiver(post_save, sender=Account)
@@ -22,7 +22,7 @@ def send_activation_email(sender, instance, created, raw, **kwargs):
     """
     if created and not raw and not instance.is_active:
         to_email = instance.email
-        from_email = EMAIL_HOST_USER
+        from_email = settings.EMAIL_HOST_USER
         subject = "Bem Vindo à Base dos Dados!"
 
         token = token_generator.make_token(instance)

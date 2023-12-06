@@ -5,22 +5,6 @@ API_URL = getenv("BASE_URL_API", "https://localhost:8080")
 SETTINGS = getenv("DJANGO_SETTINGS_MODULE", "bd_api.settings")
 
 
-def getadmins():
-    """Get admins from environment variable"""
-    admins = getenv("ADMINS")
-    if admins is None:
-        return []
-    return [admin.split(",") for admin in admins.split(";")]
-
-
-def getenvp(var, default=None):
-    """Get environment variable or raise exception if not set"""
-    value = getenv(var, default)
-    if value is None:
-        raise ValueError(f"Environment variable {var} not set")
-    return value
-
-
 def is_remote():
     """Check if it is remote environment"""
     if "prod" in SETTINGS and "basedosdados.org" in API_URL:

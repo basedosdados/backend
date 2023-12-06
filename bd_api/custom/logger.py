@@ -1,10 +1,14 @@
 # -*- coding: utf-8 -*-
 from logging import Handler, LogRecord, __file__, currentframe, getLogger, root
+from os import getenv
 from sys import stdout
 
 from loguru import logger
 
-from bd_api.utils import is_remote
+LOGGER_LEVEL = getenv("LOGGER_LEVEL", "INFO")
+LOGGER_IGNORE = getenv("LOGGER_IGNORE", "").split(",")
+LOGGER_SERIALIZE = bool(getenv("LOGGER_SERIALIZE", False))
+LOGGER_FORMAT = "[{time:YYYY-MM-DD HH:mm:ss}] <lvl>{message}</>"
 
 
 class InterceptHandler(Handler):
@@ -27,33 +31,26 @@ class InterceptHandler(Handler):
         logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
 
 
-def setup_logger(
-    level: str = "INFO",
-    ignore: list[str] = [],
-    serialize: bool = False,
-    format: str = "[{time:YYYY-MM-DD HH:mm:ss}] <lvl>{message}</>",
-):
+def setup_logger(logging_settings=None):
     root.handlers = [InterceptHandler()]
-    root.setLevel("DEBUG")
+    root.setLevel(LOGGER_LEVEL)
 
     for name in root.manager.loggerDict.keys():
         getLogger(name).handlers = []
         getLogger(name).propagate = True
-        if name in ignore:
-            getLogger(name).setLevel("ERROR")
+        if name in LOGGER_IGNORE:
+            getLogger(name).setLevel("WARNING")
 
     logger.remove()
-    logger.add(
-        stdout,
-        level=level,
-        format=format,
-        serialize=serialize,
+    logger.configure(
+        handlers=[
+            {
+                "sink": stdout,
+                "level": LOGGER_LEVEL,
+                "format": LOGGER_FORMAT,
+                "serialize": LOGGER_SERIALIZE,
+            },
+        ],
     )
 
     return logger
-
-
-def setup_task_logger():
-    level = "INFO" if is_remote() else "DEBUG"
-    serialize = True if is_remote() else False
-    return setup_logger(level=level, serialize=serialize)
