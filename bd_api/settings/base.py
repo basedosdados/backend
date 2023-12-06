@@ -15,8 +15,6 @@ from datetime import timedelta
 from os import getenv, path
 from pathlib import Path
 
-from bd_api.custom.logger import InterceptHandler
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_ROOT = BASE_DIR / "static"
@@ -111,14 +109,10 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
-
-LANGUAGE_CODE = "pt-br"
-
-TIME_ZONE = "America/Sao_Paulo"
-
-USE_I18N = True
-
 USE_TZ = True
+USE_I18N = True
+LANGUAGE_CODE = "pt-br"
+TIME_ZONE = "America/Sao_Paulo"
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
@@ -135,31 +129,12 @@ LOGOUT_REDIRECT_URL = "/"
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Silence system checks
+# https://docs.djangoproject.com/en/4.2/ref/settings/#silenced-system-checks
+SILENCED_SYSTEM_CHECKS = ["djstripe.I006", "djstripe.W005"]
 
-# Logging
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "handlers": {
-        "intercept": {
-            "()": InterceptHandler,
-            "level": None,
-        }
-    },
-    "loggers": {
-        "django.request": {
-            "handlers": ["intercept"],
-            "level": None,
-            "propagate": True,
-        },
-        "django": {
-            "handlers": ["intercept"],
-            "level": None,
-            "propagate": True,
-        },
-    },
-}
-
+# Logging	# https://docs.djangoproject.com/en/4.2/ref/settings/#silenced-system-checks
+LOGGING = {"version": 1}
 
 # Graphene configurations
 GRAPHENE = {

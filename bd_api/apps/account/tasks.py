@@ -3,11 +3,9 @@ from django.contrib.admin import ModelAdmin
 from django.db.models.query import QuerySet
 from django.http import HttpRequest
 from djstripe.models import Subscription as DJStripeSubscription
+from loguru import logger
 
 from bd_api.apps.account.models import Account, Subscription
-from bd_api.custom.logger import setup_logger
-
-logger = setup_logger()
 
 
 def sync_subscription_task(
