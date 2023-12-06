@@ -81,9 +81,9 @@ def remove_user(email: str, group_key: str = None) -> None:
 
 @webhooks.handler("customer.updated")
 def update_customer(event: Event, **kwargs):
-    """Propagate customer email update"""
+    """Propagate customer email update if exists"""
     account = event.customer.subscriber
-    if account.email != event.data["object"]["email"]:
+    if account and account.email != event.data["object"]["email"]:
         account.email = event.data["object"]["email"]
         account.save()
 
