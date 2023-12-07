@@ -19,10 +19,11 @@ def get_subscription(event: Event) -> Subscription:
     if hasattr(subscription, "internal_subscription"):
         return subscription.internal_subscription
     else:
-        return Subscription.objects.create(
-            subscription=subscription,
-            admin=event.customer.subscriber,
-        )
+        if event.customer.subscriber:
+            return Subscription.objects.create(
+                subscription=subscription,
+                admin=event.customer.subscriber,
+            )
 
 
 def get_credentials(scopes: list[str] = None, impersonate: str = None):
@@ -92,10 +93,9 @@ def update_customer(event: Event, **kwargs):
 def subscribe(event: Event, **kwargs):
     """Add customer to allowed google groups"""
     if event.data["object"]["status"] in ["trialing", "active"]:
-        subscription = get_subscription(event)
-        add_user(event.customer.email)
-        subscription.is_active = True
-        subscription.save()
+        if subscription := get_subscription(event):
+            subscription.is_active = True
+            subscription.save()
 
 
 @webhooks.handler("customer.subscription.deleted")
