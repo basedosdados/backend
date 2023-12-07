@@ -94,6 +94,7 @@ def subscribe(event: Event, **kwargs):
     """Add customer to allowed google groups"""
     if event.data["object"]["status"] in ["trialing", "active"]:
         if subscription := get_subscription(event):
+            add_user(event.customer.customer)
             subscription.is_active = True
             subscription.save()
 
