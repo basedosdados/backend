@@ -80,6 +80,18 @@ def remove_user(email: str, group_key: str = None) -> None:
         raise e
 
 
+def list_user(group_key: str = None):
+    """List users from google group"""
+    if not group_key:
+        group_key = settings.GOOGLE_DIRECTORY_GROUP_KEY
+    try:
+        service = get_service()
+        return service.members().list(groupKey=group_key).execute()
+    except Exception as e:
+        logger.error(e)
+        raise e
+
+
 @webhooks.handler("customer.updated")
 def update_customer(event: Event, **kwargs):
     """Propagate customer email update if exists"""
