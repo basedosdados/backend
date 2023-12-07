@@ -13,11 +13,11 @@ from pandas import read_gbq
 
 from bd_api.apps.api.v1.models import Table
 from bd_api.custom.client import get_credentials
-from bd_api.utils import prod_task
+from bd_api.utils import production_only
 
 
-@prod_task
 @periodic_task(crontab(day_of_week="0", hour="3", minute="0"))
+@production_only
 def update_table_metadata_task(
     modeladmin: ModelAdmin = None,
     request: HttpRequest = None,
@@ -93,13 +93,13 @@ def update_table_metadata_task(
             logger.error(e)
 
 
-@prod_task
 @periodic_task(crontab(day_of_week="1-6", hour="5", minute="0"))
+@production_only
 def update_search_index_task():
-    call_command("update_index", batchsize=100, workers=4)
+    call_command("update_index", batchsize=100)
 
 
-@prod_task
 @periodic_task(crontab(day_of_week="0", hour="5", minute="0"))
+@production_only
 def rebuild_search_index_task():
-    call_command("rebuild_index", interactive=False, batchsize=100, workers=4)
+    call_command("rebuild_index", interactive=False, batchsize=100)

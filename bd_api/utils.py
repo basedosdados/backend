@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from functools import wraps
 from os import getenv
 
 API_URL = getenv("BASE_URL_API", "https://localhost:8080")
@@ -33,9 +34,10 @@ def is_prod():
     return False
 
 
-def prod_task(func):
+def production_only(func):
     """Decorator that avoids function call if it isn't production"""
 
+    @wraps(func)
     def wrapper(*args, **kwargs):
         if is_prod():
             return func(*args, **kwargs)
