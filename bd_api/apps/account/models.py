@@ -313,10 +313,16 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
         return self.djstripe_customers.first()
 
     @property
-    def subscriptions(self):
-        all = self.subscription_set.filter(is_active=True).all() or []
-        one = self.internal_subscription.filter(is_active=True).first()
-        return [s for s in [*all, one] if s]
+    def pro_owner_subscription(self):
+        sub = self.internal_subscription.filter(is_active=True).all() or []
+        sub = [s for s in sub if s.is_pro]
+        return sub[0] if sub else None
+
+    @property
+    def pro_member_subscription(self):
+        sub = self.subscription_set.filter(is_active=True).all() or []
+        sub = [s for s in sub if s.is_pro]
+        return sub[0] if sub else None
 
     def __str__(self):
         return self.email
@@ -336,21 +342,33 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
 
     get_organization.short_description = "organização"
 
-    def get_graphql_current_subscription(self) -> list[str]:
-        """Current stripe active subscription product:
-        - bd_edu, bd_pro
-        """
-        return [s.stripe_subscription for s in self.subscriptions]
+    def get_graphql_pro_subscription(self) -> str:
+        """BD Pro subscription role, one of bd_pro or bd_pro_empresas"""
+        if self.pro_owner_subscription:
+            return self.pro_owner_subscription.stripe_subscription
+        if self.pro_member_subscription:
+            return self.pro_member_subscription.stripe_subscription
 
-    def get_graphql_current_subscription_slots(self) -> list[str]:
-        """Current stripe active subscription slots"""
-        return [s.stripe_subscription_slots for s in self.subscriptions]
+    def get_graphql_pro_subscription_role(self) -> str:
+        """BD Pro subscription role, one of owner or member"""
+        if self.pro_owner_subscription:
+            return "owner"
+        if self.pro_member_subscription:
+            return "member"
 
-    def get_graphql_current_subscription_status(self) -> list[str]:
-        """Current stripe active subscription status:
-        - incomplete, incomplete_expired, trialing, active, past_due, canceled, unpaid
-        """
-        return [s.stripe_subscription_status for s in self.subscriptions]
+    def get_graphql_pro_subscription_slots(self) -> str:
+        """BD Pro subscription slots"""
+        if self.pro_owner_subscription:
+            return self.pro_owner_subscription.stripe_subscription_slots
+        if self.pro_member_subscription:
+            return self.pro_member_subscription.stripe_subscription_slots
+
+    def get_graphql_pro_subscription_status(self) -> str:
+        """BD Pro subscription status"""
+        if self.pro_owner_subscription:
+            return self.pro_owner_subscription.stripe_subscription_status
+        if self.pro_member_subscription:
+            return self.pro_member_subscription.stripe_subscription_status
 
     def save(self, *args, **kwargs) -> None:
         # If self._password is set and check_password(self._password, self.password) is True, then
@@ -445,3 +463,7 @@ class Subscription(BdmModel):
     @property
     def stripe_subscription_created_at(self):
         return self.subscription.created
+
+    @property
+    def is_pro(self):
+        return "bd_pro" in self.subscription.plan.product.metadata.get("code", "")
