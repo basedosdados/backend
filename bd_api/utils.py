@@ -8,7 +8,7 @@ SETTINGS = getenv("DJANGO_SETTINGS_MODULE", "bd_api.settings")
 
 def is_remote():
     """Check if it is remote environment"""
-    if "prod" in SETTINGS and "basedosdados.org" in API_URL:
+    if "remote" in SETTINGS and "basedosdados.org" in API_URL:
         return True
     return False
 
