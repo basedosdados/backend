@@ -238,7 +238,7 @@ class UpdateInline(admin.StackedInline):
 
 
 def update_table_metadata(modeladmin: ModelAdmin, request: HttpRequest, queryset: QuerySet):
-    update_table_metadata_task(modeladmin, request, queryset)
+    update_table_metadata_task()
 
 
 update_table_metadata.short_description = "Atualizar metadados das tabelas"
