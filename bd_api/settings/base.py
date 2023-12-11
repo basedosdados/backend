@@ -131,7 +131,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Silence system checks
 # https://docs.djangoproject.com/en/4.2/ref/settings/#silenced-system-checks
-SILENCED_SYSTEM_CHECKS = ["djstripe.I006", "djstripe.W005"]
+SILENCED_SYSTEM_CHECKS = ["djstripe.I002", "djstripe.I006", "djstripe.W005"]
 
 # Logging	# https://docs.djangoproject.com/en/4.2/ref/settings/#silenced-system-checks
 LOGGING = {"version": 1}
