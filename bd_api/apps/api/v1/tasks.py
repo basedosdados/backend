@@ -15,6 +15,8 @@ from bd_api.apps.api.v1.models import Table
 from bd_api.custom.client import get_credentials
 from bd_api.utils import production_only
 
+logger = logger.bind(module="api.v1")
+
 
 @periodic_task(crontab(day_of_week="0", hour="3", minute="0"))
 @production_only
@@ -82,15 +84,16 @@ def update_table_metadata_task(
 
     for table in tables:
         try:
+            logger.info(f"{table}")
             bq_table = bq_client.get_table(table.gbq_slug)
             table.number_rows = get_number_of_rows(table, bq_table)
             table.number_columns = get_number_of_columns(table, bq_table)
             table.uncompressed_file_size = get_uncompressed_file_size(table, bq_table)
             table.save()
         except (BadRequest, NotFound, ValueError) as e:
-            logger.warning(e)
+            logger.warning(f"{table}: {e}")
         except Exception as e:
-            logger.error(e)
+            logger.error(f"{table}: {e}")
 
 
 @periodic_task(crontab(day_of_week="1-6", hour="5", minute="0"))
