@@ -945,7 +945,9 @@ class Table(BdmModel, OrderedModel):
     raw_data_url = models.URLField(blank=True, null=True, max_length=500)
     auxiliary_files_url = models.URLField(blank=True, null=True)
     architecture_url = models.URLField(blank=True, null=True)
-    source_bucket_name = models.CharField(max_length=255, blank=True, null=True)
+    source_bucket_name = models.CharField(
+        max_length=255, blank=True, null=True, default="basedosdados"
+    )
     uncompressed_file_size = models.BigIntegerField(blank=True, null=True)
     compressed_file_size = models.BigIntegerField(blank=True, null=True)
     number_rows = models.BigIntegerField(blank=True, null=True)
