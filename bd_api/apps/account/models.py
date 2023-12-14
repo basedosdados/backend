@@ -262,6 +262,9 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(
         "Ativo", default=False, help_text="Indica se o usuário está ativo"
     )
+    is_email_visible = models.BooleanField(
+        "Email é visível", default=False, help_text="Indica se o email do usuário é público"
+    )
 
     profile = models.IntegerField(
         choices=PROFILE_CHOICES,
