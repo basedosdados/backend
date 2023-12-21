@@ -32,7 +32,7 @@ def send_activation_email(sender, instance, created, raw, **kwargs):
             "account/activation_email_v1.html",
             {
                 "name": instance.full_name,
-                "domain": "basedosdados.org",
+                "domain": "development.basedosdados.org",
                 "uid": uid,
                 "token": token,
             },
