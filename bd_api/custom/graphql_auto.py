@@ -323,7 +323,7 @@ def generate_filter_fields(model: BdmModel):
     ):
         if processed_models is None:
             processed_models = []
-        if len(processed_models) > 5:
+        if len(processed_models) > 10:
             return {}, processed_models
 
         if not issubclass(model, BdmModel):
