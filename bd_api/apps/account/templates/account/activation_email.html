@@ -1,8 +1,68 @@
-{% extends "base.html" %}
-{% block content %}
-Olá, {{ user.username }},
-Por favor, clique no link abaixo para confirmar seu cadastro na Base dos Dados:
-{% autoescape off %}
-http://{{ domain }}{% url 'activate' uidb64=uid token=token %}
-{% endautoescape %}
-{% endblock %}
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body style="
+  display: block;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 600px;
+  padding: 0 28px;
+  box-sizing: content-box;
+">
+  <a href="https://basedosdados.org" target="_blank" style="display: flex; width: 100%;">
+    <img alt="logo" style="width: 75px; margin: 0 auto;" src="https://basedosdados.github.io/mais/images/bd_minilogo.png">
+  </a>
+
+  <h1 style="width: 100%; padding-top: 32px; margin: 0 0 16px; border-top: 1px solid #DEDFE0; color: #252A32; font-family: Arial; font-size: 14px; font-style: normal; font-weight: 700; line-height: 24px;">Olá, {{ name }}</h1>
+
+  <div style="display: block; width: 100%; margin: 16px 0;">
+    <p style="width: 100%; margin: 0; color: #252A32; font-family: Arial; font-size: 14px; font-style: normal; font-weight: 400; line-height: 22px; margin-bottom: 8px;">Informamos que o seu cadastro na Base dos Dados foi realizado com sucesso!</p>
+    <p style="width: 100%; margin: 0; color: #252A32; font-family: Arial; font-size: 14px; font-style: normal; font-weight: 400; line-height: 22px;">Para começar a aproveitar todos os benefícios da nossa plataforma, clique no botão abaixo para verificar o seu e-mail e concluir o cadastro:</p>
+  </div>
+
+  <a
+    href="https://{{ domain }}/user/activate-account?q={{ uid }}&p={{ token }}"
+    style="
+      color: #FFF;
+      background-color: #42B0FF;
+      border-radius: 30px;
+      text-decoration: none;
+      display: block;
+      text-align: center;
+      width: 160px;
+      padding: 8px 16px;
+      margin: 0 auto;
+      font-size: 14px;
+      font-weight: 700;
+      line-height: 24px;
+      letter-spacing: 0.2px;
+      font-family: Arial;
+    ">Verificar meu e-mail</a>
+
+  <span style="display: block; width: 100%; margin: 32px 0; border-top: 1px solid #DEDFE0;"></span>
+
+  <p style="color: #6F6F6F; text-align: center; font-family: Arial; font-size: 13px; font-weight: 400; line-height: 18px; letter-spacing: 0.2px; margin: 0;">Se você não realizou o cadastro em nossa plataforma, pedimos que desconsidere este comunicado. Não é necessário realizar nenhuma ação adicional.</p>
+
+  <span style="display: block; width: 100%; margin: 32px 0; border-top: 1px solid #DEDFE0;"></span>
+
+  <div style="display: block; width: 100%; margin: 0 auto;">
+    <p style="text-align: center; color: #A3A3A3; font-family: Arial; font-size: 12px; font-weight: 400; line-height: 18px; letter-spacing: 0.2px; margin: 0;">Esta mensagem foi enviada pela</p>
+    <p style="text-align: center; color: #A3A3A3; font-family: Arial; font-size: 12px; font-weight: 400; line-height: 18px; letter-spacing: 0.2px; text-decoration: none; margin: 0;">Base dos Dados</p>
+  </div>
+
+  <style>
+    @media (max-width: 600px) {
+      body {
+        max-width: 100%;
+        padding: 0 28px;
+      }
+    }
+  </style>
+</body>
+
+</html>
