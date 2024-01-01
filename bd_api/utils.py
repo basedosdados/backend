@@ -34,6 +34,30 @@ def is_prod():
     return False
 
 
+def get_backend_url():
+    """Get backend url by environment"""
+
+    if is_prod():
+        return "api.basedosdados.org"
+    if is_stag():
+        return "staging.api.basedosdados.org"
+    if is_dev():
+        return "development.api.basedosdados.org"
+    return "localhost:8080"
+
+
+def get_frontend_url():
+    """Get frontend url by environment"""
+
+    if is_prod():
+        return "basedosdados.org"
+    if is_stag():
+        return "staging.basedosdados.org"
+    if is_dev():
+        return "development.basedosdados.org"
+    return "localhost:3000"
+
+
 def production_only(func):
     """Decorator that avoids function call if it isn't production"""
 

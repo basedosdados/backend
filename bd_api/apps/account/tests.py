@@ -28,7 +28,7 @@ def test_activate_account_signal(mock: MagicMock):
     )
     assert mock.call_args[0][0] == "Bem Vindo à Base dos Dados!"
     assert mock.call_args[0][3] == ["john.doe@email.com"]
-    assert "activate_account" in mock.mock_calls[1][1][0]
+    assert "activate-account" in mock.mock_calls[1][1][0]
 
 
 @pytest.mark.django_db
