@@ -6,7 +6,7 @@ from django.core.management import call_command
 from django.db import connection
 from modeltranslation.management.commands.loaddata import Command as LoadDataCommand
 
-from bd_api.utils import is_prod
+from bd_api.utils import is_prd
 
 IS_SQLITE = "sqlite" in settings.DATABASES.get("default", {}).get("ENGINE")
 IS_POSTGRES = "postgres" in settings.DATABASES.get("default", {}).get("ENGINE")
@@ -40,7 +40,7 @@ class Command(LoadDataCommand):
         )
 
     def handle(self, *args, **options) -> str | None:
-        if is_prod():
+        if is_prd():
             return None
 
         print("Purge previous database if exists")

@@ -20,16 +20,16 @@ def is_dev():
     return False
 
 
-def is_stag():
+def is_stg():
     """Check if it is remote staging environment"""
     if is_remote() and "staging" in API_URL:
         return True
     return False
 
 
-def is_prod():
+def is_prd():
     """Check if it is remote production environment"""
-    if is_remote() and not is_dev() and not is_stag():
+    if is_remote() and not is_dev() and not is_stg():
         return True
     return False
 
@@ -37,9 +37,9 @@ def is_prod():
 def get_backend_url():
     """Get backend url by environment"""
 
-    if is_prod():
+    if is_prd():
         return "api.basedosdados.org"
-    if is_stag():
+    if is_stg():
         return "staging.api.basedosdados.org"
     if is_dev():
         return "development.api.basedosdados.org"
@@ -49,9 +49,9 @@ def get_backend_url():
 def get_frontend_url():
     """Get frontend url by environment"""
 
-    if is_prod():
+    if is_prd():
         return "basedosdados.org"
-    if is_stag():
+    if is_stg():
         return "staging.basedosdados.org"
     if is_dev():
         return "development.basedosdados.org"
@@ -63,7 +63,7 @@ def production_only(func):
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        if is_prod():
+        if is_prd():
             return func(*args, **kwargs)
 
     return wrapper
