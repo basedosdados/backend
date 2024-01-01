@@ -3,7 +3,6 @@
 Based on the following docs:
 https://gregbrown.co/code/haystack-character-folding/
 https://github.com/mounirmesselmeni/MounirMesselmeni.github.io/tree/master/2015/12/13/enable-asciifolding-in-elasticsearchhaystack
-They are outdated, as are docs from 2015
 """
 
 from abc import ABCMeta
