@@ -4,8 +4,22 @@ from haystack import indexes
 from .models import Dataset
 
 
+def list2dict(data, keys: list[str]):
+    """Turn multiple lists into a list of dicts
+
+    ```
+    keys = ["name", "age"]
+    data = {"name": ["jose", "maria"], "age": [18, 27]}
+    dict = [{"name": "jose", "age": 18}, {"name": "maria", "age": 27}]
+    ```
+    """
+    multivalues = zip(data.get(key, []) for key in keys)
+    return [dict(zip(keys, values)) for values in multivalues]
+
+
 class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
     updated_at = indexes.DateTimeField(model_attr="updated_at")
+
     text = indexes.CharField(document=True, use_template=True)
     slug = indexes.CharField(model_attr="slug")
     name = indexes.EdgeNgramField(model_attr="name")
@@ -64,10 +78,32 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
 
     def prepare(self, obj):
         data = super().prepare(obj)
+        data = self._prepare_tags(obj, data)
+        data = self._prepare_table(obj, data)
+        data = self._prepare_theme(obj, data)
+        data = self._prepare_coverage(obj, data)
+        data = self._prepare_metadata(obj, data)
+        data = self._prepare_organization(obj, data)
+        data = self._prepare_raw_data_source(obj, data)
+        data = self._prepare_observation_level(obj, data)
+        data = self._prepare_information_request(obj, data)
+        return data
+
+    def _prepare_tags(self, obj, data):
+        if tags := data.get("tags_slug", []):
+            data["tags"] = []
+            for i, _ in enumerate(tags):
+                data["tags"].append(
+                    {
+                        "name": data["tags_name"][i],
+                        "keyword": data["tags_keyword"][i],
+                    }
+                )
+        return data
+
+    def _prepare_table(self, obj, data):
         if table_ids := data.get("table_ids", []):
-            published_tables = obj.tables.exclude(
-                status__slug__in=["under_review"]
-            )  # fmt: skip
+            published_tables = obj.tables.exclude(status__slug__in=["under_review"])
             closed_tables = obj.tables.filter(is_closed=True).exclude(
                 status__slug__in=["under_review"]
             )
@@ -77,137 +113,93 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
             if published_tables.first():
                 data["first_table_id"] = published_tables.first().id
 
-        # organization
-        organization_id = data.get("organization_id", "")
-        organization_name = data.get("organization_name", "")
-        organization_slug = data.get("organization_slug", "")
-
-        if obj.organization and obj.organization.picture and obj.organization.picture.name:
-            organization_picture = obj.organization.picture.name
-        else:
-            organization_picture = ""
-
-        organization_website = data.get("organization_website", "")
-        organization_description = data.get("organization_description", "")
-        data["organization"] = {
-            "id": organization_id,
-            "name": organization_name,
-            "slug": organization_slug,
-            "picture": organization_picture,
-            "website": organization_website,
-            "description": organization_description,
-        }
-
-        # themes
-        themes_slug = data.get("themes_slug", [])
-        if themes_slug:
-            data["themes"] = []
-            for i in range(len(themes_slug)):
-                data["themes"].append(
-                    {
-                        "name": data.get("themes_name", [])[i],
-                        "keyword": data.get("themes_keyword", [])[i],
-                    }
-                )
-
-        # tags
-        tags_slug = data.get("tags_slug", [])
-        if tags_slug:
-            data["tags"] = []
-            for i in range(len(tags_slug)):
-                data["tags"].append(
-                    {
-                        "name": data.get("tags_name", [])[i],
-                        "keyword": data.get("tags_keyword", [])[i],
-                    }
-                )
-
-        # tables
-        table_ids = data.get("table_slugs", [])
-        if table_ids:
             data["tables"] = []
-            for i in range(len(table_ids)):
+            for i, _ in enumerate(table_ids):
                 data["tables"].append(
                     {
-                        "id": data.get("table_ids", [])[i],
-                        "name": data.get("table_names", [])[i],
-                        "slug": data.get("table_slugs", [])[i],
-                        "is_closed": data.get("table_is_closed", [])[i],
+                        "id": data["table_ids"][i],
+                        "name": data["table_names"][i],
+                        "slug": data["table_slugs"][i],
+                        "is_closed": data["table_is_closed"][i],
                     }
                 )
             data["total_tables"] = len(table_ids)
         else:
+            data["n_tables"] = 0
+            data["n_closed_tables"] = 0
             data["total_tables"] = 0
+        return data
 
-        # Raw data sources
-        raw_data_sources = data.get("raw_data_sources", [])
-        data["first_raw_data_source_id"] = raw_data_sources[0] if raw_data_sources else ""
-        if raw_data_sources:
-            data["n_raw_data_sources"] = len(raw_data_sources)
-        else:
-            data["n_raw_data_sources"] = 0
+    def _prepare_theme(self, obj, data):
+        if themes_slug := data.get("themes_slug", []):
+            data["themes"] = []
+            for i, _ in enumerate(themes_slug):
+                data["themes"].append(
+                    {
+                        "name": data["themes_name"][i],
+                        "keyword": data["themes_keyword"][i],
+                    }
+                )
+        return data
 
-        # Information requests
-        information_requests = data.get("information_requests", [])
-        data["first_information_request_id"] = (
-            information_requests[0] if information_requests else ""
-        )
-        if information_requests:
-            data["n_information_requests"] = len(information_requests)
-        else:
-            data["n_information_requests"] = 0
-
-        # Status
-        status = data.get("status__slug", "")
-        data["status"] = status
-
-        # Is closed
-        is_closed = data.get("is_closed", False)
-        data["is_closed"] = is_closed
-
-        # Coverage
+    def _prepare_coverage(self, obj, data):
         coverage = data.get("coverage", "")
         if coverage == " - ":
             data["coverage"] = ""
+        return data
 
-        # Observation Levels
-        observation_levels = data.get("observation_levels_name", [])
-        if observation_levels:
+    def _prepare_metadata(self, obj, data):
+        data["status"] = data.get("status__slug", "")
+        data["is_closed"] = data.get("is_closed", False)
+        data["contains_tables"] = data.get("contains_tables", False)
+        data["contains_open_data"] = data.get("contains_open_data", False)
+        data["contains_open_tables"] = data.get("contains_open_tables", False)
+        data["contains_closed_data"] = data.get("contains_closed_data", False)
+        data["contains_closed_tables"] = data.get("contains_closed_tables", False)
+        data["contains_raw_data_sources"] = data.get("contains_raw_data_sources", False)
+        data["contains_information_requests"] = data.get("contains_information_requests", False)
+        return data
+
+    def _prepare_organization(self, obj, data):
+        organization_picture = ""
+        if obj.organization and obj.organization.picture and obj.organization.picture.name:
+            organization_picture = obj.organization.picture.name
+        data["organization"] = {
+            "id": data.get("organization_id", ""),
+            "name": data.get("organization_name", ""),
+            "slug": data.get("organization_slug", ""),
+            "picture": organization_picture,
+            "website": data.get("organization_website", ""),
+            "description": data.get("organization_description", ""),
+        }
+        return data
+
+    def _prepare_raw_data_source(self, obj, data):
+        if raw_data_sources := data.get("raw_data_sources", []):
+            data["n_raw_data_sources"] = len(raw_data_sources)
+            data["first_raw_data_source_id"] = raw_data_sources[0]
+        else:
+            data["n_raw_data_sources"] = 0
+            data["first_raw_data_source_id"] = ""
+        return data
+
+    def _prepare_observation_level(self, obj, data):
+        if observation_levels_name := data.get("observation_levels_name", []):
             data["observation_levels"] = []
-            for i in range(len(observation_levels)):
+            for i, _ in enumerate(observation_levels_name):
                 data["observation_levels"].append(
                     {
-                        "name": data.get("observation_levels_name", [])[i],
-                        "keyword": data.get("observation_levels_keyword", [])[i],
+                        "name": data["observation_levels_name"][i],
+                        "keyword": data["observation_levels_keyword"][i],
                     }
                 )
+        return data
 
-        # Contains tables
-        contains_tables = data.get("contains_tables", False)
-        data["contains_tables"] = contains_tables
-
-        # Contains closed data
-        contains_closed_data = data.get("contains_closed_data", False)
-        data["contains_closed_data"] = contains_closed_data
-
-        # Contains open data
-        contains_open_data = data.get("contains_open_data", False)
-        data["contains_open_data"] = contains_open_data
-
-        # Contains open tables
-        contains_open_tables = data.get("contains_open_tables", False)
-        data["contains_open_tables"] = contains_open_tables
-
-        # Contains closed tables
-        contains_closed_tables = data.get("contains_closed_tables", False)
-        data["contains_closed_tables"] = contains_closed_tables
-
-        # Contains raw data sources
-        contains_raw_data_sources = data.get("contains_raw_data_sources", False)
-        data["contains_raw_data_sources"] = contains_raw_data_sources
-
-        # Contains information requests
-        contains_information_requests = data.get("contains_information_requests", False)
-        data["contains_information_requests"] = contains_information_requests
-
+    def _prepare_information_request(self, obj, data):
+        if information_requests := data.get("information_requests", []):
+            data["n_information_requests"] = len(information_requests)
+            data["first_information_request_id"] = information_requests[0]
+        else:
+            data["n_information_requests"] = 0
+            data["first_information_request_id"] = ""
         return data
