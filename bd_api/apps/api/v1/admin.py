@@ -9,7 +9,6 @@ from django.db.models.query import QuerySet
 from django.http import HttpRequest
 from django.shortcuts import get_object_or_404, render
 from django.utils.html import format_html
-from google.cloud.bigquery import Client as GBQClient
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
 from ordered_model.admin import OrderedInlineModelAdminMixin, OrderedStackedInline
 
@@ -64,7 +63,7 @@ from bd_api.apps.api.v1.tasks import (
     update_search_index_task,
     update_table_metadata_task,
 )
-from bd_api.custom.client import get_credentials
+from bd_api.custom.client import get_gbq_client
 
 ################################################################################
 # Model Admins Inlines
@@ -238,7 +237,13 @@ class UpdateInline(admin.StackedInline):
 
 
 def update_table_metadata(modeladmin: ModelAdmin, request: HttpRequest, queryset: QuerySet):
-    update_table_metadata_task()
+    """Update the metadata of selected tables in the admin"""
+    if str(modeladmin) == "v1.TableAdmin":
+        tables = queryset.all()
+    if str(modeladmin) == "v1.DatasetAdmin":
+        tables = Table.objects.filter(dataset__in=queryset).all()
+
+    update_table_metadata_task([t.pk for t in tables])
 
 
 update_table_metadata.short_description = "Atualizar metadados das tabelas"
@@ -310,8 +315,7 @@ def reorder_columns(modeladmin, request, queryset):
                         WHERE table_name = '{cloud_table.gcp_table_id}'
                     """
                     try:
-                        creds = get_credentials()
-                        client = GBQClient(credentials=creds)
+                        client = get_gbq_client()
                         query_job = client.query(query, timeout=90)
                     except Exception as e:
                         messages.error(
