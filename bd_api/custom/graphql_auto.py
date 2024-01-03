@@ -257,9 +257,9 @@ def delete_mutation_factory(model: BdmModel):
     def mutate():
         """Create mutation endpoints with authorization"""
 
-        def _mutate(cls, root, info, _id):
+        def _mutate(cls, root, info, id):
             try:
-                obj = model.objects.get(pk=_id)
+                obj = model.objects.get(pk=id)
                 obj.delete()
             except model.DoesNotExist:
                 return cls(ok=False, errors=["Object does not exist."])
@@ -271,6 +271,11 @@ def delete_mutation_factory(model: BdmModel):
             _mutate = staff_member_required(_mutate)
         return classmethod(_mutate)
 
+    if "account" in model.__name__.lower():
+        _id_type = ID(required=True)
+    else:
+        _id_type = UUID(required=True)
+
     return type(
         f"Delete{model.__name__}",
         (Mutation,),
@@ -279,7 +284,7 @@ def delete_mutation_factory(model: BdmModel):
                 "Arguments",
                 (object,),
                 dict(
-                    id=UUID(required=True),
+                    id=_id_type,
                 ),
             ),
             "ok": Boolean(),
