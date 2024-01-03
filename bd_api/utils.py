@@ -58,7 +58,7 @@ def get_frontend_url():
     return "localhost:3000"
 
 
-def production_only(func):
+def production_task(func):
     """Decorator that avoids function call if it isn't production"""
 
     @wraps(func)
