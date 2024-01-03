@@ -91,6 +91,8 @@ jobs:
                 value: "${{ secrets.STRIPE_TEST_SECRET_KEY }}"
               - name: "DJSTRIPE_WEBHOOK_SECRET"
                 value: "${{ secrets.DJSTRIPE_WEBHOOK_SECRET }}"
+              - name: "DISCORD_BACKEND_WEBHOOK_URL"
+                value: "${{ secrets.DISCORD_BACKEND_WEBHOOK_URL }}"
             envFrom:
               - secretRef:
                   name: api-staging-secrets

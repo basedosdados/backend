@@ -277,3 +277,6 @@ HUEY = {
         "periodic": True,
     },
 }
+
+# Discord
+DISCORD_BACKEND_WEBHOOK_URL = getenv("DISCORD_BACKEND_WEBHOOK_URL")
