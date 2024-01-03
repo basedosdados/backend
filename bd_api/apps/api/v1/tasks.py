@@ -15,7 +15,7 @@ logger = logger.bind(module="api.v1")
 
 header = (
     "Verifique a atualização de metadados "
-    "via [grafana](https://grafana.basedosdados.org/dashboards)\n dos conjuntos"
+    "via [grafana](https://grafana.basedosdados.org/dashboards) dos conjuntos"
 )
 
 
