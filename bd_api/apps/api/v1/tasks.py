@@ -15,7 +15,7 @@ logger = logger.bind(module="api.v1")
 
 header = (
     "Verifique a atualização de metadados "
-    "via [grafana](https://grafana.basedosdados.org/dashboards) dos conjuntos"
+    "via [grafana](https://grafana.basedosdados.org/d/_Lq-p0DIk/metadados-de-tabelas?orgId=1) dos conjuntos:"
 )
 
 
@@ -62,6 +62,23 @@ def update_table_metadata_task(table_pks: list[str] = None):
             except Exception as e:
                 logger.warning(e)
 
+    def add_line(msg: list[str], table: Table):
+        msg.append(
+            f"[{table.dataset}.{table}](https://api.basedosdados.org/admin/v1/table/{table.pk}/change/)"
+        )
+        return msg
+
+    def format_msg(msg: list[str]) -> str:
+        if msg:
+            msg = set(msg)
+            msg = list(msg)
+            msg = sorted(msg)
+            msg.insert(0, header)
+            msg = "\n- ".join(msg)
+            return msg
+
+    msg = []
+
     bq_client = get_gbq_client()
     cs_client = get_gcs_client()
     cs_bucket = cs_client.get_bucket("basedosdados")
@@ -71,30 +88,26 @@ def update_table_metadata_task(table_pks: list[str] = None):
     else:
         tables = Table.objects.filter(pk__in=table_pks).all()
 
-    msg = []
     for table in tables:
+        if len(msg) >= 1800:
+            break
         if not table.gbq_slug:
             continue
         try:
-            logger.info(f"{table}")
             bq_table = bq_client.get_table(table.gbq_slug)
             table.number_rows = get_number_of_rows(table, bq_table)
             table.number_columns = get_number_of_columns(table, bq_table)
             table.uncompressed_file_size = get_uncompressed_file_size(table, bq_table)
             table.save()
+            logger.info(f"{table}")
         except (BadRequest, NotFound, ValueError) as e:
+            msg = add_line(msg, table)
             logger.warning(f"{table}: {e}")
-            msg.append(str(table.dataset))
         except Exception as e:
-            logger.error(f"{table}: {e}")
-            msg.append(str(table.dataset))
+            msg = add_line(msg, table)
+            logger.warning(f"{table}: {e}")
 
-    if msg:
-        msg = set(msg)
-        msg = list(msg)
-        msg = sorted(msg)
-        msg.insert(0, header)
-        msg = "\n- ".join(msg)
+    if msg := format_msg(msg):
         send_discord_message(msg)
 
 
