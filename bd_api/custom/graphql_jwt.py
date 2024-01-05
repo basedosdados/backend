@@ -6,6 +6,7 @@ from graphql_jwt import exceptions
 from graphql_jwt.compat import get_operation_name
 from graphql_jwt.decorators import context
 from graphql_jwt.settings import jwt_settings
+from loguru import logger
 
 
 def allow_any(info, **kwargs):
@@ -43,7 +44,11 @@ def ownership_required(f, exc=exceptions.PermissionDenied):
     """
 
     def get_uid(context, exp=r"id:\s[\"]?(\d+)[\"]?"):
-        query = str(context._post).replace('\\"', "")
+        try:
+            query = str(context._post).replace('\\"', "")
+        except Exception as e:
+            logger.error(e)
+            query = context.body.decode("utf-8").replace('\\"', "")
         return [int(uid) for uid in findall(exp, query)]
 
     @wraps(f)
