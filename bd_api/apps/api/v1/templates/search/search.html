@@ -16,13 +16,11 @@
 
         {% if query %}
             <h3>Results</h3>
-            <p>Result: {{ page.paginator.count }} found.</p>
 
             {% for result in page.object_list %}
                 <p>
-                    <a href="{% url 'dataset_detail' result.object.id %}">{{ result.object.name }}</a>
-                    <br>
-                    {{ result.score}} - {{ result.object.description }}
+                    <a href="{{ result.object.get_absolute_url }}">{{ result.object.name }}</a>
+                    ({{ result.score }}): {{ result.object.description }}
                 </p>
             {% empty %}
                 <p>No results found.</p>
