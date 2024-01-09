@@ -2,18 +2,20 @@
 from __future__ import annotations
 
 import json
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.core.files.storage import default_storage as storage
-from django.http import HttpResponseBadRequest, JsonResponse, QueryDict
+from django.http import HttpResponseBadRequest, HttpResponseRedirect, JsonResponse, QueryDict
+from django.views import View
 from elasticsearch import Elasticsearch
 from haystack.forms import ModelSearchForm
 from haystack.generic_views import SearchView
 
-from bd_api.apps.api.v1.models import Entity, Organization, Theme
+from bd_api.apps.api.v1.models import CloudTable, Dataset, Entity, Organization, Theme
 
 
-class DatasetESSearchView(SearchView):
+class DatasetSearchView(SearchView):
     def get(self, request, *args, **kwargs):
         """
         Handles GET requests and instantiates a blank version of the form.
@@ -573,3 +575,31 @@ class DatasetESSearchView(SearchView):
         if self.extra_context is not None:
             kwargs.update(self.extra_context)
         return kwargs
+
+
+URL_MAPPING = {
+    "localhost:8080": "http://localhost:3000",
+    "api.basedosdados.org": "https://basedosdados.org",
+    "staging.api.basedosdados.org": "https://staging.basedosdados.org",
+    "development.api.basedosdados.org": "https://development.basedosdados.org",
+}
+
+
+class DatasetRedirectView(View):
+    """View to redirect old dataset urls"""
+
+    def get(self, request, *args, **kwargs):
+        """Redirect to new dataset url"""
+        url = request.build_absolute_uri()
+        domain = URL_MAPPING[urlparse(url).netloc]
+
+        dataset = request.GET.get("dataset")
+        dataset_slug = dataset.replace("-", "_")
+
+        if resource := CloudTable.objects.filter(gcp_dataset_id=dataset_slug).first():
+            return HttpResponseRedirect(f"{domain}/dataset/{resource.table.dataset.id}")
+
+        if resource := Dataset.objects.filter(slug__icontains=dataset_slug).first():
+            return HttpResponseRedirect(f"{domain}/dataset/{resource.id}")
+
+        return HttpResponseRedirect(f"{domain}/404")
