@@ -66,7 +66,7 @@ def test_password_reset_request(mock: MagicMock, client: Client):
     #
     assert mock.call_args[0][0] == "Base dos Dados: Redefinição de Senha"
     assert mock.call_args[0][3] == ["john.doe@email.com"]
-    assert "reset_password" in mock.mock_calls[1][1][0]
+    assert "password-recover" in mock.mock_calls[1][1][0]
 
 
 @pytest.mark.django_db
