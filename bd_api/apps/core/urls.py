@@ -2,12 +2,7 @@
 from django.urls import include, path, re_path
 from django.views.generic import RedirectView, TemplateView
 
-from bd_api.apps.core.views import (
-    DatasetCreateView,
-    DatasetDeleteView,
-    DatasetRedirectView,
-    DatasetUpdateView,
-)
+from bd_api.apps.core.views import DatasetRedirectView
 
 
 def render_robots():
@@ -19,8 +14,5 @@ urlpatterns = [
     re_path(r"^healthcheck/", include("health_check.urls")),
     path("", RedirectView.as_view(url="admin", permanent=True), name="home"),
     #
-    path("dataset/", DatasetCreateView.as_view(), name="dataset"),
     path("dataset_redirect/", DatasetRedirectView.as_view(), name="dataset_redirect"),
-    path("dataset/<uuid:pk>/", DatasetUpdateView.as_view(), name="dataset_detail"),
-    path("dataset/<uuid:pk>/delete/", DatasetDeleteView.as_view(), name="dataset_delete"),
 ]
