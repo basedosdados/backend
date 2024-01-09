@@ -20,7 +20,7 @@
 
             {% for result in page.object_list %}
                 <p>
-                    <a href="{% url 'dataset-detail' result.object.id %}">{{ result.object.name }}</a>
+                    <a href="{% url 'dataset_detail' result.object.id %}">{{ result.object.name }}</a>
                     <br>
                     {{ result.score}} - {{ result.object.description }}
                 </p>
