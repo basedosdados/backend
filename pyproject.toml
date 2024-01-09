@@ -37,6 +37,7 @@ pandas-gbq = "^0.19.2"
 google-cloud-storage = "^2.11.0"
 stripe = "^4.2.0"
 dj-stripe = "^2.8.3"
+pydantic = "^2.5.3"
 
 [tool.poetry.group.dev.dependencies]
 black = "^22.3.0"
