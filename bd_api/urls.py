@@ -21,7 +21,9 @@ from django.urls import include, path
 from django.views.decorators.csrf import csrf_exempt
 from graphene_file_upload.django import FileUploadGraphQLView
 
-from bd_api.apps.api.v1.views import DatasetRedirectView, DatasetSearchView
+from bd_api.apps.api.v1.search_views import DatasetSearchView as DatasetSearchV2View
+from bd_api.apps.api.v1.views import DatasetRedirectView
+from bd_api.apps.api.v1.views import DatasetSearchView as DatasetSearchV1View
 
 
 def graphql_view():
@@ -34,7 +36,8 @@ urlpatterns = [
     path("api/", include("bd_api.apps.api.v1.urls")),
     path("api/graphql/", graphql_view()),
     path("account/", include("bd_api.apps.account.urls")),
-    path("search/", DatasetSearchView.as_view()),
+    path("search/", DatasetSearchV1View.as_view()),
+    path("search/v2/", DatasetSearchV2View.as_view()),
     path("search/debug/", include("haystack.urls")),
     path("dataset/", DatasetRedirectView.as_view()),
     path("dataset_redirect/", DatasetRedirectView.as_view()),
