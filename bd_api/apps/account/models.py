@@ -17,6 +17,7 @@ from django.utils import timezone
 
 from bd_api.apps.account.storage import OverwriteStorage
 from bd_api.apps.api.v1.validators import validate_is_valid_image_format
+from bd_api.custom.graphql_jwt import ownership_required
 from bd_api.custom.model import BaseModel
 
 
@@ -297,6 +298,7 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
 
     objects = AccountManager()
 
+    graphql_mutation_decorator = ownership_required
     graphql_filter_fields_blacklist = ["internal_subscription"]
     graphql_nested_filter_fields_whitelist = ["email", "username"]
 

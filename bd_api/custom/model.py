@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
-from typing import List
+from typing import Callable, List
 
 from django.db import models
+from graphql_jwt.decorators import staff_member_required
 
 
 class BaseModel(models.Model):
@@ -10,13 +11,17 @@ class BaseModel(models.Model):
     of fields to be used for filtering in the GraphQL API
 
     Attributes:
-    - graphql_visible: show or hide the model in the GraphQL API
+    - graphql_visible: show or hide the model in the documentation
+    - graphql_mutation_decorator: authentication decorator for mutations
     """
 
     class Meta:
         abstract = True
 
     graphql_visible: bool = True
+
+    graphql_mutation_decorator: Callable = staff_member_required
+
     graphql_filter_fields_whitelist: List[str] = None
     graphql_filter_fields_blacklist: List[str] = []
     graphql_nested_filter_fields_whitelist: List[str] = None

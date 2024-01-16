@@ -40,10 +40,8 @@ from graphene_django.forms.mutation import (
 )
 from graphene_django.registry import get_global_registry
 from graphene_file_upload.scalars import Upload
-from graphql_jwt.decorators import staff_member_required
 
 from bd_api.custom.graphql_base import CountableConnection, FileFieldScalar, PlainTextNode
-from bd_api.custom.graphql_jwt import ownership_required
 from bd_api.custom.model import BaseModel
 
 
@@ -220,13 +218,10 @@ def create_mutation_factory(model: BaseModel):
     def mutate_and_get_payload():
         """Create mutation endpoints with authorization"""
 
+        @model.graphql_mutation_decorator
         def _mutate(cls, root, info, **input):
             return super(cls, cls).mutate_and_get_payload(root, info, **input)
 
-        if "account" in model.__name__.lower():
-            _mutate = ownership_required(_mutate)
-        else:
-            _mutate = staff_member_required(_mutate)
         return classmethod(_mutate)
 
     return type(
@@ -251,6 +246,7 @@ def delete_mutation_factory(model: BaseModel):
     def mutate():
         """Create mutation endpoints with authorization"""
 
+        @model.graphql_mutation_decorator
         def _mutate(cls, root, info, id):
             try:
                 obj = model.objects.get(pk=id)
@@ -259,10 +255,6 @@ def delete_mutation_factory(model: BaseModel):
                 return cls(ok=False, errors=["Object does not exist."])
             return cls(ok=True, errors=[])
 
-        if "account" in model.__name__.lower():
-            _mutate = ownership_required(_mutate)
-        else:
-            _mutate = staff_member_required(_mutate)
         return classmethod(_mutate)
 
     if "account" in model.__name__.lower():
