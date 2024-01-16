@@ -20,7 +20,7 @@ from bd_api.apps.account.models import Account
 from bd_api.apps.account.storage import OverwriteStorage
 from bd_api.apps.api.v1.utils import check_kebab_case, check_snake_case
 from bd_api.apps.api.v1.validators import validate_is_valid_image_format
-from bd_api.custom.model import BdmModel
+from bd_api.custom.model import BaseModel
 
 
 def to_str(value: str | None, zfill: int = 0):
@@ -80,7 +80,7 @@ class UUIDHiddenIdForm(forms.ModelForm):
         abstract = True
 
 
-class Area(BdmModel):
+class Area(BaseModel):
     """Area model"""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -101,7 +101,7 @@ class Area(BdmModel):
         ordering = ["name"]
 
 
-class Coverage(BdmModel):
+class Coverage(BaseModel):
     """
     Coverage model
     Spatial and temporal coverage of a table, raw data source, information request, column or key
@@ -243,7 +243,7 @@ class Coverage(BdmModel):
             )
 
 
-class License(BdmModel):
+class License(BaseModel):
     """License model"""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -265,7 +265,7 @@ class License(BdmModel):
         ordering = ["slug"]
 
 
-class Key(BdmModel):
+class Key(BaseModel):
     """
     Key model
     Sets a name and a value of a dictionary key
@@ -290,7 +290,7 @@ class Key(BdmModel):
         ordering = ["name"]
 
 
-class Pipeline(BdmModel):
+class Pipeline(BaseModel):
     """Pipeline model"""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -310,7 +310,7 @@ class Pipeline(BdmModel):
         ordering = ["github_url"]
 
 
-class Analysis(BdmModel):
+class Analysis(BaseModel):
     """Analysis model"""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -357,7 +357,7 @@ class Analysis(BdmModel):
         ordering = ["name"]
 
 
-class AnalysisType(BdmModel):
+class AnalysisType(BaseModel):
     """Analysis Type model"""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -378,7 +378,7 @@ class AnalysisType(BdmModel):
         ordering = ["name"]
 
 
-class Tag(BdmModel):
+class Tag(BaseModel):
     """Tag model"""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -401,7 +401,7 @@ class Tag(BdmModel):
         ordering = ["slug"]
 
 
-class Theme(BdmModel):
+class Theme(BaseModel):
     """Theme model"""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -424,7 +424,7 @@ class Theme(BdmModel):
         ordering = ["slug"]
 
 
-class Organization(BdmModel):
+class Organization(BaseModel):
     """Organization model"""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -491,7 +491,7 @@ class Organization(BdmModel):
         return self.full_slug
 
 
-class Status(BdmModel):
+class Status(BaseModel):
     """Status model"""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -512,7 +512,7 @@ class Status(BdmModel):
         ordering = ["slug"]
 
 
-class Dataset(BdmModel):
+class Dataset(BaseModel):
     """Dataset model"""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -823,7 +823,7 @@ class Dataset(BdmModel):
         return self.contains_information_requests
 
 
-class Update(BdmModel):
+class Update(BaseModel):
     """
     Update model
     Informations about the update of a model - frequency, lag, latest update
@@ -890,7 +890,7 @@ class Update(BdmModel):
         return super().clean()
 
 
-class Table(BdmModel, OrderedModel):
+class Table(BaseModel, OrderedModel):
     """Table model"""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -1153,7 +1153,7 @@ class Table(BdmModel, OrderedModel):
             raise ValidationError(errors)
 
 
-class BigQueryType(BdmModel):
+class BigQueryType(BaseModel):
     """Model definition for BigQueryType."""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -1173,7 +1173,7 @@ class BigQueryType(BdmModel):
         ordering = ["name"]
 
 
-class Column(BdmModel, OrderedModel):
+class Column(BaseModel, OrderedModel):
     """Model definition for Column."""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -1303,7 +1303,7 @@ class Column(BdmModel, OrderedModel):
         return self.full_coverage
 
 
-class ColumnOriginalName(BdmModel):
+class ColumnOriginalName(BaseModel):
     """Model definition for ColumnOriginalName."""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -1325,7 +1325,7 @@ class ColumnOriginalName(BdmModel):
         verbose_name_plural = "Column Original Names"
 
 
-class Dictionary(BdmModel):
+class Dictionary(BaseModel):
     """Model definition for Dictionary."""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -1344,7 +1344,7 @@ class Dictionary(BdmModel):
         return f"{str(self.column.table.dataset.slug)}.{self.column.table.slug}.{str(self.column.name)}"
 
 
-class CloudTable(BdmModel):
+class CloudTable(BaseModel):
     """Model definition for CloudTable."""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -1393,7 +1393,7 @@ class CloudTable(BdmModel):
         ordering = ["id"]
 
 
-class Availability(BdmModel):
+class Availability(BaseModel):
     """Model definition for Availability."""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -1414,7 +1414,7 @@ class Availability(BdmModel):
         ordering = ["slug"]
 
 
-class Language(BdmModel):
+class Language(BaseModel):
     """Model definition for Language."""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -1435,7 +1435,7 @@ class Language(BdmModel):
         ordering = ["slug"]
 
 
-class RawDataSource(BdmModel, OrderedModel):
+class RawDataSource(BaseModel, OrderedModel):
     """Model definition for RawDataSource."""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -1485,7 +1485,7 @@ class RawDataSource(BdmModel, OrderedModel):
         return f"{self.name} ({self.dataset.name})"
 
 
-class InformationRequest(BdmModel, OrderedModel):
+class InformationRequest(BaseModel, OrderedModel):
     """Model definition for InformationRequest."""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -1541,7 +1541,7 @@ class InformationRequest(BdmModel, OrderedModel):
         return super().clean()
 
 
-class EntityCategory(BdmModel):
+class EntityCategory(BaseModel):
     """Model definition for Entity Category."""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -1562,7 +1562,7 @@ class EntityCategory(BdmModel):
         ordering = ["slug"]
 
 
-class Entity(BdmModel):
+class Entity(BaseModel):
     """Model definition for Entity."""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -1586,7 +1586,7 @@ class Entity(BdmModel):
         ordering = ["slug"]
 
 
-class ObservationLevel(BdmModel):
+class ObservationLevel(BaseModel):
     """Model definition for ObservationLevel."""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -1653,7 +1653,7 @@ class ObservationLevel(BdmModel):
         return super().clean()
 
 
-class DateTimeRange(BdmModel):
+class DateTimeRange(BaseModel):
     """Model definition for DateTimeRange."""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -1786,7 +1786,7 @@ class DateTimeRange(BdmModel):
         return super().clean()
 
 
-class QualityCheck(BdmModel):
+class QualityCheck(BaseModel):
     """Model definition for QualityCheck."""
 
     id = models.UUIDField(primary_key=True, default=uuid4)

@@ -15,7 +15,7 @@ from django.db import models
 
 from bd_api.apps.account.storage import OverwriteStorage
 from bd_api.apps.api.v1.validators import validate_is_valid_image_format
-from bd_api.custom.model import BdmModel
+from bd_api.custom.model import BaseModel
 
 
 def image_path_and_rename(instance, filename):
@@ -43,7 +43,7 @@ def is_valid_encoded_password(password: str) -> bool:
     return algorithm == target_algorithm and iterations == target_iterations
 
 
-class RegistrationToken(BdmModel):
+class RegistrationToken(BaseModel):
     token = models.CharField(max_length=255, unique=True, default=uuid4)
     created_at = models.DateTimeField(auto_now_add=True)
     used_at = models.DateTimeField(auto_now=True)
@@ -68,7 +68,7 @@ class BDRoleManager(models.Manager):
         return self.get(name=name)
 
 
-class BDRole(BdmModel):
+class BDRole(BaseModel):
     """
     Roles is a way to group permissions. Based on roles from IAM,
     a role is a collection of permissions that can be assigned to a group.
@@ -112,7 +112,7 @@ class BDGroupManager(models.Manager):
         return self.get(name=name)
 
 
-class BDGroup(BdmModel):
+class BDGroup(BaseModel):
     """
     Based on Group model from django.contrib.auth.models
     To avoid clashes with django.contrib.auth.models.Group
@@ -152,7 +152,7 @@ class BDGroup(BdmModel):
         return (self.name,)
 
 
-class BDGroupRole(BdmModel):
+class BDGroupRole(BaseModel):
     """
     The model that links groups to roles.
     """
@@ -212,7 +212,7 @@ class AccountManager(BaseUserManager):
         return account
 
 
-class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
+class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
     STAFF = 1
     VISITANTE = 2
     COLABORADOR = 3
@@ -390,7 +390,7 @@ class Account(BdmModel, AbstractBaseUser, PermissionsMixin):
         super().save(*args, **kwargs)
 
 
-class Career(BdmModel):
+class Career(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     account = models.ForeignKey(Account, on_delete=models.DO_NOTHING, related_name="careers")
 
@@ -417,7 +417,7 @@ class Career(BdmModel):
     get_team.short_description = "Equipe"
 
 
-class Subscription(BdmModel):
+class Subscription(BaseModel):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

@@ -44,7 +44,7 @@ from graphql_jwt.decorators import staff_member_required
 
 from bd_api.custom.graphql_base import CountableConnection, FileFieldScalar, PlainTextNode
 from bd_api.custom.graphql_jwt import ownership_required
-from bd_api.custom.model import BdmModel
+from bd_api.custom.model import BaseModel
 
 EXEMPTED_MODELS = ("RegistrationToken",)
 
@@ -72,7 +72,7 @@ def fields_for_form(form, only_fields, exclude_fields):
     return fields
 
 
-def generate_form_fields(model: BdmModel):
+def generate_form_fields(model: BaseModel):
     whitelist_field_types = (
         models.DateField,
         models.DateTimeField,
@@ -103,7 +103,7 @@ def generate_form_fields(model: BdmModel):
     return fields
 
 
-def generate_form(model: BdmModel):
+def generate_form(model: BaseModel):
     return modelform_factory(model, form=CustomModelForm, fields=generate_form_fields(model))
 
 
@@ -222,7 +222,7 @@ class CreateUpdateMutation(DjangoModelFormMutation):
         return kwargs
 
 
-def create_mutation_factory(model: BdmModel):
+def create_mutation_factory(model: BaseModel):
     def mutate_and_get_payload():
         """Create mutation endpoints with authorization"""
 
@@ -253,7 +253,7 @@ def create_mutation_factory(model: BdmModel):
     )
 
 
-def delete_mutation_factory(model: BdmModel):
+def delete_mutation_factory(model: BaseModel):
     def mutate():
         """Create mutation endpoints with authorization"""
 
@@ -294,7 +294,7 @@ def delete_mutation_factory(model: BdmModel):
     )
 
 
-def generate_filter_fields(model: BdmModel):
+def generate_filter_fields(model: BaseModel):
     exempted_field_names = ("_field_status",)
     exempted_field_types = (
         models.ImageField,
@@ -331,11 +331,11 @@ def generate_filter_fields(model: BdmModel):
         if len(processed_models) > 10:
             return {}, processed_models
 
-        if not issubclass(model, BdmModel):
+        if not issubclass(model, BaseModel):
             model_fields = model._meta.get_fields()
-        if issubclass(model, BdmModel) and not processed_models:
+        if issubclass(model, BaseModel) and not processed_models:
             model_fields = model.get_graphql_filter_fields_whitelist()
-        if issubclass(model, BdmModel) and len(processed_models):
+        if issubclass(model, BaseModel) and len(processed_models):
             model_fields = model.get_graphql_nested_filter_fields_whitelist()
 
         processed_models.append(model)
@@ -380,7 +380,7 @@ def generate_filter_fields(model: BdmModel):
     return filter_fields
 
 
-def create_model_object_meta(model: BdmModel):
+def create_model_object_meta(model: BaseModel):
     return type(
         "Meta",
         (object,),
