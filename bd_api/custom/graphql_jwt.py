@@ -44,7 +44,7 @@ def ownership_required(f, exc=exceptions.PermissionDenied):
 
     def get_uid(context, exp=r"id:\s[\"]?(\d+)[\"]?"):
         try:
-            query = str(context.body).replace('\\"', "").lower()
+            query = context.body.decode("utf-8").replace('\\"', "").lower()
         except Exception:
             query = str(context._post).replace('\\"', "").lower()
 
