@@ -54,10 +54,6 @@ def convert_file_to_url(field, registry=None):
     return FileFieldScalar(description=field.help_text, required=not field.null)
 
 
-def id_resolver(self, *_):
-    return self.id
-
-
 def fields_for_form(form, only_fields, exclude_fields):
     fields = OrderedDict()
     for name, field in form.fields.items():
@@ -433,7 +429,7 @@ def build_query_objs(application_name: str):
         attr = dict(
             Meta=meta,
             _id=UUID(name="_id"),
-            resolve__id=id_resolver,
+            resolve__id=lambda self, _: self.id,
         )
         attr = build_custom_attrs(model, attr)
         node = type(f"{model_name}Node", (DjangoObjectType,), attr)
