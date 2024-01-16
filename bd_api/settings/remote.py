@@ -12,10 +12,7 @@ from bd_api.settings.base import *  # noqa
 DEBUG = False
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = getenv(
-    "DJANGO_SECRET_KEY",
-    "django-insecure-h@^ve4439x+m8mzd7ii(l%offc65@g-t0dtb7m$(z1j2u_wzav",
-)
+SECRET_KEY = getenv("DJANGO_SECRET_KEY")
 
 # CSRF
 # https://docs.djangoproject.com/en/4.2/ref/csrf/
