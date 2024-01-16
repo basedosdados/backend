@@ -142,7 +142,7 @@ class AccountAdmin(BaseAccountAdmin):
         "get_organization",
         "is_admin",
     )
-    readonly_fields = ("uuid", "created_at", "updated_at")
+    readonly_fields = ("uuid", "created_at", "updated_at", "deleted_at")
     list_filter = ("is_admin", "profile")
     fieldsets = (
         (
@@ -155,11 +155,12 @@ class AccountAdmin(BaseAccountAdmin):
                     "password",
                     "created_at",
                     "updated_at",
+                    "deleted_at",
                 )
             },
         ),
         (
-            "Personal info",
+            "Personal",
             {
                 "fields": (
                     "first_name",
