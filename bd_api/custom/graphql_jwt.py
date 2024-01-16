@@ -44,9 +44,15 @@ def ownership_required(f, exc=exceptions.PermissionDenied):
 
     def get_uid(context, exp=r"id:\s[\"]?(\d+)[\"]?"):
         try:
-            query = str(context.body).replace('\\"', "")
+            query = str(context.body).replace('\\"', "").lower()
         except Exception:
-            query = str(context._post).replace('\\"', "")
+            query = str(context._post).replace('\\"', "").lower()
+
+        if "isadmin" in query:
+            return None
+        if "issuperuser" in query:
+            return None
+
         return [int(uid) for uid in findall(exp, query)]
 
     @wraps(f)
