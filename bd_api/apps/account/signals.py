@@ -24,7 +24,7 @@ def send_activation_email(account: Account):
     content = render_to_string(
         "account/activation_email.html",
         {
-            "name": account.full_name,
+            "name": account.get_full_name(),
             "domain": get_frontend_url(),
             "uid": uid,
             "token": token,
