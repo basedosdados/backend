@@ -12,6 +12,8 @@ from django.contrib.auth.models import (
     PermissionsMixin,
 )
 from django.db import models
+from django.db.models.query import QuerySet
+from django.utils import timezone
 
 from bd_api.apps.account.storage import OverwriteStorage
 from bd_api.apps.api.v1.validators import validate_is_valid_image_format
@@ -183,13 +185,14 @@ class BDGroupRole(BaseModel):
 
 
 class AccountManager(BaseUserManager):
+    def get_queryset(self) -> QuerySet:
+        return super().get_queryset().filter(deleted_at__isnull=True)
+
     def create_user(self, email, password=None, profile=2, **kwargs):
         if not email:
             raise ValueError("Users must have a valid email address.")
-
         if not kwargs.get("username"):
             raise ValueError("Users must have a valid username.")
-
         account = self.model(
             email=self.normalize_email(email),
             username=kwargs.get("username"),
@@ -198,19 +201,15 @@ class AccountManager(BaseUserManager):
             profile=profile,
             is_superuser=False,
         )
-
         account.set_password(password)
         account.save()
-
         return account
 
     def create_superuser(self, email, password, **kwargs):
         account = self.create_user(email, password, profile=1, **kwargs)
-
         account.is_admin = True
         account.is_superuser = True
         account.save()
-
         return account
 
 
@@ -294,6 +293,7 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
 
     objects = AccountManager()
 
@@ -390,6 +390,10 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
         # new password, so set it and save the model.
         self.set_password(self.password)
         super().save(*args, **kwargs)
+
+    def delete(self):
+        self.deleted_at = timezone.now()
+        self.save()
 
 
 class Career(BaseModel):
