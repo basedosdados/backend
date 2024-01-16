@@ -298,9 +298,15 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
 
     objects = AccountManager()
 
-    graphql_mutation_decorator = ownership_required
+    graphql_fields_blacklist = [
+        "is_admin",
+        "is_superuser",
+        "staff_groups",
+        *BaseModel.graphql_fields_blacklist,
+    ]
     graphql_filter_fields_blacklist = ["internal_subscription"]
     graphql_nested_filter_fields_whitelist = ["email", "username"]
+    graphql_mutation_decorator = ownership_required
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username", "first_name", "last_name"]

@@ -4,6 +4,16 @@ from typing import Callable, List
 from django.db import models
 from graphql_jwt.decorators import staff_member_required
 
+default_blacklist_fields = [
+    "created_at",
+    "updated_at",
+    "deleted_at",
+    "id",
+    "order",
+    "_field_status",
+]
+default_mutation_decorator = staff_member_required
+
 
 class BaseModel(models.Model):
     """
@@ -12,6 +22,7 @@ class BaseModel(models.Model):
 
     Attributes:
     - graphql_visible: show or hide the model in the documentation
+    - graphql_fields_black_list: list of fields to hide in mutations
     - graphql_mutation_decorator: authentication decorator for mutations
     """
 
@@ -20,12 +31,14 @@ class BaseModel(models.Model):
 
     graphql_visible: bool = True
 
-    graphql_mutation_decorator: Callable = staff_member_required
-
-    graphql_filter_fields_whitelist: List[str] = None
+    graphql_fields_whitelist: List[str] = []
+    graphql_fields_blacklist: List[str] = default_blacklist_fields
+    graphql_filter_fields_whitelist: List[str] = []
     graphql_filter_fields_blacklist: List[str] = []
-    graphql_nested_filter_fields_whitelist: List[str] = None
+    graphql_nested_filter_fields_whitelist: List[str] = []
     graphql_nested_filter_fields_blacklist: List[str] = []
+
+    graphql_mutation_decorator: Callable = default_mutation_decorator
 
     @classmethod
     def get_graphql_filter_fields_whitelist(cls) -> List[models.Field]:
