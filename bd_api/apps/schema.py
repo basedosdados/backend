@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from bd_api.apps.account.graphql import AccountMutation
 from bd_api.apps.payment.graphql import (
     StripeCustomerMutation,
     StripePriceQuery,
@@ -13,6 +14,7 @@ schema = build_schema(
         StripePriceQuery,
     ],
     extra_mutations=[
+        AccountMutation,
         StripeCustomerMutation,
         StripeSubscriptionMutation,
         StripeSubscriptionCustomerMutation,
