@@ -6,13 +6,17 @@ from django.db import models
 
 class BaseModel(models.Model):
     """
-    An abstract base class model that provides whitelist
+    Abstract base class model that provides whitelist
     of fields to be used for filtering in the GraphQL API
+
+    Attributes:
+    - graphql_visible: show or hide the model in the GraphQL API
     """
 
     class Meta:
         abstract = True
 
+    graphql_visible: bool = True
     graphql_filter_fields_whitelist: List[str] = None
     graphql_filter_fields_blacklist: List[str] = []
     graphql_nested_filter_fields_whitelist: List[str] = None

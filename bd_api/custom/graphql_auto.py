@@ -46,8 +46,6 @@ from bd_api.custom.graphql_base import CountableConnection, FileFieldScalar, Pla
 from bd_api.custom.graphql_jwt import ownership_required
 from bd_api.custom.model import BaseModel
 
-EXEMPTED_MODELS = ("RegistrationToken",)
-
 
 @convert_django_field.register(models.FileField)
 def convert_file_to_url(field, registry=None):
@@ -420,11 +418,10 @@ def build_query_objs(application_name: str):
 
     queries = {}
     models = apps.get_app_config(application_name).get_models()
+    models = [m for m in models if getattr(m, "graphql_visible", False)]
 
     for model in models:
         model_name = model.__name__
-        if model_name in EXEMPTED_MODELS:
-            continue
         meta = create_model_object_meta(model)
         attr = dict(
             Meta=meta,
@@ -441,13 +438,12 @@ def build_query_objs(application_name: str):
 def build_mutation_objs(application_name: str):
     mutations = {}
     models = apps.get_app_config(application_name).get_models()
+    models = [m for m in models if getattr(m, "graphql_visible", False)]
 
     for model in models:
         model_name = model.__name__
-        if model_name in EXEMPTED_MODELS:
-            continue
-        mutations.update({f"CreateUpdate{model_name}": create_mutation_factory(model).Field()})
         mutations.update({f"Delete{model_name}": delete_mutation_factory(model).Field()})
+        mutations.update({f"CreateUpdate{model_name}": create_mutation_factory(model).Field()})
     return mutations
 
 

@@ -52,6 +52,8 @@ class RegistrationToken(BaseModel):
     def __str__(self):
         return self.token
 
+    graphql_visible = False
+
     class Meta:
         verbose_name = "Registration Token"
         verbose_name_plural = "Registration Tokens"
