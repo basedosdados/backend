@@ -81,17 +81,11 @@ def generate_form_fields(model: BaseModel):
         models.ImageField,
         models.UUIDField,
     )
-    blacklist_field_names = (
-        "_field_status",
-        "id",
-        "created_at",
-        "updated_at",
-        "order",
-    )
     fields = []
     for field in model._meta.get_fields():
-        if isinstance(field, whitelist_field_types) and field.name not in blacklist_field_names:
-            fields.append(field.name)
+        if isinstance(field, whitelist_field_types):
+            if field.name not in model.graphql_fields_blacklist:
+                fields.append(field.name)
     return fields
 
 

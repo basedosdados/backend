@@ -48,11 +48,6 @@ def ownership_required(f, exc=exceptions.PermissionDenied):
         except Exception:
             query = str(context._post).replace('\\"', "").lower()
 
-        if "isadmin" in query:
-            return None
-        if "issuperuser" in query:
-            return None
-
         return [int(uid) for uid in findall(exp, query)]
 
     @wraps(f)
