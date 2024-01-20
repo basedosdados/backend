@@ -19,6 +19,7 @@ from loguru import logger
 
 from bd_api.apps.account.signals import send_activation_email
 from bd_api.apps.account.token import token_generator
+from bd_api.utils import get_frontend_url
 
 
 class AccountActivateView(View):
@@ -98,8 +99,8 @@ class PasswordResetView(SuccessMessageMixin, PasswordResetView):
             content = render_to_string(
                 "account/password_reset_email.html",
                 {
-                    "name": user.full_name,
-                    "domain": "basedosdados.org",
+                    "name": user.get_full_name(),
+                    "domain": get_frontend_url(),
                     "uid": uid,
                     "token": token,
                 },
