@@ -118,3 +118,8 @@ logs_docker:
 .PHONY: status_docker
 status_docker:
 	docker-compose ps
+
+# `make sync_stripe`: sync stripe models
+.PHONY: sync_stripe
+sync_stripe:
+	python manage.py djstripe_sync_models
