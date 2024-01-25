@@ -114,10 +114,10 @@ def subscribe(event: Event, **kwargs):
 @webhooks.handler("customer.subscription.deleted")
 def unsubscribe(event: Event, **kwargs):
     """Remove customer from allowed google groups"""
-    subscription = get_subscription(event)
-    remove_user(event.customer.email)
-    subscription.is_active = False
-    subscription.save()
+    if subscription := get_subscription(event):
+        remove_user(event.customer.email)
+        subscription.is_active = False
+        subscription.save()
 
 
 # Reference
