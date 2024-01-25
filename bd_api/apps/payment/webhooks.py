@@ -98,7 +98,7 @@ def update_customer(event: Event, **kwargs):
     account = event.customer.subscriber
     if account and account.email != event.data["object"]["email"]:
         account.email = event.data["object"]["email"]
-        account.save()
+        account.save(update_fields=["email"])
 
 
 @webhooks.handler("customer.subscription.updated")
