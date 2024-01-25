@@ -25,6 +25,8 @@ class StripePriceNode(DjangoObjectType):
     _id = ID(name="_id")
     amount = Float()
     product_name = String()
+    product_slug = String()
+    product_slots = String()
 
     class Meta:
         model = DJStripePrice
@@ -41,6 +43,12 @@ class StripePriceNode(DjangoObjectType):
 
     def resolve_product_name(root, info):
         return root.product.name
+
+    def resolve_product_slug(root, info):
+        return root.product.metadata.get("code", "")
+
+    def resolve_product_slots(root, info):
+        return root.product.metadata.get("slots", "0")
 
 
 class StripePriceQuery(ObjectType):
