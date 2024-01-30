@@ -51,6 +51,8 @@ def add_user(email: str, group_key: str = None, role: str = "MEMBER"):
     """Add user to google group"""
     if not group_key:
         group_key = settings.GOOGLE_DIRECTORY_GROUP_KEY
+    if "+" in email and email.index("+") < email.index("@"):
+        email = email.split("+")[0] + "@" + email.split("@")[1]
     try:
         service = get_service()
         service.members().insert(
