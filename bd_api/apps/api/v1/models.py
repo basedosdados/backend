@@ -982,16 +982,16 @@ class Table(BaseModel, OrderedModel):
             return f"basedosdados.{dataset}.{table}"
 
     @property
+    def get_graphql_gbq_slug(self):
+        return self.gbq_slug
+
+    @property
     def gcs_slug(self):
         """Get the slug used in Google Cloud Storage"""
         if cloud_table := self.cloud_tables.first():
             dataset = cloud_table.gcp_dataset_id
             table = cloud_table.gcp_table_id
             return f"staging/{dataset}/{table}"
-
-    @property
-    def get_graphql_gbq_slug(self):
-        return self.gbq_slug
 
     @property
     def get_graphql_gcs_slug(self):
@@ -1108,6 +1108,31 @@ class Table(BaseModel, OrderedModel):
     @property
     def get_graphql_full_coverage(self):
         return self.full_coverage
+
+    @property
+    def neighbors(self):
+        """Similiar tables and columns
+        - Tables and columns with similar directories
+        - Tables and columns with similar coverages or tags (WIP)
+        """
+        all_neighbors = []
+        for column in self.columns.all():
+            for neighbor in column.neighbors:
+                all_neighbors.append((neighbor.table, neighbor))
+        return all_neighbors
+
+    def get_graphql_neighbors(self) -> list[dict]:
+        all_neighbors = []
+        for table, column in self.neighbors:
+            all_neighbors.append(
+                {
+                    "table_id": str(table.id),
+                    "table_name": table.name,
+                    "column_id": str(column.id),
+                    "column_name": column.name,
+                }
+            )
+        return all_neighbors
 
     def clean(self):
         """
@@ -1301,6 +1326,31 @@ class Column(BaseModel, OrderedModel):
     @property
     def get_graphql_full_coverage(self):
         return self.full_coverage
+
+    @property
+    def neighbors(self):
+        """Similiar tables and columns
+        - Columns with similar directories
+        - Columns with similar coverages or tags (WIP)
+        """
+        if not self.directory_primary_key:
+            return []
+        return (
+            Column.objects.filter(directory_primary_key=self.directory_primary_key)
+            .exclude(id=self.id)
+            .all()
+        )
+
+    def get_graphql_neighbors(self) -> list[dict]:
+        all_neighbors = []
+        for column in self.neighbors:
+            all_neighbors.append(
+                {
+                    "column_id": str(column.id),
+                    "column_name": column.name,
+                }
+            )
+        return all_neighbors
 
 
 class ColumnOriginalName(BaseModel):
