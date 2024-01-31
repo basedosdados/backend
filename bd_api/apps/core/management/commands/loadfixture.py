@@ -4,6 +4,7 @@ from pathlib import Path
 from django.conf import settings
 from django.core.management import call_command
 from django.db import connection
+from loguru import logger
 from modeltranslation.management.commands.loaddata import Command as LoadDataCommand
 
 from bd_api.utils import is_prd
@@ -13,6 +14,8 @@ IS_POSTGRES = "postgres" in settings.DATABASES.get("default", {}).get("ENGINE")
 
 DB_PATH = Path(settings.DATABASES.get("default", {}).get("NAME", "."))
 DB_STATEMENT = "TRUNCATE" if IS_POSTGRES and not IS_SQLITE else "DELETE FROM"
+
+logger = logger.bind(module="core")
 
 
 class Command(LoadDataCommand):
@@ -33,33 +36,33 @@ class Command(LoadDataCommand):
     def add_arguments(self, parser):
         super().add_arguments(parser)
         parser.add_argument(
-            "--skip-index",
-            dest="skip_index",
+            "--build-index",
+            dest="build_index",
             action="store_true",
-            help="Skip index build after loading fixtures",
+            help="Build index after loading fixtures",
         )
 
     def handle(self, *args, **options) -> str | None:
         if is_prd():
             return None
 
-        print("Purge previous database if exists")
+        logger.info("Purge previous database if exists")
         call_command("flush", interactive=False)
 
-        print("Migrate development database")
+        logger.info("Migrate development database")
         call_command("migrate")
 
-        print("Purge database restrictions")
+        logger.info("Purge database restrictions")
         with connection.cursor() as cursor:
             cursor.execute(f"{DB_STATEMENT} auth_permission")
             cursor.execute(f"{DB_STATEMENT} django_admin_log")
             cursor.execute(f"{DB_STATEMENT} django_content_type")
 
-        print("Load fixtures")
+        logger.info("Load fixtures")
         response = super().handle(*args, **options)
 
-        if not options["skip_index"]:
-            print("Build index")
+        if options["build_index"]:
+            logger.info("Build index")
             try:
                 call_command("rebuild_index", interactive=False)
             except Exception:
