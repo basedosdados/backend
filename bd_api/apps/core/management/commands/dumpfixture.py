@@ -5,8 +5,11 @@ from json import dump, load
 
 from django.core.management.commands.dumpdata import Command as DumpDataCommand
 from faker import Faker
+from loguru import logger
 
 fake = Faker("pt_BR")
+
+logger = logger.bind(module="core")
 
 
 def empty():
@@ -41,17 +44,13 @@ def empty():
 
 
 class Command(DumpDataCommand):
-    """Dump data, avoiding profiles and payments"""
+    """Dump data, avoiding profiles"""
 
     def handle(self, *args, **options) -> str | None:
-        print("Dump fixtures")
-        options["exclude"] = [
-            "djstripe",
-            *options["exclude"],
-        ]
+        logger.info("Dump fixtures")
         response = super().handle(*args, **options)
 
-        print("Filter fixtures")
+        logger.info("Filter fixtures")
         output = options["output"]
         with open(output, "r") as file:
             data = load(file)
