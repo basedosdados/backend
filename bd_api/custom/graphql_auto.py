@@ -29,6 +29,7 @@ from graphene import (
     Schema,
     String,
 )
+from graphene.types.generic import GenericScalar
 from graphene.types.utils import yank_fields_from_attrs
 from graphene_django import DjangoObjectType
 from graphene_django.converter import convert_django_field
@@ -391,6 +392,8 @@ def build_query_objs(application_name: str):
                 return partial(List, of_type=Int)
             if "str" in get_type(model, attr):
                 return partial(List, of_type=String)
+        if "dict" in get_type(model, attr):
+            return GenericScalar
         return String
 
     def build_custom_attrs(model, attrs):
