@@ -69,6 +69,11 @@ def get_date_time(date_times):
     )
 
 
+def get_unique_list(lst: list[dict]):
+    """Get unique list of dicts"""
+    return [dict(t) for t in {tuple(d.items()) for d in lst}]
+
+
 class UUIDHiddenIdForm(forms.ModelForm):
     """Form to include UUID in inline formes (Table, Column and Coverage)"""
 
@@ -1101,21 +1106,23 @@ class Table(BaseModel, OrderedModel):
         all_neighbors = []
         for column in self.columns.all():
             for neighbor in column.neighbors:
-                all_neighbors.append((neighbor.table, neighbor))
+                all_neighbors.append(neighbor)
         return all_neighbors
 
     def get_graphql_neighbors(self) -> list[dict]:
         all_neighbors = []
-        for table, column in self.neighbors:
+        for column, table, dataset in self.neighbors:
             all_neighbors.append(
                 {
-                    "table_id": str(table.id),
-                    "table_name": table.name,
                     "column_id": str(column.id),
                     "column_name": column.name,
+                    "table_id": str(table.id),
+                    "table_name": table.name,
+                    "dataset_id": str(dataset.id),
+                    "dataset_name": dataset.name,
                 }
             )
-        return all_neighbors
+        return get_unique_list(all_neighbors)
 
     def clean(self):
         """
@@ -1317,22 +1324,36 @@ class Column(BaseModel, OrderedModel):
         """
         if not self.directory_primary_key:
             return []
-        return (
+        all_columns = (
             Column.objects.filter(directory_primary_key=self.directory_primary_key)
             .exclude(id=self.id)
             .all()
         )
+        all_neighbors = []
+        for column in all_columns:
+            all_neighbors.append(
+                (
+                    column,
+                    column.table,
+                    column.table.dataset,
+                )
+            )
+        return all_neighbors
 
     def get_graphql_neighbors(self) -> list[dict]:
         all_neighbors = []
-        for column in self.neighbors:
+        for column, table, dataset in self.neighbors:
             all_neighbors.append(
                 {
                     "column_id": str(column.id),
                     "column_name": column.name,
+                    "table_id": str(table.id),
+                    "table_name": table.name,
+                    "dataset_id": str(dataset.id),
+                    "dataset_name": dataset.name,
                 }
             )
-        return all_neighbors
+        return get_unique_list(all_neighbors)
 
 
 class ColumnOriginalName(BaseModel):
