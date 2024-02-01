@@ -162,9 +162,9 @@ AUTH_USER_MODEL = "account.Account"
 # GraphQL JWT configurations
 GRAPHQL_JWT = {
     "JWT_AUTH_HEADER_PREFIX": "Bearer",
-    "JWT_EXPIRATION_DELTA": timedelta(minutes=30),
-    "JWT_REFRESH_EXPIRATION_DELTA": timedelta(days=1),
     "JWT_VERIFY_EXPIRATION": True,
+    "JWT_EXPIRATION_DELTA": timedelta(days=7),
+    "JWT_REFRESH_EXPIRATION_DELTA": timedelta(days=14),
     "JWT_ALLOW_ANY_HANDLER": "bd_api.custom.graphql_jwt.allow_any",
 }
 
