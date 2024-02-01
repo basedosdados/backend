@@ -60,7 +60,7 @@ def add_user(email: str, group_key: str = None, role: str = "MEMBER"):
             body={"email": email, "role": role},
         ).execute()
     except HttpError as e:
-        if e.resp.status == 490:
+        if e.resp.status == 409:
             logger.warning(f"{email} already exists")
         else:
             logger.error(e)
