@@ -472,7 +472,6 @@ class Organization(BaseModel):
     has_picture.short_description = "Has Picture"
     has_picture.boolean = True
 
-    @property
     def get_graphql_has_picture(self):
         """Get the has_picture property for graphql"""
         return self.has_picture()
@@ -485,7 +484,6 @@ class Organization(BaseModel):
 
         return f"{self.slug}"
 
-    @property
     def get_graphql_full_slug(self):
         """Get the full slug or Organization for graphql"""
         return self.full_slug
@@ -573,7 +571,6 @@ class Dataset(BaseModel):
             return f"{self.organization.area.slug}_{self.organization.slug}_{self.slug}"
         return f"{self.organization.slug}_{self.slug}"
 
-    @property
     def get_graphql_full_slug(self):
         """Get the full slug or Dataset for graphql"""
         return self.full_slug
@@ -697,7 +694,6 @@ class Dataset(BaseModel):
 
         return coverage_str
 
-    @property
     def get_graphql_coverage(self):
         """
         Returns the temporal coverage of the dataset in the format
@@ -726,7 +722,6 @@ class Dataset(BaseModel):
         ]
         return json.dumps(full_coverage_dict)
 
-    @property
     def get_graphql_full_coverage(self):
         return self.full_coverage
 
@@ -735,7 +730,6 @@ class Dataset(BaseModel):
         """Returns true if there are tables in the dataset"""
         return len(self.tables.all()) > 0
 
-    @property
     def get_graphql_contains_tables(self):
         """Returns true if there are tables in the dataset for graphql"""
         return self.contains_tables
@@ -757,7 +751,6 @@ class Dataset(BaseModel):
 
         return closed_data
 
-    @property
     def get_graphql_contains_closed_data(self):
         """Returns true if there are tables or columns with closed coverages for graphql"""
         return self.contains_closed_data
@@ -775,7 +768,6 @@ class Dataset(BaseModel):
 
         return open_data
 
-    @property
     def get_graphql_contains_open_data(self):
         """Returns true if there are tables or columns with open coverages for graphql"""
         return self.contains_open_data
@@ -786,7 +778,6 @@ class Dataset(BaseModel):
         closed_tables = self.tables.all().filter(is_closed=True)
         return len(closed_tables) > 0
 
-    @property
     def get_graphql_contains_closed_tables(self):
         """Returns true if there are tables with closed coverages for graphql (DEPRECATED)"""
         return self.contains_closed_tables
@@ -797,7 +788,6 @@ class Dataset(BaseModel):
         open_tables = self.tables.all().filter(is_closed=False)
         return len(open_tables) > 0
 
-    @property
     def get_graphql_contains_open_tables(self):
         """Returns true if there are tables with open coverages for graphql (DEPRECATED)"""
         return self.contains_open_tables
@@ -807,7 +797,6 @@ class Dataset(BaseModel):
         """Returns true if there are raw data sources in the dataset"""
         return len(self.raw_data_sources.all()) > 0
 
-    @property
     def get_graphql_contains_raw_data_sources(self):
         """Returns true if there are raw data sources in the dataset for graphql"""
         return self.contains_raw_data_sources
@@ -817,7 +806,6 @@ class Dataset(BaseModel):
         """Returns true if there are information requests in the dataset"""
         return len(self.information_requests.all()) > 0
 
-    @property
     def get_graphql_contains_information_requests(self):
         """Returns true if there are information requests in the dataset for graphql"""
         return self.contains_information_requests
@@ -981,7 +969,6 @@ class Table(BaseModel, OrderedModel):
             table = cloud_table.gcp_table_id
             return f"basedosdados.{dataset}.{table}"
 
-    @property
     def get_graphql_gbq_slug(self):
         return self.gbq_slug
 
@@ -993,7 +980,6 @@ class Table(BaseModel, OrderedModel):
             table = cloud_table.gcp_table_id
             return f"staging/{dataset}/{table}"
 
-    @property
     def get_graphql_gcs_slug(self):
         return self.gcs_slug
 
@@ -1003,7 +989,6 @@ class Table(BaseModel, OrderedModel):
         partitions_list = [p.name for p in self.columns.all().filter(is_partition=True)]
         return ", ".join(partitions_list)
 
-    @property
     def get_graphql_partitions(self):
         """Returns a list of columns used to partition the table"""
         return self.partitions
@@ -1022,7 +1007,6 @@ class Table(BaseModel, OrderedModel):
 
         return closed_data
 
-    @property
     def get_graphql_contains_closed_data(self):
         """Returns true if there are columns with closed coverages to be used in graphql"""
         return self.contains_closed_data
@@ -1105,7 +1089,6 @@ class Table(BaseModel, OrderedModel):
 
         return json.dumps(full_coverage)
 
-    @property
     def get_graphql_full_coverage(self):
         return self.full_coverage
 
@@ -1323,7 +1306,6 @@ class Column(BaseModel, OrderedModel):
 
         return json.dumps(column_full_coverage)
 
-    @property
     def get_graphql_full_coverage(self):
         return self.full_coverage
 
