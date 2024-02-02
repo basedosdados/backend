@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-import json
+from json import dumps
 from urllib.parse import urlparse
 
 from django.conf import settings
@@ -256,7 +256,7 @@ class DatasetSearchView(SearchView):
         form_class = self.get_form_class()
         form: ModelSearchForm = self.get_form(form_class)
         if not form.is_valid():
-            return HttpResponseBadRequest(json.dumps({"error": "Invalid form"}))
+            return HttpResponseBadRequest(dumps({"error": "Invalid form"}))
         self.queryset = es.search(
             index=settings.HAYSTACK_CONNECTIONS["default"]["INDEX_NAME"], body=raw_query
         )
