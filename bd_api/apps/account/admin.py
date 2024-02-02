@@ -293,10 +293,10 @@ class SubscriptionAdmin(admin.ModelAdmin):
     )
     ordering = ["admin__email", "subscription__created"]
 
-    def has_add_permission(self, request: HttpRequest):
+    def has_add_permission(self, request):
         return False
 
-    def has_change_permission(self, request: HttpRequest):
+    def has_change_permission(self, request, obj=None):
         return False
 
 
