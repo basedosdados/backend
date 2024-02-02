@@ -346,7 +346,11 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
     get_short_name.short_description = "nome"
 
     def get_full_name(self):
-        return f"{self.first_name} {self.last_name}"
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        if self.first_name:
+            return self.first_name
+        return self.username
 
     get_full_name.short_description = "nome completo"
 
