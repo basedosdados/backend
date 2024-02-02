@@ -9,7 +9,7 @@ from pandas import read_gbq
 
 from bd_api.apps.api.v1.models import Table
 from bd_api.custom.client import get_gbq_client, get_gcs_client, send_discord_message
-from bd_api.utils import production_task
+from bd_api.utils import main_task, production_task
 
 logger = logger.bind(module="api.v1")
 
@@ -20,6 +20,7 @@ header = (
 
 
 @periodic_task(crontab(day_of_week="0", hour="3", minute="0"))
+@main_task
 @production_task
 def update_table_metadata_task(table_pks: list[str] = None):
     """Update the metadata of selected tables in the database"""
@@ -112,12 +113,14 @@ def update_table_metadata_task(table_pks: list[str] = None):
 
 
 @periodic_task(crontab(day_of_week="1-6", hour="5", minute="0"))
+@main_task
 @production_task
 def update_search_index_task():
     call_command("update_index", batchsize=100)
 
 
 @periodic_task(crontab(day_of_week="0", hour="5", minute="0"))
+@main_task
 @production_task
 def rebuild_search_index_task():
     call_command("rebuild_index", interactive=False, batchsize=100)
