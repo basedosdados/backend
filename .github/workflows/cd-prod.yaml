@@ -61,7 +61,7 @@ jobs:
               name: "ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}"
               tag: "stable"
               pullPolicy: "Always"
-            replicas: 2
+            replicas: 1
             resources:
               limits:
                 cpu: 1500m
@@ -74,18 +74,20 @@ jobs:
                 value: "https://basedosdados.org"
               - name: "BASE_URL_API"
                 value: "https://api.basedosdados.org"
-              - name: "GOOGLE_DIRECTORY_SUBJECT"
-                value: "${{ secrets.GOOGLE_DIRECTORY_SUBJECT }}"
-              - name: "GOOGLE_DIRECTORY_GROUP_KEY"
-                value: "${{ secrets.GOOGLE_DIRECTORY_GROUP_KEY }}"
               - name: "LOGGER_LEVEL"
                 value: "${{ secrets.LOGGER_LEVEL }}"
               - name: "LOGGER_IGNORE"
                 value: "${{ secrets.LOGGER_IGNORE }}"
               - name: "LOGGER_SERIALIZE"
                 value: "${{ secrets.LOGGER_SERIALIZE }}"
+              - name: "WORKER"
+                value: "main"
               - name: "REDIS_DB"
                 value: "0"
+              - name: "GOOGLE_DIRECTORY_SUBJECT"
+                value: "${{ secrets.GOOGLE_DIRECTORY_SUBJECT }}"
+              - name: "GOOGLE_DIRECTORY_GROUP_KEY"
+                value: "${{ secrets.GOOGLE_DIRECTORY_GROUP_KEY }}"
               - name: "STRIPE_LIVE_MODE"
                 value: "True"
               - name: "STRIPE_LIVE_SECRET_KEY"
@@ -122,4 +124,16 @@ jobs:
 
       - name: Deploy using Helm
         run: |
-          helm upgrade --install api-prod charts/basedosdados-api/. -n website -f values.yaml --wait
+          helm upgrade \
+            --wait \
+            --install \
+            --namespace website \
+            --values values.yaml \
+            api-prod charts/basedosdados-api/.
+          helm upgrade \
+            --wait \
+            --install \
+            --namespace website \
+            --values values.yaml \
+            --set "api.env[5].value=aux" \
+            api-prod-aux charts/basedosdados-api/.
