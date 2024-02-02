@@ -34,7 +34,7 @@ def sync_subscription_task(
                     email=subscription.customer.email,
                 ).first()  # fmt: skip
                 full_name = subscription.customer.name.title()
-                first_name, last_name = full_name.split(" ")
+                first_name, last_name = full_name.split(" ", 1)
                 admin = admin or Account.objects.create(
                     is_active=True,
                     last_name=last_name,
