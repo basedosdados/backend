@@ -427,7 +427,7 @@ class Career(BaseModel):
         verbose_name_plural = "Careers"
 
     def __str__(self):
-        return f"{self.account.first_name} @{self.role}"
+        return f"{self.account.email} @{self.role}"
 
     def get_team(self):
         return self.team
@@ -464,6 +464,9 @@ class Subscription(BaseModel):
     class Meta:
         verbose_name = "Subscription"
         verbose_name_plural = "Subscriptions"
+
+    def __str__(self):
+        return f"{self.admin.email} @ {self.subscription.plan}"
 
     @property
     def admin_email(self):

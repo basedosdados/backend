@@ -130,6 +130,15 @@ class SubscriptionInline(admin.StackedInline):
     extra = 0
     ordering = ["-created_at"]
 
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
 
 class SuperUserListFilter(admin.SimpleListFilter):
     title = gettext_lazy("Admin²")
@@ -165,13 +174,28 @@ class SubscriptionListFilter(admin.SimpleListFilter):
             return queryset.filter(internal_subscription__is_active=False)
 
 
+class SubscriptionStatusListFilter(admin.SimpleListFilter):
+    title = gettext_lazy("Tipo")
+    parameter_name = "subscriber"
+
+    def lookups(self, request, model_admin):
+        return [
+            ("trialing", gettext_lazy("Trial")),
+            ("active", gettext_lazy("Active")),
+            ("past_due", gettext_lazy("PastDue")),
+            ("canceled", gettext_lazy("Canceled")),
+            ("incomplete_expired", gettext_lazy("IncompleteExpired")),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(subscription__status=self.value())
+
+
 class AccountAdmin(BaseAccountAdmin):
     form = AccountChangeForm
     add_form = AccountCreationForm
 
-    # The fields to be used in displaying the User model.
-    # These override the definitions on the base UserAdmin
-    # that reference specific fields on auth.User.
     list_display = (
         "email",
         "username",
@@ -180,13 +204,13 @@ class AccountAdmin(BaseAccountAdmin):
         "created_at",
         "is_admin",
     )
-    readonly_fields = ("uuid", "created_at", "updated_at", "deleted_at")
     list_filter = (
         SuperUserListFilter,
         "is_admin",
         "profile",
         SubscriptionListFilter,
     )
+    readonly_fields = ("uuid", "created_at", "updated_at", "deleted_at")
     fieldsets = (
         (
             None,
@@ -285,18 +309,22 @@ class SubscriptionAdmin(admin.ModelAdmin):
         "stripe_subscription_status",
         "stripe_subscription_created_at",
     )
+    list_filter = (SubscriptionStatusListFilter,)
     search_fields = ("admin__full_name",)
     readonly_fields = (
         "id",
         "admin",
         "subscription",
     )
-    ordering = ["admin__email", "subscription__created"]
+    ordering = ["-subscription__created"]
 
     def has_add_permission(self, request):
         return False
 
     def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
         return False
 
 
