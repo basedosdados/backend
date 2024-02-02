@@ -128,7 +128,7 @@ class CareerInline(admin.StackedInline):
 class SubscriptionInline(admin.StackedInline):
     model = Subscription
     extra = 0
-    ordering = ["-created_at"]
+    ordering = ["-subscription__created"]
 
     def has_add_permission(self, request, obj=None):
         return False
