@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 from django import forms
 from django.contrib import admin
 from django.contrib.admin import ModelAdmin
@@ -6,6 +7,7 @@ from django.contrib.auth.admin import UserAdmin as BaseAccountAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
 from django.db.models.query import QuerySet
 from django.http import HttpRequest
+from django.utils.translation import gettext_lazy
 from faker import Faker
 
 from bd_api.apps.account.models import Account, Career, Subscription
@@ -129,6 +131,40 @@ class SubscriptionInline(admin.StackedInline):
     ordering = ["-created_at"]
 
 
+class SuperUserListFilter(admin.SimpleListFilter):
+    title = gettext_lazy("Admin²")
+    parameter_name = "superuser"
+
+    def lookups(self, request, model_admin):
+        return [
+            ("true", gettext_lazy("Sim")),
+            ("false", gettext_lazy("Não")),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value() == "true":
+            return queryset.filter(is_superuser=True)
+        if self.value() == "false":
+            return queryset.filter(is_superuser=False)
+
+
+class SubscriptionListFilter(admin.SimpleListFilter):
+    title = gettext_lazy("Inscrito")
+    parameter_name = "subscriber"
+
+    def lookups(self, request, model_admin):
+        return [
+            ("true", gettext_lazy("Sim")),
+            ("false", gettext_lazy("Não")),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value() == "true":
+            return queryset.filter(internal_subscription__is_active=True)
+        if self.value() == "false":
+            return queryset.filter(internal_subscription__is_active=False)
+
+
 class AccountAdmin(BaseAccountAdmin):
     form = AccountChangeForm
     add_form = AccountCreationForm
@@ -145,7 +181,12 @@ class AccountAdmin(BaseAccountAdmin):
         "is_admin",
     )
     readonly_fields = ("uuid", "created_at", "updated_at", "deleted_at")
-    list_filter = ("is_superuser", "is_admin", "profile")
+    list_filter = (
+        SuperUserListFilter,
+        "is_admin",
+        "profile",
+        SubscriptionListFilter,
+    )
     fieldsets = (
         (
             None,
@@ -253,6 +294,9 @@ class SubscriptionAdmin(admin.ModelAdmin):
     ordering = ["admin__email", "subscription__created"]
 
     def has_add_permission(self, request: HttpRequest):
+        return False
+
+    def has_change_permission(self, request: HttpRequest):
         return False
 
 
