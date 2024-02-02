@@ -2,6 +2,7 @@
 from functools import wraps
 from os import getenv
 
+WORKER = getenv("WORKER", "aux")
 API_URL = getenv("BASE_URL_API", "https://localhost:8080")
 SETTINGS = getenv("DJANGO_SETTINGS_MODULE", "bd_api.settings")
 
@@ -9,6 +10,13 @@ SETTINGS = getenv("DJANGO_SETTINGS_MODULE", "bd_api.settings")
 def is_remote():
     """Check if it is remote environment"""
     if "remote" in SETTINGS and "basedosdados.org" in API_URL:
+        return True
+    return False
+
+
+def is_main():
+    """Check if it is main environment"""
+    if "main" in WORKER:
         return True
     return False
 
@@ -56,6 +64,17 @@ def get_frontend_url():
     if is_dev():
         return "development.basedosdados.org"
     return "localhost:3000"
+
+
+def main_task(func):
+    """Decorator that avoids function call if it isn't main"""
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if is_main():
+            return func(*args, **kwargs)
+
+    return wrapper
 
 
 def production_task(func):
