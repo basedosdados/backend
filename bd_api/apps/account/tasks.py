@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-from django.contrib.admin import ModelAdmin
-from django.db.models.query import QuerySet
-from django.http import HttpRequest
 from djstripe.models import Subscription as DJStripeSubscription
 from huey.contrib.djhuey import task
 from loguru import logger
@@ -9,12 +6,8 @@ from loguru import logger
 from bd_api.apps.account.models import Account, Subscription
 
 
-@task
-def sync_subscription_task(
-    modeladmin: ModelAdmin = None,
-    request: HttpRequest = None,
-    queryset: QuerySet = None,
-):
+@task()
+def sync_subscription_task():
     """Create internal subscriptions from stripe subscriptions
 
     1. Subscription already exists

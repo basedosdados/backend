@@ -16,7 +16,7 @@ from bd_api.apps.account.tasks import sync_subscription_task
 
 def sync_subscription(modeladmin: ModelAdmin, request: HttpRequest, queryset: QuerySet):
     """Create internal subscriptions from stripe subscriptions"""
-    sync_subscription_task(modeladmin, request, queryset)
+    sync_subscription_task()
 
 
 sync_subscription.short_description = "Sincronizar inscrições"
