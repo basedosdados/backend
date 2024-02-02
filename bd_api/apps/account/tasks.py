@@ -14,6 +14,14 @@ def sync_subscription_task():
     2. Admin already exists
     3. Email already exists
     """
+
+    def parse_name(subscription):
+        name = subscription.customer.name.title().split(" ", 1)
+        if len(name) == 1:
+            return name, ""
+        if len(name) == 2:
+            return name
+
     for subscription in DJStripeSubscription.objects.order_by("-created").all():
         admin = None
         is_active = subscription.status == "active"
@@ -23,11 +31,10 @@ def sync_subscription_task():
             admin = subscription.customer.subscriber
         if getattr(subscription.customer, "email", None):
             try:
+                first_name, last_name = parse_name(subscription)
                 admin = admin or Account.objects.filter(
                     email=subscription.customer.email,
                 ).first()  # fmt: skip
-                full_name = subscription.customer.name.title()
-                first_name, last_name = full_name.split(" ", 1)
                 admin = admin or Account.objects.create(
                     is_active=True,
                     last_name=last_name,
