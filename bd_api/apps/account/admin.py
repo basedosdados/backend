@@ -8,7 +8,7 @@ from django.db.models.query import QuerySet
 from django.http import HttpRequest
 from faker import Faker
 
-from bd_api.apps.account.models import Account, BDGroup, BDGroupRole, BDRole, Career, Subscription
+from bd_api.apps.account.models import Account, Career, Subscription
 from bd_api.apps.account.tasks import sync_subscription_task
 
 
@@ -117,15 +117,16 @@ class AccountChangeForm(forms.ModelForm):
             user_permissions.queryset = user_permissions.queryset.select_related("content_type")
 
 
-class BDGroupRoleInline(admin.TabularInline):
-    model = BDGroupRole
-    extra = 1
-
-
 class CareerInline(admin.StackedInline):
     model = Career
-    extra = 1
-    ordering = ["start_at"]
+    extra = 0
+    ordering = ["-start_at"]
+
+
+class SubscriptionInline(admin.StackedInline):
+    model = Subscription
+    extra = 0
+    ordering = ["-created_at"]
 
 
 class AccountAdmin(BaseAccountAdmin):
@@ -140,10 +141,11 @@ class AccountAdmin(BaseAccountAdmin):
         "username",
         "get_full_name",
         "get_organization",
+        "created_at",
         "is_admin",
     )
     readonly_fields = ("uuid", "created_at", "updated_at", "deleted_at")
-    list_filter = ("is_admin", "profile")
+    list_filter = ("is_superuser", "is_admin", "profile")
     fieldsets = (
         (
             None,
@@ -221,9 +223,9 @@ class AccountAdmin(BaseAccountAdmin):
             },
         ),
     )
-    search_fields = ("email",)
-    ordering = ("email",)
-    inlines = (CareerInline,)
+    search_fields = ("email", "full_name")
+    ordering = ["-created_at"]
+    inlines = (CareerInline, SubscriptionInline)
     filter_horizontal = ()
 
 
@@ -231,14 +233,7 @@ class CareerAdmin(admin.ModelAdmin):
     list_display = ("account", "team", "level", "role", "start_at", "end_at")
     search_fields = ("account", "team")
     readonly_fields = ("created_at", "updated_at")
-    ordering = ("account", "start_at")
-
-
-class BDGroupAdmin(admin.ModelAdmin):
-    inlines = (BDGroupRoleInline,)
-    list_display = ("name", "description")
-    search_fields = ("name", "description")
-    ordering = ("name",)
+    ordering = ["account", "start_at"]
 
 
 class SubscriptionAdmin(admin.ModelAdmin):
@@ -255,7 +250,7 @@ class SubscriptionAdmin(admin.ModelAdmin):
         "admin",
         "subscription",
     )
-    ordering = ("admin__email", "subscription__created")
+    ordering = ["admin__email", "subscription__created"]
 
     def has_add_permission(self, request: HttpRequest):
         return False
@@ -263,6 +258,4 @@ class SubscriptionAdmin(admin.ModelAdmin):
 
 admin.site.register(Account, AccountAdmin)
 admin.site.register(Career, CareerAdmin)
-admin.site.register(BDRole)
-admin.site.register(BDGroup, BDGroupAdmin)
 admin.site.register(Subscription, SubscriptionAdmin)
