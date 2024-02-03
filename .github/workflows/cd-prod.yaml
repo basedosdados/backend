@@ -130,11 +130,3 @@ jobs:
             --namespace website \
             --values values.yaml \
             api-prod charts/basedosdados-api/.
-          helm upgrade \
-            --wait \
-            --install \
-            --namespace website \
-            --values values.yaml \
-            --set "api.env[5].value=aux" \
-            --set "api.name=api-prod-aux" \
-            api-prod-aux charts/basedosdados-api/.
