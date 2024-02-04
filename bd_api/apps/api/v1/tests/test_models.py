@@ -110,7 +110,9 @@ def test_date_time_range_empty(coverage_tabela_open):
 
 
 @pytest.mark.django_db
-def test_dataset_create(dataset_dados_mestres, tema_saude, tema_educacao, tag_aborto, tag_covid):
+def test_dataset_create(
+    dataset_dados_mestres, tema_saude, tema_educacao, tag_aborto, tag_covid
+):
     """Test for Dataset creation"""
     dataset_dados_mestres.save()
     dataset_dados_mestres.themes.add(tema_saude, tema_educacao)
@@ -127,7 +129,9 @@ def test_table_create(tabela_bairros):
 
 
 @pytest.mark.django_db
-def test_table_with_empty_coverage(tabela_bairros, coverage_tabela_open, datetime_range_empty):
+def test_table_with_empty_coverage(
+    tabela_bairros, coverage_tabela_open, datetime_range_empty
+):
     """
     Test for Table with Coverage containing no DateTimeRange.
     Coverage must be empty string.
@@ -200,7 +204,7 @@ def test_information_request_create(
 
 
 @pytest.mark.django_db
-def test_analysis_create(  # pylint: disable=too-many-arguments
+def test_analysis_create(
     analise_bairros,
     dataset_dados_mestres,
     tema_saude,

@@ -15,17 +15,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-      - name: Set up python
-        uses: actions/setup-python@v2
-        with:
-          python-version: ${{ matrix.python-version }}
-          architecture: ${{ matrix.arch }}
-      - name: Set up poetry and upgrade pip
-        run: pip install -U pip poetry
-      - name: Install this package
-        run: poetry install
       - name: Lint source code
-        run: poetry run lint
+        uses: chartboost/ruff-action@v1
       - name: Lint pull request title
         uses: amannn/action-semantic-pull-request@v5
         env:
@@ -50,8 +41,8 @@ jobs:
       - name: Set up python
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ matrix.python-version }}
           architecture: ${{ matrix.arch }}
+          python-version: ${{ matrix.python-version }}
       - name: Set up poetry and upgrade pip
         run: pip install -U pip poetry
       - name: Install this package
