@@ -2,8 +2,8 @@
 from datetime import datetime, timedelta
 
 from django.core.management import call_command
-from google.api_core.exceptions import BadRequest, NotFound
 from google.cloud.bigquery import Table as GBQTable
+from google.api_core.exceptions import GoogleAPICallError
 from huey import crontab
 from huey.contrib.djhuey import periodic_task
 from loguru import logger
@@ -28,15 +28,13 @@ def rebuild_search_index_task():
     call_command("rebuild_index", interactive=False, batchsize=100)
 
 
-@periodic_task(crontab(day_of_week="0", hour="3", minute="0"))
+@periodic_task(crontab(day_of_week="1-5", hour="6", minute="0"))
 @production_task
 def update_table_metadata_task(table_pks: list[str] = None):
     """Update the metadata of selected tables in the database"""
 
-    header = (
-        "Verifique a atualização de metadados "
-        "via [grafana](https://grafana.basedosdados.org/d/_Lq-p0DIk/metadados-de-tabelas?orgId=1) dos conjuntos:"
-    )
+    msg = "Verifique os metadados dos conjuntos:  "
+    link = lambda pk: f"https://api.basedosdados.org/admin/v1/table/{pk}/change/"  # noqa
 
     def get_number_of_rows(table: Table, bq_table: GBQTable) -> int | None:
         """Get number of rows from big query"""
@@ -76,34 +74,31 @@ def update_table_metadata_task(table_pks: list[str] = None):
             except Exception as e:
                 logger.warning(e)
 
-    def add_line(msg: list[str], table: Table):
-        msg.append(
-            f"[{table.dataset}.{table}](https://api.basedosdados.org/admin/v1/table/{table.pk}/change/)"
-        )
-        return msg
-
-    def format_msg(msg: list[str]) -> str:
-        if msg:
-            msg = set(msg)
-            msg = list(msg)
-            msg = sorted(msg)
-            msg.insert(0, header)
-            msg = "\n- ".join(msg)
+    def fmt_msg(table: Table = None, error: Exception = None) -> str:
+        """
+        - Add line if error exists
+        - Return none if no error exists
+        """
+        nonlocal msg
+        if table and error:
+            line = f"\n- [{table}]({link(table.pk)}): `{error}`  "
+            if len(msg) + len(line) <= 2000:
+                msg += line
             return msg
-
-    msg = []
+        if msg.count("\n"):
+            return msg
 
     bq_client = get_gbq_client()
     cs_client = get_gcs_client()
     cs_bucket = cs_client.get_bucket("basedosdados")
 
     if not table_pks:
-        tables = Table.objects.all()
+        tables = Table.objects.order_by("updated_at").all()
     else:
-        tables = Table.objects.filter(pk__in=table_pks).all()
+        tables = Table.objects.filter(pk__in=table_pks).order_by("updated_at").all()
 
     for table in tables:
-        if len(msg) >= 1800:
+        if len(msg) > 1600:
             break
         if not table.gbq_slug:
             continue
@@ -114,18 +109,20 @@ def update_table_metadata_task(table_pks: list[str] = None):
             table.uncompressed_file_size = get_uncompressed_file_size(table, bq_table)
             table.save()
             logger.info(f"{table}")
-        except (BadRequest, NotFound, ValueError) as e:
-            msg = add_line(msg, table)
+        except GoogleAPICallError as e:
+            e = e.response.json()["error"]
+            e = e["errors"][0]["message"]
+            msg = fmt_msg(table, e)
             logger.warning(f"{table}: {e}")
         except Exception as e:
-            msg = add_line(msg, table)
+            msg = fmt_msg(table, e)
             logger.warning(f"{table}: {e}")
 
-    if msg := format_msg(msg):
+    if msg := fmt_msg():
         send_discord_message(msg)
 
 
-@periodic_task(crontab(hour="6", minute="0"))
+@periodic_task(crontab(hour="8", minute="0"))
 @production_task
 def update_page_views_task(backfill: bool = False):
     if backfill:
