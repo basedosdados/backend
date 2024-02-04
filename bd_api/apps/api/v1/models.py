@@ -837,14 +837,30 @@ class Dataset(BaseModel):
         """Returns true if there are information requests in the dataset for graphql"""
         return self.contains_information_requests
 
+    @property
+    def table_last_updated_at(self):
+        updates = [
+            u.last_updated_at for u in self.tables.all()
+            if u.last_updated_at
+        ]  # fmt: skip
+        return max(updates) if updates else None
+
+    def get_graphql_table_last_updated_at(self):
+        return self.table_last_updated_at
+
+    @property
+    def raw_data_source_last_updated_at(self):
+        updates = [
+            u.last_updated_at for u in self.raw_data_sources.all()
+            if u.last_updated_at
+        ]  # fmt: skip
+        return max(updates) if updates else None
+
+    def get_graphql_raw_data_source_last_updated_at(self):
+        return self.raw_data_source_last_updated_at
+
 
 class Update(BaseModel):
-    """
-    Update model
-    Informations about the update of a model - frequency, lag, latest update
-    Can be linked to a table, a raw data source or an information request
-    """
-
     id = models.UUIDField(primary_key=True, default=uuid4)
     entity = models.ForeignKey(
         "Entity", on_delete=models.CASCADE, related_name="updates"
@@ -1157,6 +1173,14 @@ class Table(BaseModel, OrderedModel):
                 }
             )
         return get_unique_list(all_neighbors)
+
+    @property
+    def last_updated_at(self):
+        updates = [u.latest for u in self.updates.all() if u.latest]
+        return max(updates) if updates else None
+
+    def get_graphql_last_updated_at(self):
+        return self.last_updated_at
 
     def clean(self):
         """
@@ -1585,6 +1609,14 @@ class RawDataSource(BaseModel, OrderedModel):
 
     def __str__(self):
         return f"{self.name} ({self.dataset.name})"
+
+    @property
+    def last_updated_at(self):
+        updates = [u.latest for u in self.updates.all() if u.latest]
+        return max(updates) if updates else None
+
+    def get_graphql_last_updated_at(self):
+        return self.last_updated_at
 
 
 class InformationRequest(BaseModel, OrderedModel):
