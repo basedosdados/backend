@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from datetime import datetime, timedelta
+
 from django.core.management import call_command
 from google.api_core.exceptions import BadRequest, NotFound
 from google.cloud.bigquery import Table as GBQTable
@@ -7,7 +9,7 @@ from huey.contrib.djhuey import periodic_task
 from loguru import logger
 from pandas import read_gbq
 
-from bd_api.apps.api.v1.models import Table
+from bd_api.apps.api.v1.models import Dataset, Table
 from bd_api.custom.client import get_gbq_client, get_gcs_client, send_discord_message
 from bd_api.utils import production_task
 
@@ -121,3 +123,54 @@ def update_table_metadata_task(table_pks: list[str] = None):
 
     if msg := format_msg(msg):
         send_discord_message(msg)
+
+
+@periodic_task(crontab(hour="6", minute="0"))
+@production_task
+def update_page_views_task(backfill: bool = False):
+    if backfill:
+        event_table = "events_*"
+    else:
+        yesterday = datetime.now() - timedelta(1)
+        yesterday = yesterday.strftime("%Y%m%d")
+        event_table = f"events_{yesterday}"
+
+    query = f"""
+        select
+            count(1) page_views
+            , regexp_extract(param.value.string_value, r'table=([a-z0-9-]{36})') table_id
+            , regexp_extract(param.value.string_value, r'dataset\/([a-z0-9-]{36})') dataset_id
+        from `basedosdados.analytics_295884852.{event_table}` event
+            join unnest(event_params) param
+        where
+            true
+            and event_name = 'page_view'
+            and param.key = 'page_location'
+            and param.value.string_value like '%/dataset/%'
+        group by
+            table_id,
+            dataset_id
+        having
+            true
+            and table_id is not null
+            and dataset_id is not null
+    """  # noqa: W605
+    metadata = read_gbq(query)
+
+    if backfill:
+        for table_id in metadata["table_id"].unique():
+            if table := Table.objects.filter(id=table_id).first():
+                table.page_views = 0
+                table.save()
+        for dataset_id in metadata["dataset_id"].unique():
+            if dataset := Dataset.objects.filter(id=dataset_id).first():
+                dataset.page_views = 0
+                dataset.save()
+
+    for _, (page_views, table_id, dataset_id) in metadata.iterrows():
+        if table := Table.objects.filter(id=table_id).first():
+            table.page_views += page_views
+            table.save()
+        if dataset := Dataset.objects.filter(id=dataset_id).first():
+            dataset.page_views += page_views
+            dataset.save()
