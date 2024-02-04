@@ -48,4 +48,14 @@ jobs:
       - name: Install this package
         run: poetry install
       - name: Test
-        run: poetry run test
+        run: |
+          poetry run pytest \
+            --junitxml=pytest.xml \
+            --cov-report=term-missing:skip-covered \
+            --cov=bd_api bd_api | tee pytest-coverage.txt
+      - name: Report coverage
+        uses: MishaKav/pytest-coverage-comment@main
+        with:
+          hide-report: true
+          junitxml-path: ./pytest.xml
+          pytest-coverage-path: ./pytest-coverage.txt
