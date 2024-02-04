@@ -551,6 +551,10 @@ class Dataset(BaseModel):
     is_closed = models.BooleanField(
         default=False, help_text="Dataset is for BD Pro subscribers only"
     )
+    page_views = models.BigIntegerField(
+        default=0,
+        help_text="Number of page views by Google Analytics",
+    )
 
     graphql_nested_filter_fields_whitelist = ["id", "slug"]
 
@@ -946,8 +950,12 @@ class Table(BaseModel, OrderedModel):
     number_rows = models.BigIntegerField(blank=True, null=True)
     number_columns = models.BigIntegerField(blank=True, null=True)
     is_closed = models.BooleanField(default=False, help_text="Table is for BD Pro subscribers only")
-    order_with_respect_to = ("dataset",)
+    page_views = models.BigIntegerField(
+        default=0,
+        help_text="Number of page views by Google Analytics",
+    )
 
+    order_with_respect_to = ("dataset",)
     graphql_nested_filter_fields_whitelist = ["id", "dataset"]
 
     def __str__(self):
