@@ -9,21 +9,32 @@ from pandas import read_gbq
 
 from bd_api.apps.api.v1.models import Table
 from bd_api.custom.client import get_gbq_client, get_gcs_client, send_discord_message
-from bd_api.utils import main_task, production_task
+from bd_api.utils import production_task
 
 logger = logger.bind(module="api.v1")
 
-header = (
-    "Verifique a atualização de metadados "
-    "via [grafana](https://grafana.basedosdados.org/d/_Lq-p0DIk/metadados-de-tabelas?orgId=1) dos conjuntos:"
-)
+
+@periodic_task(crontab(day_of_week="1-6", hour="5", minute="0"))
+@production_task
+def update_search_index_task():
+    call_command("update_index", batchsize=100)
+
+
+@periodic_task(crontab(day_of_week="0", hour="5", minute="0"))
+@production_task
+def rebuild_search_index_task():
+    call_command("rebuild_index", interactive=False, batchsize=100)
 
 
 @periodic_task(crontab(day_of_week="0", hour="3", minute="0"))
-@main_task
 @production_task
 def update_table_metadata_task(table_pks: list[str] = None):
     """Update the metadata of selected tables in the database"""
+
+    header = (
+        "Verifique a atualização de metadados "
+        "via [grafana](https://grafana.basedosdados.org/d/_Lq-p0DIk/metadados-de-tabelas?orgId=1) dos conjuntos:"
+    )
 
     def get_number_of_rows(table: Table, bq_table: GBQTable) -> int | None:
         """Get number of rows from big query"""
@@ -110,17 +121,3 @@ def update_table_metadata_task(table_pks: list[str] = None):
 
     if msg := format_msg(msg):
         send_discord_message(msg)
-
-
-@periodic_task(crontab(day_of_week="1-6", hour="5", minute="0"))
-@main_task
-@production_task
-def update_search_index_task():
-    call_command("update_index", batchsize=100)
-
-
-@periodic_task(crontab(day_of_week="0", hour="5", minute="0"))
-@main_task
-@production_task
-def rebuild_search_index_task():
-    call_command("rebuild_index", interactive=False, batchsize=100)

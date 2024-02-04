@@ -66,23 +66,12 @@ def get_frontend_url():
     return "localhost:3000"
 
 
-def main_task(func):
-    """Decorator that avoids function call if it isn't main"""
-
-    @wraps(func)
-    def wrapper(*args, **kwargs):
-        if is_main():
-            return func(*args, **kwargs)
-
-    return wrapper
-
-
 def production_task(func):
     """Decorator that avoids function call if it isn't production"""
 
     @wraps(func)
     def wrapper(*args, **kwargs):
-        if is_prd():
+        if is_prd() and is_main():
             return func(*args, **kwargs)
 
     return wrapper
