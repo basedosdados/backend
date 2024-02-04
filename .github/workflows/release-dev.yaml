@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-latest
     if: |
       github.event_name == 'workflow_dispatch' ||
-      contains(github.event.pull_request.labels.*.name, 'deploy')
+      contains(github.event.pull_request.labels.*.name, 'preview')
     steps:
       - name: Select branch
         id: select_branch
