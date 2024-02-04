@@ -103,7 +103,9 @@ class ColumnInline(OrderedTranslatedInline):
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         """Limit the observation level queryset to the parent object"""
         if db_field.name == "observation_level":
-            kwargs["queryset"] = ObservationLevel.objects.filter(table=self.parent_inline_obj)
+            kwargs["queryset"] = ObservationLevel.objects.filter(
+                table=self.parent_inline_obj
+            )
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
@@ -236,7 +238,9 @@ class UpdateInline(admin.StackedInline):
 ################################################################################
 
 
-def update_table_metadata(modeladmin: ModelAdmin, request: HttpRequest, queryset: QuerySet):
+def update_table_metadata(
+    modeladmin: ModelAdmin, request: HttpRequest, queryset: QuerySet
+):
     """Update the metadata of selected tables in the admin"""
     if str(modeladmin) == "v1.TableAdmin":
         tables = queryset.all()
@@ -451,10 +455,12 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
 
     def related_objects(self, obj):
         return format_html(
-            "<a class='related-widget-wrapper-link add-related' href='/admin/v1/table/add/?dataset={0}&_to_field=id&_popup=1'>{1} {2}</a>",  # noqa  pylint: disable=line-too-long
+            "<a class='related-widget-wrapper-link add-related' href='/admin/v1/table/add/?dataset={0}&_to_field=id&_popup=1'>{1} {2}</a>",
             obj.id,
             obj.tables.count(),
-            " ".join(["tables" if obj.tables.count() > 1 else "table", "(click to add)"]),
+            " ".join(
+                ["tables" if obj.tables.count() > 1 else "table", "(click to add)"]
+            ),
         )
 
     related_objects.short_description = "Tables"
@@ -548,7 +554,9 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
                     {
                         "id": observation.id,
                         "entity": observation.entity.name if observation.entity else "",
-                        "columns": "".join([column.name for column in observation.columns.all()]),
+                        "columns": "".join(
+                            [column.name for column in observation.columns.all()]
+                        ),
                     }
                 )
 
@@ -572,7 +580,9 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
             "<a href='/admin/v1/column/add/?table={0}'>{1} {2}</a>",
             obj.id,
             obj.columns.count(),
-            " ".join(["columns" if obj.columns.count() > 1 else "column", "(click to add)"]),
+            " ".join(
+                ["columns" if obj.columns.count() > 1 else "column", "(click to add)"]
+            ),
         )
 
     related_columns.short_description = "Columns"
@@ -582,11 +592,11 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         lines = []
         for datetimerange in qs:
             lines.append(
-                '<a href="/admin/api/v1/datetimerange/{0}/change/" target="_blank">Date Time Range</a>',  # noqa  pylint: disable=line-too-long
+                '<a href="/admin/api/v1/datetimerange/{0}/change/" target="_blank">Date Time Range</a>',
                 datetimerange.pk,
             )
         return format_html(
-            '<a href="/admin/api/v1/datetimerange/{}/change/" target="_blank">Date Time Range</a>',  # noqa  pylint: disable=line-too-long
+            '<a href="/admin/api/v1/datetimerange/{}/change/" target="_blank">Date Time Range</a>',
             obj.datetimerange.slug,
         )
 

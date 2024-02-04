@@ -1,8 +1,4 @@
 # -*- coding: utf-8 -*-
-# pylint: disable=too-few-public-methods,too-many-lines
-"""
-Models for API v1
-"""
 import calendar
 import json
 import os
@@ -277,7 +273,9 @@ class Key(BaseModel):
     """
 
     id = models.UUIDField(primary_key=True, default=uuid4)
-    dictionary = models.ForeignKey("Dictionary", on_delete=models.CASCADE, related_name="keys")
+    dictionary = models.ForeignKey(
+        "Dictionary", on_delete=models.CASCADE, related_name="keys"
+    )
     name = models.CharField(max_length=255)
     value = models.CharField(max_length=255)
 
@@ -436,7 +434,9 @@ class Organization(BaseModel):
     slug = models.SlugField(unique=False, max_length=255)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    area = models.ForeignKey("Area", on_delete=models.CASCADE, related_name="organizations")
+    area = models.ForeignKey(
+        "Area", on_delete=models.CASCADE, related_name="organizations"
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     website = models.URLField(blank=True, null=True, max_length=255)
@@ -604,8 +604,12 @@ class Dataset(BaseModel):
                     continue
                 date_time = get_date_time(date_times)
 
-                start_year = date_time.start_year if date_time.start_year else start_year
-                start_month = date_time.start_month if date_time.start_month else start_month
+                start_year = (
+                    date_time.start_year if date_time.start_year else start_year
+                )
+                start_month = (
+                    date_time.start_month if date_time.start_month else start_month
+                )
                 start_day = date_time.start_day if date_time.start_day else start_day
                 end_year = date_time.end_year if date_time.end_year else end_year
                 end_month = date_time.end_month if date_time.end_month else end_month
@@ -616,7 +620,9 @@ class Dataset(BaseModel):
                     date_time.start_month or 1,
                     date_time.start_day or 1,
                 )
-                start_date = new_start_date if new_start_date < start_date else start_date
+                start_date = (
+                    new_start_date if new_start_date < start_date else start_date
+                )
                 new_end_date = datetime(
                     date_time.end_year or 1,
                     date_time.end_month or 1,
@@ -631,8 +637,12 @@ class Dataset(BaseModel):
                     continue
                 date_time = get_date_time(date_times)
 
-                start_year = date_time.start_year if date_time.start_year else start_year
-                start_month = date_time.start_month if date_time.start_month else start_month
+                start_year = (
+                    date_time.start_year if date_time.start_year else start_year
+                )
+                start_month = (
+                    date_time.start_month if date_time.start_month else start_month
+                )
                 start_day = date_time.start_day if date_time.start_day else start_day
                 end_year = date_time.end_year if date_time.end_year else end_year
                 end_month = date_time.end_month if date_time.end_month else end_month
@@ -643,7 +653,9 @@ class Dataset(BaseModel):
                     date_time.start_month or 1,
                     date_time.start_day or 1,
                 )
-                start_date = new_start_date if new_start_date < start_date else start_date
+                start_date = (
+                    new_start_date if new_start_date < start_date else start_date
+                )
                 new_end_date = datetime(
                     date_time.end_year or 1,
                     date_time.end_month or 1,
@@ -658,8 +670,12 @@ class Dataset(BaseModel):
                     continue
                 date_time = get_date_time(date_times)
 
-                start_year = date_time.start_year if date_time.start_year else start_year
-                start_month = date_time.start_month if date_time.start_month else start_month
+                start_year = (
+                    date_time.start_year if date_time.start_year else start_year
+                )
+                start_month = (
+                    date_time.start_month if date_time.start_month else start_month
+                )
                 start_day = date_time.start_day if date_time.start_day else start_day
                 end_year = date_time.end_year if date_time.end_year else end_year
                 end_month = date_time.end_month if date_time.end_month else end_month
@@ -670,7 +686,9 @@ class Dataset(BaseModel):
                     date_time.start_month or 1,
                     date_time.start_day or 1,
                 )
-                start_date = new_start_date if new_start_date < start_date else start_date
+                start_date = (
+                    new_start_date if new_start_date < start_date else start_date
+                )
                 new_end_date = datetime(
                     date_time.end_year or 1,
                     date_time.end_month or 1,
@@ -828,7 +846,9 @@ class Update(BaseModel):
     """
 
     id = models.UUIDField(primary_key=True, default=uuid4)
-    entity = models.ForeignKey("Entity", on_delete=models.CASCADE, related_name="updates")
+    entity = models.ForeignKey(
+        "Entity", on_delete=models.CASCADE, related_name="updates"
+    )
     frequency = models.IntegerField()
     lag = models.IntegerField(blank=True, null=True)
     latest = models.DateTimeField(blank=True, null=True)
@@ -882,7 +902,9 @@ class Update(BaseModel):
             )
 
         if self.entity.category.slug != "datetime":
-            raise ValidationError("Entity's category is not in category.slug = `datetime`.")
+            raise ValidationError(
+                "Entity's category is not in category.slug = `datetime`."
+            )
 
         return super().clean()
 
@@ -894,7 +916,9 @@ class Table(BaseModel, OrderedModel):
     slug = models.SlugField(unique=False, max_length=255)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, related_name="tables")
+    dataset = models.ForeignKey(
+        "Dataset", on_delete=models.CASCADE, related_name="tables"
+    )
     version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
         "Status", on_delete=models.PROTECT, related_name="tables", null=True, blank=True
@@ -949,7 +973,9 @@ class Table(BaseModel, OrderedModel):
     compressed_file_size = models.BigIntegerField(blank=True, null=True)
     number_rows = models.BigIntegerField(blank=True, null=True)
     number_columns = models.BigIntegerField(blank=True, null=True)
-    is_closed = models.BooleanField(default=False, help_text="Table is for BD Pro subscribers only")
+    is_closed = models.BooleanField(
+        default=False, help_text="Table is for BD Pro subscribers only"
+    )
     page_views = models.BigIntegerField(
         default=0,
         help_text="Number of page views by Google Analytics",
@@ -1262,7 +1288,10 @@ class Column(BaseModel, OrderedModel):
                 "observation_level"
             ] = "Observation level is not in the same table as the column."
 
-        if self.directory_primary_key and self.directory_primary_key.table.is_directory is False:
+        if (
+            self.directory_primary_key
+            and self.directory_primary_key.table.is_directory is False
+        ):
             errors[
                 "directory_primary_key"
             ] = "Column indicated as a directory's primary key is not in a directory."
@@ -1390,7 +1419,9 @@ class Dictionary(BaseModel):
     """Model definition for Dictionary."""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
-    column = models.ForeignKey("Column", on_delete=models.CASCADE, related_name="dictionaries")
+    column = models.ForeignKey(
+        "Column", on_delete=models.CASCADE, related_name="dictionaries"
+    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -1409,7 +1440,9 @@ class CloudTable(BaseModel):
     """Model definition for CloudTable."""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
-    table = models.ForeignKey("Table", on_delete=models.CASCADE, related_name="cloud_tables")
+    table = models.ForeignKey(
+        "Table", on_delete=models.CASCADE, related_name="cloud_tables"
+    )
     columns = models.ManyToManyField(
         "Column",
         related_name="cloud_tables",
@@ -1439,7 +1472,9 @@ class CloudTable(BaseModel):
             errors["gcp_table_id"] = "gcp_table_id must be in snake_case."
         for column in self.columns.all():
             if column.table != self.table:
-                errors["columns"] = f"Column {column} does not belong to table {self.table}."
+                errors[
+                    "columns"
+                ] = f"Column {column} does not belong to table {self.table}."
         if errors:
             raise ValidationError(errors)
 
@@ -1509,9 +1544,15 @@ class RawDataSource(BaseModel, OrderedModel):
     availability = models.ForeignKey(
         "Availability", on_delete=models.CASCADE, related_name="raw_data_sources"
     )
-    languages = models.ManyToManyField("Language", related_name="raw_data_sources", blank=True)
+    languages = models.ManyToManyField(
+        "Language", related_name="raw_data_sources", blank=True
+    )
     license = models.ForeignKey(
-        "License", on_delete=models.CASCADE, related_name="raw_data_sources", blank=True, null=True
+        "License",
+        on_delete=models.CASCADE,
+        related_name="raw_data_sources",
+        blank=True,
+        null=True,
     )
     area_ip_address_required = models.ManyToManyField(
         "Area", related_name="raw_data_sources", blank=True
@@ -1798,7 +1839,9 @@ class DateTimeRange(BaseModel):
                     self.end_second or 0,
                 )
                 if start_datetime > end_datetime:
-                    errors["start_year"] = ["Start datetime cannot be greater than end datetime"]
+                    errors["start_year"] = [
+                        "Start datetime cannot be greater than end datetime"
+                    ]
 
             except TypeError:
                 errors["start_year"] = ["Start year or end year are invalid"]

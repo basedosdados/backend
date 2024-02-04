@@ -529,7 +529,9 @@ def fixture_coluna_state_id_bairros(
 
 @pytest.fixture(name="coluna_nome_bairros")
 @pytest.mark.django_db
-def fixture_coluna_nome_bairros(tabela_bairros, bigquery_type_string, status_em_processamento):
+def fixture_coluna_nome_bairros(
+    tabela_bairros, bigquery_type_string, status_em_processamento
+):
     """Fixture for name column."""
     return Column.objects.create(
         table=tabela_bairros,
@@ -674,7 +676,7 @@ def fixture_chave_1(dicionario_1):
 
 @pytest.fixture(name="teste_qualidade")
 @pytest.mark.django_db
-def fixture_teste_qualidade(  # pylint: disable=too-many-arguments
+def fixture_teste_qualidade(
     pipeline,
     analise_bairros,
     dataset_dados_mestres,
