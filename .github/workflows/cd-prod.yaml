@@ -27,7 +27,7 @@ jobs:
 
       - name: Import secrets from Vault
         id: import_secrets
-        uses: hashicorp/vault-action@v2.4.1
+        uses: hashicorp/vault-action@v2.8.0
         with:
           url: https://vault.basedosdados.org
           token: ${{ secrets.VAULT_TOKEN }}
