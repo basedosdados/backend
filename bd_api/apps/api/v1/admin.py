@@ -482,9 +482,9 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     ]
     list_display = [
         "name",
-        "full_slug",
-        "coverage",
         "organization",
+        "page_views",
+        "coverage",
         "related_objects",
     ]
     ordering = ["-updated_at"]
