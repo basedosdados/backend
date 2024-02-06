@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
 
-from bd_api.apps.api.v1.models import Column, Coverage, ObservationLevel
+from bd_api.apps.api.v1.models import Coverage, ObservationLevel, Organization
 
 
-class OrganizationImageFilter(admin.SimpleListFilter):
-    title = "has_picture"
+class OrganizationImageListFilter(admin.SimpleListFilter):
+    title = "Picture"
     parameter_name = "has_picture"
 
     def lookups(self, request, model_admin):
@@ -21,26 +21,51 @@ class OrganizationImageFilter(admin.SimpleListFilter):
             return queryset.filter(picture="")
 
 
-class TableCoverageFilter(admin.SimpleListFilter):
+class DatasetOrganizationListFilter(admin.SimpleListFilter):
+    title = "Organization"
+    parameter_name = "organization"
+
+    def lookups(self, request, model_admin):
+        values = Organization.objects.order_by("name").distinct().values("name", "pk")
+        return [(v.get("pk"), v.get("name")) for v in values]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(organization=self.value())
+
+
+class TableOrganizationListFilter(admin.SimpleListFilter):
+    title = "Organization"
+    parameter_name = "organization"
+
+    def lookups(self, request, model_admin):
+        values = Organization.objects.order_by("name").distinct().values("name", "pk")
+        return [(v.get("pk"), v.get("name")) for v in values]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(dataset__organization=self.value())
+
+
+class TableCoverageListFilter(admin.SimpleListFilter):
     title = "Coverage"
     parameter_name = "table_coverage"
 
     def lookups(self, request, model_admin):
-        distinct_values = (
+        values = (
             Coverage.objects.filter(table__id__isnull=False)
             .order_by("area__name")
             .distinct()
             .values("area__name", "area__slug")
         )
-        # Create a tuple of tuples with the format (value, label).
-        return [(value.get("area__slug"), value.get("area__name")) for value in distinct_values]
+        return [(v.get("area__slug"), v.get("area__name")) for v in values]
 
     def queryset(self, request, queryset):
         if self.value():
             return queryset.filter(coverages__area__slug=self.value())
 
 
-class TableObservationFilter(admin.SimpleListFilter):
+class TableObservationListFilter(admin.SimpleListFilter):
     title = "Observation Level"
     parameter_name = "table_observation"
 
@@ -51,30 +76,11 @@ class TableObservationFilter(admin.SimpleListFilter):
             .distinct()
             .values("entity__id", "entity__name")
         )
-        # Create a tuple of tuples with the format (value, label).
-        return [(value.get("entity__id"), value.get("entity__name")) for value in distinct_values]
+        return [
+            (value.get("entity__id"), value.get("entity__name"))
+            for value in distinct_values
+        ]
 
     def queryset(self, request, queryset):
         if self.value():
             return queryset.filter(observation_levels__entity=self.value())
-
-
-class DirectoryPrimaryKeyAdminFilter(admin.SimpleListFilter):
-    title = "directory_primary_key"
-    parameter_name = "directory_primary_key"
-
-    def lookups(self, request, model_admin):
-        distinct_values = (
-            Column.objects.filter(directory_primary_key__id__isnull=False)
-            .order_by("directory_primary_key__name")
-            .distinct()
-            .values(
-                "directory_primary_key__name",
-            )
-        )
-        # Create a tuple of tuples with the format (value, label).
-        return [(value.get("directory_primary_key__name"),) for value in distinct_values]
-
-    def queryset(self, request, queryset):
-        if self.value():
-            return queryset.filter(directory_primary_key__name=self.value())

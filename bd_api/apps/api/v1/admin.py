@@ -13,9 +13,11 @@ from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInl
 from ordered_model.admin import OrderedInlineModelAdminMixin, OrderedStackedInline
 
 from bd_api.apps.api.v1.filters import (
-    OrganizationImageFilter,
-    TableCoverageFilter,
-    TableObservationFilter,
+    OrganizationImageListFilter,
+    TableCoverageListFilter,
+    TableObservationListFilter,
+    DatasetOrganizationListFilter,
+    TableOrganizationListFilter,
 )
 from bd_api.apps.api.v1.forms import (
     CloudTableInlineForm,
@@ -414,7 +416,7 @@ class OrganizationAdmin(TabbedTranslationAdmin):
     readonly_fields = ["id", "full_slug", "created_at", "updated_at"]
     list_display = ["name", "full_slug", "has_picture"]
     search_fields = ["name", "slug"]
-    list_filter = [OrganizationImageFilter, "created_at", "updated_at"]
+    list_filter = [OrganizationImageListFilter, "created_at", "updated_at"]
     autocomplete_fields = [
         "area",
     ]
@@ -452,19 +454,11 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         update_search_index,
         rebuild_search_index,
     ]
-
-    def related_objects(self, obj):
-        return format_html(
-            "<a class='related-widget-wrapper-link add-related' href='/admin/v1/table/add/?dataset={0}&_to_field=id&_popup=1'>{1} {2}</a>",
-            obj.id,
-            obj.tables.count(),
-            " ".join(
-                ["tables" if obj.tables.count() > 1 else "table", "(click to add)"]
-            ),
-        )
-
-    related_objects.short_description = "Tables"
-
+    inlines = [
+        TableInline,
+        RawDataSourceInline,
+        InformationRequestInline,
+    ]
     readonly_fields = [
         "id",
         "full_slug",
@@ -478,20 +472,34 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "updated_at",
         "related_objects",
     ]
-    list_display = ["name", "full_slug", "coverage", "organization", "related_objects"]
     search_fields = ["name", "slug", "organization__name"]
-    inlines = [
-        TableInline,
-        RawDataSourceInline,
-        InformationRequestInline,
-    ]
     filter_horizontal = [
         "tags",
         "themes",
     ]
     list_filter = [
-        "organization__name",
+        DatasetOrganizationListFilter,
     ]
+    list_display = [
+        "name",
+        "full_slug",
+        "coverage",
+        "organization",
+        "related_objects",
+    ]
+    ordering = ["-updated_at"]
+
+    def related_objects(self, obj):
+        return format_html(
+            "<a class='related-widget-wrapper-link add-related' href='/admin/v1/table/add/?dataset={0}&_to_field=id&_popup=1'>{1} {2}</a>",
+            obj.id,
+            obj.tables.count(),
+            " ".join(
+                ["tables" if obj.tables.count() > 1 else "table", "(click to add)"]
+            ),
+        )
+
+    related_objects.short_description = "Tables"
 
 
 class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
@@ -524,11 +532,22 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "published_by",
         "data_cleaned_by",
     ]
-    list_filter = [
-        "dataset__organization__name",
-        TableCoverageFilter,
-        TableObservationFilter,
+    list_display = [
+        "name",
+        "dataset",
+        "number_columns",
+        "number_rows",
+        "uncompressed_file_size",
+        "page_views",
+        "created_at",
+        "updated_at",
     ]
+    list_filter = [
+        TableOrganizationListFilter,
+        TableCoverageListFilter,
+        TableObservationListFilter,
+    ]
+    ordering = ["-updated_at"]
     change_form_template = "admin/table_change_form.html"
 
     def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
