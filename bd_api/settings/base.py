@@ -112,6 +112,10 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# DateTime
+# https://docs.djangoproject.com/en/4.2/ref/settings/
+USE_L10N = False
+DATETIME_FORMAT = "Y/m/d G:i:s"
 
 # Internationalization
 # https://docs.djangoproject.com/en/4.1/topics/i18n/
@@ -137,7 +141,12 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Silence system checks
 # https://docs.djangoproject.com/en/4.2/ref/settings/#silenced-system-checks
-SILENCED_SYSTEM_CHECKS = ["djstripe.I001", "djstripe.I002", "djstripe.I006", "djstripe.W005"]
+SILENCED_SYSTEM_CHECKS = [
+    "djstripe.I001",
+    "djstripe.I002",
+    "djstripe.I006",
+    "djstripe.W005",
+]
 
 # Logging	# https://docs.djangoproject.com/en/4.2/ref/settings/#silenced-system-checks
 LOGGING = {"version": 1}
