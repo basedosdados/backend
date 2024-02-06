@@ -62,6 +62,7 @@ from bd_api.apps.api.v1.models import (
 )
 from bd_api.apps.api.v1.tasks import (
     rebuild_search_index_task,
+    update_page_views_task,
     update_search_index_task,
     update_table_metadata_task,
 )
@@ -238,6 +239,14 @@ class UpdateInline(admin.StackedInline):
 ################################################################################
 # Model Admins Actions
 ################################################################################
+
+
+def update_page_views(modeladmin: ModelAdmin, request: HttpRequest, queryset: QuerySet):
+    """Update the page views counter of all datasets and tables"""
+    update_page_views_task()
+
+
+update_page_views.short_description = "Atualizar metadados de visualizações"
 
 
 def update_table_metadata(
@@ -451,6 +460,7 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         reorder_tables,
         reset_table_order,
         update_table_metadata,
+        update_page_views,
         update_search_index,
         rebuild_search_index,
     ]
@@ -507,6 +517,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         reorder_columns,
         reset_column_order,
         update_table_metadata,
+        update_page_views,
     ]
     inlines = [
         ColumnInline,
