@@ -5,7 +5,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("v1", "0017_alter_cloudtable_columns"),
     ]

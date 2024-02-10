@@ -13,9 +13,8 @@ import graphql_jwt
 from django.apps import apps
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.forms import ModelForm
+from django.forms import ModelForm, modelform_factory
 from django.forms import fields as forms_fields
-from django.forms import modelform_factory
 from graphene import (
     ID,
     UUID,

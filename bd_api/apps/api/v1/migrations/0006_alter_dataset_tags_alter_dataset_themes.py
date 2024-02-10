@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("v1", "0005_alter_table_license_alter_table_partner_organization_and_more"),
     ]

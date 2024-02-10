@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("v1", "0013_remove_analysis_published_by_analysis_authors_and_more"),
     ]

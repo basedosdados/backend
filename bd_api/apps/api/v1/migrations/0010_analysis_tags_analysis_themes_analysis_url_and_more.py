@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("v1", "0009_remove_analysistype_tag_remove_analysistype_tag_en_and_more"),
     ]

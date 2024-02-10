@@ -1,5 +1,5 @@
+---
 name: Sync
-
 on:
   workflow_dispatch:
     inputs:
@@ -7,10 +7,7 @@ on:
         description: Destination environment
         required: true
         type: choice
-        options:
-        - staging
-        - development
-
+        options: [staging, development]
 jobs:
   sync:
     name: Sync
@@ -22,7 +19,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Import secrets
         id: import_secrets
         uses: hashicorp/vault-action@v2.4.1
@@ -34,25 +30,21 @@ jobs:
             secret/data/gcp_credentials/basedosdados-dev GH_ACTIONS_SA    | GCP_SA ;
             secret/data/gcp_credentials/basedosdados-dev GKE_CLUSTER_NAME | GKE_CLUSTER_NAME ;
             secret/data/gcp_credentials/basedosdados-dev GKE_CLUSTER_ZONE | GKE_CLUSTER_ZONE ;
-
       - name: Authenticate GCP
         id: auth
         uses: google-github-actions/auth@v1
         with:
           credentials_json: ${{ steps.import_secrets.outputs.GCP_SA }}
-
       - name: Set up GCP SDK
         uses: google-github-actions/setup-gcloud@v1
         with:
-          version: ">= 363.0.0"
-
+          version: '>= 363.0.0'
       - name: Install kubectl
         run: |
           sudo apt-get update --quiet
           sudo apt-get install --yes apt-transport-https ca-certificates curl
           curl -LO https://dl.k8s.io/release/v1.24.15/bin/linux/amd64/kubectl
           sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
-
       - name: Set up kubectl
         run: |
           gcloud components install gke-gcloud-auth-plugin
@@ -60,7 +52,6 @@ jobs:
             ${{ steps.import_secrets.outputs.GKE_CLUSTER_NAME }}\
             --zone ${{ steps.import_secrets.outputs.GKE_CLUSTER_ZONE }}
           kubectl config set-context --current --namespace=website
-
       - name: Sync databases
-        run: |
+        run: |-
           ./scripts/sync.sh ${{ inputs.environment }}

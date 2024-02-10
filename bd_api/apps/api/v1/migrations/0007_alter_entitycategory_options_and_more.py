@@ -5,7 +5,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("v1", "0006_alter_dataset_tags_alter_dataset_themes"),
     ]

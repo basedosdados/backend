@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("v1", "0016_column_is_primary_key_column_version_dataset_version_and_more"),
     ]

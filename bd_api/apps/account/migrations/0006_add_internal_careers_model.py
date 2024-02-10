@@ -9,7 +9,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("account", "0005_rename_ckan_id_account_uuid_account_staff_groups_and_more"),
     ]

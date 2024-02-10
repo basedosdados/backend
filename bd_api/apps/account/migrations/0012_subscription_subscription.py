@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("djstripe", "0012_2_8"),
         ("account", "0011_subscription"),

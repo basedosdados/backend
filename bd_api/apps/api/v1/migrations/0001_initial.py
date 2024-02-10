@@ -13,7 +13,6 @@ import bd_api.apps.api.v1.validators
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
