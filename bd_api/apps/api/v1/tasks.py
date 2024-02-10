@@ -2,8 +2,8 @@
 from datetime import datetime, timedelta
 
 from django.core.management import call_command
-from google.cloud.bigquery import Table as GBQTable
 from google.api_core.exceptions import GoogleAPICallError
+from google.cloud.bigquery import Table as GBQTable
 from huey import crontab
 from huey.contrib.djhuey import periodic_task
 from loguru import logger

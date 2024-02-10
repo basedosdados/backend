@@ -13,10 +13,10 @@ from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInl
 from ordered_model.admin import OrderedInlineModelAdminMixin, OrderedStackedInline
 
 from bd_api.apps.api.v1.filters import (
+    DatasetOrganizationListFilter,
     OrganizationImageListFilter,
     TableCoverageListFilter,
     TableObservationListFilter,
-    DatasetOrganizationListFilter,
     TableOrganizationListFilter,
 )
 from bd_api.apps.api.v1.forms import (
@@ -106,9 +106,7 @@ class ColumnInline(OrderedTranslatedInline):
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
         """Limit the observation level queryset to the parent object"""
         if db_field.name == "observation_level":
-            kwargs["queryset"] = ObservationLevel.objects.filter(
-                table=self.parent_inline_obj
-            )
+            kwargs["queryset"] = ObservationLevel.objects.filter(table=self.parent_inline_obj)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
@@ -249,9 +247,7 @@ def update_page_views(modeladmin: ModelAdmin, request: HttpRequest, queryset: Qu
 update_page_views.short_description = "Atualizar metadados de visualizações"
 
 
-def update_table_metadata(
-    modeladmin: ModelAdmin, request: HttpRequest, queryset: QuerySet
-):
+def update_table_metadata(modeladmin: ModelAdmin, request: HttpRequest, queryset: QuerySet):
     """Update the metadata of selected tables in the admin"""
     if str(modeladmin) == "v1.TableAdmin":
         tables = queryset.all()
@@ -324,9 +320,10 @@ def reorder_columns(modeladmin, request, queryset):
             for table in queryset:
                 if form.cleaned_data["use_database_order"]:
                     cloud_table = CloudTable.objects.get(table=table)
+                    cloud_table_slug = f"{cloud_table.gcp_project_id}.{cloud_table.gcp_dataset_id}"
                     query = f"""
                         SELECT column_name
-                        FROM {cloud_table.gcp_project_id}.{cloud_table.gcp_dataset_id}.INFORMATION_SCHEMA.COLUMNS
+                        FROM {cloud_table_slug}.INFORMATION_SCHEMA.COLUMNS
                         WHERE table_name = '{cloud_table.gcp_table_id}'
                     """
                     try:
@@ -501,12 +498,11 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
 
     def related_objects(self, obj):
         return format_html(
-            "<a class='related-widget-wrapper-link add-related' href='/admin/v1/table/add/?dataset={0}&_to_field=id&_popup=1'>{1} {2}</a>",
+            "<a class='related-widget-wrapper-link add-related' "
+            "href='/admin/v1/table/add/?dataset={0}&_to_field=id&_popup=1'>{1} {2}</a>",
             obj.id,
             obj.tables.count(),
-            " ".join(
-                ["tables" if obj.tables.count() > 1 else "table", "(click to add)"]
-            ),
+            " ".join(["tables" if obj.tables.count() > 1 else "table", "(click to add)"]),
         )
 
     related_objects.short_description = "Tables"
@@ -584,9 +580,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
                     {
                         "id": observation.id,
                         "entity": observation.entity.name if observation.entity else "",
-                        "columns": "".join(
-                            [column.name for column in observation.columns.all()]
-                        ),
+                        "columns": "".join([column.name for column in observation.columns.all()]),
                     }
                 )
 
@@ -610,9 +604,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
             "<a href='/admin/v1/column/add/?table={0}'>{1} {2}</a>",
             obj.id,
             obj.columns.count(),
-            " ".join(
-                ["columns" if obj.columns.count() > 1 else "column", "(click to add)"]
-            ),
+            " ".join(["columns" if obj.columns.count() > 1 else "column", "(click to add)"]),
         )
 
     related_columns.short_description = "Columns"
@@ -622,7 +614,8 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         lines = []
         for datetimerange in qs:
             lines.append(
-                '<a href="/admin/api/v1/datetimerange/{0}/change/" target="_blank">Date Time Range</a>',
+                '<a href="/admin/api/v1/datetimerange/{0}/change/" '
+                'target="_blank">Date Time Range</a>',
                 datetimerange.pk,
             )
         return format_html(

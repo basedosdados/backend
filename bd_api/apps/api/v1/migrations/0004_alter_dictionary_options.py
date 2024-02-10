@@ -5,7 +5,6 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("v1", "0003_alter_column_is_closed_alter_dataset_is_closed_and_more"),
     ]

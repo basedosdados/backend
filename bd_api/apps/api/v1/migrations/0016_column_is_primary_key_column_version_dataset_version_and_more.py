@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("v1", "0015_column_status_dataset_status_rawdatasource_status"),
     ]
@@ -58,7 +57,8 @@ class Migration(migrations.Migration):
             name="status",
             field=models.ForeignKey(
                 blank=True,
-                help_text="Status is used to indicate at what stage of development or publishing the dataset is.",
+                help_text="Status is used to indicate at what "
+                "stage of development or publishing the dataset is.",
                 null=True,
                 on_delete=django.db.models.deletion.PROTECT,
                 related_name="datasets",

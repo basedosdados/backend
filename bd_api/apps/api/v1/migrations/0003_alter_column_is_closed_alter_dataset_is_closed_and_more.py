@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("v1", "0002_column_is_closed_dataset_is_closed_table_is_closed"),
     ]

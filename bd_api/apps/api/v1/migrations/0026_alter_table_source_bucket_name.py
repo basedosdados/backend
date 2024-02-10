@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("v1", "0025_alter_coverage_area_columnoriginalname_and_more"),
     ]

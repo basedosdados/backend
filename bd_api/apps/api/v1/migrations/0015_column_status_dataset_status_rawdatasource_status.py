@@ -6,7 +6,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("v1", "0014_column_name_staging_column_name_staging_en_and_more"),
     ]

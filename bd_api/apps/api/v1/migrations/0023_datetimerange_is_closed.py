@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("v1", "0022_coverage_is_closed_alter_column_is_closed_and_more"),
     ]

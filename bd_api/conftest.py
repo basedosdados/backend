@@ -529,9 +529,7 @@ def fixture_coluna_state_id_bairros(
 
 @pytest.fixture(name="coluna_nome_bairros")
 @pytest.mark.django_db
-def fixture_coluna_nome_bairros(
-    tabela_bairros, bigquery_type_string, status_em_processamento
-):
+def fixture_coluna_nome_bairros(tabela_bairros, bigquery_type_string, status_em_processamento):
     """Fixture for name column."""
     return Column.objects.create(
         table=tabela_bairros,

@@ -5,7 +5,6 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         ("v1", "0011_alter_analysis_options_analysis_datasets_and_more"),
     ]

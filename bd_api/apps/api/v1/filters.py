@@ -76,10 +76,7 @@ class TableObservationListFilter(admin.SimpleListFilter):
             .distinct()
             .values("entity__id", "entity__name")
         )
-        return [
-            (value.get("entity__id"), value.get("entity__name"))
-            for value in distinct_values
-        ]
+        return [(value.get("entity__id"), value.get("entity__name")) for value in distinct_values]
 
     def queryset(self, request, queryset):
         if self.value():
