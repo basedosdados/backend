@@ -18,13 +18,22 @@ repos:
     rev: 1.6.0
     hooks:
       - id: poetry-check
-  - repo: https://github.com/adrienverge/yamllint.git
-    rev: v1.29.0
-    hooks:
-      - id: yamllint
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.2.0
     hooks:
       - id: ruff
         args: [--fix]
       - id: ruff-format
+  - repo: https://github.com/tconbeer/sqlfmt
+    rev: v0.20.0
+    hooks:
+      - id: sqlfmt
+        language_version: python
+        additional_dependencies: ['.[jinjafmt]']
+  - repo: local
+    hooks:
+      - id: yamlfix
+        name: yamlfix
+        types: [yaml]
+        language: system
+        entry: yamlfix --exclude "charts/**/*" .

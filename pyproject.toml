@@ -40,9 +40,10 @@ dj-stripe = "^2.8.3"
 pydantic = "^2.5.3"
 
 [tool.poetry.group.dev.dependencies]
-yamllint = "^1.32.0"
 pre-commit = "^3.3.3"
 ruff = "^0.2.0"
+yamlfix = "^1.16.0"
+shandy-sqlfmt = "^0.20.0"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.2.1"

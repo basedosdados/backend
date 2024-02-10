@@ -10,7 +10,6 @@ def run(*args):
 def main():
     """Lint all python files in the project"""
     code = 0
-    code |= run(["yamllint", "."])
     code |= run(["poetry", "check"])
     code |= run(["ruff", "check", "."])
     code |= run(["ruff", "format", "."])
