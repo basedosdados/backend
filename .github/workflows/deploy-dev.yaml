@@ -1,25 +1,56 @@
 ---
-name: Deployment (Staging)
+name: Deploy (Development)
 on:
   workflow_run:
-    workflows: [Release Image (Staging)]
-    branches: [main]
+    workflows: [Release Image (Development)]
     types: [completed]
   workflow_dispatch:
 jobs:
-  deploy-staging:
+  deploy-dev:
     runs-on: ubuntu-latest
     if: |
       ${{ github.event_name == 'workflow_dispatch' }}
       || ${{ github.event.workflow_run.conclusion == 'success' }}
     environment:
-      name: staging
-      url: https://staging.api.basedosdados.org
+      name: development
+      url: https://api.development.basedosdados.org
     steps:
+      - name: Download branch name
+        uses: actions/github-script@v6
+        if: ${{ github.event_name == 'workflow_run' }}
+        with:
+          script: |
+            let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               run_id: context.payload.workflow_run.id,
+            });
+            let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
+              return artifact.name == "branch"
+            })[0];
+            let download = await github.rest.actions.downloadArtifact({
+               owner: context.repo.owner,
+               repo: context.repo.repo,
+               artifact_id: matchArtifact.id,
+               archive_format: 'zip',
+            });
+            let fs = require('fs');
+            fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/artifact.zip`, Buffer.from(download.data));
+      - name: Extract branch name
+        if: ${{ github.event_name == 'workflow_run' }}
+        run: unzip artifact.zip
+      - name: Read branch name
+        id: extract_branch
+        run: |
+          if [ ! -f "branch" ]; then
+            echo "branch=main" >> "$GITHUB_OUTPUT"
+          else
+            echo "branch=$(cat branch)" >> "$GITHUB_OUTPUT"
+          fi
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ steps.extract_branch.outputs.branch }}
       - name: Import secrets from Vault
         id: import_secrets
         uses: hashicorp/vault-action@v2.8.0
@@ -46,26 +77,26 @@ jobs:
       - name: Write values.yaml file
         run: |
           cat << EOF > values.yaml
-          environment: "staging"
+          environment: "development"
           api:
-            name: "api-staging"
+            name: "api-development"
             image:
               name: "ghcr.io/${{ github.repository_owner }}/${{ github.event.repository.name }}"
-              tag: "staging"
+              tag: "development"
               pullPolicy: "Always"
             replicas: 1
             resources:
               limits:
-                cpu: 500m
-                memory: 1Gi
+                cpu: 2000m
+                memory: 2048Mi
               requests:
-                cpu: 250m
-                memory: 500Mi
+                cpu: 1000m
+                memory: 1024Mi
             env:
               - name: "BASE_URL_FRONTEND"
-                value: "https://staging.basedosdados.org"
+                value: "https://development.basedosdados.org"
               - name: "BASE_URL_API"
-                value: "https://staging.api.basedosdados.org"
+                value: "https://development.api.basedosdados.org"
               - name: "LOGGER_LEVEL"
                 value: "${{ secrets.LOGGER_LEVEL }}"
               - name: "LOGGER_IGNORE"
@@ -92,17 +123,17 @@ jobs:
                 value: "${{ secrets.DISCORD_BACKEND_WEBHOOK_URL }}"
             envFrom:
               - secretRef:
-                  name: api-staging-secrets
+                  name: api-development-secrets
             settingsModule: "bd_api.settings.remote"
           database:
             host: "cloud-sql-proxy"
             port: 5432
-            name: "api_staging"
-            user: "api_staging"
-            passwordSecret: "api-staging-database-password"
+            name: "api_development"
+            user: "api_development"
+            passwordSecret: "api-development-database-password"
           ingress:
             enabled: true
-            host: "staging.api.basedosdados.org"
+            host: "development.api.basedosdados.org"
             annotations:
               kubernetes.io/ingress.class: nginx
               nginx.ingress.kubernetes.io/rewrite-target: /
@@ -110,8 +141,8 @@ jobs:
               nginx.ingress.kubernetes.io/ssl-redirect: "true"
             tls:
               - hosts:
-                  - staging.api.basedosdados.org
-                secretName: staging-api-basedosdados-org-tls
+                  - development.api.basedosdados.org
+                secretName: api-development-basedosdados-org-tls
           EOF
       - name: Deploy using Helm
         run: |-
@@ -120,4 +151,4 @@ jobs:
             --install \
             --namespace website \
             --values values.yaml \
-            api-staging charts/basedosdados-api/.
+            api-dev charts/basedosdados-api/.

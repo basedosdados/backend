@@ -1,5 +1,5 @@
 ---
-name: Sync
+name: Sync metadata
 on:
   workflow_dispatch:
     inputs:
@@ -10,7 +10,7 @@ on:
         options: [staging, development]
 jobs:
   sync:
-    name: Sync
+    name: Sync metadata
     runs-on: ubuntu-latest
     permissions:
       contents: read

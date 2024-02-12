@@ -1,5 +1,5 @@
 ---
-name: Helm - Release chart
+name: Release Chart
 on:
   push:
     branches: [main]

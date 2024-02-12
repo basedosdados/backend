@@ -1,5 +1,5 @@
 ---
-name: Deployment (Production)
+name: Deploy (Production)
 on:
   workflow_run:
     workflows: [Release Image (Production)]
