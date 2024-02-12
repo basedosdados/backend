@@ -17,6 +17,7 @@ jobs:
     steps:
       - name: Download branch name
         uses: actions/github-script@v6
+        if: ${{ github.event_name == 'workflow_run' }}
         with:
           script: |
             let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
@@ -36,10 +37,16 @@ jobs:
             let fs = require('fs');
             fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/artifact.zip`, Buffer.from(download.data));
       - name: Extract branch name
+        if: ${{ github.event_name == 'workflow_run' }}
         run: unzip artifact.zip
       - name: Read branch name
         id: extract_branch
-        run: echo "branch=$(cat branch)" >> "$GITHUB_OUTPUT"
+        run: |
+          if [ ! -f "branch" ]; then
+            echo "branch=main" >> "$GITHUB_OUTPUT"
+          else
+            echo "branch=$(cat branch)" >> "$GITHUB_OUTPUT"
+          fi
       - name: Checkout
         uses: actions/checkout@v4
         with:
