@@ -771,7 +771,14 @@ class DateTimeRangeAdmin(admin.ModelAdmin):
 
 class CoverageAdmin(admin.ModelAdmin):
     readonly_fields = ["id"]
-    list_display = ["area", "coverage_type", "table"]
+    list_display = [
+        "area",
+        "coverage_type",
+        "table",
+        "column",
+        "raw_data_source",
+        "information_request",
+    ]
     list_filter = [
         CoverageTypeAdminFilter,
     ]
