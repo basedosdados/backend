@@ -8,9 +8,10 @@ from huey import crontab
 from huey.contrib.djhuey import periodic_task
 from loguru import logger
 from pandas import read_gbq
+from requests import get
 
-from bd_api.apps.api.v1.models import Dataset, Table
-from bd_api.custom.client import get_gbq_client, get_gcs_client, send_discord_message
+from bd_api.apps.api.v1.models import Dataset, RawDataSource, Table
+from bd_api.custom.client import Messenger, get_gbq_client, get_gcs_client
 from bd_api.utils import production_task
 
 logger = logger.bind(module="api.v1")
@@ -33,9 +34,6 @@ def rebuild_search_index_task():
 def update_table_metadata_task(table_pks: list[str] = None):
     """Update the metadata of selected tables in the database"""
 
-    msg = "Verifique os metadados dos conjuntos:  "
-    link = lambda pk: f"https://api.basedosdados.org/admin/v1/table/{pk}/change/"  # noqa
-
     def get_number_of_rows(table: Table, bq_table: GBQTable) -> int | None:
         """Get number of rows from big query"""
 
@@ -51,8 +49,8 @@ def update_table_metadata_task(table_pks: list[str] = None):
                 number_rows = read_gbq(query)
                 number_rows = number_rows.loc[0, "n_rows"]
                 return number_rows or None
-            except Exception as e:
-                logger.warning(e)
+            except Exception as exc:
+                logger.warning(exc)
 
     def get_number_of_columns(table: Table, bq_table: GBQTable):
         """Get number of columns from big query"""
@@ -71,26 +69,14 @@ def update_table_metadata_task(table_pks: list[str] = None):
                 for blob in cs_bucket.list_blobs(prefix=table.gcs_slug):
                     file_size += blob.size
                 return file_size
-            except Exception as e:
-                logger.warning(e)
-
-    def fmt_msg(table: Table = None, error: Exception = None) -> str:
-        """
-        - Add line if error exists
-        - Return none if no error exists
-        """
-        nonlocal msg
-        if table and error:
-            line = f"\n- [{table}]({link(table.pk)}): `{error}`  "
-            if len(msg) + len(line) <= 2000:
-                msg += line
-            return msg
-        if msg.count("\n"):
-            return msg
+            except Exception as exc:
+                logger.warning(exc)
 
     bq_client = get_gbq_client()
     cs_client = get_gcs_client()
     cs_bucket = cs_client.get_bucket("basedosdados")
+
+    messenger = Messenger("Verifique os metadados dos conjuntos:")
 
     if not table_pks:
         tables = Table.objects.order_by("updated_at").all()
@@ -98,7 +84,7 @@ def update_table_metadata_task(table_pks: list[str] = None):
         tables = Table.objects.filter(pk__in=table_pks).order_by("updated_at").all()
 
     for table in tables:
-        if len(msg) > 1600:
+        if messenger.is_full:
             break
         if not table.gbq_slug:
             continue
@@ -109,20 +95,17 @@ def update_table_metadata_task(table_pks: list[str] = None):
             table.uncompressed_file_size = get_uncompressed_file_size(table, bq_table)
             table.save()
             logger.info(f"{table}")
-        except GoogleAPICallError as e:
-            e = e.response.json()["error"]
-            e = e["errors"][0]["message"]
-            msg = fmt_msg(table, e)
-            logger.warning(f"{table}: {e}")
-        except Exception as e:
-            msg = fmt_msg(table, e)
-            logger.warning(f"{table}: {e}")
+        except Exception as exc:
+            if isinstance(exc, GoogleAPICallError):
+                exc = exc.response.json()["error"]
+                exc = exc["errors"][0]["message"]
+            messenger.append(table, exc)
+            logger.warning(f"{table}: {exc}")
 
-    if msg := fmt_msg():
-        send_discord_message(msg)
+    messenger.send()
 
 
-@periodic_task(crontab(hour="8", minute="0"))
+@periodic_task(crontab(day_of_week="1-5", hour="7", minute="0"))
 @production_task
 def update_page_views_task(backfill: bool = False):
     if backfill:
@@ -171,3 +154,18 @@ def update_page_views_task(backfill: bool = False):
         if dataset := Dataset.objects.filter(id=dataset_id).first():
             dataset.page_views += page_views
             dataset.save()
+
+
+@periodic_task(crontab(day_of_week="1-5", hour="8", minute="0"))
+@production_task
+def check_links_task():
+    messenger = Messenger("Revise os seguintes links:")
+    for entity in RawDataSource.objects.filter(url__isnull=False).all():
+        if messenger.is_full:
+            break
+        try:
+            response = get(entity.url)
+            response.raise_for_status()
+        except Exception as exc:
+            messenger.append(entity, exc)
+    messenger.send()

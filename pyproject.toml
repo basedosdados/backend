@@ -38,6 +38,7 @@ google-cloud-storage = "^2.11.0"
 stripe = "^4.2.0"
 dj-stripe = "^2.8.3"
 pydantic = "^2.5.3"
+requests = "^2.31.0"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.3.3"
