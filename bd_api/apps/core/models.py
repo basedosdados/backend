@@ -1,4 +1,12 @@
 # -*- coding: utf-8 -*-
-from django.db import models  # noqa
+from uuid import uuid4
 
-# Create your models here.
+from django.db import models
+
+from bd_api.custom.model import BaseModel
+
+
+class Metadata(BaseModel):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    key = models.JSONField(default=dict, blank=False, null=False)
+    value = models.JSONField(default=dict, blank=False, null=False)
