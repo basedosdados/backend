@@ -5,7 +5,7 @@ from sys import stdout
 
 from loguru import logger
 
-LOGGER_LEVEL = getenv("LOGGER_LEVEL", "INFO")
+LOGGER_LEVEL = getenv("LOGGER_LEVEL", "DEBUG")
 LOGGER_IGNORE = getenv("LOGGER_IGNORE", "").split(",")
 LOGGER_SERIALIZE = bool(getenv("LOGGER_SERIALIZE", False))
 LOGGER_FORMAT = "[{time:YYYY-MM-DD HH:mm:ss}] <lvl>{message}</>"

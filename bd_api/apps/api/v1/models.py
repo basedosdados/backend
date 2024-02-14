@@ -10,6 +10,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.urls import reverse
+from loguru import logger
 from ordered_model.models import OrderedModel
 
 from bd_api.apps.account.models import Account
@@ -216,6 +217,24 @@ class Coverage(BaseModel):
         return ""
 
     coverage_type.short_description = "Coverage Type"
+
+    def has_area_intersection(self, other: "Coverage"):
+        if not self.area:
+            return False
+        if not other.area:
+            return False
+        if self.area.name.startswith(other.area.name):
+            return True
+        if other.area.name.startswith(self.area.name):
+            return True
+        return False
+
+    def has_datetime_intersection(self, other: "Coverage"):
+        for dt_self in self.datetime_ranges.all():
+            for dt_other in other.datetime_ranges.all():
+                if dt_self.has_datetime_intersection(dt_other):
+                    return True
+        return False
 
     def clean(self) -> None:
         """
@@ -893,10 +912,8 @@ class Update(BaseModel):
                 "One and only one of 'table', "
                 "'raw_data_source', or 'information_request' must be set."
             )
-
         if self.entity.category.slug != "datetime":
             raise ValidationError("Entity's category is not in category.slug = `datetime`.")
-
         return super().clean()
 
 
@@ -1122,17 +1139,19 @@ class Table(BaseModel, OrderedModel):
     def neighbors(self):
         """Similiar tables and columns
         - Tables and columns with similar directories
-        - Tables and columns with similar coverages or tags (WIP)
+        - Tables and columns with similar coverages or tags
         """
         all_neighbors = []
         for column in self.columns.all():
             for neighbor in column.neighbors:
                 all_neighbors.append(neighbor)
-        return all_neighbors
+            if len(all_neighbors) >= 20:
+                break
+        return sorted(all_neighbors, key=lambda item: item[3])[::-1]
 
     def get_graphql_neighbors(self) -> list[dict]:
         all_neighbors = []
-        for column, table, dataset in self.neighbors:
+        for column, table, dataset, _ in self.neighbors:
             all_neighbors.append(
                 {
                     "column_id": str(column.id),
@@ -1152,6 +1171,30 @@ class Table(BaseModel, OrderedModel):
 
     def get_graphql_last_updated_at(self):
         return self.last_updated_at
+
+    def has_area_intersection(self, other: "Table"):
+        for cov_self in self.coverages.all():
+            for cov_other in other.coverages.all():
+                if cov_self.has_area_intersection(cov_other):
+                    logger.debug(f"[table_neighbor_by_area] {self.name} => {other.name}")
+                    return True
+        return False
+
+    def has_datetime_intersection(self, other: "Table"):
+        for cov_self in self.coverages.all():
+            for cov_other in other.coverages.all():
+                if cov_self.has_datetime_intersection(cov_other):
+                    logger.debug(f"[table_neighbor_by_date] {self.name} => {other.name}")
+                    return True
+        return False
+
+    def has_directory_intersection(self, other: "Table"):
+        for col_self in self.columns.all():
+            for col_other in other.columns.all():
+                if col_self.has_directory_intersection(col_other):
+                    logger.debug(f"[table_neighbor_by_dire] {self.name} => {other.name}")
+                    return True
+        return False
 
     def clean(self):
         """
@@ -1275,24 +1318,6 @@ class Column(BaseModel, OrderedModel):
         verbose_name_plural = "Columns"
         ordering = ["name"]
 
-    def clean(self) -> None:
-        """Clean method for Column model"""
-        errors = {}
-        if self.observation_level and self.observation_level.table != self.table:
-            errors[
-                "observation_level"
-            ] = "Observation level is not in the same table as the column."
-
-        if self.directory_primary_key and self.directory_primary_key.table.is_directory is False:
-            errors[
-                "directory_primary_key"
-            ] = "Column indicated as a directory's primary key is not in a directory."
-
-        if errors:
-            raise ValidationError(errors)
-
-        return super().clean()
-
     @property
     def full_coverage(self) -> str:
         """
@@ -1349,7 +1374,7 @@ class Column(BaseModel, OrderedModel):
     def neighbors(self):
         """Similiar tables and columns
         - Columns with similar directories
-        - Columns with similar coverages or tags (WIP)
+        - Columns with similar coverages or tags
         """
         if not self.directory_primary_key:
             return []
@@ -1360,18 +1385,23 @@ class Column(BaseModel, OrderedModel):
         )
         all_neighbors = []
         for column in all_columns:
-            all_neighbors.append(
-                (
-                    column,
-                    column.table,
-                    column.table.dataset,
-                )
-            )
-        return all_neighbors
+            if self.table.has_area_intersection(column.table):
+                if self.table.has_datetime_intersection(column.table):
+                    all_neighbors.append(
+                        (
+                            column,
+                            column.table,
+                            column.table.dataset,
+                            column.table.dataset.page_views,
+                        )
+                    )
+            if len(all_neighbors) >= 20:
+                break
+        return sorted(all_neighbors, key=lambda item: item[3])[::-1]
 
     def get_graphql_neighbors(self) -> list[dict]:
         all_neighbors = []
-        for column, table, dataset in self.neighbors:
+        for column, table, dataset, _ in self.neighbors:
             all_neighbors.append(
                 {
                     "column_id": str(column.id),
@@ -1383,6 +1413,26 @@ class Column(BaseModel, OrderedModel):
                 }
             )
         return get_unique_list(all_neighbors)
+
+    def has_directory_intersection(self, other: "Column"):
+        if self.directory_primary_key == other.directory_primary_key:
+            return True
+        return False
+
+    def clean(self) -> None:
+        """Clean method for Column model"""
+        errors = {}
+        if self.observation_level and self.observation_level.table != self.table:
+            errors[
+                "observation_level"
+            ] = "Observation level is not in the same table as the column."
+        if self.directory_primary_key and self.directory_primary_key.table.is_directory is False:
+            errors[
+                "directory_primary_key"
+            ] = "Column indicated as a directory's primary key is not in a directory."
+        if errors:
+            raise ValidationError(errors)
+        return super().clean()
 
 
 class ColumnOriginalName(BaseModel):
@@ -1805,6 +1855,39 @@ class DateTimeRange(BaseModel):
         verbose_name = "DateTime Range"
         verbose_name_plural = "DateTime Ranges"
         ordering = ["id"]
+
+    @property
+    def since(self):
+        if self.start_year:
+            return datetime(
+                self.start_year,
+                self.start_month or 1,
+                self.start_day or 1,
+                self.start_hour or 0,
+                self.start_minute or 0,
+                self.start_second or 0,
+            )
+
+    @property
+    def until(self):
+        if self.end_year:
+            return datetime(
+                self.end_year,
+                self.end_month or 1,
+                self.end_day or 1,
+                self.end_hour or 0,
+                self.end_minute or 0,
+                self.end_second or 0,
+            )
+
+    def has_datetime_intersection(self, other: "DateTimeRange"):
+        if not self.since:
+            return False
+        if not other.until:
+            return False
+        if self.until >= other.since:
+            return True
+        return False
 
     def clean(self) -> None:
         """
