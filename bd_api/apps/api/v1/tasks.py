@@ -135,8 +135,8 @@ def update_page_views_task(backfill: bool = False):
     query = f"""
         select
             count(1) page_views
-            , regexp_extract(param.value.string_value, r'table=([a-z0-9-]{36})') table_id
-            , regexp_extract(param.value.string_value, r'dataset\/([a-z0-9-]{36})') dataset_id
+            , regexp_extract(param.value.string_value, r'table=([a-z0-9-]{{36}})') table_id
+            , regexp_extract(param.value.string_value, r'dataset\/([a-z0-9-]{{36}})') dataset_id
         from `basedosdados.analytics_295884852.{event_table}` event
             join unnest(event_params) param
         where
