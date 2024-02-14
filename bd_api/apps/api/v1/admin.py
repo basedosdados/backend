@@ -16,6 +16,7 @@ from bd_api.apps.api.v1.filters import (
     DatasetOrganizationListFilter,
     OrganizationImageListFilter,
     TableCoverageListFilter,
+    TableDirectoryListFilter,
     TableObservationListFilter,
     TableOrganizationListFilter,
 )
@@ -553,6 +554,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         TableOrganizationListFilter,
         TableCoverageListFilter,
         TableObservationListFilter,
+        TableDirectoryListFilter,
     ]
     ordering = ["-updated_at"]
     change_form_template = "admin/table_change_form.html"

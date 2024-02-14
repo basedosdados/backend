@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
+from django.utils.translation import gettext_lazy
 
 from bd_api.apps.api.v1.models import Coverage, ObservationLevel, Organization
 
@@ -10,14 +11,14 @@ class OrganizationImageListFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         return (
-            ("True", "Yes"),
-            ("False", "No"),
+            ("true", "Yes"),
+            ("false", "No"),
         )
 
     def queryset(self, request, queryset):
-        if self.value() == "True":
+        if self.value() == "true":
             return queryset.exclude(picture="")
-        if self.value() == "False":
+        if self.value() == "false":
             return queryset.filter(picture="")
 
 
@@ -81,3 +82,20 @@ class TableObservationListFilter(admin.SimpleListFilter):
     def queryset(self, request, queryset):
         if self.value():
             return queryset.filter(observation_levels__entity=self.value())
+
+
+class TableDirectoryListFilter(admin.SimpleListFilter):
+    title = gettext_lazy("Directory")
+    parameter_name = "is_directory"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("true", gettext_lazy("Yes")),
+            ("false", gettext_lazy("No")),
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == "true":
+            return queryset.filter(is_directory=True)
+        if self.value() == "false":
+            return queryset.filter(is_directory=False)
