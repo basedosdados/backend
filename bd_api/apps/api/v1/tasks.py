@@ -79,9 +79,19 @@ def update_table_metadata_task(table_pks: list[str] = None):
     messenger = Messenger("Verifique os metadados dos conjuntos:")
 
     if not table_pks:
-        tables = Table.objects.order_by("updated_at").all()
+        tables = (
+            Table.objects
+            .exclude(status__slug__in=["under_review"])
+            .order_by("updated_at")
+            .all()
+        )  # fmt: skip
     else:
-        tables = Table.objects.filter(pk__in=table_pks).order_by("updated_at").all()
+        tables = (
+            Table.objects.filter(pk__in=table_pks)
+            .exclude(status__slug__in=["under_review"])
+            .order_by("updated_at")
+            .all()
+        )
 
     for table in tables:
         if messenger.is_full:
