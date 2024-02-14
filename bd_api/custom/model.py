@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 from typing import Callable, List
 
+from django.conf import settings
 from django.db import models
+from django.urls import reverse
 from graphql_jwt.decorators import staff_member_required
 
 default_blacklist_fields = [
@@ -16,8 +18,7 @@ default_mutation_decorator = staff_member_required
 
 
 class BaseModel(models.Model):
-    """
-    Abstract base class model that provides whitelist
+    """Abstract base class model that provides whitelist
     of fields to be used for filtering in the GraphQL API
 
     Attributes:
@@ -83,3 +84,9 @@ class BaseModel(models.Model):
                 if f.name not in cls.graphql_nested_filter_fields_blacklist
             ]
         return cls._meta.get_fields()
+
+    @property
+    def admin_url(self):
+        viewname = f"admin:{self._meta.app_label}_{self._meta.model_name}_change"
+        endpoint = reverse(viewname, kwargs={"object_id": self.pk})
+        return f"{settings.BACKEND_URL}{endpoint}"
