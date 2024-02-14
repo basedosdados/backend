@@ -8,7 +8,7 @@ from google.cloud.bigquery import Client as GBQClient
 from google.cloud.storage import Client as GCSClient
 from google.oauth2.service_account import Credentials
 from loguru import logger
-from requests import post
+from requests import Session, post
 
 from bd_api.custom.model import BaseModel
 
@@ -72,3 +72,25 @@ class Messenger:
         """Send message if it has body text"""
         if self._message.count("\n"):
             send_discord_message(self._message)
+
+
+class BetterStackClient:
+    def __init__(self) -> None:
+        self.session = Session()
+        self.session.headers.update(
+            {"Authorization": f"Bearer {settings.BETTERSTACK_BEARER_TOKEN}"}
+        )
+        self.url = "https://uptime.betterstack.com"
+
+    def get_monitors(self):
+        response = self.session.get(f"{self.url}/api/v2/monitors")
+        response.raise_for_status()
+        return response.json()
+
+    def get_monitor_summary(self, monitor_id: str, since: str, until: str):
+        response = self.session.get(
+            f"{self.url}/api/v2/{monitor_id}/sla",
+            params={"from": since, "to": until},
+        )
+        response.raise_for_status()
+        return response.json()
