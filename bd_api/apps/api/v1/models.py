@@ -10,6 +10,7 @@ from django import forms
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.urls import reverse
+from loguru import logger
 from ordered_model.models import OrderedModel
 
 from bd_api.apps.account.models import Account
@@ -63,11 +64,6 @@ def get_date_time(date_times):
         end_month=end_month,
         end_day=end_day,
     )
-
-
-def get_unique_list(lst: list[dict]):
-    """Get unique list of dicts"""
-    return [dict(t) for t in {tuple(d.items()) for d in lst}]
 
 
 class UUIDHiddenIdForm(forms.ModelForm):
@@ -216,6 +212,24 @@ class Coverage(BaseModel):
         return ""
 
     coverage_type.short_description = "Coverage Type"
+
+    def similarity_of_area(self, other: "Coverage"):
+        if not self.area:
+            return 0
+        if not other.area:
+            return 0
+        if self.area.name.startswith(other.area.name):
+            return 1
+        if other.area.name.startswith(self.area.name):
+            return 1
+        return 0
+
+    def similarity_of_datetime(self, other: "Coverage"):
+        for dt_self in self.datetime_ranges.all():
+            for dt_other in other.datetime_ranges.all():
+                if dt_self.similarity_of_datetime(dt_other):
+                    return 1
+        return 0
 
     def clean(self) -> None:
         """
@@ -893,10 +907,8 @@ class Update(BaseModel):
                 "One and only one of 'table', "
                 "'raw_data_source', or 'information_request' must be set."
             )
-
         if self.entity.category.slug != "datetime":
             raise ValidationError("Entity's category is not in category.slug = `datetime`.")
-
         return super().clean()
 
 
@@ -1122,28 +1134,56 @@ class Table(BaseModel, OrderedModel):
     def neighbors(self):
         """Similiar tables and columns
         - Tables and columns with similar directories
-        - Tables and columns with similar coverages or tags (WIP)
+        - Tables and columns with similar coverages or tags
         """
+        all_tables = (
+            Table.objects.exclude(id=self.id)
+            .exclude(is_directory=True)
+            .exclude(status__slug__in=["under_review"])
+            .filter(columns__directory_primary_key__isnull=False)
+            .distinct()
+            .all()
+        )
         all_neighbors = []
-        for column in self.columns.all():
-            for neighbor in column.neighbors:
-                all_neighbors.append(neighbor)
-        return all_neighbors
+        for table in all_tables:
+            score_area = self.similarity_of_area(table)
+            score_datetime = self.similarity_of_datetime(table)
+            score_directory, cols = self.similarity_of_directory(table)
+            if score_directory:
+                all_neighbors.append(
+                    (
+                        cols,
+                        table,
+                        table.dataset,
+                        score_area + score_datetime + score_directory,
+                    )
+                )
+                logger.debug(f"[similarity_area] {self} {table} {score_area}")
+                logger.debug(f"[similarity_datetime] {self} {table} {score_datetime}")
+                logger.debug(f"[similarity_directory] {self} {table} {score_directory}")
+
+        return sorted(all_neighbors, key=lambda item: item[-1])[::-1][:20]
 
     def get_graphql_neighbors(self) -> list[dict]:
         all_neighbors = []
-        for column, table, dataset in self.neighbors:
+        for columns, table, dataset, score in self.neighbors:
+            column_id = []
+            column_name = []
+            for column in columns:
+                column_id.append(str(column.id))
+                column_name.append(column.name)
             all_neighbors.append(
                 {
-                    "column_id": str(column.id),
-                    "column_name": column.name,
+                    "column_id": column_id,
+                    "column_name": column_name,
                     "table_id": str(table.id),
                     "table_name": table.name,
                     "dataset_id": str(dataset.id),
                     "dataset_name": dataset.name,
+                    "score": score,
                 }
             )
-        return get_unique_list(all_neighbors)
+        return all_neighbors
 
     @property
     def last_updated_at(self):
@@ -1152,6 +1192,34 @@ class Table(BaseModel, OrderedModel):
 
     def get_graphql_last_updated_at(self):
         return self.last_updated_at
+
+    def similarity_of_area(self, other: "Table"):
+        count_all = 0
+        count_yes = 0
+        for cov_self in self.coverages.all():
+            for cov_other in other.coverages.all():
+                count_all += 1
+                count_yes += cov_self.similarity_of_area(cov_other)
+        return count_yes / count_all if count_all else 0
+
+    def similarity_of_datetime(self, other: "Table"):
+        count_all = 0
+        count_yes = 0
+        for cov_self in self.coverages.all():
+            for cov_other in other.coverages.all():
+                count_all += 1
+                count_yes += cov_self.similarity_of_datetime(cov_other)
+        return count_yes / count_all if count_all else 0
+
+    def similarity_of_directory(self, other: "Table"):
+        self_cols = self.columns.all()
+        self_dirs = self.columns.filter(directory_primary_key__isnull=False).all()
+        other_cols = other.columns.all()
+        other_dirs = other.columns.filter(directory_primary_key__isnull=False).all()
+        intersection = set([*self_dirs, *other_dirs])
+        intersection_size = len(intersection)
+        intersection_max_size = min(len(self_cols), len(other_cols))
+        return intersection_size / intersection_max_size, intersection
 
     def clean(self):
         """
@@ -1275,24 +1343,6 @@ class Column(BaseModel, OrderedModel):
         verbose_name_plural = "Columns"
         ordering = ["name"]
 
-    def clean(self) -> None:
-        """Clean method for Column model"""
-        errors = {}
-        if self.observation_level and self.observation_level.table != self.table:
-            errors[
-                "observation_level"
-            ] = "Observation level is not in the same table as the column."
-
-        if self.directory_primary_key and self.directory_primary_key.table.is_directory is False:
-            errors[
-                "directory_primary_key"
-            ] = "Column indicated as a directory's primary key is not in a directory."
-
-        if errors:
-            raise ValidationError(errors)
-
-        return super().clean()
-
     @property
     def full_coverage(self) -> str:
         """
@@ -1345,44 +1395,20 @@ class Column(BaseModel, OrderedModel):
     def get_graphql_full_coverage(self):
         return self.full_coverage
 
-    @property
-    def neighbors(self):
-        """Similiar tables and columns
-        - Columns with similar directories
-        - Columns with similar coverages or tags (WIP)
-        """
-        if not self.directory_primary_key:
-            return []
-        all_columns = (
-            Column.objects.filter(directory_primary_key=self.directory_primary_key)
-            .exclude(id=self.id)
-            .all()
-        )
-        all_neighbors = []
-        for column in all_columns:
-            all_neighbors.append(
-                (
-                    column,
-                    column.table,
-                    column.table.dataset,
-                )
-            )
-        return all_neighbors
-
-    def get_graphql_neighbors(self) -> list[dict]:
-        all_neighbors = []
-        for column, table, dataset in self.neighbors:
-            all_neighbors.append(
-                {
-                    "column_id": str(column.id),
-                    "column_name": column.name,
-                    "table_id": str(table.id),
-                    "table_name": table.name,
-                    "dataset_id": str(dataset.id),
-                    "dataset_name": dataset.name,
-                }
-            )
-        return get_unique_list(all_neighbors)
+    def clean(self) -> None:
+        """Clean method for Column model"""
+        errors = {}
+        if self.observation_level and self.observation_level.table != self.table:
+            errors[
+                "observation_level"
+            ] = "Observation level is not in the same table as the column."
+        if self.directory_primary_key and self.directory_primary_key.table.is_directory is False:
+            errors[
+                "directory_primary_key"
+            ] = "Column indicated as a directory's primary key is not in a directory."
+        if errors:
+            raise ValidationError(errors)
+        return super().clean()
 
 
 class ColumnOriginalName(BaseModel):
@@ -1805,6 +1831,41 @@ class DateTimeRange(BaseModel):
         verbose_name = "DateTime Range"
         verbose_name_plural = "DateTime Ranges"
         ordering = ["id"]
+
+    @property
+    def since(self):
+        if self.start_year:
+            return datetime(
+                self.start_year,
+                self.start_month or 1,
+                self.start_day or 1,
+                self.start_hour or 0,
+                self.start_minute or 0,
+                self.start_second or 0,
+            )
+
+    @property
+    def until(self):
+        if self.end_year:
+            return datetime(
+                self.end_year,
+                self.end_month or 1,
+                self.end_day or 1,
+                self.end_hour or 0,
+                self.end_minute or 0,
+                self.end_second or 0,
+            )
+
+    def similarity_of_datetime(self, other: "DateTimeRange"):
+        if not self.since:
+            return 0
+        if not other.until:
+            return 0
+        if self.since <= other.until:
+            return 1
+        if self.until >= other.since:
+            return 1
+        return 0
 
     def clean(self) -> None:
         """
