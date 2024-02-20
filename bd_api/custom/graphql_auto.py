@@ -377,31 +377,33 @@ def build_query_objs(application_name: str):
     def get_type(model, attr):
         """Get type of an attribute of a class"""
         try:
-            name = getattr(model, attr)
-            name = get_type_hints(name)
-            name = name.get("return", "")
+            func = getattr(model, attr)
+            func = getattr(func, "fget")
+            hint = get_type_hints(func)
+            name = hint.get("return")
             return str(name)
         except Exception:
             return ""
 
     def match_type(model, attr):
         """Match python types to graphene types"""
-        if "list" in get_type(model, attr):
-            if "int" in get_type(model, attr):
-                return partial(List, of_type=Int)
-            if "str" in get_type(model, attr):
-                return partial(List, of_type=String)
-        if "dict" in get_type(model, attr):
-            return GenericScalar
-        return String
+        if get_type(model, attr).startswith("int"):
+            return Int
+        if get_type(model, attr).startswith("str"):
+            return String
+        if get_type(model, attr).startswith("list[int]"):
+            return partial(List, of_type=Int)
+        if get_type(model, attr).startswith("list[str]"):
+            return partial(List, of_type=String)
+        return GenericScalar
 
     def build_custom_attrs(model, attrs):
-        attr_prefix = "get_graphql_"
         for attr in dir(model):
-            if attr.startswith(attr_prefix):
-                attr_type = match_type(model, attr)
-                attr_name = attr.split(attr_prefix)[1]
-                attrs.update({attr_name: attr_type(source=attr)})
+            attr_func = getattr(model, attr)
+            if isinstance(attr_func, property):
+                if attr not in model.graphql_fields_blacklist:
+                    attr_type = match_type(model, attr)
+                    attrs.update({attr: attr_type(source=attr, description=attr_func.__doc__)})
         return attrs
 
     queries = {}
