@@ -764,10 +764,22 @@ class CoverageTypeAdminFilter(admin.SimpleListFilter):
 
 
 class DateTimeRangeAdmin(admin.ModelAdmin):
-    readonly_fields = ["id"]
     list_display = ["__str__", "coverage"]
+    readonly_fields = ["id"]
     autocomplete_fields = [
         "coverage",
+    ]
+    exclude = [
+        "start_quarter",
+        "start_semester",
+        "start_hour",
+        "start_minute",
+        "start_second",
+        "end_quarter",
+        "end_semester",
+        "end_hour",
+        "end_minute",
+        "end_second",
     ]
 
 

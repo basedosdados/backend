@@ -1677,23 +1677,7 @@ class DateTimeRange(BaseModel):
     graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
-        start_year = self.start_year or ""
-        start_month = f"-{self.start_month}" if self.start_month else ""
-        start_day = f"-{self.start_day}" if self.start_day else ""
-        start_hour = f" {self.start_hour}" if self.start_hour else ""
-        start_minute = f":{self.start_minute}" if self.start_minute else ""
-        start_second = f":{self.start_second}" if self.start_second else ""
-        end_year = self.end_year or ""
-        end_month = f"-{self.end_month}" if self.end_month else ""
-        end_day = f"-{self.end_day}" if self.end_day else ""
-        end_hour = f" {self.end_hour}" if self.end_hour else ""
-        end_minute = f":{self.end_minute}" if self.end_minute else ""
-        end_second = f":{self.end_second}" if self.end_second else ""
-        interval = f"({self.interval})" if self.interval else ""
-        return (
-            f"{start_year}{start_month}{start_day}{start_hour}{start_minute}{start_second}"
-            f"{interval}{end_year}{end_month}{end_day}{end_hour}{end_minute}{end_second}"
-        )
+        return f"{self.since_str}({self.interval_str}){self.until_str}"
 
     class Meta:
         """Meta definition for DateTimeRange."""
@@ -1716,6 +1700,16 @@ class DateTimeRange(BaseModel):
             )
 
     @property
+    def since_str(self):
+        if self.start_year and self.start_month and self.start_day:
+            return self.since.strftime("%Y-%m-%d")
+        if self.start_year and self.start_month:
+            return self.since.strftime("%Y-%m")
+        if self.start_year:
+            return self.since.strftime("%Y")
+        return ""
+
+    @property
     def until(self):
         if self.end_year:
             return datetime(
@@ -1726,6 +1720,22 @@ class DateTimeRange(BaseModel):
                 self.end_minute or 0,
                 self.end_second or 0,
             )
+
+    @property
+    def until_str(self):
+        if self.end_year and self.end_month and self.end_day:
+            return self.until.strftime("%Y-%m-%d")
+        if self.end_year and self.end_month:
+            return self.until.strftime("%Y-%m")
+        if self.end_year:
+            return self.until.strftime("%Y")
+        return ""
+
+    @property
+    def interval_str(self):
+        if self.interval:
+            return str(self.interval)
+        return "0"
 
     def get_similarity_of_datetime(self, other: "DateTimeRange"):
         if not self.since:
