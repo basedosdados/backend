@@ -8,7 +8,6 @@ from uuid import uuid4
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.urls import reverse
-from loguru import logger
 from ordered_model.models import OrderedModel
 
 from bd_api.apps.account.models import Account
@@ -190,7 +189,7 @@ class Coverage(BaseModel):
 
     coverage_type.short_description = "Coverage Type"
 
-    def similarity_of_area(self, other: "Coverage"):
+    def get_similarity_of_area(self, other: "Coverage"):
         if not self.area:
             return 0
         if not other.area:
@@ -201,10 +200,10 @@ class Coverage(BaseModel):
             return 1
         return 0
 
-    def similarity_of_datetime(self, other: "Coverage"):
+    def get_similarity_of_datetime(self, other: "Coverage"):
         for dt_self in self.datetime_ranges.all():
             for dt_other in other.datetime_ranges.all():
-                if dt_self.similarity_of_datetime(dt_other):
+                if dt_self.get_similarity_of_datetime(dt_other):
                     return 1
         return 0
 
@@ -453,32 +452,17 @@ class Organization(BaseModel):
         verbose_name_plural = "Organizations"
         ordering = ["slug"]
 
-    def has_picture(self):
-        """Check if the organization has a picture"""
-        try:
-            hasattr(self.picture, "url")
-        except Exception:
-            return False
-        return self.picture is not None
-
-    has_picture.short_description = "Has Picture"
-    has_picture.boolean = True
-
-    def get_graphql_has_picture(self):
-        """Get the has_picture property for graphql"""
-        return self.has_picture()
-
     @property
     def full_slug(self):
-        """Get the full slug or Organization"""
         if self.area.slug != "unknown":
             return f"{self.area.slug}_{self.slug}"
-
         return f"{self.slug}"
 
-    def get_graphql_full_slug(self):
-        """Get the full slug or Organization for graphql"""
-        return self.full_slug
+    @property
+    def has_picture(self):
+        if self.picture and self.picture.url:
+            return True
+        return False
 
 
 class Status(BaseModel):
@@ -566,10 +550,6 @@ class Dataset(BaseModel):
         if self.organization.area.slug != "unknown":
             return f"{self.organization.area.slug}_{self.organization.slug}_{self.slug}"
         return f"{self.organization.slug}_{self.slug}"
-
-    def get_graphql_full_slug(self):
-        """Get the full slug or Dataset for graphql"""
-        return self.full_slug
 
     @property
     def coverage(self):
@@ -690,13 +670,6 @@ class Dataset(BaseModel):
 
         return coverage_str
 
-    def get_graphql_coverage(self):
-        """
-        Returns the temporal coverage of the dataset in the format
-        YYYY-MM-DD - YYYY-MM-DD for graphql
-        """
-        return self.coverage
-
     @property
     def full_coverage(self) -> str:
         """
@@ -718,17 +691,10 @@ class Dataset(BaseModel):
         ]
         return json.dumps(full_coverage_dict)
 
-    def get_graphql_full_coverage(self):
-        return self.full_coverage
-
     @property
     def contains_tables(self):
         """Returns true if there are tables in the dataset"""
         return len(self.tables.all()) > 0
-
-    def get_graphql_contains_tables(self):
-        """Returns true if there are tables in the dataset for graphql"""
-        return self.contains_tables
 
     @property
     def contains_closed_data(self):
@@ -747,10 +713,6 @@ class Dataset(BaseModel):
 
         return closed_data
 
-    def get_graphql_contains_closed_data(self):
-        """Returns true if there are tables or columns with closed coverages for graphql"""
-        return self.contains_closed_data
-
     @property
     def contains_open_data(self):
         """Returns true if there are tables or columns with open coverages"""
@@ -764,19 +726,11 @@ class Dataset(BaseModel):
 
         return open_data
 
-    def get_graphql_contains_open_data(self):
-        """Returns true if there are tables or columns with open coverages for graphql"""
-        return self.contains_open_data
-
     @property
     def contains_closed_tables(self):
         """Returns true if there are tables with closed coverages (DEPRECATED)"""
         closed_tables = self.tables.all().filter(is_closed=True)
         return len(closed_tables) > 0
-
-    def get_graphql_contains_closed_tables(self):
-        """Returns true if there are tables with closed coverages for graphql (DEPRECATED)"""
-        return self.contains_closed_tables
 
     @property
     def contains_open_tables(self):
@@ -784,27 +738,15 @@ class Dataset(BaseModel):
         open_tables = self.tables.all().filter(is_closed=False)
         return len(open_tables) > 0
 
-    def get_graphql_contains_open_tables(self):
-        """Returns true if there are tables with open coverages for graphql (DEPRECATED)"""
-        return self.contains_open_tables
-
     @property
     def contains_raw_data_sources(self):
         """Returns true if there are raw data sources in the dataset"""
         return len(self.raw_data_sources.all()) > 0
 
-    def get_graphql_contains_raw_data_sources(self):
-        """Returns true if there are raw data sources in the dataset for graphql"""
-        return self.contains_raw_data_sources
-
     @property
     def contains_information_requests(self):
         """Returns true if there are information requests in the dataset"""
         return len(self.information_requests.all()) > 0
-
-    def get_graphql_contains_information_requests(self):
-        """Returns true if there are information requests in the dataset for graphql"""
-        return self.contains_information_requests
 
     @property
     def table_last_updated_at(self):
@@ -814,9 +756,6 @@ class Dataset(BaseModel):
         ]  # fmt: skip
         return max(updates) if updates else None
 
-    def get_graphql_table_last_updated_at(self):
-        return self.table_last_updated_at
-
     @property
     def raw_data_source_last_updated_at(self):
         updates = [
@@ -824,9 +763,6 @@ class Dataset(BaseModel):
             if u.last_updated_at
         ]  # fmt: skip
         return max(updates) if updates else None
-
-    def get_graphql_raw_data_source_last_updated_at(self):
-        return self.raw_data_source_last_updated_at
 
 
 class Update(BaseModel):
@@ -984,9 +920,6 @@ class Table(BaseModel, OrderedModel):
             table = cloud_table.gcp_table_id
             return f"basedosdados.{dataset}.{table}"
 
-    def get_graphql_gbq_slug(self):
-        return self.gbq_slug
-
     @property
     def gcs_slug(self):
         """Get the slug used in Google Cloud Storage"""
@@ -995,18 +928,11 @@ class Table(BaseModel, OrderedModel):
             table = cloud_table.gcp_table_id
             return f"staging/{dataset}/{table}"
 
-    def get_graphql_gcs_slug(self):
-        return self.gcs_slug
-
     @property
     def partitions(self):
         """Returns a list of columns used to partition the table"""
         partitions_list = [p.name for p in self.columns.all().filter(is_partition=True)]
         return ", ".join(partitions_list)
-
-    def get_graphql_partitions(self):
-        """Returns a list of columns used to partition the table"""
-        return self.partitions
 
     @property
     def contains_closed_data(self):
@@ -1021,10 +947,6 @@ class Table(BaseModel, OrderedModel):
                 break
 
         return closed_data
-
-    def get_graphql_contains_closed_data(self):
-        """Returns true if there are columns with closed coverages to be used in graphql"""
-        return self.contains_closed_data
 
     @property
     def full_coverage(self) -> str:
@@ -1104,11 +1026,8 @@ class Table(BaseModel, OrderedModel):
 
         return json.dumps(full_coverage)
 
-    def get_graphql_full_coverage(self):
-        return self.full_coverage
-
     @property
-    def neighbors(self):
+    def neighbors(self) -> list[dict]:
         """Similiar tables and columns
         - Tables and columns with similar directories
         - Tables and columns with similar coverages or tags
@@ -1123,27 +1042,11 @@ class Table(BaseModel, OrderedModel):
         )
         all_neighbors = []
         for table in all_tables:
-            score_area = self.similarity_of_area(table)
-            score_datetime = self.similarity_of_datetime(table)
-            score_directory, cols = self.similarity_of_directory(table)
-            if score_directory:
-                all_neighbors.append(
-                    (
-                        cols,
-                        table,
-                        table.dataset,
-                        score_area + score_datetime + score_directory,
-                    )
-                )
-                logger.debug(f"[similarity_area] {self} {table} {score_area}")
-                logger.debug(f"[similarity_datetime] {self} {table} {score_datetime}")
-                logger.debug(f"[similarity_directory] {self} {table} {score_directory}")
-
-        return sorted(all_neighbors, key=lambda item: item[-1])[::-1][:20]
-
-    def get_graphql_neighbors(self) -> list[dict]:
-        all_neighbors = []
-        for columns, table, dataset, score in self.neighbors:
+            score_area = self.get_similarity_of_area(table)
+            score_datetime = self.get_similarity_of_datetime(table)
+            score_directory, columns = self.get_similarity_of_directory(table)
+            if not score_directory:
+                continue
             column_id = []
             column_name = []
             for column in columns:
@@ -1155,40 +1058,37 @@ class Table(BaseModel, OrderedModel):
                     "column_name": column_name,
                     "table_id": str(table.id),
                     "table_name": table.name,
-                    "dataset_id": str(dataset.id),
-                    "dataset_name": dataset.name,
-                    "score": score,
+                    "dataset_id": str(table.dataset.id),
+                    "dataset_name": table.dataset.name,
+                    "score": round(score_area + score_datetime + score_directory, 2),
                 }
             )
-        return all_neighbors
+        return sorted(all_neighbors, key=lambda item: item["score"])[::-1][:20]
 
     @property
     def last_updated_at(self):
         updates = [u.latest for u in self.updates.all() if u.latest]
         return max(updates) if updates else None
 
-    def get_graphql_last_updated_at(self):
-        return self.last_updated_at
-
-    def similarity_of_area(self, other: "Table"):
+    def get_similarity_of_area(self, other: "Table"):
         count_all = 0
         count_yes = 0
         for cov_self in self.coverages.all():
             for cov_other in other.coverages.all():
                 count_all += 1
-                count_yes += cov_self.similarity_of_area(cov_other)
+                count_yes += cov_self.get_similarity_of_area(cov_other)
         return count_yes / count_all if count_all else 0
 
-    def similarity_of_datetime(self, other: "Table"):
+    def get_similarity_of_datetime(self, other: "Table"):
         count_all = 0
         count_yes = 0
         for cov_self in self.coverages.all():
             for cov_other in other.coverages.all():
                 count_all += 1
-                count_yes += cov_self.similarity_of_datetime(cov_other)
+                count_yes += cov_self.get_similarity_of_datetime(cov_other)
         return count_yes / count_all if count_all else 0
 
-    def similarity_of_directory(self, other: "Table"):
+    def get_similarity_of_directory(self, other: "Table"):
         self_cols = self.columns.all()
         self_dirs = self.columns.filter(directory_primary_key__isnull=False).all()
         other_cols = other.columns.all()
@@ -1368,9 +1268,6 @@ class Column(BaseModel, OrderedModel):
         column_full_coverage.append(temporal_coverage_end)
 
         return json.dumps(column_full_coverage)
-
-    def get_graphql_full_coverage(self):
-        return self.full_coverage
 
     def clean(self) -> None:
         """Clean method for Column model"""
@@ -1580,9 +1477,6 @@ class RawDataSource(BaseModel, OrderedModel):
     def last_updated_at(self):
         updates = [u.latest for u in self.updates.all() if u.latest]
         return max(updates) if updates else None
-
-    def get_graphql_last_updated_at(self):
-        return self.last_updated_at
 
 
 class InformationRequest(BaseModel, OrderedModel):
@@ -1833,7 +1727,7 @@ class DateTimeRange(BaseModel):
                 self.end_second or 0,
             )
 
-    def similarity_of_datetime(self, other: "DateTimeRange"):
+    def get_similarity_of_datetime(self, other: "DateTimeRange"):
         if not self.since:
             return 0
         if not other.until:

@@ -349,28 +349,32 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
 
     get_organization.short_description = "organização"
 
-    def get_graphql_pro_subscription(self) -> str:
+    @property
+    def pro_subscription(self) -> str:
         """BD Pro subscription role, one of bd_pro or bd_pro_empresas"""
         if self.pro_owner_subscription:
             return self.pro_owner_subscription.stripe_subscription
         if self.pro_member_subscription:
             return self.pro_member_subscription.stripe_subscription
 
-    def get_graphql_pro_subscription_role(self) -> str:
+    @property
+    def pro_subscription_role(self) -> str:
         """BD Pro subscription role, one of owner or member"""
         if self.pro_owner_subscription:
             return "owner"
         if self.pro_member_subscription:
             return "member"
 
-    def get_graphql_pro_subscription_slots(self) -> str:
+    @property
+    def pro_subscription_slots(self) -> str:
         """BD Pro subscription slots"""
         if self.pro_owner_subscription:
             return self.pro_owner_subscription.stripe_subscription_slots
         if self.pro_member_subscription:
             return self.pro_member_subscription.stripe_subscription_slots
 
-    def get_graphql_pro_subscription_status(self) -> str:
+    @property
+    def pro_subscription_status(self) -> str:
         """BD Pro subscription status"""
         if self.pro_owner_subscription:
             return self.pro_owner_subscription.stripe_subscription_status

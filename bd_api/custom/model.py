@@ -10,6 +10,7 @@ default_blacklist_fields = [
     "created_at",
     "updated_at",
     "deleted_at",
+    "pk",
     "id",
     "order",
     "_field_status",
