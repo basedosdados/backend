@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 import calendar
 import json
-import os
 from collections import defaultdict
 from datetime import datetime
 from uuid import uuid4
@@ -13,10 +12,9 @@ from loguru import logger
 from ordered_model.models import OrderedModel
 
 from bd_api.apps.account.models import Account
-from bd_api.apps.account.storage import OverwriteStorage
 from bd_api.apps.api.v1.utils import check_kebab_case, check_snake_case
-from bd_api.apps.api.v1.validators import validate_is_valid_image_format
 from bd_api.custom.model import BaseModel
+from bd_api.custom.storage import OverwriteStorage, upload_to, validate_image
 
 
 def to_str(value: str | None, zfill: int = 0):
@@ -24,15 +22,6 @@ def to_str(value: str | None, zfill: int = 0):
     if value is None:
         return None
     return str(value).zfill(zfill)
-
-
-def image_path_and_rename(instance, filename):
-    """Rename file to be the username"""
-    upload_to = instance.__class__.__name__.lower()
-    ext = filename.split(".")[-1]
-    # get filename
-    filename = f"{instance.pk}.{ext}"
-    return os.path.join(upload_to, filename)
 
 
 def get_date_time(date_times):
@@ -444,11 +433,11 @@ class Organization(BaseModel):
     instagram = models.URLField(blank=True, null=True)
     picture = models.ImageField(
         "Imagem",
-        upload_to=image_path_and_rename,
         null=True,
         blank=True,
-        validators=[validate_is_valid_image_format],
         storage=OverwriteStorage(),
+        upload_to=upload_to,
+        validators=[validate_image],
     )
 
     graphql_nested_filter_fields_whitelist = ["id"]

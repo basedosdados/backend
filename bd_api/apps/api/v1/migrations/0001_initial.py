@@ -7,9 +7,9 @@ import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
 
-import bd_api.apps.account.storage
 import bd_api.apps.api.v1.models
 import bd_api.apps.api.v1.validators
+import bd_api.custom.storage
 
 
 class Migration(migrations.Migration):
@@ -391,9 +391,9 @@ class Migration(migrations.Migration):
                     models.ImageField(
                         blank=True,
                         null=True,
-                        storage=bd_api.apps.account.storage.OverwriteStorage(),
-                        upload_to=bd_api.apps.api.v1.models.image_path_and_rename,
-                        validators=[bd_api.apps.api.v1.validators.validate_is_valid_image_format],
+                        storage=bd_api.custom.storage.OverwriteStorage(),
+                        upload_to=bd_api.custom.storage.upload_to,
+                        validators=[bd_api.custom.storage.validate_image],
                         verbose_name="Imagem",
                     ),
                 ),
