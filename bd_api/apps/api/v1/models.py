@@ -11,9 +11,9 @@ from django.urls import reverse
 from ordered_model.models import OrderedModel
 
 from bd_api.apps.account.models import Account
-from bd_api.apps.api.v1.utils import check_kebab_case, check_snake_case
 from bd_api.custom.model import BaseModel
 from bd_api.custom.storage import OverwriteStorage, upload_to, validate_image
+from bd_api.custom.utils import check_kebab_case, check_snake_case
 
 
 def to_str(value: str | None, zfill: int = 0):
