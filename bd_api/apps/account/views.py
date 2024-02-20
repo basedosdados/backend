@@ -19,7 +19,7 @@ from loguru import logger
 
 from bd_api.apps.account.signals import send_activation_email
 from bd_api.apps.account.token import token_generator
-from bd_api.utils import get_frontend_url
+from bd_api.custom.environment import get_frontend_url
 
 
 class AccountActivateView(View):

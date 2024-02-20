@@ -6,7 +6,7 @@ from huey.contrib.djhuey import periodic_task
 
 from bd_api.apps.core.models import Metadata
 from bd_api.custom.client import BetterStackClient
-from bd_api.utils import production_task
+from bd_api.custom.environment import production_task
 
 
 @periodic_task(crontab(day="1", hour="3", minute="0"))

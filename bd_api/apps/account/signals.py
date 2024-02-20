@@ -9,7 +9,7 @@ from django.utils.http import urlsafe_base64_encode
 
 from bd_api.apps.account.models import Account
 from bd_api.apps.account.token import token_generator
-from bd_api.utils import get_frontend_url
+from bd_api.custom.environment import get_frontend_url
 
 
 def send_activation_email(account: Account):

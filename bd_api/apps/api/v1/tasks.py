@@ -12,7 +12,7 @@ from requests import get
 
 from bd_api.apps.api.v1.models import Dataset, RawDataSource, Table
 from bd_api.custom.client import Messenger, get_gbq_client, get_gcs_client
-from bd_api.utils import production_task
+from bd_api.custom.environment import production_task
 
 logger = logger.bind(module="api.v1")
 

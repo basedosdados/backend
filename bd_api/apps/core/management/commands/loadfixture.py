@@ -7,7 +7,7 @@ from django.db import connection
 from loguru import logger
 from modeltranslation.management.commands.loaddata import Command as LoadDataCommand
 
-from bd_api.utils import is_prd
+from bd_api.custom.environment import is_prd
 
 IS_SQLITE = "sqlite" in settings.DATABASES.get("default", {}).get("ENGINE")
 IS_POSTGRES = "postgres" in settings.DATABASES.get("default", {}).get("ENGINE")
