@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
-import calendar
-import json
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import datetime
 from math import log10
 from uuid import uuid4
@@ -15,43 +14,6 @@ from bd_api.apps.account.models import Account
 from bd_api.custom.model import BaseModel
 from bd_api.custom.storage import OverwriteStorage, upload_to, validate_image
 from bd_api.custom.utils import check_kebab_case, check_snake_case
-
-
-def to_str(value: str | None, zfill: int = 0):
-    """Parse and pad to string if not null"""
-    if value is None:
-        return None
-    return str(value).zfill(zfill)
-
-
-def get_date_time(date_times):
-    """Returns a DateTimeRange object with the minimum start date and maximum end date"""
-    start_year, start_month, start_day = False, False, False
-    end_year, end_month, end_day = False, False, False
-    start_date, end_date = datetime(3000, 12, 31, 0, 0, 0), datetime(1, 1, 1, 0, 0, 0)
-
-    for date_time in date_times:
-        if date_time.start_year and date_time.start_year < start_date.year:
-            start_year = date_time.start_year
-        if date_time.start_month and date_time.start_month < start_date.month:
-            start_month = date_time.start_month
-        if date_time.start_day and date_time.start_day < start_date.day:
-            start_day = date_time.start_day
-        if date_time.end_year and date_time.end_year > end_date.year:
-            end_year = date_time.end_year
-        if date_time.end_month and date_time.end_month > end_date.month:
-            end_month = date_time.end_month
-        if date_time.end_day and date_time.end_day > end_date.day:
-            end_day = date_time.end_day
-
-    return DateTimeRange(
-        start_year=start_year,
-        start_month=start_month,
-        start_day=start_day,
-        end_year=end_year,
-        end_month=end_month,
-        end_day=end_day,
-    )
 
 
 class Area(BaseModel):
@@ -547,7 +509,6 @@ class Dataset(BaseModel):
 
     @property
     def full_slug(self):
-        """Get the full slug or Dataset"""
         if self.organization.area.slug != "unknown":
             return f"{self.organization.area.slug}_{self.organization.slug}_{self.slug}"
         return f"{self.organization.slug}_{self.slug}"
@@ -561,144 +522,21 @@ class Dataset(BaseModel):
         return log10(self.page_views)
 
     @property
-    def coverage(self):
-        """Get the temporal coverage of the dataset in the format YYYY-MM-DD - YYYY-MM-DD"""
-        tables = self.tables.all()
-        raw_data_sources = self.raw_data_sources.all()
-        information_requests = self.information_requests.all()
-        start_year, start_month, start_day = False, False, False
-        end_year, end_month, end_day = False, False, False
-
-        start_date = datetime(3000, 12, 31, 0, 0, 0)
-        end_date = datetime(1, 1, 1, 0, 0, 0)
-
-        # This must be refactored to avoid code duplication
-        for table in tables:
-            for coverage in table.coverages.all():
-                date_times = DateTimeRange.objects.filter(coverage=coverage.pk)
-                if len(date_times) == 0:
-                    continue
-                date_time = get_date_time(date_times)
-
-                start_year = date_time.start_year if date_time.start_year else start_year
-                start_month = date_time.start_month if date_time.start_month else start_month
-                start_day = date_time.start_day if date_time.start_day else start_day
-                end_year = date_time.end_year if date_time.end_year else end_year
-                end_month = date_time.end_month if date_time.end_month else end_month
-                end_day = date_time.end_day if date_time.end_day else end_day
-
-                new_start_date = datetime(
-                    date_time.start_year or 3000,
-                    date_time.start_month or 1,
-                    date_time.start_day or 1,
-                )
-                start_date = new_start_date if new_start_date < start_date else start_date
-                new_end_date = datetime(
-                    date_time.end_year or 1,
-                    date_time.end_month or 1,
-                    date_time.end_day or 1,
-                )
-                end_date = new_end_date if new_end_date > end_date else end_date
-
-        for raw_data_source in raw_data_sources:
-            for coverage in raw_data_source.coverages.all():
-                date_times = DateTimeRange.objects.filter(coverage=coverage.pk)
-                if len(date_times) == 0:
-                    continue
-                date_time = get_date_time(date_times)
-
-                start_year = date_time.start_year if date_time.start_year else start_year
-                start_month = date_time.start_month if date_time.start_month else start_month
-                start_day = date_time.start_day if date_time.start_day else start_day
-                end_year = date_time.end_year if date_time.end_year else end_year
-                end_month = date_time.end_month if date_time.end_month else end_month
-                end_day = date_time.end_day if date_time.end_day else end_day
-
-                new_start_date = datetime(
-                    date_time.start_year or 3000,
-                    date_time.start_month or 1,
-                    date_time.start_day or 1,
-                )
-                start_date = new_start_date if new_start_date < start_date else start_date
-                new_end_date = datetime(
-                    date_time.end_year or 1,
-                    date_time.end_month or 1,
-                    date_time.end_day or 1,
-                )
-                end_date = new_end_date if new_end_date > end_date else end_date
-
-        for information_request in information_requests:
-            for coverage in information_request.coverages.all():
-                date_times = DateTimeRange.objects.filter(coverage=coverage.pk)
-                if len(date_times) == 0:
-                    continue
-                date_time = get_date_time(date_times)
-
-                start_year = date_time.start_year if date_time.start_year else start_year
-                start_month = date_time.start_month if date_time.start_month else start_month
-                start_day = date_time.start_day if date_time.start_day else start_day
-                end_year = date_time.end_year if date_time.end_year else end_year
-                end_month = date_time.end_month if date_time.end_month else end_month
-                end_day = date_time.end_day if date_time.end_day else end_day
-
-                new_start_date = datetime(
-                    date_time.start_year or 3000,
-                    date_time.start_month or 1,
-                    date_time.start_day or 1,
-                )
-                start_date = new_start_date if new_start_date < start_date else start_date
-                new_end_date = datetime(
-                    date_time.end_year or 1,
-                    date_time.end_month or 1,
-                    date_time.end_day or 1,
-                )
-                end_date = new_end_date if new_end_date > end_date else end_date
-
-        start = []
-        end = []
-
-        if start_year and start_year < 3000 and start_date.year:
-            start.append(str(start_date.year))
-            if start_month and start_date.month:
-                start.append(str(start_date.month).zfill(2))
-                if start_day and start_date.day:
-                    start.append(str(start_date.day).zfill(2))
-
-        if end_year and end_year > 1 and end_date.year:
-            end.append(str(end_date.year))
-            if end_month and end_date.month:
-                end.append(str(end_date.month).zfill(2))
-                if end_day and end_date.day:
-                    end.append(str(end_date.day).zfill(2))
-
-        coverage_str = ""
-        if start:
-            coverage_str += "-".join(start)
-        if end:
-            coverage_str += " - " + "-".join(end)
-
-        return coverage_str
-
-    @property
-    def full_coverage(self) -> str:
-        """
-        Returns the full temporal coverage of the dataset as a json string
-        representing an object with the 3 initial points of the coverage
-        The first point is the start of the open coverage, the second point is the
-        end of the open coverage and the third point is the end of closed coverage
-        When thera are only one type of coverage (open or closed) the second point
-        will represent the end of the entire coverage, with both the types being
-        the same
-
-        Returns:
-            str: json string representing the full coverage
-        """
-        full_coverage_dict = [
-            # {"year": 2021, "month": 6, "type": "open"},
-            # {"year": 2023, "month": 6, "type": "open"},
-            # {"year": 2026, "month": 6, "type": "closed"},
+    def coverage(self) -> dict:
+        """Temporal coverage of all related entities"""
+        entities = [
+            *self.tables.all(),
+            *self.raw_data_sources.all(),
+            *self.information_requests.all(),
         ]
-        return json.dumps(full_coverage_dict)
+        coverage = get_coverage(entities)
+        if coverage["start"] and coverage["end"]:
+            return f"{coverage['start']} - {coverage['end']}"
+        if coverage["start"]:
+            return f"{coverage['start']}"
+        if coverage["end"]:
+            return f"{coverage['end']}"
+        return ""
 
     @property
     def contains_open_data(self):
@@ -945,82 +783,14 @@ class Table(BaseModel, OrderedModel):
         return closed_data
 
     @property
-    def full_coverage(self) -> str:
-        """
-        Returns the full temporal coverage of the table as a json string
-        representing an object with the 3 initial points of the coverage
-        The first point is the start of the open coverage, the second point is the
-        end of the open coverage and the third point is the end of closed coverage
-        When thera are only one type of coverage (open or closed) the second point
-        will represent the end of the entire coverage, with both the types being
-        the same
+    def coverage(self) -> dict:
+        """Temporal coverage"""
+        return get_coverage([self])
 
-        Returns:
-            str: json string representing the full coverage
-        """
-        # First area of all coverages - thus must be changed to get all areas
-        try:
-            first_area = self.coverages.first().area
-        except AttributeError:
-            return ""
-        # First open coverage of a table - it's an open coverage for now
-        try:
-            first_open_datetime_range = (
-                self.coverages.filter(area=first_area, is_closed=False)
-                .first()
-                .datetime_ranges.order_by("start_year", "start_month", "start_day")
-                .first()
-            )
-        except AttributeError:
-            first_open_datetime_range = None
-        # First closed coverage of a table - it's a closed coverage for now
-        try:
-            first_closed_datetime_range = (
-                self.coverages.filter(area=first_area, is_closed=True)
-                .first()
-                .datetime_ranges.order_by("start_year", "start_month", "start_day")
-                .first()
-            )
-        except AttributeError:
-            first_closed_datetime_range = None
-        full_coverage = []
-        if first_open_datetime_range:
-            full_coverage.append(
-                {
-                    "year": to_str(first_open_datetime_range.start_year),
-                    "month": to_str(first_open_datetime_range.start_month, 2),
-                    "day": to_str(first_open_datetime_range.start_day, 2),
-                    "type": "open",
-                }
-            )
-            full_coverage.append(
-                {
-                    "year": to_str(first_open_datetime_range.end_year, 2),
-                    "month": to_str(first_open_datetime_range.end_month, 2),
-                    "day": to_str(first_open_datetime_range.end_day, 2),
-                    "type": "open",
-                }
-            )
-        if first_closed_datetime_range:
-            if not first_open_datetime_range:
-                full_coverage.append(
-                    {
-                        "year": to_str(first_closed_datetime_range.start_year),
-                        "month": to_str(first_closed_datetime_range.start_month, 2),
-                        "day": to_str(first_closed_datetime_range.start_day, 2),
-                        "type": "closed",
-                    }
-                )
-            full_coverage.append(
-                {
-                    "year": to_str(first_closed_datetime_range.end_year),
-                    "month": to_str(first_closed_datetime_range.end_month, 2),
-                    "day": to_str(first_closed_datetime_range.end_day, 2),
-                    "type": "closed",
-                }
-            )
-
-        return json.dumps(full_coverage)
+    @property
+    def full_coverage(self) -> dict:
+        """Temporal coverage steps"""
+        return get_full_coverage([self])
 
     @property
     def neighbors(self) -> list[dict]:
@@ -1283,53 +1053,12 @@ class Column(BaseModel, OrderedModel):
         ordering = ["name"]
 
     @property
-    def full_coverage(self) -> str:
-        """
-        Returns the coverage of the column if it exists,
-        otherwise returns the coverage of the table
-        Currently returns the first coverage, but this
-        should be changed to return the
-        full coverage of the column, as in table coverage
-
-        Returns:
-            str: coverage of the column - a dumped list of dicts [start_date, end_date]
-        """
-
-        coverages = self.coverages.all()
-        column_full_coverage = []
-
-        if (
-            len(coverages) == 0
-            or not coverages[0].datetime_ranges.exists()
-            or coverages[0].datetime_ranges.first().start_year is None
-        ):
-            """
-            At the moment, only one coverage exists per column
-            No coverage for column, using table coverage
-            """
-            table_full_coverage = json.loads(self.table.full_coverage)
-            temporal_coverage_start = table_full_coverage[0]
-            temporal_coverage_end = table_full_coverage[-1]
-        elif coverages[0].datetime_ranges.first().start_year is not None:
-            dt_range = coverages[0].datetime_ranges.first()
-            temporal_coverage_start = {
-                "year": to_str(dt_range.start_year),
-                "month": to_str(dt_range.start_month, 2),
-                "day": to_str(dt_range.start_day, 2),
-            }
-            temporal_coverage_end = {
-                "year": to_str(dt_range.end_year),
-                "month": to_str(dt_range.end_month, 2),
-                "day": to_str(dt_range.end_day, 2),
-            }
-        else:
-            temporal_coverage_start = {"year": "", "month": "", "day": ""}
-            temporal_coverage_end = {"year": "", "month": "", "day": ""}
-
-        column_full_coverage.append(temporal_coverage_start)
-        column_full_coverage.append(temporal_coverage_end)
-
-        return json.dumps(column_full_coverage)
+    def coverage(self) -> dict:
+        """Temporal coverage of column if exists, if not table coverage"""
+        coverage = get_coverage([self])
+        if not coverage["start"] and not coverage["end"]:
+            return self.table.coverage
+        return coverage
 
     def clean(self) -> None:
         """Clean method for Column model"""
@@ -1736,6 +1465,7 @@ class DateTimeRange(BaseModel):
     interval = models.IntegerField(blank=True, null=True)
     is_closed = models.BooleanField("Is Closed", default=False)
 
+    graphql_fields_blacklist = BaseModel.graphql_fields_blacklist + ["since", "until"]
     graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
@@ -1810,81 +1540,14 @@ class DateTimeRange(BaseModel):
             return 1
         return 0
 
-    def clean(self) -> None:
-        """
-        Assert that start_year <= end_year and start_month <= end_month
-        and start_day <= end_day
-        """
-        errors = {}
-
-        if (self.start_year and self.end_year) and self.start_year > self.end_year:
-            errors["start_year"] = ["Start year cannot be greater than end year"]
-
-        if self.start_year and self.end_year:
-            try:
-                start_datetime = datetime(
-                    self.start_year,
-                    self.start_month or 1,
-                    self.start_day or 1,
-                    self.start_hour or 0,
-                    self.start_minute or 0,
-                    self.start_second or 0,
-                )
-                end_datetime = datetime(
-                    self.end_year,
-                    self.end_month or 1,
-                    self.end_day or 1,
-                    self.end_hour or 0,
-                    self.end_minute or 0,
-                    self.end_second or 0,
-                )
-                if start_datetime > end_datetime:
-                    errors["start_year"] = ["Start datetime cannot be greater than end datetime"]
-
-            except TypeError:
-                errors["start_year"] = ["Start year or end year are invalid"]
-
-        if self.start_day:
-            max_day = calendar.monthrange(self.start_year, self.start_month)[1]
-            if self.start_day > max_day:
-                errors["start_day"] = [
-                    f"{self.start_month} does not have {self.start_day} days in {self.start_year}"
-                ]
-
-        if self.end_day:
-            max_day = calendar.monthrange(self.end_year, self.end_month)[1]
-            if self.end_day > max_day:
-                errors["end_day"] = [
-                    f"{self.end_month} does not have {self.end_day} days in {self.end_year}"
-                ]
-
-        if self.start_semester:
-            if self.start_semester > 2:
-                errors["start_semester"] = ["Semester cannot be greater than 2"]
-
-        if self.end_semester:
-            if self.end_semester > 2:
-                errors["end_semester"] = ["Semester cannot be greater than 2"]
-
-        if self.start_quarter:
-            if self.start_quarter > 4:
-                errors["start_quarter"] = ["Quarter cannot be greater than 4"]
-
-        if self.end_quarter:
-            if self.end_quarter > 4:
-                errors["end_quarter"] = ["Quarter cannot be greater than 4"]
-
-        if self.start_month:
-            if self.start_month > 12:
-                errors["start_month"] = ["Month cannot be greater than 12"]
-
-        if self.end_month:
-            if self.end_month > 12:
-                errors["end_month"] = ["Month cannot be greater than 12"]
-
-        if errors:
-            raise ValidationError(errors)
-
+    def clean(self):
+        try:
+            if self.since and self.until and self.since > self.until:
+                raise ValidationError("Start date must be less than or equal to end date")
+            if self.since and self.until and not self.interval:
+                raise ValidationError("Interval must exist in ranges with start and end dates")
+        except ValueError as exp:
+            raise ValidationError(str(exp))
         return super().clean()
 
 
@@ -1990,3 +1653,73 @@ class QualityCheck(BaseModel):
                 "'column', 'key, 'raw_data_source', 'information_request' must be set."
             )
         return super().clean()
+
+
+@dataclass
+class Date:
+    dt: datetime
+    str: "str"
+    type: "str"
+
+    @property
+    def as_dict(self):
+        return {"date": self.str, "type": self.type}
+
+
+def get_coverage(entities: list) -> dict:
+    """Get maximum datetime coverage of entities
+
+    Case:
+    - Table A has data with dates between [X, Y]
+    """
+    since = Date(datetime.max, None, None)
+    until = Date(datetime.min, None, None)
+    for entity in entities:
+        for cov in entity.coverages.all():
+            for dt in cov.datetime_ranges.all():
+                if dt.since and dt.since < since.dt:
+                    since.dt = dt.since
+                    since.str = dt.since_str
+                if dt.until and dt.until > until.dt:
+                    until.dt = dt.until
+                    until.str = dt.until_str
+    return {"start": since.str, "end": until.str}
+
+
+def get_full_coverage(entities: list) -> dict:
+    """Get datetime coverage steps of entities
+
+    Cases:
+    - Table A has data with dates between [X, Y], where [X, Y] is open
+    - Table A has data with dates between [X, Y], where [X, Y] is closed
+    - Table A has data with dates between [X, Y, Z], where [X, Y] is open and [Y, Z] is closed
+    """
+    open_since = Date(datetime.max, None, "open")
+    open_until = Date(datetime.min, None, "open")
+    paid_since = Date(datetime.max, None, "closed")
+    paid_until = Date(datetime.min, None, "closed")
+    for entity in entities:
+        for cov in entity.coverages.all():
+            for dt in cov.datetime_ranges.all():
+                if not cov.is_closed:
+                    if dt.since and dt.since < open_since.dt:
+                        open_since.dt = dt.since
+                        open_since.str = dt.since_str
+                    if dt.until and dt.until > open_until.dt:
+                        open_until.dt = dt.until
+                        open_until.str = dt.until_str
+                else:
+                    if dt.since and dt.since < paid_since.dt:
+                        paid_since.dt = dt.since
+                        paid_since.str = dt.since_str
+                    if dt.until and dt.until > paid_until.dt:
+                        paid_until.dt = dt.until
+                        paid_until.str = dt.until_str
+    if open_since.str and paid_since.str and paid_until.str:
+        return [open_since.as_dict, paid_since.as_dict, paid_until.as_dict]
+    if open_since.str and open_until.str and paid_until.str:
+        return [open_since.as_dict, open_until.as_dict, paid_until.as_dict]
+    if open_since.str and open_until.str:
+        return [open_since.as_dict, open_until.as_dict]
+    if paid_since.str and paid_until.str:
+        return [paid_since.as_dict, paid_until.as_dict]
