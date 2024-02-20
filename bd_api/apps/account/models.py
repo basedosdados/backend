@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import os
 from typing import Tuple
 from uuid import uuid4
 
@@ -15,18 +14,9 @@ from django.db import models
 from django.db.models.query import QuerySet
 from django.utils import timezone
 
-from bd_api.apps.account.storage import OverwriteStorage
-from bd_api.apps.api.v1.validators import validate_is_valid_image_format
 from bd_api.custom.graphql_jwt import ownership_required
 from bd_api.custom.model import BaseModel
-
-
-def image_path_and_rename(instance, filename):
-    """Rename file to be the username"""
-    upload_to = instance.__class__.__name__.lower()
-    ext = filename.split(".")[-1]
-    filename = f"{instance.username}.{ext}"
-    return os.path.join(upload_to, filename)
+from bd_api.custom.storage import OverwriteStorage, upload_to, validate_image
 
 
 def split_password(password: str) -> Tuple[str, str, str, str]:
@@ -236,11 +226,11 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
     birth_date = models.DateField("Data de Nascimento", null=True, blank=True)
     picture = models.ImageField(
         "Imagem",
-        upload_to=image_path_and_rename,
         null=True,
         blank=True,
-        validators=[validate_is_valid_image_format],
         storage=OverwriteStorage(),
+        upload_to=upload_to,
+        validators=[validate_image],
     )
     twitter = models.CharField("Twitter", max_length=255, null=True, blank=True)
     linkedin = models.CharField("Linkedin", max_length=255, null=True, blank=True)
