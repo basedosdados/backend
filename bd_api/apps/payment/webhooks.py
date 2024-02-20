@@ -71,15 +71,20 @@ def remove_user(email: str, group_key: str = None) -> None:
     """Remove user from google group"""
     if not group_key:
         group_key = settings.GOOGLE_DIRECTORY_GROUP_KEY
+    if "+" in email and email.index("+") < email.index("@"):
+        email = email.split("+")[0] + "@" + email.split("@")[1]
     try:
         service = get_service()
         service.members().delete(
             groupKey=group_key,
             memberKey=email,
         ).execute()
-    except Exception as e:
-        logger.error(e)
-        raise e
+    except HttpError as e:
+        if e.resp.status == 404:
+            logger.warning(f"{email} already unsubscribed")
+        else:
+            logger.error(e)
+            raise e
 
 
 def list_user(group_key: str = None):
