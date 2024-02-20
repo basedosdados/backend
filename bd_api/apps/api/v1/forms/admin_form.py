@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+from django import forms
+
 from bd_api.apps.api.v1.models import (
     CloudTable,
     Column,
@@ -7,8 +9,18 @@ from bd_api.apps.api.v1.models import (
     ObservationLevel,
     Table,
     Update,
-    UUIDHiddenIdForm,
 )
+
+
+class UUIDHiddenIdForm(forms.ModelForm):
+    """Form to include UUID in inline formes (Table, Column and Coverage)"""
+
+    id = forms.UUIDField(widget=forms.HiddenInput(), required=False)
+
+    class Meta:
+        """Meta class"""
+
+        abstract = True
 
 
 class TableInlineForm(UUIDHiddenIdForm):

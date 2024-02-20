@@ -6,7 +6,6 @@ from collections import defaultdict
 from datetime import datetime
 from uuid import uuid4
 
-from django import forms
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.urls import reverse
@@ -64,17 +63,6 @@ def get_date_time(date_times):
         end_month=end_month,
         end_day=end_day,
     )
-
-
-class UUIDHiddenIdForm(forms.ModelForm):
-    """Form to include UUID in inline formes (Table, Column and Coverage)"""
-
-    id = forms.UUIDField(widget=forms.HiddenInput(), required=False)
-
-    class Meta:
-        """Meta class"""
-
-        abstract = True
 
 
 class Area(BaseModel):
