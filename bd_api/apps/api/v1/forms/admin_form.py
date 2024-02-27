@@ -70,6 +70,7 @@ class ColumnInlineForm(UUIDHiddenIdForm):
             "is_primary_key",
             "table",
             "observation_level",
+            "directory_primary_key",
         ]
         readonly_fields = [
             "order",

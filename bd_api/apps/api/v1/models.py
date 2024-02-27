@@ -3,6 +3,7 @@ import calendar
 import json
 from collections import defaultdict
 from datetime import datetime
+from math import log10
 from uuid import uuid4
 
 from django.core.exceptions import ValidationError
@@ -552,6 +553,14 @@ class Dataset(BaseModel):
         return f"{self.organization.slug}_{self.slug}"
 
     @property
+    def popularity(self):
+        if not self.page_views:
+            return 0.0
+        if self.page_views < 1:
+            return 0.0
+        return log10(self.page_views)
+
+    @property
     def coverage(self):
         """Get the temporal coverage of the dataset in the format YYYY-MM-DD - YYYY-MM-DD"""
         tables = self.tables.all()
@@ -692,9 +701,16 @@ class Dataset(BaseModel):
         return json.dumps(full_coverage_dict)
 
     @property
-    def contains_tables(self):
-        """Returns true if there are tables in the dataset"""
-        return len(self.tables.all()) > 0
+    def contains_open_data(self):
+        """Returns true if there are tables or columns with open coverages"""
+        open_data = False
+        tables = self.tables.all()
+        for table in tables:
+            table_coverages = table.coverages.filter(is_closed=False)
+            if table_coverages:
+                open_data = True
+                break
+        return open_data
 
     @property
     def contains_closed_data(self):
@@ -714,17 +730,9 @@ class Dataset(BaseModel):
         return closed_data
 
     @property
-    def contains_open_data(self):
-        """Returns true if there are tables or columns with open coverages"""
-        open_data = False
-        tables = self.tables.all()
-        for table in tables:
-            table_coverages = table.coverages.filter(is_closed=False)
-            if table_coverages:
-                open_data = True
-                break
-
-        return open_data
+    def contains_tables(self):
+        """Returns true if there are tables in the dataset"""
+        return len(self.tables.all()) > 0
 
     @property
     def contains_raw_data_sources(self):
@@ -1020,20 +1028,31 @@ class Table(BaseModel, OrderedModel):
         - Tables and columns with similar directories
         - Tables and columns with similar coverages or tags
         """
+        self_columns = (
+            self.columns
+            .filter(directory_primary_key__isnull=False)
+            .exclude(directory_primary_key__table__dataset__slug="diretorios_data_tempo")
+            .all()
+        )  # fmt: skip
+        self_directories = set(c.directory_primary_key for c in self_columns)
+        if not self_directories:
+            return []
         all_tables = (
-            Table.objects.exclude(id=self.id)
+            Table.objects
+            .exclude(id=self.id)
             .exclude(is_directory=True)
             .exclude(status__slug__in=["under_review"])
             .filter(columns__directory_primary_key__isnull=False)
             .distinct()
             .all()
-        )
+        )  # fmt: skip
         all_neighbors = []
         for table in all_tables:
             score_area = self.get_similarity_of_area(table)
             score_datetime = self.get_similarity_of_datetime(table)
             score_directory, columns = self.get_similarity_of_directory(table)
-            if not score_directory:
+            score_popularity = table.dataset.popularity
+            if not score_area or not score_datetime or not score_directory:
                 continue
             column_id = []
             column_name = []
@@ -1048,7 +1067,7 @@ class Table(BaseModel, OrderedModel):
                     "table_name": table.name,
                     "dataset_id": str(table.dataset.id),
                     "dataset_name": table.dataset.name,
-                    "score": round(score_area + score_datetime + score_directory, 2),
+                    "score": round(score_directory, 2) + score_popularity,
                 }
             )
         return sorted(all_neighbors, key=lambda item: item["score"])[::-1][:20]
@@ -1077,14 +1096,22 @@ class Table(BaseModel, OrderedModel):
         return count_yes / count_all if count_all else 0
 
     def get_similarity_of_directory(self, other: "Table"):
-        self_cols = self.columns.all()
-        self_dirs = self.columns.filter(directory_primary_key__isnull=False).all()
-        other_cols = other.columns.all()
-        other_dirs = other.columns.filter(directory_primary_key__isnull=False).all()
-        intersection = set([*self_dirs, *other_dirs])
-        intersection_size = len(intersection)
-        intersection_max_size = min(len(self_cols), len(other_cols))
-        return intersection_size / intersection_max_size, intersection
+        self_columns = (
+            self.columns
+            .filter(directory_primary_key__isnull=False)
+            .exclude(directory_primary_key__table__dataset__slug="diretorios_data_tempo")
+            .all()
+        )  # fmt: skip
+        self_directories = set(c.directory_primary_key for c in self_columns)
+        other_columns = (
+            other.columns
+            .filter(directory_primary_key__isnull=False)
+            .exclude(directory_primary_key__table__dataset__slug="diretorios_data_tempo")
+            .all()
+        )  # fmt: skip
+        other_directories = set(c.directory_primary_key for c in other_columns)
+        intersection = self_directories.intersection(other_directories)
+        return len(intersection) / len(self_directories), intersection
 
     def clean(self):
         """
