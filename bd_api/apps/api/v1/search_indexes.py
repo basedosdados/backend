@@ -63,8 +63,6 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
     contains_tables = indexes.BooleanField(model_attr="contains_tables")
     contains_closed_data = indexes.BooleanField(model_attr="contains_closed_data")
     contains_open_data = indexes.BooleanField(model_attr="contains_open_data")
-    contains_open_tables = indexes.BooleanField(model_attr="contains_open_tables")
-    contains_closed_tables = indexes.BooleanField(model_attr="contains_closed_tables")
     contains_raw_data_sources = indexes.BooleanField(model_attr="contains_raw_data_sources")
     contains_information_requests = indexes.BooleanField(model_attr="contains_information_requests")
 
@@ -104,11 +102,7 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
     def _prepare_table(self, obj, data):
         if table_ids := data.get("table_ids", []):
             published_tables = obj.tables.exclude(status__slug__in=["under_review"])
-            closed_tables = obj.tables.filter(is_closed=True).exclude(
-                status__slug__in=["under_review"]
-            )
             data["n_tables"] = published_tables.count()
-            data["n_closed_tables"] = closed_tables.count()
             data["first_table_id"] = table_ids[0]
             if published_tables.first():
                 data["first_table_id"] = published_tables.first().id
@@ -126,7 +120,6 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
             data["total_tables"] = len(table_ids)
         else:
             data["n_tables"] = 0
-            data["n_closed_tables"] = 0
             data["total_tables"] = 0
         return data
 
@@ -153,9 +146,7 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         data["is_closed"] = data.get("is_closed", False)
         data["contains_tables"] = data.get("contains_tables", False)
         data["contains_open_data"] = data.get("contains_open_data", False)
-        data["contains_open_tables"] = data.get("contains_open_tables", False)
         data["contains_closed_data"] = data.get("contains_closed_data", False)
-        data["contains_closed_tables"] = data.get("contains_closed_tables", False)
         data["contains_raw_data_sources"] = data.get("contains_raw_data_sources", False)
         data["contains_information_requests"] = data.get("contains_information_requests", False)
         return data

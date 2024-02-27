@@ -727,18 +727,6 @@ class Dataset(BaseModel):
         return open_data
 
     @property
-    def contains_closed_tables(self):
-        """Returns true if there are tables with closed coverages (DEPRECATED)"""
-        closed_tables = self.tables.all().filter(is_closed=True)
-        return len(closed_tables) > 0
-
-    @property
-    def contains_open_tables(self):
-        """Returns true if there are tables with open coverages (DEPRECATED)"""
-        open_tables = self.tables.all().filter(is_closed=False)
-        return len(open_tables) > 0
-
-    @property
     def contains_raw_data_sources(self):
         """Returns true if there are raw data sources in the dataset"""
         return len(self.raw_data_sources.all()) > 0

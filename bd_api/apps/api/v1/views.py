@@ -120,10 +120,6 @@ class DatasetSearchView(SearchView):
                 all_filters.append({"match": {"contains_raw_data_sources": True}})
             if "information_requests" in options:
                 all_filters.append({"match": {"contains_information_requests": True}})
-            if "open_tables" in options:
-                all_filters.append({"match": {"contains_open_tables": True}})
-            if "closed_tables" in options:
-                all_filters.append({"match": {"contains_closed_tables": True}})
 
         raw_query = {
             "from": (page - 1) * page_size,
@@ -222,18 +218,6 @@ class DatasetSearchView(SearchView):
                         "size": agg_page_size,
                     }
                 },
-                "contains_open_tables_counts": {
-                    "terms": {
-                        "field": "contains_open_tables",
-                        "size": agg_page_size,
-                    }
-                },
-                "contains_closed_tables_counts": {
-                    "terms": {
-                        "field": "contains_closed_tables",
-                        "size": agg_page_size,
-                    }
-                },
                 "contains_raw_data_sources_counts": {
                     "terms": {
                         "field": "contains_raw_data_sources",
@@ -323,13 +307,9 @@ class DatasetSearchView(SearchView):
                     cleaned_results["tags"].append(d)
 
             # tables
-            cleaned_results["n_closed_tables"] = r.get("n_closed_tables") or 0
             if r.get("tables"):
                 if len(tables := r.get("tables")) > 0:
                     cleaned_results["n_tables"] = r.get("n_tables")
-                    cleaned_results["n_open_tables"] = (
-                        cleaned_results["n_tables"] - cleaned_results["n_closed_tables"]
-                    )
                     cleaned_results["first_table_id"] = r.get("first_table_id")
                     cleaned_results["first_closed_table_id"] = None
                     for table in tables:
@@ -368,8 +348,6 @@ class DatasetSearchView(SearchView):
             cleaned_results["contains_tables"] = r.get("contains_tables", False)
             cleaned_results["contains_closed_data"] = r.get("contains_closed_data", False)
             cleaned_results["contains_open_data"] = r.get("contains_open_data", False)
-            cleaned_results["contains_closed_tables"] = r.get("contains_closed_tables", False)
-            cleaned_results["contains_open_tables"] = r.get("contains_open_tables", False)
 
             res.append(cleaned_results)
 
@@ -384,8 +362,6 @@ class DatasetSearchView(SearchView):
         contains_tables_counts = agg["contains_tables_counts"]["buckets"]
         contains_closed_data_counts = agg["contains_closed_data_counts"]["buckets"]
         contains_open_data_counts = agg["contains_open_data_counts"]["buckets"]
-        contains_open_tables_counts = agg["contains_open_tables_counts"]["buckets"]
-        contains_closed_tables_counts = agg["contains_closed_tables_counts"]["buckets"]
         contains_information_requests_counts = agg["contains_information_requests_counts"][
             "buckets"
         ]
@@ -507,32 +483,6 @@ class DatasetSearchView(SearchView):
                 for idx, contains_open_data in enumerate(contains_open_data_counts)
             ]
             aggregations["contains_open_data"] = agg_contains_open_data
-
-        if contains_open_tables_counts:
-            agg_contains_open_tables = [
-                {
-                    "key": contains_open_tables["key"],
-                    "count": contains_open_tables["doc_count"],
-                    "name": "tabelas abertas"
-                    if contains_open_tables["key"] == 1
-                    else "sem tabelas abertas",
-                }
-                for idx, contains_open_tables in enumerate(contains_open_tables_counts)
-            ]
-            aggregations["contains_open_tables"] = agg_contains_open_tables
-
-        if contains_closed_tables_counts:
-            agg_contains_closed_tables = [
-                {
-                    "key": contains_closed_tables["key"],
-                    "count": contains_closed_tables["doc_count"],
-                    "name": "tabelas fechadas"
-                    if contains_closed_tables["key"] == 1
-                    else "sem tabelas fechadas",
-                }
-                for idx, contains_closed_tables in enumerate(contains_closed_tables_counts)
-            ]
-            aggregations["contains_closed_tables"] = agg_contains_closed_tables
 
         if contains_information_requests_counts:
             agg_contains_information_requests = [

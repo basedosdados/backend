@@ -45,8 +45,6 @@ class Dataset(BaseModel):
     updated_at: str
     #
     n_tables: int
-    n_open_tables: int
-    n_closed_tables: int
     first_table_id: str
     first_open_table_id: Optional[str]
     first_closed_table_id: Optional[str]
@@ -61,8 +59,6 @@ class Dataset(BaseModel):
     contains_tables: bool
     contains_open_data: bool
     contains_closed_data: bool
-    contains_open_tables: bool
-    contains_closed_tables: bool
     #
     tags: List[Tag]
     themes: List[Theme]
