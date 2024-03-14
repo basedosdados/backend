@@ -174,6 +174,7 @@ class RawDataSourceInline(OrderedTranslatedInline):
         "id",
         "name",
         "description",
+        "availability",
         "url",
     ]
     readonly_fields = [
