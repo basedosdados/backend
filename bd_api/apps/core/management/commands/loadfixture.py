@@ -3,6 +3,7 @@ from pathlib import Path
 
 from django.conf import settings
 from django.core.management import call_command
+from django.core.management.base import CommandParser
 from django.db import connection
 from loguru import logger
 from modeltranslation.management.commands.loaddata import Command as LoadDataCommand
@@ -33,7 +34,7 @@ class Command(LoadDataCommand):
     4. Build index
     """
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: CommandParser):
         super().add_arguments(parser)
         parser.add_argument(
             "--build-index",
