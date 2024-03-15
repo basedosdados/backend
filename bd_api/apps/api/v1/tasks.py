@@ -10,7 +10,7 @@ from loguru import logger
 from pandas import read_gbq
 from requests import get
 
-from bd_api.apps.api.v1.models import Dataset, RawDataSource, Table
+from bd_api.apps.api.v1.models import Dataset, RawDataSource, Table, TableNeighbor
 from bd_api.custom.client import Messenger, get_gbq_client, get_gcs_client
 from bd_api.custom.environment import production_task
 
@@ -115,6 +115,14 @@ def update_table_metadata_task(table_pks: list[str] = None):
             logger.warning(f"{table}: {exc}")
 
     messenger.send()
+
+
+@periodic_task(crontab(day_of_week="0", hour="6", minute="0"))
+@production_task
+def update_table_neighbors_task():
+    for table in Table.objects.all():
+        for neighbor in table.get_neighbors():
+            TableNeighbor.objects.update_or_create(**neighbor)
 
 
 @periodic_task(crontab(day_of_week="1-5", hour="7", minute="0"))
