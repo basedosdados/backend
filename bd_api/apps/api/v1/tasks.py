@@ -121,7 +121,7 @@ def update_table_metadata_task(table_pks: list[str] = None):
 @production_task
 def update_table_neighbors_task():
     for table in Table.objects.all():
-        for neighbor in table.get_neighbors():
+        for neighbor in table.gen_neighbors():
             TableNeighbor.objects.update_or_create(**neighbor)
 
 

@@ -8,7 +8,6 @@ from uuid import uuid4
 
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.db.models import Q
 from django.urls import reverse
 from ordered_model.models import OrderedModel
 
@@ -1026,24 +1025,9 @@ class Table(BaseModel, OrderedModel):
     @property
     def neighbors(self) -> list[dict]:
         """Similiar tables and columns without filters"""
-        all_neighbors = []
-        for neighbor in TableNeighbor.objects.filter(Q(table_a=self) | Q(table_b=self)).all():
-            if neighbor.table_a == self:
-                table = neighbor.table_b
-            if neighbor.table_b == self:
-                table = neighbor.table_a
-            similarity_of_directory = neighbor.similarity_of_directory
-            similarity_of_popularity = table.dataset.popularity
-            all_neighbors.append(
-                {
-                    "table_id": str(table.pk),
-                    "table_name": table.name,
-                    "dataset_id": str(table.dataset.id),
-                    "dataset_name": table.dataset.name,
-                    "score": round(similarity_of_directory, 2) + similarity_of_popularity,
-                }
-            )
-        return sorted(all_neighbors, key=lambda item: item["score"])[::-1]
+        all_neighbors = [t.as_dict for t in TableNeighbor.objects.filter(table_a=self)]
+        all_neighbors = sorted(all_neighbors, key=lambda item: item["score"], reverse=True)
+        return all_neighbors
 
     @property
     def last_updated_at(self):
@@ -1086,7 +1070,7 @@ class Table(BaseModel, OrderedModel):
         intersection = self_directories.intersection(other_directories)
         return len(intersection) / len(self_directories), intersection
 
-    def get_neighbors(self) -> list[dict]:
+    def gen_neighbors(self) -> list[dict]:
         self_columns = (
             self.columns
             .filter(directory_primary_key__isnull=False)
@@ -1185,6 +1169,7 @@ class TableNeighbor(BaseModel):
     similarity_of_area = models.FloatField(default=0)
     similarity_of_datetime = models.FloatField(default=0)
     similarity_of_directory = models.FloatField(default=0)
+    similarity_of_popularity = models.FloatField(default=0)
 
     class Meta:
         db_table = "table_neighbor"
@@ -1195,11 +1180,22 @@ class TableNeighbor(BaseModel):
             ),
         ]
 
+    @property
+    def score(self):
+        return round(self.similarity_of_directory, 2) + round(self.similarity_of_popularity, 2)
+
+    @property
+    def as_dict(self):
+        return {
+            "table_id": str(self.table_b.pk),
+            "table_name": self.table_b.name,
+            "dataset_id": str(self.table_b.dataset.pk),
+            "dataset_name": self.table_b.dataset.name,
+            "score": self.score,
+        }
+
     def clean(self) -> None:
         errors = {}
-        if self.table_a.pk > self.table_b.pk:
-            errors["table_a"] = "Table primary keys should be ordered"
-            errors["table_b"] = "Table primary keys should be ordered"
         if self.table_a.pk == self.table_b.pk:
             errors["table_a"] = "Table neighbors A & B shouldn't be the same"
             errors["table_b"] = "Table neighbors A & B shouldn't be the same"
