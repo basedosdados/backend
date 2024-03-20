@@ -17,13 +17,13 @@ from bd_api.custom.environment import production_task
 logger = logger.bind(module="api.v1")
 
 
-@periodic_task(crontab(day_of_week="1-6", hour="5", minute="0"))
+@periodic_task(crontab(day_of_week="1-6", hour="5", minute="0"), retries=3, retry_delay=60)
 @production_task
 def update_search_index_task():
     call_command("update_index", batchsize=100)
 
 
-@periodic_task(crontab(day_of_week="0", hour="5", minute="0"))
+@periodic_task(crontab(day_of_week="0", hour="5", minute="0"), retries=3, retry_delay=60)
 @production_task
 def rebuild_search_index_task():
     call_command("rebuild_index", interactive=False, batchsize=100)
