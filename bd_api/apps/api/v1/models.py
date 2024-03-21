@@ -1024,53 +1024,10 @@ class Table(BaseModel, OrderedModel):
 
     @property
     def neighbors(self) -> list[dict]:
-        """Similiar tables and columns
-        - Tables and columns with similar directories
-        - Tables and columns with similar coverages or tags
-        """
-        self_columns = (
-            self.columns
-            .filter(directory_primary_key__isnull=False)
-            .exclude(directory_primary_key__table__dataset__slug="diretorios_data_tempo")
-            .all()
-        )  # fmt: skip
-        self_directories = set(c.directory_primary_key for c in self_columns)
-        if not self_directories:
-            return []
-        all_tables = (
-            Table.objects
-            .exclude(id=self.id)
-            .exclude(is_directory=True)
-            .exclude(status__slug__in=["under_review"])
-            .filter(columns__directory_primary_key__isnull=False)
-            .distinct()
-            .all()
-        )  # fmt: skip
-        all_neighbors = []
-        for table in all_tables:
-            score_area = self.get_similarity_of_area(table)
-            score_datetime = self.get_similarity_of_datetime(table)
-            score_directory, columns = self.get_similarity_of_directory(table)
-            score_popularity = table.dataset.popularity
-            if not score_area or not score_datetime or not score_directory:
-                continue
-            column_id = []
-            column_name = []
-            for column in columns:
-                column_id.append(str(column.id))
-                column_name.append(column.name)
-            all_neighbors.append(
-                {
-                    "column_id": column_id,
-                    "column_name": column_name,
-                    "table_id": str(table.id),
-                    "table_name": table.name,
-                    "dataset_id": str(table.dataset.id),
-                    "dataset_name": table.dataset.name,
-                    "score": round(score_directory, 2) + score_popularity,
-                }
-            )
-        return sorted(all_neighbors, key=lambda item: item["score"])[::-1][:20]
+        """Similiar tables and columns without filters"""
+        all_neighbors = [t.as_dict for t in TableNeighbor.objects.filter(table_a=self)]
+        all_neighbors = sorted(all_neighbors, key=lambda item: item["score"], reverse=True)
+        return all_neighbors
 
     @property
     def last_updated_at(self):
@@ -1112,6 +1069,45 @@ class Table(BaseModel, OrderedModel):
         other_directories = set(c.directory_primary_key for c in other_columns)
         intersection = self_directories.intersection(other_directories)
         return len(intersection) / len(self_directories), intersection
+
+    def gen_neighbors(self) -> list[dict]:
+        self_columns = (
+            self.columns
+            .filter(directory_primary_key__isnull=False)
+            .exclude(directory_primary_key__table__dataset__slug="diretorios_data_tempo")
+            .all()
+        )  # fmt: skip
+        self_directories = set(c.directory_primary_key for c in self_columns)
+        if not self_directories:
+            return []
+        all_tables = (
+            Table.objects
+            .exclude(id=self.id)
+            .exclude(is_directory=True)
+            .exclude(status__slug__in=["under_review"])
+            .filter(columns__directory_primary_key__isnull=False)
+            .distinct()
+            .all()
+        )  # fmt: skip
+        all_neighbors = []
+        for table in all_tables:
+            similarity_of_area = self.get_similarity_of_area(table)
+            similarity_of_datetime = self.get_similarity_of_datetime(table)
+            similarity_of_directory, columns = self.get_similarity_of_directory(table)
+            similarity_of_popularity = table.dataset.popularity
+            if not similarity_of_area or not similarity_of_datetime or not similarity_of_directory:
+                continue
+            all_neighbors.append(
+                {
+                    "table_a": self,
+                    "table_b": table,
+                    "similarity_of_area": similarity_of_area,
+                    "similarity_of_datetime": similarity_of_datetime,
+                    "similarity_of_directory": similarity_of_directory,
+                    "similarity_of_popularity": similarity_of_popularity,
+                }
+            )
+        return all_neighbors
 
     def clean(self):
         """
@@ -1155,6 +1151,57 @@ class Table(BaseModel, OrderedModel):
 
         if errors:
             raise ValidationError(errors)
+
+
+class TableNeighbor(BaseModel):
+    table_a = models.ForeignKey(
+        Table,
+        on_delete=models.DO_NOTHING,
+        related_name="tableneighbor_a_set",
+    )
+    table_b = models.ForeignKey(
+        Table,
+        on_delete=models.DO_NOTHING,
+        related_name="tableneighbor_b_set",
+    )
+
+    similarity = models.FloatField(default=0)
+    similarity_of_area = models.FloatField(default=0)
+    similarity_of_datetime = models.FloatField(default=0)
+    similarity_of_directory = models.FloatField(default=0)
+    similarity_of_popularity = models.FloatField(default=0)
+
+    class Meta:
+        db_table = "table_neighbor"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["table_a", "table_b"],
+                name="table_neighbor_unique_constraint",
+            ),
+        ]
+
+    @property
+    def score(self):
+        return round(self.similarity_of_directory, 2) + round(self.similarity_of_popularity, 2)
+
+    @property
+    def as_dict(self):
+        return {
+            "table_id": str(self.table_b.pk),
+            "table_name": self.table_b.name,
+            "dataset_id": str(self.table_b.dataset.pk),
+            "dataset_name": self.table_b.dataset.name,
+            "score": self.score,
+        }
+
+    def clean(self) -> None:
+        errors = {}
+        if self.table_a.pk == self.table_b.pk:
+            errors["table_a"] = "Table neighbors A & B shouldn't be the same"
+            errors["table_b"] = "Table neighbors A & B shouldn't be the same"
+        if errors:
+            raise ValidationError(errors)
+        return super().clean()
 
 
 class BigQueryType(BaseModel):

@@ -57,6 +57,7 @@ from bd_api.apps.api.v1.models import (
     RawDataSource,
     Status,
     Table,
+    TableNeighbor,
     Tag,
     Theme,
     Update,
@@ -66,6 +67,7 @@ from bd_api.apps.api.v1.tasks import (
     update_page_views_task,
     update_search_index_task,
     update_table_metadata_task,
+    update_table_neighbors_task,
 )
 from bd_api.custom.client import get_gbq_client
 
@@ -260,6 +262,14 @@ def update_table_metadata(modeladmin: ModelAdmin, request: HttpRequest, queryset
 
 
 update_table_metadata.short_description = "Atualizar metadados das tabelas"
+
+
+def update_table_neighbors(modeladmin: ModelAdmin, request: HttpRequest, queryset: QuerySet):
+    """Update all table neighbors"""
+    update_table_neighbors_task()
+
+
+update_table_neighbors.short_description = "Atualizar os vizinhos das tabelas"
 
 
 def reorder_tables(modeladmin, request, queryset):
@@ -513,6 +523,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         reorder_columns,
         reset_column_order,
         update_table_metadata,
+        update_table_neighbors,
         update_page_views,
     ]
     inlines = [
@@ -633,6 +644,26 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
             initial = {"parent_model": parent_model_id}
             self.initial = initial  # noqa
         return super().add_view(request, *args, **kwargs)
+
+
+class TableNeighborAdmin(admin.ModelAdmin):
+    search_fields = [
+        "table_a__name",
+        "table_b__name",
+    ]
+    list_filter = [
+        "table_a",
+        "table_b",
+    ]
+    list_display = [
+        "table_a",
+        "table_b",
+        "similarity",
+        "similarity_of_area",
+        "similarity_of_datetime",
+        "similarity_of_directory",
+    ]
+    ordering = ["table_a", "table_b"]
 
 
 class ColumnForm(forms.ModelForm):
@@ -1043,6 +1074,7 @@ admin.site.register(Pipeline)
 admin.site.register(RawDataSource, RawDataSourceAdmin)
 admin.site.register(Status, StatusAdmin)
 admin.site.register(Table, TableAdmin)
+admin.site.register(TableNeighbor, TableNeighborAdmin)
 admin.site.register(Tag, TagAdmin)
 admin.site.register(Theme, ThemeAdmin)
 admin.site.register(Update, UpdateAdmin)
