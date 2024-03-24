@@ -2,7 +2,7 @@
 from djstripe.apps import DjstripeAppConfig
 
 
-class PaymentsConfig(DjstripeAppConfig):
+class PaymentConfig(DjstripeAppConfig):
     verbose_name = "Stripe"
 
     def ready(self):
