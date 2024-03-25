@@ -7,7 +7,6 @@ from uuid import uuid4
 
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.urls import reverse
 from ordered_model.models import OrderedModel
 
 from bd_api.apps.account.models import Account
@@ -354,6 +353,13 @@ class Tag(BaseModel):
         verbose_name_plural = "Tags"
         ordering = ["slug"]
 
+    @property
+    def as_search_result(self):
+        return {
+            "name": self.name,
+            "slug": self.slug,
+        }
+
 
 class Theme(BaseModel):
     """Theme model"""
@@ -376,6 +382,13 @@ class Theme(BaseModel):
         verbose_name = "Theme"
         verbose_name_plural = "Themes"
         ordering = ["slug"]
+
+    @property
+    def as_search_result(self):
+        return {
+            "name": self.name,
+            "slug": self.slug,
+        }
 
 
 class Organization(BaseModel):
@@ -426,6 +439,17 @@ class Organization(BaseModel):
         if self.picture and self.picture.url:
             return True
         return False
+
+    @property
+    def as_search_result(self):
+        return {
+            "id": self.pk,
+            "name": self.name,
+            "slug": self.slug,
+            "description": self.description,
+            "picture": getattr(self.picture, "name", None),
+            "website": self.website,
+        }
 
 
 class Status(BaseModel):
@@ -503,10 +527,6 @@ class Dataset(BaseModel):
         verbose_name_plural = "Datasets"
         ordering = ["slug"]
 
-    def get_success_url(self):
-        """Get the success url for the dataset"""
-        return reverse("datasetdetail", kwargs={"pk": self.object.pk})
-
     @property
     def full_slug(self):
         if self.organization.area.slug != "unknown":
@@ -524,12 +544,12 @@ class Dataset(BaseModel):
     @property
     def coverage(self) -> dict:
         """Temporal coverage of all related entities"""
-        entities = [
+        resources = [
             *self.tables.all(),
             *self.raw_data_sources.all(),
             *self.information_requests.all(),
         ]
-        coverage = get_coverage(entities)
+        coverage = get_coverage(resources)
         if coverage["start"] and coverage["end"]:
             return f"{coverage['start']} - {coverage['end']}"
         if coverage["start"]:
@@ -537,6 +557,20 @@ class Dataset(BaseModel):
         if coverage["end"]:
             return f"{coverage['end']}"
         return ""
+
+    @property
+    def entities(self) -> list[dict]:
+        """Entity of all related resources"""
+        entities = []
+        resources = [
+            *self.tables.all(),
+            *self.raw_data_sources.all(),
+            *self.information_requests.all(),
+        ]
+        for resource in resources:
+            for observation in resource.observation_levels.all():
+                entities.append(observation.entity.as_search_result)
+        return entities
 
     @property
     def contains_open_data(self):
@@ -583,6 +617,55 @@ class Dataset(BaseModel):
         return len(self.information_requests.all()) > 0
 
     @property
+    def n_tables(self):
+        return len(self.tables.all())
+
+    @property
+    def n_raw_data_sources(self):
+        return len(self.raw_data_sources.all())
+
+    @property
+    def n_information_requests(self):
+        return len(self.information_requests.all())
+
+    @property
+    def first_table_id(self):
+        if resource := self.tables.exclude(status__slug="under_review").order_by("order").first():
+            return resource.pk
+
+    @property
+    def first_open_table_id(self):
+        for resource in self.tables.exclude(status__slug="under_review").order_by("order").all():
+            if resource.contains_open_data:
+                return resource.pk
+
+    @property
+    def first_closed_table_id(self):
+        for resource in self.tables.exclude(status__slug="under_review").order_by("order").all():
+            if resource.contains_closed_data:
+                return resource.pk
+
+    @property
+    def first_raw_data_source_id(self):
+        resource = (
+            self.raw_data_sources
+            .exclude(status__slug="under_review")
+            .order_by("order")
+            .first()
+        )  # fmt: skip
+        return resource.pk if resource else None
+
+    @property
+    def first_information_request_id(self):
+        resource = (
+            self.information_requests
+            .exclude(status__slug="under_review")
+            .order_by("order")
+            .first()
+        )  # fmt: skip
+        return resource.pk if resource else None
+
+    @property
     def table_last_updated_at(self):
         updates = [
             u.last_updated_at for u in self.tables.all()
@@ -597,6 +680,33 @@ class Dataset(BaseModel):
             if u.last_updated_at
         ]  # fmt: skip
         return max(updates) if updates else None
+
+    @property
+    def as_search_result(self):
+        return {
+            "updated_at": self.updated_at,
+            "id": self.id,
+            "slug": self.slug,
+            "name": self.name,
+            "temporal_coverage": [self.coverage],
+            "organization": [self.organization.as_search_result],
+            "tags": [t.as_search_result for t in self.tags.all()],
+            "themes": [t.as_search_result for t in self.themes.all()],
+            "entities": self.entities,
+            "contains_open_data": self.contains_open_data,
+            "contains_closed_data": self.contains_closed_data,
+            "contains_tables": self.contains_tables,
+            "contains_raw_data_sources": self.contains_raw_data_sources,
+            "contains_information_requests": self.contains_information_requests,
+            "n_tables": self.n_tables,
+            "n_raw_data_sources": self.n_raw_data_sources,
+            "n_information_requests": self.n_information_requests,
+            "first_table_id": self.first_table_id,
+            "first_open_table_id": self.first_open_table_id,
+            "first_closed_table_id": self.first_closed_table_id,
+            "first_raw_data_source_id": self.first_raw_data_source_id,
+            "first_information_request_id": self.first_information_request_id,
+        }
 
 
 class Update(BaseModel):
@@ -769,18 +879,22 @@ class Table(BaseModel, OrderedModel):
         return ", ".join(partitions_list)
 
     @property
-    def contains_closed_data(self):
-        """Returns true if there are columns with closed coverages"""
-        closed_data = False
-        table_coverages = self.coverages.filter(is_closed=True)
-        if table_coverages:
-            closed_data = True
-        for column in self.columns.all():  # in the future it will be column.coverages
-            if column.is_closed:
-                closed_data = True
-                break
+    def contains_open_data(self):
+        if self.coverages.filter(is_closed=False):
+            return True
+        for column in self.columns.all():
+            if column.coverages.filter(is_closed=False).first():
+                return True
+        return False
 
-        return closed_data
+    @property
+    def contains_closed_data(self):
+        if self.coverages.filter(is_closed=True).first():
+            return True
+        for column in self.columns.all():
+            if column.coverages.filter(is_closed=True).first():
+                return True
+        return False
 
     @property
     def coverage(self) -> dict:
@@ -1374,6 +1488,13 @@ class Entity(BaseModel):
         verbose_name_plural = "Entities"
         ordering = ["slug"]
 
+    @property
+    def as_search_result(self):
+        return {
+            "name": self.name,
+            "slug": self.slug,
+        }
+
 
 class ObservationLevel(BaseModel):
     """Model definition for ObservationLevel."""
@@ -1670,16 +1791,16 @@ class Date:
         return {"date": self.str, "type": self.type}
 
 
-def get_coverage(entities: list) -> dict:
-    """Get maximum datetime coverage of entities
+def get_coverage(resources: list) -> dict:
+    """Get maximum datetime coverage of resources
 
     Case:
     - Table A has data with dates between [X, Y]
     """
     since = Date(datetime.max, None, None)
     until = Date(datetime.min, None, None)
-    for entity in entities:
-        for cov in entity.coverages.all():
+    for resource in resources:
+        for cov in resource.coverages.all():
             for dt in cov.datetime_ranges.all():
                 if dt.since and dt.since < since.dt:
                     since.dt = dt.since
@@ -1690,8 +1811,8 @@ def get_coverage(entities: list) -> dict:
     return {"start": since.str, "end": until.str}
 
 
-def get_full_coverage(entities: list) -> dict:
-    """Get datetime coverage steps of entities
+def get_full_coverage(resources: list) -> dict:
+    """Get datetime coverage steps of resources
 
     Cases:
     - Table A has data with dates between [X, Y], where [X, Y] is open
@@ -1702,8 +1823,8 @@ def get_full_coverage(entities: list) -> dict:
     open_until = Date(datetime.min, None, "open")
     paid_since = Date(datetime.max, None, "closed")
     paid_until = Date(datetime.min, None, "closed")
-    for entity in entities:
-        for cov in entity.coverages.all():
+    for resource in resources:
+        for cov in resource.coverages.all():
             for dt in cov.datetime_ranges.all():
                 if not cov.is_closed:
                     if dt.since and dt.since < open_since.dt:
