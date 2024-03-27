@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 from django.http import JsonResponse
-from haystack.forms import SearchForm
-from haystack.generic_views import SearchView
+from haystack.forms import FacetedSearchForm
+from haystack.generic_views import FacetedSearchView
 
 
-class DatasetSearchForm(SearchForm):
+class DatasetSearchForm(FacetedSearchForm):
     """Dataset search form
 
     Note that `load_all=True` avoids lazy loading and possible N+1 problem
@@ -17,12 +17,20 @@ class DatasetSearchForm(SearchForm):
         return self.cleaned_data
 
     @property
+    def facet(self):
+        return self.sqs.facet_counts()
+
+    @property
     def result(self):
         return [p.pk for p in self.sqs]
 
     @property
     def response(self):
-        return {"query": self.query, "result": self.result}
+        return {
+            "query": self.query,
+            "facet": self.facet,
+            "result": self.result,
+        }
 
     def search(self):
         self.sqs = super().search()
@@ -34,8 +42,9 @@ class DatasetSearchForm(SearchForm):
         return self.searchqueryset.all()
 
 
-class DatasetSearchView(SearchView):
+class DatasetSearchView(FacetedSearchView):
     form_class = DatasetSearchForm
+    facet_fields = ["tag_slugs", "theme_slugs"]
 
     def get(self, request, *args, **kwargs):
         form = self.get_form()
