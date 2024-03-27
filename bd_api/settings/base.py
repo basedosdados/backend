@@ -56,9 +56,10 @@ INSTALLED_APPS = [
     "huey.contrib.djhuey",
     #
     "bd_api.apps.account",
-    "bd_api.apps.core",
     "bd_api.apps.api.v1",
-    "bd_api.apps.payment.apps.PaymentsConfig",
+    "bd_api.apps.account_auth",
+    "bd_api.apps.core",
+    "bd_api.apps.payment.apps.PaymentConfig",
 ]
 
 MIDDLEWARE = [
@@ -302,3 +303,7 @@ DISCORD_BACKEND_WEBHOOK_URL = getenv("DISCORD_BACKEND_WEBHOOK_URL")
 
 # BetterStack
 BETTERSTACK_BEARER_TOKEN = getenv("BETTERSTACK_BEARER_TOKEN")
+
+# reCAPTCHA
+RECAPTCHA_SITE_KEY = getenv("RECAPTCHA_SITE_KEY")
+RECAPTCHA_SECRET_KEY = getenv("RECAPTCHA_SECRET_KEY")

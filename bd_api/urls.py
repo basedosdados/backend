@@ -36,6 +36,7 @@ urlpatterns = [
     path("api/", include("bd_api.apps.api.v1.urls")),
     path("api/graphql/", graphql_view()),
     path("account/", include("bd_api.apps.account.urls")),
+    path("auth/", include("bd_api.apps.account_auth.urls")),
     path("search/", DatasetSearchV1View.as_view()),
     path("search/v2/", DatasetSearchV2View.as_view()),
     path("search/debug/", include("haystack.urls")),
