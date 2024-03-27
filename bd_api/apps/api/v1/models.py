@@ -1056,9 +1056,13 @@ class Column(BaseModel, OrderedModel):
     def coverage(self) -> dict:
         """Temporal coverage of column if exists, if not table coverage"""
         coverage = get_coverage([self])
-        if not coverage["start"] and not coverage["end"]:
-            return self.table.coverage
-        return coverage
+        fallback = defaultdict(lambda: None)
+        if not coverage["start"] or not coverage["end"]:
+            fallback = self.table.coverage
+        return {
+            "start": coverage["start"] or fallback["start"],
+            "end": coverage["end"] or fallback["end"],
+        }
 
     def clean(self) -> None:
         """Clean method for Column model"""
