@@ -4,8 +4,7 @@ from django.urls import include, path
 from django.views.decorators.csrf import csrf_exempt
 from graphene_file_upload.django import FileUploadGraphQLView
 
-from bd_api.apps.api.v1.search_views import DatasetSearchView
-from bd_api.apps.api.v1.views import DatasetRedirectView
+from bd_api.apps.api.v1.views import DatasetRedirectView, DatasetSearchView
 
 
 def redirect_to_v1(request):
