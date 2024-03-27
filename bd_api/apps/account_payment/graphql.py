@@ -12,7 +12,7 @@ from loguru import logger
 from stripe import Customer as StripeCustomer
 
 from bd_api.apps.account.models import Account, Subscription
-from bd_api.apps.payment.webhooks import add_user, remove_user
+from bd_api.apps.account_payment.webhooks import add_user, remove_user
 from bd_api.custom.graphql_base import CountableConnection, PlainTextNode
 
 if settings.STRIPE_LIVE_MODE:

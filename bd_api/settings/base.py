@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    #
     "health_check",
     "health_check.db",
     #
@@ -56,10 +57,10 @@ INSTALLED_APPS = [
     "huey.contrib.djhuey",
     #
     "bd_api.apps.account",
-    "bd_api.apps.api.v1",
     "bd_api.apps.account_auth",
+    "bd_api.apps.account_payment.apps.PaymentConfig",
+    "bd_api.apps.api.v1",
     "bd_api.apps.core",
-    "bd_api.apps.payment.apps.PaymentConfig",
 ]
 
 MIDDLEWARE = [
