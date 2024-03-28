@@ -1720,8 +1720,10 @@ def get_full_coverage(entities: list) -> dict:
                         paid_until.dt = dt.until
                         paid_until.str = dt.until_str
     if open_since.str and paid_since.str and paid_until.str:
+        paid_since.type = "open"
         return [open_since.as_dict, paid_since.as_dict, paid_until.as_dict]
     if open_since.str and open_until.str and paid_until.str:
+        open_until.type = "open"
         return [open_since.as_dict, open_until.as_dict, paid_until.as_dict]
     if open_since.str and open_until.str:
         return [open_since.as_dict, open_until.as_dict]
