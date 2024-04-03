@@ -123,6 +123,8 @@ jobs:
                 value: "${{ secrets.BETTERSTACK_BEARER_TOKEN }}"
               - name: "DISCORD_BACKEND_WEBHOOK_URL"
                 value: "${{ secrets.DISCORD_BACKEND_WEBHOOK_URL }}"
+              - name: "RECAPTCHA_SITE_KEY"
+                value: "${{ secrets.RECAPTCHA_SITE_KEY }}"
               - name: "RECAPTCHA_SECRET_KEY"
                 value: "${{ secrets.RECAPTCHA_SECRET_KEY }}"
             envFrom:
