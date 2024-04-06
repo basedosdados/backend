@@ -45,48 +45,271 @@ from bd_api.custom.graphql_base import CountableConnection, FileFieldScalar, Pla
 from bd_api.custom.model import BaseModel
 
 
-@convert_django_field.register(models.FileField)
-def convert_file_to_url(field, registry=None):
-    return FileFieldScalar(description=field.help_text, required=not field.null)
+def build_schema(applications: list[str], extra_queries=[], extra_mutations=[]):
+    queries = [build_query_schema(app) for app in applications] + extra_queries
+    mutations = [build_mutation_schema(app) for app in applications] + extra_mutations
+
+    class Query(*queries):
+        pass
+
+    class Mutation(*mutations):
+        pass
+
+    schema = Schema(query=Query, mutation=Mutation)
+    return schema
 
 
-def fields_for_form(form, only_fields, exclude_fields):
-    fields = OrderedDict()
-    for name, field in form.fields.items():
-        is_excluded = name in exclude_fields
-        is_not_in_only = only_fields and name not in only_fields
-        if is_excluded or is_not_in_only:
-            continue
-        if isinstance(field, forms_fields.FileField):
-            fields[name] = Upload(description=field.help_text)
-        else:
-            fields[name] = convert_form_field(field)
-    return fields
+### Query
 
 
-def generate_form_fields(model: BaseModel):
-    whitelist_field_types = (
-        models.DateField,
-        models.DateTimeField,
-        models.SlugField,
+def build_query_schema(application_name: str):
+    query = type("Query", (ObjectType,), build_query_objs(application_name))
+    return query
+
+
+def build_query_objs(application_name: str):
+    def get_type(model, attr):
+        """Get type of an attribute of a class"""
+        try:
+            func = getattr(model, attr)
+            func = getattr(func, "fget")
+            hint = get_type_hints(func)
+            name = hint.get("return")
+            return str(name)
+        except Exception:
+            return ""
+
+    def match_type(model, attr):
+        """Match python types to graphene types"""
+        if get_type(model, attr).startswith("int"):
+            return Int
+        if get_type(model, attr).startswith("str"):
+            return String
+        if get_type(model, attr).startswith("list[int]"):
+            return partial(List, of_type=Int)
+        if get_type(model, attr).startswith("list[str]"):
+            return partial(List, of_type=String)
+        return GenericScalar
+
+    def build_custom_attrs(model, attrs):
+        for attr in dir(model):
+            attr_func = getattr(model, attr)
+            if isinstance(attr_func, property):
+                if attr not in model.graphql_fields_blacklist:
+                    attr_type = match_type(model, attr)
+                    attrs.update({attr: attr_type(source=attr, description=attr_func.__doc__)})
+        return attrs
+
+    queries = {}
+    models = apps.get_app_config(application_name).get_models()
+    models = [m for m in models if getattr(m, "graphql_visible", False)]
+
+    for model in models:
+        model_name = model.__name__
+        meta = create_model_object_meta(model)
+        attr = dict(
+            Meta=meta,
+            _id=UUID(name="_id"),
+            resolve__id=lambda self, _: self.id,
+        )
+        attr = build_custom_attrs(model, attr)
+        node = type(f"{model_name}Node", (DjangoObjectType,), attr)
+        queries.update({f"{model_name}Node": PlainTextNode.Field(node)})
+        queries.update({f"all_{model_name}": DjangoFilterConnectionField(node)})
+    return queries
+
+
+def create_model_object_meta(model: BaseModel):
+    return type(
+        "Meta",
+        (object,),
+        dict(
+            model=(model),
+            interfaces=((PlainTextNode,)),
+            connection_class=CountableConnection,
+            filter_fields=(generate_filter_fields(model)),
+        ),
+    )
+
+
+def generate_filter_fields(model: BaseModel):
+    exempted_field_names = ("_field_status",)
+    exempted_field_types = (
+        models.ImageField,
+        models.JSONField,
+    )
+    string_field_types = (
         models.CharField,
-        models.URLField,
-        models.ForeignKey,
         models.TextField,
-        models.BooleanField,
+    )
+    comparable_field_types = (
         models.BigIntegerField,
         models.IntegerField,
-        models.OneToOneField,
-        models.ManyToManyField,
-        models.ImageField,
-        models.UUIDField,
+        models.FloatField,
+        models.DecimalField,
+        models.DateTimeField,
+        models.DateField,
+        models.TimeField,
+        models.DurationField,
     )
-    fields = []
-    for field in model._meta.get_fields():
-        if isinstance(field, whitelist_field_types):
-            if field.name not in model.graphql_fields_blacklist:
-                fields.append(field.name)
-    return fields
+    foreign_key_field_types = (
+        models.ForeignKey,
+        models.OneToOneField,
+        models.OneToOneRel,
+        models.ManyToManyField,
+        models.ManyToManyRel,
+        models.ManyToOneRel,
+    )
+
+    def get_filter_fields(
+        model: models.Model, processed_models: Optional[Iterable[models.Model]] = None
+    ):
+        if processed_models is None:
+            processed_models = []
+        if len(processed_models) > 10:
+            return {}, processed_models
+
+        if not issubclass(model, BaseModel):
+            model_fields = model._meta.get_fields()
+        if issubclass(model, BaseModel) and not processed_models:
+            model_fields = model.get_graphql_filter_fields_whitelist()
+        if issubclass(model, BaseModel) and len(processed_models):
+            model_fields = model.get_graphql_nested_filter_fields_whitelist()
+
+        processed_models.append(model)
+        filter_fields = {"id": ["exact", "isnull", "in"]}
+
+        foreign_models = []
+        for field in model_fields:
+            if isinstance(field, foreign_key_field_types):
+                foreign_models.append(field.related_model)
+
+        for field in model_fields:
+            if (
+                False
+                or "djstripe" in field.name
+                or field.name in exempted_field_names
+                or model.__module__.startswith("django")
+                or isinstance(field, exempted_field_types)
+            ):
+                continue
+            filter_fields[field.name] = ["exact", "isnull", "in"]
+            if isinstance(field, string_field_types):
+                filter_fields[field.name] += ["icontains", "istartswith", "iendswith"]
+            if isinstance(field, comparable_field_types):
+                filter_fields[field.name] += ["lt", "lte", "gt", "gte", "range"]
+            if isinstance(field, foreign_key_field_types):
+                filter_fields[field.name] = []
+                if field.related_model in processed_models:
+                    continue
+                related_model_filter_fields, _ = get_filter_fields(
+                    field.related_model,
+                    processed_models,
+                )
+                for (
+                    related_model_field_name,
+                    related_model_field_filter,
+                ) in related_model_filter_fields.items():
+                    name = f"{field.name}__{related_model_field_name}"
+                    filter_fields[name] = related_model_field_filter
+        return filter_fields, processed_models
+
+    filter_fields, _ = get_filter_fields(model)
+    return filter_fields
+
+
+### Mutation
+
+
+def build_mutation_schema(application_name: str):
+    base_mutations = build_mutation_objs(application_name)
+    base_mutations.update(
+        {
+            "token_auth": graphql_jwt.ObtainJSONWebToken.Field(),
+            "verify_token": graphql_jwt.Verify.Field(),
+            "refresh_token": graphql_jwt.Refresh.Field(),
+        }
+    )
+    mutation = type("Mutation", (ObjectType,), base_mutations)
+    return mutation
+
+
+def build_mutation_objs(application_name: str):
+    mutations = {}
+    models = apps.get_app_config(application_name).get_models()
+    models = [m for m in models if getattr(m, "graphql_visible", False)]
+
+    for model in models:
+        model_name = model.__name__
+        mutations.update({f"Delete{model_name}": delete_mutation_factory(model).Field()})
+        mutations.update({f"CreateUpdate{model_name}": create_mutation_factory(model).Field()})
+    return mutations
+
+
+def create_mutation_factory(model: BaseModel):
+    def mutate_and_get_payload():
+        """Create mutation endpoints with authorization"""
+
+        @model.graphql_mutation_decorator
+        def _mutate(cls, root, info, **input):
+            return super(cls, cls).mutate_and_get_payload(root, info, **input)
+
+        return classmethod(_mutate)
+
+    return type(
+        f"CreateUpdate{model.__name__}",
+        (CreateUpdateMutation,),
+        {
+            "Meta": type(
+                "Meta",
+                (object,),
+                dict(
+                    form_class=(generate_form(model)),
+                    input_field_name="input",
+                    return_field_name=model.__name__.lower(),
+                ),
+            ),
+            "mutate_and_get_payload": mutate_and_get_payload(),
+        },
+    )
+
+
+def delete_mutation_factory(model: BaseModel):
+    def mutate():
+        """Create mutation endpoints with authorization"""
+
+        @model.graphql_mutation_decorator
+        def _mutate(cls, root, info, id):
+            try:
+                obj = model.objects.get(pk=id)
+                obj.delete()
+            except model.DoesNotExist:
+                return cls(ok=False, errors=["Object does not exist."])
+            return cls(ok=True, errors=[])
+
+        return classmethod(_mutate)
+
+    if "account" in model.__name__.lower():
+        _id_type = ID(required=True)
+    else:
+        _id_type = UUID(required=True)
+
+    return type(
+        f"Delete{model.__name__}",
+        (Mutation,),
+        {
+            "Arguments": type(
+                "Arguments",
+                (object,),
+                dict(
+                    id=_id_type,
+                ),
+            ),
+            "ok": Boolean(),
+            "errors": List(String),
+            "mutate": mutate(),
+        },
+    )
 
 
 def generate_form(model: BaseModel):
@@ -208,262 +431,45 @@ class CreateUpdateMutation(DjangoModelFormMutation):
         return kwargs
 
 
-def create_mutation_factory(model: BaseModel):
-    def mutate_and_get_payload():
-        """Create mutation endpoints with authorization"""
-
-        @model.graphql_mutation_decorator
-        def _mutate(cls, root, info, **input):
-            return super(cls, cls).mutate_and_get_payload(root, info, **input)
-
-        return classmethod(_mutate)
-
-    return type(
-        f"CreateUpdate{model.__name__}",
-        (CreateUpdateMutation,),
-        {
-            "Meta": type(
-                "Meta",
-                (object,),
-                dict(
-                    form_class=(generate_form(model)),
-                    input_field_name="input",
-                    return_field_name=model.__name__.lower(),
-                ),
-            ),
-            "mutate_and_get_payload": mutate_and_get_payload(),
-        },
-    )
+def fields_for_form(form, only_fields, exclude_fields):
+    fields = OrderedDict()
+    for name, field in form.fields.items():
+        is_excluded = name in exclude_fields
+        is_not_in_only = only_fields and name not in only_fields
+        if is_excluded or is_not_in_only:
+            continue
+        if isinstance(field, forms_fields.FileField):
+            fields[name] = Upload(description=field.help_text)
+        else:
+            fields[name] = convert_form_field(field)
+    return fields
 
 
-def delete_mutation_factory(model: BaseModel):
-    def mutate():
-        """Create mutation endpoints with authorization"""
-
-        @model.graphql_mutation_decorator
-        def _mutate(cls, root, info, id):
-            try:
-                obj = model.objects.get(pk=id)
-                obj.delete()
-            except model.DoesNotExist:
-                return cls(ok=False, errors=["Object does not exist."])
-            return cls(ok=True, errors=[])
-
-        return classmethod(_mutate)
-
-    if "account" in model.__name__.lower():
-        _id_type = ID(required=True)
-    else:
-        _id_type = UUID(required=True)
-
-    return type(
-        f"Delete{model.__name__}",
-        (Mutation,),
-        {
-            "Arguments": type(
-                "Arguments",
-                (object,),
-                dict(
-                    id=_id_type,
-                ),
-            ),
-            "ok": Boolean(),
-            "errors": List(String),
-            "mutate": mutate(),
-        },
-    )
-
-
-def generate_filter_fields(model: BaseModel):
-    exempted_field_names = ("_field_status",)
-    exempted_field_types = (
-        models.ImageField,
-        models.JSONField,
-    )
-    string_field_types = (
+def generate_form_fields(model: BaseModel):
+    whitelist_field_types = (
+        models.DateField,
+        models.DateTimeField,
+        models.SlugField,
         models.CharField,
+        models.URLField,
+        models.ForeignKey,
         models.TextField,
-    )
-    comparable_field_types = (
+        models.BooleanField,
         models.BigIntegerField,
         models.IntegerField,
-        models.FloatField,
-        models.DecimalField,
-        models.DateTimeField,
-        models.DateField,
-        models.TimeField,
-        models.DurationField,
-    )
-    foreign_key_field_types = (
-        models.ForeignKey,
         models.OneToOneField,
-        models.OneToOneRel,
         models.ManyToManyField,
-        models.ManyToManyRel,
-        models.ManyToOneRel,
+        models.ImageField,
+        models.UUIDField,
     )
-
-    def get_filter_fields(
-        model: models.Model, processed_models: Optional[Iterable[models.Model]] = None
-    ):
-        if processed_models is None:
-            processed_models = []
-        if len(processed_models) > 10:
-            return {}, processed_models
-
-        if not issubclass(model, BaseModel):
-            model_fields = model._meta.get_fields()
-        if issubclass(model, BaseModel) and not processed_models:
-            model_fields = model.get_graphql_filter_fields_whitelist()
-        if issubclass(model, BaseModel) and len(processed_models):
-            model_fields = model.get_graphql_nested_filter_fields_whitelist()
-
-        processed_models.append(model)
-        filter_fields = {"id": ["exact", "isnull", "in"]}
-
-        foreign_models = []
-        for field in model_fields:
-            if isinstance(field, foreign_key_field_types):
-                foreign_models.append(field.related_model)
-
-        for field in model_fields:
-            if (
-                False
-                or "djstripe" in field.name
-                or field.name in exempted_field_names
-                or model.__module__.startswith("django")
-                or isinstance(field, exempted_field_types)
-            ):
-                continue
-            filter_fields[field.name] = ["exact", "isnull", "in"]
-            if isinstance(field, string_field_types):
-                filter_fields[field.name] += ["icontains", "istartswith", "iendswith"]
-            if isinstance(field, comparable_field_types):
-                filter_fields[field.name] += ["lt", "lte", "gt", "gte", "range"]
-            if isinstance(field, foreign_key_field_types):
-                filter_fields[field.name] = []
-                if field.related_model in processed_models:
-                    continue
-                related_model_filter_fields, _ = get_filter_fields(
-                    field.related_model,
-                    processed_models,
-                )
-                for (
-                    related_model_field_name,
-                    related_model_field_filter,
-                ) in related_model_filter_fields.items():
-                    name = f"{field.name}__{related_model_field_name}"
-                    filter_fields[name] = related_model_field_filter
-        return filter_fields, processed_models
-
-    filter_fields, _ = get_filter_fields(model)
-    return filter_fields
+    fields = []
+    for field in model._meta.get_fields():
+        if isinstance(field, whitelist_field_types):
+            if field.name not in model.graphql_fields_blacklist:
+                fields.append(field.name)
+    return fields
 
 
-def create_model_object_meta(model: BaseModel):
-    return type(
-        "Meta",
-        (object,),
-        dict(
-            model=(model),
-            interfaces=((PlainTextNode,)),
-            connection_class=CountableConnection,
-            filter_fields=(generate_filter_fields(model)),
-        ),
-    )
-
-
-def build_query_objs(application_name: str):
-    def get_type(model, attr):
-        """Get type of an attribute of a class"""
-        try:
-            func = getattr(model, attr)
-            func = getattr(func, "fget")
-            hint = get_type_hints(func)
-            name = hint.get("return")
-            return str(name)
-        except Exception:
-            return ""
-
-    def match_type(model, attr):
-        """Match python types to graphene types"""
-        if get_type(model, attr).startswith("int"):
-            return Int
-        if get_type(model, attr).startswith("str"):
-            return String
-        if get_type(model, attr).startswith("list[int]"):
-            return partial(List, of_type=Int)
-        if get_type(model, attr).startswith("list[str]"):
-            return partial(List, of_type=String)
-        return GenericScalar
-
-    def build_custom_attrs(model, attrs):
-        for attr in dir(model):
-            attr_func = getattr(model, attr)
-            if isinstance(attr_func, property):
-                if attr not in model.graphql_fields_blacklist:
-                    attr_type = match_type(model, attr)
-                    attrs.update({attr: attr_type(source=attr, description=attr_func.__doc__)})
-        return attrs
-
-    queries = {}
-    models = apps.get_app_config(application_name).get_models()
-    models = [m for m in models if getattr(m, "graphql_visible", False)]
-
-    for model in models:
-        model_name = model.__name__
-        meta = create_model_object_meta(model)
-        attr = dict(
-            Meta=meta,
-            _id=UUID(name="_id"),
-            resolve__id=lambda self, _: self.id,
-        )
-        attr = build_custom_attrs(model, attr)
-        node = type(f"{model_name}Node", (DjangoObjectType,), attr)
-        queries.update({f"{model_name}Node": PlainTextNode.Field(node)})
-        queries.update({f"all_{model_name}": DjangoFilterConnectionField(node)})
-    return queries
-
-
-def build_mutation_objs(application_name: str):
-    mutations = {}
-    models = apps.get_app_config(application_name).get_models()
-    models = [m for m in models if getattr(m, "graphql_visible", False)]
-
-    for model in models:
-        model_name = model.__name__
-        mutations.update({f"Delete{model_name}": delete_mutation_factory(model).Field()})
-        mutations.update({f"CreateUpdate{model_name}": create_mutation_factory(model).Field()})
-    return mutations
-
-
-def build_query_schema(application_name: str):
-    query = type("Query", (ObjectType,), build_query_objs(application_name))
-    return query
-
-
-def build_mutation_schema(application_name: str):
-    base_mutations = build_mutation_objs(application_name)
-    base_mutations.update(
-        {
-            "token_auth": graphql_jwt.ObtainJSONWebToken.Field(),
-            "verify_token": graphql_jwt.Verify.Field(),
-            "refresh_token": graphql_jwt.Refresh.Field(),
-        }
-    )
-    mutation = type("Mutation", (ObjectType,), base_mutations)
-    return mutation
-
-
-def build_schema(applications: list[str], extra_queries=[], extra_mutations=[]):
-    queries = [build_query_schema(app) for app in applications] + extra_queries
-    mutations = [build_mutation_schema(app) for app in applications] + extra_mutations
-
-    class Query(*queries):
-        pass
-
-    class Mutation(*mutations):
-        pass
-
-    schema = Schema(query=Query, mutation=Mutation)
-    return schema
+@convert_django_field.register(models.FileField)
+def convert_file_to_url(field, registry=None):
+    return FileFieldScalar(description=field.help_text, required=not field.null)
