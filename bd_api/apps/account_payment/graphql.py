@@ -51,11 +51,6 @@ class StripePriceNode(DjangoObjectType):
         return root.product.metadata.get("slots", "0")
 
 
-class StripePriceQuery(ObjectType):
-    stripe_price = PlainTextNode.Field(StripePriceNode)
-    all_stripe_price = DjangoFilterConnectionField(StripePriceNode)
-
-
 class StripeCustomerNode(DjangoObjectType):
     class Meta:
         model = DJStripeCustomer
@@ -152,11 +147,6 @@ class StripeCustomerUpdateMutation(Mutation):
             return cls(errors=[str(e)])
 
 
-class StripeCustomerMutation(ObjectType):
-    create_stripe_customer = StripeCustomerCreateMutation.Field()
-    update_stripe_customer = StripeCustomerUpdateMutation.Field()
-
-
 class StripeSubscriptionNode(DjangoObjectType):
     client_secret = String()
 
@@ -220,11 +210,6 @@ class StripeSubscriptionDeleteMutation(Mutation):
             return cls(errors=[str(e)])
 
 
-class StripeSubscriptionMutation(ObjectType):
-    create_stripe_subscription = StripeSubscriptionCreateMutation.Field()
-    delete_stripe_subscription = StripeSubscriptionDeleteMutation.Field()
-
-
 class StripeSubscriptionCustomerCreateMutation(Mutation):
     """Add account to subscription"""
 
@@ -277,7 +262,16 @@ class StripeSubscriptionCustomerDeleteMutation(Mutation):
             return cls(errors=[str(e)])
 
 
-class StripeSubscriptionCustomerMutation(ObjectType):
+class Query(ObjectType):
+    stripe_price = PlainTextNode.Field(StripePriceNode)
+    all_stripe_price = DjangoFilterConnectionField(StripePriceNode)
+
+
+class Mutation(ObjectType):
+    create_stripe_customer = StripeCustomerCreateMutation.Field()
+    update_stripe_customer = StripeCustomerUpdateMutation.Field()
+    create_stripe_subscription = StripeSubscriptionCreateMutation.Field()
+    delete_stripe_subscription = StripeSubscriptionDeleteMutation.Field()
     create_stripe_customer_subscription = StripeSubscriptionCustomerCreateMutation.Field()
     update_stripe_customer_subscription = StripeSubscriptionCustomerDeleteMutation.Field()
 

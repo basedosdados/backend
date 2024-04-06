@@ -38,7 +38,7 @@ class TableNeighborNode(DjangoObjectType):
         return root.score
 
 
-class APIQuery(ObjectType):
+class Query(ObjectType):
     get_table_neighbor = List(
         TableNeighborNode,
         table_id=UUID(required=True),
