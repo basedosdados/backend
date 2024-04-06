@@ -31,12 +31,23 @@ def allow_any(info, **kwargs):
         return False
 
 
-def ownership_required(f, exc=exceptions.PermissionDenied):
-    """Custom decorator to limit graphql account mutations
+def anyone_required(f):
+    """Decorator to open graphql queries and mutations"""
 
-    - Superusers are allowed to edit accounts
-    - Anonymous users are allowed to create accounts
-    - Authenticated users are allowed to edit their own account
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        return f(*args, **kwargs)
+
+    return wrapper
+
+
+def ownership_required(f, exc=exceptions.PermissionDenied):
+    """Decorator to limit graphql queries and mutations
+
+    - Super users are allowed to edit all resources
+    - Staff users are allowed to edit all resources
+    - Anonymous users are allowed to create resources
+    - Authenticated users are allowed to edit their own resources
 
     References:
     - https://django-graphql-jwt.domake.io/decorators.html
@@ -53,6 +64,8 @@ def ownership_required(f, exc=exceptions.PermissionDenied):
     @wraps(f)
     @context(f)
     def wrapper(context, *args, **kwargs):
+        if context.user.is_staff:
+            return f(*args, **kwargs)
         if context.user.is_superuser:
             return f(*args, **kwargs)
         uid = get_uid(context)
@@ -62,7 +75,6 @@ def ownership_required(f, exc=exceptions.PermissionDenied):
         if context.user.is_authenticated:
             if context.user.id == uid[0]:
                 return f(*args, **kwargs)
-
         raise exc
 
     return wrapper

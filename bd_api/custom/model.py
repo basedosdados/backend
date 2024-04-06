@@ -6,6 +6,8 @@ from django.db import models
 from django.urls import reverse
 from graphql_jwt.decorators import staff_member_required
 
+from bd_api.custom.graphql_jwt import anyone_required
+
 default_blacklist_fields = [
     "created_at",
     "updated_at",
@@ -15,6 +17,7 @@ default_blacklist_fields = [
     "order",
     "_field_status",
 ]
+default_query_decorator = anyone_required
 default_mutation_decorator = staff_member_required
 
 
@@ -25,6 +28,7 @@ class BaseModel(models.Model):
     Attributes:
     - graphql_visible: show or hide the model in the documentation
     - graphql_fields_black_list: list of fields to hide in mutations
+    - graphql_query_decorator: authentication decorator for queries
     - graphql_mutation_decorator: authentication decorator for mutations
     """
 
@@ -40,6 +44,7 @@ class BaseModel(models.Model):
     graphql_nested_filter_fields_whitelist: List[str] = []
     graphql_nested_filter_fields_blacklist: List[str] = []
 
+    graphql_query_decorator: Callable = default_query_decorator
     graphql_mutation_decorator: Callable = default_mutation_decorator
 
     @classmethod
