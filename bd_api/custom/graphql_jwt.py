@@ -31,6 +31,16 @@ def allow_any(info, **kwargs):
         return False
 
 
+def anyone_required(f):
+    """Decorator to open graphql queries and mutations"""
+
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        return f(*args, **kwargs)
+
+    return wrapper
+
+
 def ownership_required(f, exc=exceptions.PermissionDenied):
     """Custom decorator to limit graphql account mutations
 
