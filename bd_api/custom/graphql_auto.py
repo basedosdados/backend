@@ -49,17 +49,14 @@ def build_schema(applications: list[str], extra_queries=[], extra_mutations=[]):
     queries = [build_query_schema(app) for app in applications] + extra_queries
     mutations = [build_mutation_schema(app) for app in applications] + extra_mutations
 
-    class Query(*queries):
-        pass
-
-    class Mutation(*mutations):
-        pass
+    Query = type("Query", tuple(queries), {})
+    Mutation = type("Mutation", tuple(mutations), {})
 
     schema = Schema(query=Query, mutation=Mutation)
     return schema
 
 
-### Query
+### Query #####################################################################
 
 
 def build_query_schema(application_name: str):
@@ -68,38 +65,6 @@ def build_query_schema(application_name: str):
 
 
 def build_query_objs(application_name: str):
-    def get_type(model, attr):
-        """Get type of an attribute of a class"""
-        try:
-            func = getattr(model, attr)
-            func = getattr(func, "fget")
-            hint = get_type_hints(func)
-            name = hint.get("return")
-            return str(name)
-        except Exception:
-            return ""
-
-    def match_type(model, attr):
-        """Match python types to graphene types"""
-        if get_type(model, attr).startswith("int"):
-            return Int
-        if get_type(model, attr).startswith("str"):
-            return String
-        if get_type(model, attr).startswith("list[int]"):
-            return partial(List, of_type=Int)
-        if get_type(model, attr).startswith("list[str]"):
-            return partial(List, of_type=String)
-        return GenericScalar
-
-    def build_custom_attrs(model, attrs):
-        for attr in dir(model):
-            attr_func = getattr(model, attr)
-            if isinstance(attr_func, property):
-                if attr not in model.graphql_fields_blacklist:
-                    attr_type = match_type(model, attr)
-                    attrs.update({attr: attr_type(source=attr, description=attr_func.__doc__)})
-        return attrs
-
     queries = {}
     models = apps.get_app_config(application_name).get_models()
     models = [m for m in models if getattr(m, "graphql_visible", False)]
@@ -113,7 +78,7 @@ def build_query_objs(application_name: str):
             resolve__id=lambda self, _: self.id,
         )
         attr = build_custom_attrs(model, attr)
-        node = type(f"{model_name}Node", (DjangoObjectType,), attr)
+        node = create_node_factory(model, attr)
         queries.update({f"{model_name}Node": PlainTextNode.Field(node)})
         queries.update({f"all_{model_name}": DjangoFilterConnectionField(node)})
     return queries
@@ -218,7 +183,62 @@ def generate_filter_fields(model: BaseModel):
     return filter_fields
 
 
-### Mutation
+def build_custom_attrs(model, attrs):
+    def get_type(model, attr):
+        """Get type of an attribute of a class"""
+        try:
+            func = getattr(model, attr)
+            func = getattr(func, "fget")
+            hint = get_type_hints(func)
+            name = hint.get("return")
+            return str(name)
+        except Exception:
+            return ""
+
+    def match_type(model, attr):
+        """Match python types to graphene types"""
+        if get_type(model, attr).startswith("int"):
+            return Int
+        if get_type(model, attr).startswith("str"):
+            return String
+        if get_type(model, attr).startswith("list[int]"):
+            return partial(List, of_type=Int)
+        if get_type(model, attr).startswith("list[str]"):
+            return partial(List, of_type=String)
+        return GenericScalar
+
+    for attr in dir(model):
+        attr_func = getattr(model, attr)
+        if isinstance(attr_func, property):
+            if attr not in model.graphql_fields_blacklist:
+                attr_type = match_type(model, attr)
+                attrs.update({attr: attr_type(source=attr, description=attr_func.__doc__)})
+    return attrs
+
+
+def create_node_factory(model: BaseModel, attr: dict):
+    """Create graphql relay node"""
+
+    def get_queryset():
+        """Create query endpoints with authorization"""
+
+        @model.graphql_query_decorator
+        def _get_queryset(cls, queryset, info):
+            return super(cls, cls).get_queryset(queryset, info)
+
+        return classmethod(_get_queryset)
+
+    return type(
+        f"{model.__name__}Node",
+        (DjangoObjectType,),
+        {
+            **attr,
+            "get_queryset": get_queryset(),
+        },
+    )
+
+
+### Mutation ##################################################################
 
 
 def build_mutation_schema(application_name: str):
