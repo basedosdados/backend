@@ -41,7 +41,7 @@ def anyone_required(f):
     return wrapper
 
 
-def ownership_required(f, exc=exceptions.PermissionDenied):
+def owner_required(allow_anonymous=False, exc=exceptions.PermissionDenied):
     """Decorator to limit graphql queries and mutations
 
     - Super users are allowed to edit all resources
@@ -58,23 +58,26 @@ def ownership_required(f, exc=exceptions.PermissionDenied):
             query = context.body.decode("utf-8").replace('\\"', "").lower()
         except Exception:
             query = str(context._post).replace('\\"', "").lower()
+        uid = [int(uid) for uid in findall(exp, query)]
+        return uid[0] if uid else None
 
-        return [int(uid) for uid in findall(exp, query)]
-
-    @wraps(f)
-    @context(f)
-    def wrapper(context, *args, **kwargs):
-        if context.user.is_staff:
-            return f(*args, **kwargs)
-        if context.user.is_superuser:
-            return f(*args, **kwargs)
-        uid = get_uid(context)
-        if context.user.is_anonymous:
-            if not uid:
+    def decorator(f):
+        @wraps(f)
+        @context(f)
+        def wrapper(context, *args, **kwargs):
+            if context.user.is_staff:
                 return f(*args, **kwargs)
-        if context.user.is_authenticated:
-            if context.user.id == uid[0]:
+            if context.user.is_superuser:
                 return f(*args, **kwargs)
-        raise exc
+            uid = get_uid(context)
+            if context.user.is_authenticated:
+                if context.user.id == uid:
+                    return f(*args, **kwargs)
+            if context.user.is_anonymous:
+                if allow_anonymous and not uid:
+                    return f(*args, **kwargs)
+            raise exc
 
-    return wrapper
+        return wrapper
+
+    return decorator

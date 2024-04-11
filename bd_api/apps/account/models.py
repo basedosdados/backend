@@ -14,7 +14,7 @@ from django.db import models
 from django.db.models.query import QuerySet
 from django.utils import timezone
 
-from bd_api.custom.graphql_jwt import ownership_required
+from bd_api.custom.graphql_jwt import owner_required
 from bd_api.custom.model import BaseModel
 from bd_api.custom.storage import OverwriteStorage, upload_to, validate_image
 
@@ -279,8 +279,8 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
     ]
     graphql_filter_fields_blacklist = ["internal_subscription"]
     graphql_nested_filter_fields_whitelist = ["email", "username"]
-    graphql_query_decorator = ownership_required
-    graphql_mutation_decorator = ownership_required
+    graphql_query_decorator = owner_required(allow_anonymous=False)
+    graphql_mutation_decorator = owner_required(allow_anonymous=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username", "first_name", "last_name"]
