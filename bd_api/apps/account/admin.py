@@ -10,7 +10,7 @@ from django.http import HttpRequest
 from django.utils.translation import gettext_lazy
 from faker import Faker
 
-from bd_api.apps.account.models import Account, Career, Subscription
+from bd_api.apps.account.models import Account, BDGroup, BDRole, Career, Subscription
 from bd_api.apps.account.tasks import sync_subscription_task
 
 
@@ -331,3 +331,5 @@ class SubscriptionAdmin(admin.ModelAdmin):
 admin.site.register(Account, AccountAdmin)
 admin.site.register(Career, CareerAdmin)
 admin.site.register(Subscription, SubscriptionAdmin)
+admin.site.register(BDGroup)
+admin.site.register(BDRole)
