@@ -353,13 +353,6 @@ class Tag(BaseModel):
         verbose_name_plural = "Tags"
         ordering = ["slug"]
 
-    @property
-    def as_search_result(self):
-        return {
-            "name": self.name,
-            "slug": self.slug,
-        }
-
 
 class Theme(BaseModel):
     """Theme model"""
@@ -382,13 +375,6 @@ class Theme(BaseModel):
         verbose_name = "Theme"
         verbose_name_plural = "Themes"
         ordering = ["slug"]
-
-    @property
-    def as_search_result(self):
-        return {
-            "name": self.name,
-            "slug": self.slug,
-        }
 
 
 class Organization(BaseModel):
@@ -439,17 +425,6 @@ class Organization(BaseModel):
         if self.picture and self.picture.url:
             return True
         return False
-
-    @property
-    def as_search_result(self):
-        return {
-            "id": self.pk,
-            "name": self.name,
-            "slug": self.slug,
-            "description": self.description,
-            "picture": getattr(self.picture, "name", None),
-            "website": self.website,
-        }
 
 
 class Status(BaseModel):
@@ -680,33 +655,6 @@ class Dataset(BaseModel):
             if u.last_updated_at
         ]  # fmt: skip
         return max(updates) if updates else None
-
-    @property
-    def as_search_result(self):
-        return {
-            "updated_at": self.updated_at,
-            "id": self.id,
-            "slug": self.slug,
-            "name": self.name,
-            "temporal_coverage": [self.coverage],
-            "organization": [self.organization.as_search_result],
-            "tags": [t.as_search_result for t in self.tags.all()],
-            "themes": [t.as_search_result for t in self.themes.all()],
-            "entities": self.entities,
-            "contains_open_data": self.contains_open_data,
-            "contains_closed_data": self.contains_closed_data,
-            "contains_tables": self.contains_tables,
-            "contains_raw_data_sources": self.contains_raw_data_sources,
-            "contains_information_requests": self.contains_information_requests,
-            "n_tables": self.n_tables,
-            "n_raw_data_sources": self.n_raw_data_sources,
-            "n_information_requests": self.n_information_requests,
-            "first_table_id": self.first_table_id,
-            "first_open_table_id": self.first_open_table_id,
-            "first_closed_table_id": self.first_closed_table_id,
-            "first_raw_data_source_id": self.first_raw_data_source_id,
-            "first_information_request_id": self.first_information_request_id,
-        }
 
 
 class Update(BaseModel):
@@ -1487,13 +1435,6 @@ class Entity(BaseModel):
         verbose_name = "Entity"
         verbose_name_plural = "Entities"
         ordering = ["slug"]
-
-    @property
-    def as_search_result(self):
-        return {
-            "name": self.name,
-            "slug": self.slug,
-        }
 
 
 class ObservationLevel(BaseModel):
