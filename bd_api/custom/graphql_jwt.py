@@ -2,10 +2,25 @@
 from functools import wraps
 from re import findall
 
+from graphene import Field, ObjectType, String
 from graphql_jwt import exceptions
 from graphql_jwt.compat import get_operation_name
 from graphql_jwt.decorators import context
+from graphql_jwt.relay import JSONWebTokenMutation
 from graphql_jwt.settings import jwt_settings
+
+
+class User(ObjectType):
+    id = String()
+    email = String()
+
+
+class ObtainJSONWebTokenWithUser(JSONWebTokenMutation):
+    user = Field(User)
+
+    @classmethod
+    def resolve(cls, root, info, **kwargs):
+        return cls(user=info.context.user)
 
 
 def allow_any(info, **kwargs):

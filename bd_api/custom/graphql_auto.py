@@ -9,7 +9,6 @@ from copy import deepcopy
 from functools import partial
 from typing import Iterable, Optional, get_type_hints
 
-import graphql_jwt
 from django.apps import apps
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -40,8 +39,10 @@ from graphene_django.forms.mutation import (
 )
 from graphene_django.registry import get_global_registry
 from graphene_file_upload.scalars import Upload
+from graphql_jwt import ObtainJSONWebToken, Refresh, Verify
 
 from bd_api.custom.graphql_base import CountableConnection, FileFieldScalar, PlainTextNode
+from bd_api.custom.graphql_jwt import ObtainJSONWebTokenWithUser
 from bd_api.custom.model import BaseModel
 
 
@@ -245,9 +246,10 @@ def build_mutation_schema(application_name: str):
     base_mutations = build_mutation_objs(application_name)
     base_mutations.update(
         {
-            "token_auth": graphql_jwt.ObtainJSONWebToken.Field(),
-            "verify_token": graphql_jwt.Verify.Field(),
-            "refresh_token": graphql_jwt.Refresh.Field(),
+            "token_auth": ObtainJSONWebToken.Field(),
+            "auth_token": ObtainJSONWebTokenWithUser.Field(),
+            "verify_token": Verify.Field(),
+            "refresh_token": Refresh.Field(),
         }
     )
     mutation = type("Mutation", (ObjectType,), base_mutations)
