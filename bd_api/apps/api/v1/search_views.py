@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 from django.http import JsonResponse
 from haystack.forms import FacetedSearchForm
 from haystack.generic_views import FacetedSearchView
@@ -10,6 +11,28 @@ from bd_api.apps.api.v1.models import Entity, Organization, Tag, Theme
 
 class DatasetSearchForm(FacetedSearchForm):
     load_all: bool = True
+
+    def __init__(self, *args, **kwargs):
+        self.contains = kwargs.pop("contains", None) or []
+        self.tag = kwargs.pop("tag", None) or []
+        self.theme = kwargs.pop("theme", None) or []
+        self.organization = kwargs.pop("organization", None) or []
+        self.observation_level = kwargs.pop("observation_level", None) or []
+        super().__init__(*args, **kwargs)
+
+    def search(self):
+        sqs = super().search()
+        for qp_value in self.contains:
+            sqs = sqs.narrow(f'contains_{qp_value}:"true"')
+        for qp_key, facet_key in [
+            ("tag", "tag_slug"),
+            ("theme", "theme_slug"),
+            ("observation_level", "entity_slug"),
+            ("organization", "organization_slug"),
+        ]:
+            for qp_value in getattr(self, qp_key, []):
+                sqs = sqs.narrow(f'{facet_key}:"{sqs.query.clean(qp_value)}"')
+        return sqs
 
     def no_query_found(self):
         return self.searchqueryset.all()
@@ -43,6 +66,15 @@ class DatasetSearchView(FacetedSearchView):
         except (TypeError, ValueError):
             return 10
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs.update({"contains": self.request.GET.getlist("contains")})
+        kwargs.update({"tag": self.request.GET.getlist("tag")})
+        kwargs.update({"theme": self.request.GET.getlist("theme")})
+        kwargs.update({"organization": self.request.GET.getlist("organization")})
+        kwargs.update({"observation_level": self.request.GET.getlist("observation_level")})
+        return kwargs
+
     def get(self, request, *args, **kwargs):
         if form := self.get_form():
             if sqs := form.search():
@@ -67,18 +99,17 @@ class DatasetSearchView(FacetedSearchView):
                         "count": value[1],
                     }
                 )
-        for key, model in [
-            ("tag", Tag),
-            ("theme", Theme),
-            ("entity", Entity),
-            ("organization", Organization),
+        for key_back, key_front, model in [
+            ("tag_slug", "tags", Tag),
+            ("theme_slug", "themes", Theme),
+            ("entity_slug", "observation_levels", Entity),
+            ("organization_slug", "organizations", Organization),
         ]:
-            m = model.objects.values("slug", "name")
-            m = {mi["slug"]: mi["name"] for mi in m.all()}
-            facets[key] = facets.pop(f"{key}_slug", None)
-            for field in facets[key]:
-                field["name"] = m.get(field["key"], "")
-            facets["observation_level"] = facets.pop("entity", None)
+            to_name = model.objects.values("slug", "name")
+            to_name = {e["slug"]: e["name"] for e in to_name.all()}
+            facets[key_front] = facets.pop(key_back, None)
+            for field in facets[key_front]:
+                field["name"] = to_name.get(field["key"], "")
         return facets
 
     def get_results(self, sqs: SearchQuerySet):
