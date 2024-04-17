@@ -125,7 +125,7 @@ class DatasetSearchView(FacetedSearchView):
 
 def as_search_result(result: SearchResult):
     tag = []
-    for slug, name in zip(result.tag_slug, result.tag_name):
+    for slug, name in zip(result.tag_slug or [], result.tag_name or []):
         tag.append(
             {
                 "slug": slug,
@@ -134,7 +134,7 @@ def as_search_result(result: SearchResult):
         )
 
     theme = []
-    for slug, name in zip(result.theme_slug, result.theme_name):
+    for slug, name in zip(result.theme_slug or [], result.theme_name or []):
         theme.append(
             {
                 "slug": slug,
@@ -143,7 +143,7 @@ def as_search_result(result: SearchResult):
         )
 
     entity = []
-    for slug, name in zip(result.entity_slug, result.entity_name):
+    for slug, name in zip(result.entity_slug or [], result.entity_name or []):
         entity.append(
             {
                 "slug": slug,
@@ -153,12 +153,12 @@ def as_search_result(result: SearchResult):
 
     organization = []
     for pk, slug, name, picture, website, description in zip(
-        result.organization_id,
-        result.organization_slug,
-        result.organization_name,
-        result.organization_picture,
-        result.organization_website,
-        result.organization_description,
+        result.organization_id or [],
+        result.organization_slug or [],
+        result.organization_name or [],
+        result.organization_picture or [],
+        result.organization_website or [],
+        result.organization_description or [],
     ):
         organization.append(
             {
