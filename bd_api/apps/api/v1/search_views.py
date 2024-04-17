@@ -76,17 +76,16 @@ class DatasetSearchView(FacetedSearchView):
         return kwargs
 
     def get(self, request, *args, **kwargs):
-        if form := self.get_form():
-            if sqs := form.search():
-                return JsonResponse(
-                    {
-                        "count": sqs.count(),
-                        "page": self.page,
-                        "page_size": self.page_size,
-                        "results": self.get_results(sqs),
-                        "aggregations": self.get_facets(sqs),
-                    }
-                )
+        sqs = self.get_form().search()
+        return JsonResponse(
+            {
+                "page": self.page,
+                "page_size": self.page_size,
+                "count": sqs.count(),
+                "results": self.get_results(sqs),
+                "aggregations": self.get_facets(sqs),
+            }
+        )
 
     def get_facets(self, sqs: SearchQuerySet):
         facets = {}
