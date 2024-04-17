@@ -14,26 +14,9 @@ from django.db import models
 from django.db.models.query import QuerySet
 from django.utils import timezone
 
-from bd_api.custom.graphql_jwt import ownership_required
+from bd_api.custom.graphql_jwt import owner_required
 from bd_api.custom.model import BaseModel
 from bd_api.custom.storage import OverwriteStorage, upload_to, validate_image
-
-
-def split_password(password: str) -> Tuple[str, str, str, str]:
-    """Split a password into four parts: algorithm, iterations, salt, and hash"""
-    algorithm, iterations, salt, hash = password.split("$", 3)
-    return algorithm, iterations, salt, hash
-
-
-def is_valid_encoded_password(password: str) -> bool:
-    """Check if a password is valid"""
-    double_encoded = make_password(password)
-    try:
-        target_algorithm, target_iterations, _, _ = split_password(double_encoded)
-        algorithm, iterations, _, _ = split_password(password)
-    except ValueError:
-        return False
-    return algorithm == target_algorithm and iterations == target_iterations
 
 
 class RegistrationToken(BaseModel):
@@ -296,7 +279,8 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
     ]
     graphql_filter_fields_blacklist = ["internal_subscription"]
     graphql_nested_filter_fields_whitelist = ["email", "username"]
-    graphql_mutation_decorator = ownership_required
+    graphql_query_decorator = owner_required(allow_anonymous=False)
+    graphql_mutation_decorator = owner_required(allow_anonymous=True)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["username", "first_name", "last_name"]
@@ -326,28 +310,6 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
         sub = self.subscription_set.filter(is_active=True).all() or []
         sub = [s for s in sub if s.is_pro]
         return sub[0] if sub else None
-
-    def __str__(self):
-        return self.email
-
-    def get_short_name(self):
-        return self.first_name
-
-    get_short_name.short_description = "nome"
-
-    def get_full_name(self):
-        if self.first_name and self.last_name:
-            return f"{self.first_name} {self.last_name}"
-        if self.first_name:
-            return self.first_name
-        return self.username
-
-    get_full_name.short_description = "nome completo"
-
-    def get_organization(self):
-        return ", ".join(self.organizations.all().values_list("name", flat=True))
-
-    get_organization.short_description = "organização"
 
     @property
     def pro_subscription(self) -> str:
@@ -380,6 +342,28 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
             return self.pro_owner_subscription.stripe_subscription_status
         if self.pro_member_subscription:
             return self.pro_member_subscription.stripe_subscription_status
+
+    def __str__(self):
+        return self.email
+
+    def get_short_name(self):
+        return self.first_name
+
+    get_short_name.short_description = "nome"
+
+    def get_full_name(self):
+        if self.first_name and self.last_name:
+            return f"{self.first_name} {self.last_name}"
+        if self.first_name:
+            return self.first_name
+        return self.username
+
+    get_full_name.short_description = "nome completo"
+
+    def get_organization(self):
+        return ", ".join(self.organizations.all().values_list("name", flat=True))
+
+    get_organization.short_description = "organização"
 
     def save(self, *args, **kwargs) -> None:
         # If self._password is set and check_password(self._password, self.password) is True, then
@@ -485,3 +469,20 @@ class Subscription(BaseModel):
     @property
     def is_pro(self):
         return "bd_pro" in self.subscription.plan.product.metadata.get("code", "")
+
+
+def split_password(password: str) -> Tuple[str, str, str, str]:
+    """Split a password into four parts: algorithm, iterations, salt, and hash"""
+    algorithm, iterations, salt, hash = password.split("$", 3)
+    return algorithm, iterations, salt, hash
+
+
+def is_valid_encoded_password(password: str) -> bool:
+    """Check if a password is valid"""
+    double_encoded = make_password(password)
+    try:
+        target_algorithm, target_iterations, _, _ = split_password(double_encoded)
+        algorithm, iterations, _, _ = split_password(password)
+    except ValueError:
+        return False
+    return algorithm == target_algorithm and iterations == target_iterations
