@@ -183,7 +183,7 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         return Dataset
 
     def index_queryset(self, using=None):
-        return self.get_model().objects.exclude(status__slug="under_review").all()
+        return self.get_model().objects.exclude(status__slug="under_review")
 
     def prepare_organization_picture(self, obj):
         return getattr(obj.organization.picture, "name", None)

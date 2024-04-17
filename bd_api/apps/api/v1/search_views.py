@@ -21,9 +21,23 @@ class DatasetSearchForm(FacetedSearchForm):
         super().__init__(*args, **kwargs)
 
     def search(self):
-        sqs = super().search()
+        if not self.is_valid():
+            return self.no_query_found()
+
+        if not (q := self.cleaned_data.get("q")):
+            return self.no_query_found()
+
+        sqs = (
+            self.searchqueryset
+            .auto_query(q)
+            .filter_and(**{"text.edgengram": q})
+            .filter_or(**{"text.snowball_pt": q})
+            .filter_or(**{"text.snowball_en": q})
+        )  # fmt: skip
+
         for qp_value in self.contains:
             sqs = sqs.narrow(f'contains_{qp_value}:"true"')
+
         for qp_key, facet_key in [
             ("tag", "tag_slug"),
             ("theme", "theme_slug"),
@@ -32,6 +46,7 @@ class DatasetSearchForm(FacetedSearchForm):
         ]:
             for qp_value in getattr(self, qp_key, []):
                 sqs = sqs.narrow(f'{facet_key}:"{sqs.query.clean(qp_value)}"')
+
         return sqs
 
     def no_query_found(self):
