@@ -13,93 +13,57 @@ from haystack.backends import elasticsearch7_backend as es_backend
 
 class ASCIIFoldingElasticBackend(es_backend.Elasticsearch7SearchBackend, metaclass=ABCMeta):
     def __init__(self, *args, **kwargs):
-        super(ASCIIFoldingElasticBackend, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         analyzer = {
-            "ascii_ngram_analyser": {
-                "type": "custom",
-                "tokenizer": "standard",
-                "filter": ["asciifolding", "lowercase", "haystack_edgengram"],
-            },
-            "standard_analyzer": {
-                "type": "custom",
-                "tokenizer": "standard",
+            "ngram": {
+                "tokenizer": "ngram",
                 "filter": ["asciifolding", "lowercase"],
             },
-            "ngram_analyzer": {
-                "type": "custom",
-                "tokenizer": "standard",
-                "filter": ["asciifolding", "lowercase", "haystack_ngram"],
-            },
-            "edgengram_analyzer": {
-                "type": "custom",
-                "tokenizer": "my_tokenizer",
+            "edgengram": {
+                "tokenizer": "edgengram",
                 "filter": ["asciifolding", "lowercase"],
+            },
+            "snowball_en": {
+                "type": "snowball",
+                "language": "English",
+                "filter": ["asciifolding"],
+            },
+            "snowball_pt": {
+                "type": "snowball",
+                "language": "Portuguese",
+                "filter": ["asciifolding"],
             },
         }
         tokenizer = {
-            "standard": {"type": "standard"},
-            "lowercase": {"type": "lowercase"},
-            "my_tokenizer": {
+            "ngram": {
+                "type": "ngram",
+                "min_gram": 3,
+                "max_gram": 3,
+                "token_chars": ["letter", "digit"],
+            },
+            "edgengram": {
                 "type": "edge_ngram",
                 "min_gram": 3,
                 "max_gram": 15,
                 "token_chars": ["letter", "digit"],
             },
         }
-        filter = {
-            "haystack_ngram": {
-                "type": "ngram",
-                "min_gram": 4,
-                "max_gram": 5,
-            },
-            "haystack_edgengram": {
-                "type": "edge_ngram",
-                "min_gram": 2,
-                "max_gram": 15,
-            },
-        }
-
-        self.DEFAULT_SETTINGS["settings"]["analysis"]["tokenizer"] = tokenizer
         self.DEFAULT_SETTINGS["settings"]["analysis"]["analyzer"] = analyzer
-        self.DEFAULT_SETTINGS["settings"]["analysis"]["filter"] = filter
+        self.DEFAULT_SETTINGS["settings"]["analysis"]["tokenizer"] = tokenizer
 
     def build_schema(self, fields):
-        content_field_name, mapping = super(ASCIIFoldingElasticBackend, self).build_schema(fields)
-
-        for field_name, field_class in fields.items():
+        content_field_name, mapping = super().build_schema(fields)
+        for field_class in fields.values():
             field_mapping = mapping[field_class.index_fieldname]
-
             if field_mapping["type"] == "text" and field_class.indexed:
                 if not hasattr(field_class, "facet_for"):
                     if field_class.field_type not in ("ngram", "edge_ngram"):
-                        field_mapping["analyzer"] = "ascii_ngram_analyser"
+                        field_mapping["analyzer"] = "ngram"
                         field_mapping["fields"] = {
-                            "exact": {
-                                "type": "text",
-                                "analyzer": "standard_analyzer",
-                            },
-                            "keyword": {
-                                "type": "keyword",
-                                "ignore_above": 256,
-                            },
+                            "edgengram": {"type": "text", "analyzer": "edgengram"},
+                            "snowball_pt": {"type": "text", "analyzer": "snowball_pt"},
+                            "snowball_en": {"type": "text", "analyzer": "snowball_en"},
                         }
-                    else:
-                        field_mapping["analyzer"] = "standard_analyzer"
-                        field_mapping["fields"] = {
-                            "ngram": {
-                                "type": "text",
-                                "analyzer": "ngram_analyzer",
-                            },
-                            "edgengram": {
-                                "type": "text",
-                                "analyzer": "edgengram_analyzer",
-                            },
-                            "exact": {
-                                "type": "text",
-                                "analyzer": "standard_analyzer",
-                            },
-                        }
-
             mapping.update({field_class.index_fieldname: field_mapping})
         return (content_field_name, mapping)
 

@@ -1,14 +1,17 @@
 {{ object.slug }}
 {{ object.name }}
 {{ object.description }}
-{{ object.organization_slug }}
-{{ object.organization_name }}
-{{ object.organization_description }}
-{{ object.table_slugs }}
-{{ object.table_names }}
-{{ object.table_descriptions }}
-{{ object.column_names }}
-{{ object.column_descriptions }}
-{{ object.themes }}
-{{ object.tags }}
-{{ object.is_closed }}
+
+{{ object.organization.slug }}
+{{ object.organization.name }}
+{{ object.organization.description }}
+
+{% for table in object.tables.all %} {{ table.slug }} {% endfor %}
+{% for table in object.tables.all %} {{ table.name }} {% endfor %}
+{% for table in object.tables.all %} {{ table.description }} {% endfor %}
+
+{% for tag in object.tags.all %} {{ tag.name }} {% endfor %}
+{% for tag in object.tags.all %} {{ tag.slug }} {% endfor %}
+
+{% for theme in object.themes.all %} {{ theme.name }} {% endfor %}
+{% for theme in object.themes.all %} {{ theme.slug }} {% endfor %}
