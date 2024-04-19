@@ -1,30 +1,91 @@
-<html>
+{% extends "registration/base.html" %}
 
-<head>
-    {% load static %}
-    <meta charset="utf-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+{% load i18n jazzmin %}
+{% get_jazzmin_settings request as jazzmin_settings %}
+{% get_jazzmin_ui_tweaks as jazzmin_ui %}
+
+{% block extrastyle %}
+    <style>
+        .g-recaptcha {
+            display: grid;
+            place-items: center;
+            margin-bottom: 12px;
+        }
+    </style>
+{% endblock %}
+
+{% block extrahead %}
     <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-    <script type="text/javascript" src="{% static 'js/captcha_submit.js' %}"></script>
-    <link href="{% static 'css/main.css' %}" rel="stylesheet" type="text/css"/>
-    <link href="{% static 'css/recaptcha.css' %}" rel="stylesheet" type="text/css"/>
-    <title>Login</title>
-</head>
+{% endblock %}
 
-<body>
-    <div class="wrapper fadeInDown">
-        <div id="formContent">
-            <h2 class="active"> Sign In </h2>
-            <form id="login-form" method="post">
-                {% csrf_token %}
-                <input type="text" id="username" class="fadeIn second" name="username" placeholder="username">
-                <input type="password" id="password" class="fadeIn second" name="password" placeholder="password">
-                <div class="g-recaptcha fadeIn second" data-sitekey="{{ recaptcha_site_key }}"></div>
-                <input type="submit" class="fadeIn fourth" value="Log In">
-            </form>
+{% block content %}
+    <p class="login-box-msg">{{ jazzmin_settings.welcome_sign }}</p>
+    <form action="{{ app_path }}" method="post">
+        {% csrf_token %}
+        {% if user.is_authenticated %}
+            <p class="errornote">
+                <div class="callout callout-danger">
+                    <p>
+                        {% blocktrans trimmed %}
+                            You are authenticated as {{ username }}, but are not authorized to
+                            access this page. Would you like to login to a different account?
+                        {% endblocktrans %}
+                    </p>
+                </div>
+            </p>
+        {% endif %}
+        {% if form.errors %}
+            {% if form.username.errors %}
+                <div class="callout callout-danger">
+                    <p>{{ form.username.label }}: {{ form.username.errors|join:', ' }}</p>
+                </div>
+            {% endif %}
+            {% if form.password.errors %}
+                <div class="callout callout-danger">
+                    <p>{{ form.password.label }}: {{ form.password.errors|join:', ' }}</p>
+                </div>
+            {% endif %}
+            {% if form.non_field_errors %}
+                <div class="callout callout-danger">
+                    {% for error in form.non_field_errors %}
+                        <p>{{ error }}</p>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endif %}
+        <div class="input-group mb-3">
+            <input type="text" name="username" class="form-control" placeholder="{{ form.username.label }}" required>
+            <div class="input-group-append">
+                <div class="input-group-text">
+                    <span class="fas fa-user"></span>
+                </div>
+            </div>
         </div>
-    </div>
-</body>
-
-</html>
+        <div class="input-group mb-3">
+            <input type="password" name="password" class="form-control" placeholder="{{ form.password.label }}" required>
+            <div class="input-group-append">
+                <div class="input-group-text">
+                    <span class="fas fa-lock"></span>
+                </div>
+            </div>
+        </div>
+        <div class="g-recaptcha fadeIn second" data-sitekey="{{ recaptcha_site_key }}"></div>
+        {% url 'admin_password_reset' as password_reset_url %}
+        {% if password_reset_url %}
+            <div class="mb-3">
+                <div class="password-reset-link" style="text-align: center;">
+                    <a href="{{ password_reset_url }}">
+                        {% trans 'Forgotten your password or username?' %}
+                    </a>
+                </div>
+            </div>
+        {% endif %}
+        <div class="row">
+            <div class="col-12">
+                <button type="submit" class="btn {{ jazzmin_ui.button_classes.primary }} btn-block">
+                    {% trans "Log in" %}
+                </button>
+            </div>
+        </div>
+    </form>
+{% endblock %}
