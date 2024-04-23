@@ -24,16 +24,16 @@ class DatasetSearchForm(FacetedSearchForm):
         if not self.is_valid():
             return self.no_query_found()
 
-        if not (q := self.cleaned_data.get("q")):
-            return self.no_query_found()
-
-        sqs = (
-            self.searchqueryset
-            .auto_query(q)
-            .filter_and(**{"text.edgengram": q})
-            .filter_or(**{"text.snowball_pt": q})
-            .filter_or(**{"text.snowball_en": q})
-        )  # fmt: skip
+        if q := self.cleaned_data.get("q"):
+            sqs = (
+                self.searchqueryset
+                .auto_query(q)
+                .filter_and(**{"text.edgengram": q})
+                .filter_or(**{"text.snowball_pt": q})
+                .filter_or(**{"text.snowball_en": q})
+            )  # fmt: skip
+        else:
+            sqs = self.no_query_found()
 
         for qp_value in self.contains:
             sqs = sqs.narrow(f'contains_{qp_value}:"true"')
@@ -104,7 +104,9 @@ class DatasetSearchView(FacetedSearchView):
 
     def get_facets(self, sqs: SearchQuerySet):
         facets = {}
-        for key, values in sqs.facet_counts()["fields"].items():
+        facet_counts = sqs.facet_counts()
+        facet_counts = facet_counts.get("fields", {}).items()
+        for key, values in facet_counts:
             facets[key] = []
             for value in values:
                 facets[key].append(
@@ -122,7 +124,7 @@ class DatasetSearchView(FacetedSearchView):
             to_name = model.objects.values("slug", "name")
             to_name = {e["slug"]: e["name"] for e in to_name.all()}
             facets[key_front] = facets.pop(key_back, None)
-            for field in facets[key_front]:
+            for field in facets[key_front] or []:
                 field["name"] = to_name.get(field["key"], "")
         return facets
 
