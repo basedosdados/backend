@@ -3,6 +3,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
 from math import log10
+from textwrap import dedent
 from uuid import uuid4
 
 from django.core.exceptions import ValidationError
@@ -784,6 +785,7 @@ class Table(BaseModel, OrderedModel):
         default=0,
         help_text="Number of page views by Google Analytics",
     )
+    one_big_table_query = models.TextField(blank=True, null=True)
 
     order_with_respect_to = ("dataset",)
     graphql_nested_filter_fields_whitelist = ["id", "dataset"]
@@ -811,6 +813,19 @@ class Table(BaseModel, OrderedModel):
             dataset = cloud_table.gcp_dataset_id
             table = cloud_table.gcp_table_id
             return f"basedosdados.{dataset}.{table}"
+
+    @property
+    def gbq_dict_slug(self):
+        """Get the dictionary slug used in Google Big Query"""
+        if cloud_table := self.cloud_tables.first():
+            dataset = cloud_table.gcp_dataset_id
+            return f"basedosdados.{dataset}.dicionario"
+
+    @property
+    def gbq_table_slug(self):
+        """Get the table slug used in Google Big Query"""
+        if cloud_table := self.cloud_tables.first():
+            return cloud_table.gcp_table_id
 
     @property
     def gcs_slug(self):
@@ -940,6 +955,97 @@ class Table(BaseModel, OrderedModel):
                 }
             )
         return all_neighbors
+
+    def gen_one_big_table_query(self):
+        """Get a denormalized sql query, similar to a one big table"""
+
+        def has_directory(column: Column):
+            if not column.dir_column:
+                return False
+            if not column.dir_cloud_table:
+                return False
+            if "setor_censitario" in str(column.dir_cloud_table):
+                return False
+            if "diretorios_data_tempo" in str(column.dir_cloud_table):
+                return False
+            return True
+
+        def get_column(column: Column, cloud_table: CloudTable):
+            """Get cte column name with adjustments"""
+            map_directory_description_column = {
+                "br_bd_diretorios_brasil.area_conhecimento": f"descricao_{column.name}",
+                "br_bd_diretorios_brasil.cbo_1994": "descricao",
+                "br_bd_diretorios_brasil.cbo_2002": "descricao",
+                "br_bd_diretorios_brasil.cep": "centroide",
+                "br_bd_diretorios_brasil.cid_10": f"descricao_{column.name}",
+                "br_bd_diretorios_brasil.cid_9": "descricao",
+                "br_bd_diretorios_brasil.cnae_1": "descricao",
+                "br_bd_diretorios_brasil.cnae_2": "descricao",
+                "br_bd_diretorios_brasil.curso_superior": "nome_curso",
+                "br_bd_diretorios_brasil.distrito": "nome",
+                "br_bd_diretorios_brasil.empresa": "nome_fantasia",
+                "br_bd_diretorios_brasil.escola": "nome",
+                "br_bd_diretorios_brasil.etnia_indigena": "nome",
+                "br_bd_diretorios_brasil.instituicao_ensino_superior": "nome",
+                "br_bd_diretorios_brasil.municipio": "nome",
+                "br_bd_diretorios_brasil.natureza_juridica": "descricao",
+                "br_bd_diretorios_brasil.regiao_metropolitana": "nome",
+                "br_bd_diretorios_brasil.uf": "nome",
+                "br_bd_diretorios_brasil.cnae_2_3_subclasses": "descricao",
+            }
+            return map_directory_description_column.get(cloud_table.gcp_suffix_id)
+
+        def get_components():
+            sql_ctes, sql_joins, sql_selects = [], [], []
+
+            column: Column
+            for column in self.columns.order_by("order").all():
+                if column.covered_by_dictionary:
+                    sql_cte_table = f"dicionario_{column.name}"
+                    sql_cte = f"""
+                        {sql_cte_table} AS (
+                            SELECT
+                                chave AS chave_{column.name},
+                                valor AS descricao_{column.name}
+                            FROM `{self.gbq_dict_slug}`
+                            WHERE
+                                TRUE
+                                AND nome_coluna = '{column.name}'
+                                AND id_tabela = '{self.gbq_table_slug}'
+                        )"""
+                    sql_join = f"""
+                        LEFT JOIN `{sql_cte_table}`
+                            ON dados.{column.name} = chave_{column.name}"""
+                    sql_select = f"descricao_{column.name} AS {column.name}"
+                    sql_ctes.append(dedent(sql_cte))
+                    sql_joins.append(dedent(sql_join))
+                    sql_selects.append(dedent(sql_select))
+                elif has_directory(column):
+                    sql_cte_table = f"diretorio_{column.name}"
+                    sql_cte_column = get_column(column, column.dir_cloud_table)
+                    sql_select_id = f"dados.{column.name} AS {column.name}"
+                    sql_select_label = (
+                        f"{sql_cte_table}.{sql_cte_column} AS {column.name}_{sql_cte_column}"
+                    )
+                    sql_join = f"""
+                        LEFT JOIN `{column.dir_cloud_table}` AS {sql_cte_table}
+                            ON dados.{column.name} = {sql_cte_table}.{column.dir_column.name}"""
+                    sql_joins.append(dedent(sql_join))
+                    sql_selects.append(dedent(sql_select_id))
+                    sql_selects.append(dedent(sql_select_label))
+                else:
+                    sql_selects.append(column.name)
+
+            return sql_ctes, sql_joins, sql_selects
+
+        sql_ctes, sql_joins, sql_selects = get_components()
+
+        sql_ctes = "WITH " + ",".join(sql_ctes) if sql_ctes else ""
+        sql_joins = "".join(sql_joins) if sql_joins else ""
+        sql_selects = "\nSELECT\n    " + ",\n    ".join(sql_selects)
+        sql_from = f"\nFROM `{self.gbq_slug}` AS dados"
+
+        return sql_ctes + sql_selects + sql_from + sql_joins
 
     def clean(self):
         """
@@ -1126,6 +1232,19 @@ class Column(BaseModel, OrderedModel):
             "end": coverage["end"] or fallback["end"],
         }
 
+    @property
+    def dir_column(self):
+        """Column of directory table and column"""
+        if self.directory_primary_key:
+            return self.directory_primary_key
+
+    @property
+    def dir_cloud_table(self):
+        """Cloud table of directory table and column"""
+        if dir_column := self.directory_primary_key:
+            if cloud_table := dir_column.cloud_tables.first():
+                return cloud_table
+
     def clean(self) -> None:
         """Clean method for Column model"""
         errors = {}
@@ -1209,6 +1328,14 @@ class CloudTable(BaseModel):
 
     def __str__(self):
         return f"{self.gcp_project_id}.{self.gcp_dataset_id}.{self.gcp_table_id}"
+
+    @property
+    def gcp_prefix_id(self):
+        return f"{self.gcp_project_id}.{self.gcp_dataset_id}"
+
+    @property
+    def gcp_suffix_id(self):
+        return f"{self.gcp_dataset_id}.{self.gcp_table_id}"
 
     def clean(self) -> None:
         errors = {}
