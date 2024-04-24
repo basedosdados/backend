@@ -117,12 +117,18 @@ def update_table_metadata_task(table_pks: list[str] = None):
     messenger.send()
 
 
-@periodic_task(crontab(day_of_week="0", hour="6", minute="0"))
-@production_task
+@periodic_task(crontab(day_of_week="0", hour="6", minute="10"))
 def update_table_neighbors_task():
     for table in Table.objects.all():
         for neighbor in table.gen_neighbors():
             TableNeighbor.objects.update_or_create(**neighbor)
+
+
+@periodic_task(crontab(day_of_week="0", hour="6", minute="20"))
+def update_table_one_big_table_query_task():
+    for table in Table.objects.all():
+        table.one_big_table_query = table.gen_one_big_table_query()
+        table.save()
 
 
 @periodic_task(crontab(day_of_week="1-5", hour="7", minute="0"))
