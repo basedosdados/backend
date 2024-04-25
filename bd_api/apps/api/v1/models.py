@@ -881,6 +881,32 @@ class Table(BaseModel, OrderedModel):
         updates = [u.latest for u in self.updates.all() if u.latest]
         return max(updates) if updates else None
 
+    @property
+    def published_by_info(self) -> dict:
+        if not self.published_by:
+            return None
+        return {
+            "firstName": self.published_by.first_name,
+            "lastName": self.published_by.last_name,
+            "email": self.published_by.email,
+            "github": self.published_by.github,
+            "twitter": self.published_by.twitter,
+            "website": self.published_by.website,
+        }
+
+    @property
+    def data_cleaned_by_info(self) -> dict:
+        if not self.data_cleaned_by:
+            return None
+        return {
+            "firstName": self.data_cleaned_by.first_name,
+            "lastName": self.data_cleaned_by.last_name,
+            "email": self.data_cleaned_by.email,
+            "github": self.data_cleaned_by.github,
+            "twitter": self.data_cleaned_by.twitter,
+            "website": self.data_cleaned_by.website,
+        }
+
     def get_similarity_of_area(self, other: "Table"):
         count_all = 0
         count_yes = 0
