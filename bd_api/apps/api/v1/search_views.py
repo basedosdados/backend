@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from django.core.files.storage import default_storage as storage
 from django.http import JsonResponse
 from haystack.forms import FacetedSearchForm
 from haystack.generic_views import FacetedSearchView
@@ -176,6 +177,7 @@ def as_search_result(result: SearchResult):
         result.organization_website or [],
         result.organization_description or [],
     ):
+        picture = storage.url(picture)
         organization.append(
             {
                 "id": pk,
