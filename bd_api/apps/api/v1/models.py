@@ -785,7 +785,6 @@ class Table(BaseModel, OrderedModel):
         default=0,
         help_text="Number of page views by Google Analytics",
     )
-    one_big_table_query = models.TextField(blank=True, null=True)
 
     order_with_respect_to = ("dataset",)
     graphql_nested_filter_fields_whitelist = ["id", "dataset"]
