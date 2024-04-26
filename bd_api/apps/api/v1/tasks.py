@@ -124,13 +124,6 @@ def update_table_neighbors_task():
             TableNeighbor.objects.update_or_create(**neighbor)
 
 
-@periodic_task(crontab(day_of_week="0", hour="6", minute="20"))
-def update_table_one_big_table_query_task():
-    for table in Table.objects.all():
-        table.one_big_table_query = table.gen_one_big_table_query()
-        table.save()
-
-
 @periodic_task(crontab(day_of_week="1-5", hour="7", minute="0"))
 @production_task
 def update_page_views_task(backfill: bool = False):
