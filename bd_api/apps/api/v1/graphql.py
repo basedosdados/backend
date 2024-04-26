@@ -3,7 +3,7 @@
 from graphene import UUID, Boolean, Float, List, ObjectType, String
 from graphene_django import DjangoObjectType
 
-from bd_api.apps.api.v1.models import TableNeighbor
+from bd_api.apps.api.v1.models import Table, TableNeighbor
 from bd_api.custom.graphql_base import PlainTextNode
 
 
@@ -45,6 +45,14 @@ class Query(ObjectType):
         theme=String(),
         share_theme=Boolean(),
     )
+    get_table_one_big_table_query = String(
+        table_id=UUID(required=True),
+        columns=List(String),
+    )
 
     def resolve_get_table_neighbor(root, info, table_id, **kwargs):
         return TableNeighbor.objects.filter(table_a__pk=table_id).all()
+
+    def resolve_get_table_one_big_table_query(root, info, table_id, columns=None, **kwargs):
+        if table := Table.objects.filter(pk=table_id).first():
+            return table.gen_one_big_table_query(columns)

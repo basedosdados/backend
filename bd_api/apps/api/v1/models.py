@@ -981,7 +981,7 @@ class Table(BaseModel, OrderedModel):
             )
         return all_neighbors
 
-    def gen_one_big_table_query(self):
+    def gen_one_big_table_query(self, columns: list[str] = None):
         """Get a denormalized sql query, similar to a one big table"""
 
         def has_directory(column: Column):
@@ -1025,6 +1025,8 @@ class Table(BaseModel, OrderedModel):
 
             column: Column
             for column in self.columns.order_by("order").all():
+                if columns and column.name not in columns:
+                    continue
                 if column.covered_by_dictionary:
                     sql_cte_table = f"dicionario_{column.name}"
                     sql_cte = f"""
