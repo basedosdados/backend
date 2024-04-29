@@ -203,6 +203,7 @@ class AccountAdmin(BaseAccountAdmin):
         "get_organization",
         "created_at",
         "is_admin",
+        "is_subscriber",
     )
     list_filter = (
         SuperUserListFilter,
@@ -292,6 +293,12 @@ class AccountAdmin(BaseAccountAdmin):
     ordering = ["-created_at"]
     inlines = (CareerInline, SubscriptionInline)
     filter_horizontal = ()
+
+    def is_subscriber(self, instance):
+        return bool(instance.is_subscriber)
+
+    is_subscriber.boolean = True
+    is_subscriber.short_description = "Subscriber"
 
 
 class CareerAdmin(admin.ModelAdmin):

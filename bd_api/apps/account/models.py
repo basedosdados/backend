@@ -296,6 +296,10 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
         return self.is_admin
 
     @property
+    def is_subscriber(self) -> bool:
+        return bool(self.pro_subscription)
+
+    @property
     def customer(self):
         return self.djstripe_customers.first()
 
