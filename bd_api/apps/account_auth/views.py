@@ -131,8 +131,9 @@ def authorize(request: HttpRequest) -> Tuple[URI, Token, Domain, Account, Status
 
     # Token must have same domain,
     # its expiry date must be in the future, and it must be active.
-    if token.domain == domain and token.expiry_date > timezone.now() and token.is_active:
-        return redirect_uri, token, domain, token.user, True
+    if token.domain == domain and token.is_active:
+        if not token.expiry_date or token.expiry_date > timezone.now():
+            return redirect_uri, token, domain, token.user, True
 
     # If it isn't, it returns a 401.
     return redirect_uri, token, domain, token.user, False
