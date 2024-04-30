@@ -1,16 +1,17 @@
+---
 # API configuration
 api:
   # Deployment name
-  name: "basedosdados-api"
+  name: basedosdados-api
 
   # Deployment image
   image:
-    name: "ghcr.io/basedosdados/api"
-    tag: "stable" # We use the stable tag for the API as a default
-    pullPolicy: "Always"
+    name: ghcr.io/basedosdados/api
+    tag: stable  # We use the stable tag for the API as a default
+    pullPolicy: Always
 
   # Number of replicas
-  replicas: 1
+  replicas: 2
 
   # Specifying resources is recommended for production deployments
   resources: {}
@@ -29,38 +30,35 @@ api:
   env: []
     # - name: "SOME_ENV"
     #   value: "some_value"
-
   envFrom: []
     # - secretRef:
     #     name: some-secret
 
   # Django settings module
-  settingsModule: "bd_api.settings.remote"
-
+  settingsModule: bd_api.settings.remote
 # Database configuration
 database:
   # Hostname of the database
-  host: "basedosdados-postgres"
+  host: basedosdados-postgres
 
   # Port of the database
   port: 5432
 
   # Database name
-  name: "basedosdados"
+  name: basedosdados
 
   # Username
-  user: "basedosdados"
+  user: basedosdados
 
   # Secret containing the password (it must have a key called `password` containing the password)
-  passwordSecret: "basedosdados-postgres-password"
-
+  passwordSecret: basedosdados-postgres-password
 # Ingress configuration
 ingress:
   # Enable ingress
   enabled: false
 
   # Host to be used in the ingress
-  host: "basedosdados-api.example.com"
+  host: basedosdados-api.example.com
 
   # Ingress annotations
   annotations: {}
