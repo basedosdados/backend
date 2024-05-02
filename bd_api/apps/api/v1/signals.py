@@ -67,7 +67,7 @@ class BDSignalProcessor(BaseSignalProcessor):
                     .get_index(Dataset)
                 )  # fmt: skip
                 for ds in datasets or []:
-                    if ds.status.slug == "under_review":
+                    if ds.status and ds.status.slug == "under_review":
                         index.remove_object(ds, using=using)
                     else:
                         index.update_object(ds, using=using)
