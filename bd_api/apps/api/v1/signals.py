@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from django.db import models
 from haystack.exceptions import NotHandled
+from haystack.indexes import SearchIndex
 from haystack.signals import BaseSignalProcessor
 from loguru import logger
 
@@ -36,7 +37,7 @@ class BDSignalProcessor(BaseSignalProcessor):
         using_backends = self.connection_router.for_write(instance=instance)
 
         for using in using_backends:
-            datasets = []
+            datasets: list[Dataset] = []
             try:
                 if sender == Dataset:
                     datasets = [instance]
@@ -60,13 +61,16 @@ class BDSignalProcessor(BaseSignalProcessor):
                 elif sender in [Table, RawDataSource, InformationRequest]:
                     if dataset := instance.dataset:
                         datasets = [dataset]
-                index = (
+                index: SearchIndex = (
                     self.connections[using]
                     .get_unified_index()
                     .get_index(Dataset)
                 )  # fmt: skip
                 for ds in datasets or []:
-                    index.update_object(ds, using=using)
+                    if ds.status.slug == "under_review":
+                        index.remove_object(ds, using=using)
+                    else:
+                        index.update_object(ds, using=using)
             except NotHandled as error:
                 logger.warning(error)
             except Exception as error:
