@@ -500,9 +500,11 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     list_display = [
         "name",
         "organization",
-        "page_views",
         "coverage",
         "related_objects",
+        "page_views",
+        "created_at",
+        "updated_at",
     ]
     ordering = ["-updated_at"]
 
@@ -512,7 +514,7 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
             "href='/admin/v1/table/add/?dataset={0}&_to_field=id&_popup=1'>{1} {2}</a>",
             obj.id,
             obj.tables.count(),
-            " ".join(["tables" if obj.tables.count() > 1 else "table", "(click to add)"]),
+            "tables" if obj.tables.count() > 1 else "table",
         )
 
     related_objects.short_description = "Tables"
@@ -616,7 +618,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
             "<a href='/admin/v1/column/add/?table={0}'>{1} {2}</a>",
             obj.id,
             obj.columns.count(),
-            " ".join(["columns" if obj.columns.count() > 1 else "column", "(click to add)"]),
+            "columns" if obj.columns.count() > 1 else "column",
         )
 
     related_columns.short_description = "Columns"
