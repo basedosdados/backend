@@ -14,7 +14,7 @@ jobs:
       || ${{ github.event.workflow_run.conclusion == 'success' }}
     environment:
       name: production
-      url: https://api.basedosdados.org
+      url: https://backend.basedosdados.org
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -65,7 +65,7 @@ jobs:
               - name: "BASE_URL_FRONTEND"
                 value: "https://basedosdados.org"
               - name: "BASE_URL_API"
-                value: "https://api.basedosdados.org"
+                value: "https://backend.basedosdados.org"
               - name: "CSRF_COOKIE_DOMAIN"
                 value: "${{ secrets.CSRF_COOKIE_DOMAIN }}"
               - name: "CSRF_TRUSTED_ORIGIN"
@@ -114,7 +114,7 @@ jobs:
             passwordSecret: "api-prod-database-password"
           ingress:
             enabled: true
-            host: "api.basedosdados.org"
+            host: "backend.basedosdados.org"
             annotations:
               kubernetes.io/ingress.class: nginx
               nginx.ingress.kubernetes.io/rewrite-target: /
@@ -122,7 +122,7 @@ jobs:
               nginx.ingress.kubernetes.io/ssl-redirect: "true"
             tls:
               - hosts:
-                  - api.basedosdados.org
+                  - backend.basedosdados.org
                 secretName: api-basedosdados-org-tls
           EOF
       - name: Deploy using Helm

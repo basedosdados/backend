@@ -10,9 +10,9 @@ from bd_api.apps.api.v1.models import CloudTable, Dataset
 
 URL_MAPPING = {
     "localhost:8080": "http://localhost:3000",
-    "api.basedosdados.org": "https://basedosdados.org",
-    "staging.api.basedosdados.org": "https://staging.basedosdados.org",
-    "development.api.basedosdados.org": "https://development.basedosdados.org",
+    "backend.basedosdados.org": "https://basedosdados.org",
+    "staging.backend.basedosdados.org": "https://staging.basedosdados.org",
+    "development.backend.basedosdados.org": "https://development.basedosdados.org",
 }
 
 
@@ -27,8 +27,12 @@ class DatasetRedirectView(View):
         if dataset := request.GET.get("dataset"):
             dataset_slug = dataset.replace("-", "_")
 
-            if resource := CloudTable.objects.filter(gcp_dataset_id=dataset_slug).first():
-                return HttpResponseRedirect(f"{domain}/dataset/{resource.table.dataset.id}")
+            if resource := CloudTable.objects.filter(
+                gcp_dataset_id=dataset_slug
+            ).first():
+                return HttpResponseRedirect(
+                    f"{domain}/dataset/{resource.table.dataset.id}"
+                )
 
             if resource := Dataset.objects.filter(slug__icontains=dataset_slug).first():
                 return HttpResponseRedirect(f"{domain}/dataset/{resource.id}")

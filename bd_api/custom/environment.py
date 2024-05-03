@@ -46,11 +46,11 @@ def get_backend_url():
     """Get backend url by environment"""
 
     if is_prd():
-        return "api.basedosdados.org"
+        return "backend.basedosdados.org"
     if is_stg():
-        return "staging.api.basedosdados.org"
+        return "staging.backend.basedosdados.org"
     if is_dev():
-        return "development.api.basedosdados.org"
+        return "development.backend.basedosdados.org"
     return "localhost:8080"
 
 
