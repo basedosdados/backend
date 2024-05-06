@@ -132,7 +132,7 @@ class DatasetSearchView(FacetedSearchView):
 
     def get_results(self, sqs: SearchQuerySet):
         def key(r):
-            return (r.contains_tables, r.score)
+            return (r.contains_tables, r.score, r.updated_at)
 
         until = self.page * self.page_size
         since = (self.page - 1) * self.page_size
