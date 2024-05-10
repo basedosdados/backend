@@ -594,15 +594,15 @@ class Dataset(BaseModel):
 
     @property
     def n_tables(self):
-        return len(self.tables.all())
+        return len(self.tables.exclude(status__slug="under_review").all())
 
     @property
     def n_raw_data_sources(self):
-        return len(self.raw_data_sources.all())
+        return len(self.raw_data_sources.exclude(status__slug="under_review").all())
 
     @property
     def n_information_requests(self):
-        return len(self.information_requests.all())
+        return len(self.information_requests.exclude(status__slug="under_review").all())
 
     @property
     def first_table_id(self):
