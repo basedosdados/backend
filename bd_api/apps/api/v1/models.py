@@ -726,6 +726,7 @@ class Table(BaseModel, OrderedModel):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, related_name="tables")
+    raw_data_source = models.ForeignKey("RawDataSource", on_delete=models.CASCADE, related_name="tables")
     version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
         "Status", on_delete=models.PROTECT, related_name="tables", null=True, blank=True
