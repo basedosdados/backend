@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from datetime import datetime, timedelta
+from random import sample
 
 from django.core.management import call_command
 from google.api_core.exceptions import GoogleAPICallError
@@ -179,11 +180,13 @@ def update_page_views_task(backfill: bool = False):
 @production_task
 def check_links_task():
     messenger = Messenger("Revise os seguintes links:")
-    for entity in RawDataSource.objects.filter(url__isnull=False).all():
+    entities = RawDataSource.objects.filter(url__isnull=False).all()
+    entities = sample(list(entities), len(entities))
+    for entity in entities:
         if messenger.is_full:
             break
         try:
-            response = get(entity.url)
+            response = get(entity.url, verify=False)
             response.raise_for_status()
         except Exception as exc:
             messenger.append(entity, exc)
