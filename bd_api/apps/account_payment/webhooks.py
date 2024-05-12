@@ -9,17 +9,21 @@ from googleapiclient.errors import HttpError
 from loguru import logger
 
 from bd_api.apps.account.models import Subscription
+from bd_api.custom.client import send_discord_message as send
 
 logger = logger.bind(module="payment")
 
 
 def get_subscription(event: Event) -> Subscription:
     """Get internal subscription model, mirror of stripe"""
+    logger.info(f"Procurando inscrição interna do cliente {event.customer.email}")
     subscription = DJStripeSubscription.objects.get(id=event.data["object"]["id"])
     if hasattr(subscription, "internal_subscription"):
+        logger.info(f"Retornando inscrição interna do cliente {event.customer.email}")
         return subscription.internal_subscription
     else:
         if event.customer.subscriber:
+            logger.info(f"Criando inscrição interna do cliente {event.customer.email}")
             return Subscription.objects.create(
                 subscription=subscription,
                 admin=event.customer.subscriber,
@@ -61,8 +65,9 @@ def add_user(email: str, group_key: str = None, role: str = "MEMBER"):
         ).execute()
     except HttpError as e:
         if e.resp.status == 409:
-            logger.warning(f"{email} already exists")
+            logger.warning(f"{email} já existe no google groups")
         else:
+            send(f"Verifique o erro ao adicionar o usuário ao google groups: {e}")
             logger.error(e)
             raise e
 
@@ -81,8 +86,9 @@ def remove_user(email: str, group_key: str = None) -> None:
         ).execute()
     except HttpError as e:
         if e.resp.status == 404:
-            logger.warning(f"{email} already unsubscribed")
+            logger.warning(f"{email} já foi removido do google groups")
         else:
+            send(f"Verifique o erro ao remover o usuário do google groups: {e}")
             logger.error(e)
             raise e
 
@@ -104,6 +110,7 @@ def update_customer(event: Event, **kwargs):
     """Propagate customer email update if exists"""
     account = event.customer.subscriber
     if account and account.email != event.data["object"]["email"]:
+        logger.info(f"Atualizando o email do cliente {event.customer.email}")
         account.email = event.data["object"]["email"]
         account.save(update_fields=["email"])
 
@@ -113,6 +120,7 @@ def subscribe(event: Event, **kwargs):
     """Add customer to allowed google groups"""
     if event.data["object"]["status"] in ["trialing", "active"]:
         if subscription := get_subscription(event):
+            logger.info(f"Adicionando a inscrição do cliente {event.customer.email}")
             add_user(event.customer.email)
             subscription.is_active = True
             subscription.save()
@@ -122,6 +130,7 @@ def subscribe(event: Event, **kwargs):
 def unsubscribe(event: Event, **kwargs):
     """Remove customer from allowed google groups"""
     if subscription := get_subscription(event):
+        logger.info(f"Removendo a inscrição do cliente {event.customer.email}")
         remove_user(event.customer.email)
         subscription.is_active = False
         subscription.save()
