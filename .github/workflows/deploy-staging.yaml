@@ -81,7 +81,7 @@ jobs:
               - name: "WORKER"
                 value: "main"
               - name: "REDIS_DB"
-                value: "0"
+                value: "1"
               - name: "GOOGLE_DIRECTORY_SUBJECT"
                 value: "${{ secrets.GOOGLE_DIRECTORY_SUBJECT }}"
               - name: "GOOGLE_DIRECTORY_GROUP_KEY"
