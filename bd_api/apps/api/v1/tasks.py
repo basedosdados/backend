@@ -30,6 +30,16 @@ def rebuild_search_index_task():
     call_command("rebuild_index", interactive=False, batchsize=100)
 
 
+def update_database_slug_task():
+    """Update db slugs from datasets and tables, to ease filtering by the packages"""
+    for dataset in Dataset.objects.all():
+        dataset.db_slug = dataset.full_slug.replace("sa_br_", "br_")
+        dataset.save()
+    for table in Table.objects.all():
+        table.db_slug = f"{dataset.db_slug}.{table.slug}"
+        table.save()
+
+
 @periodic_task(crontab(day_of_week="1-5", hour="6", minute="0"))
 @production_task
 def update_table_metadata_task(table_pks: list[str] = None):
