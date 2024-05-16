@@ -29,7 +29,6 @@ class DatasetSearchForm(FacetedSearchForm):
             sqs = (
                 self.searchqueryset
                 .auto_query(q)
-                .filter_and(**{"text.ngram": q})
                 .filter_and(**{"text.edgengram": q})
                 .filter_or(**{"text.snowball_pt": q})
                 .filter_or(**{"text.snowball_en": q})
