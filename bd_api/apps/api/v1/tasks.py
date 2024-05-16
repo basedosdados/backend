@@ -6,7 +6,7 @@ from django.core.management import call_command
 from google.api_core.exceptions import GoogleAPICallError
 from google.cloud.bigquery import Table as GBQTable
 from huey import crontab
-from huey.contrib.djhuey import periodic_task, task
+from huey.contrib.djhuey import periodic_task
 from loguru import logger
 from pandas import read_gbq
 from requests import get
@@ -28,17 +28,6 @@ def update_search_index_task():
 @production_task
 def rebuild_search_index_task():
     call_command("rebuild_index", interactive=False, batchsize=100)
-
-
-@task()
-def update_database_slug_task():
-    """Update db slugs from datasets and tables, to ease filtering by the packages"""
-    for dataset in Dataset.objects.all():
-        dataset.db_slug = dataset.full_slug.replace("sa_br_", "br_")
-        dataset.save()
-    for table in Table.objects.all():
-        table.db_slug = f"{dataset.db_slug}.{table.slug}"
-        table.save()
 
 
 @periodic_task(crontab(day_of_week="1-5", hour="6", minute="0"))

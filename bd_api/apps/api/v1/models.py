@@ -454,7 +454,6 @@ class Dataset(BaseModel):
 
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=False, max_length=255)
-    db_slug = models.SlugField(unique=False, max_length=255, blank=True, null=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     organization = models.ForeignKey(
@@ -724,7 +723,6 @@ class Table(BaseModel, OrderedModel):
 
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=False, max_length=255)
-    db_slug = models.SlugField(unique=False, max_length=255, blank=True, null=True)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     dataset = models.ForeignKey("Dataset", on_delete=models.CASCADE, related_name="tables")

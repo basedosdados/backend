@@ -64,7 +64,6 @@ from bd_api.apps.api.v1.models import (
 )
 from bd_api.apps.api.v1.tasks import (
     rebuild_search_index_task,
-    update_database_slug_task,
     update_page_views_task,
     update_search_index_task,
     update_table_metadata_task,
@@ -256,14 +255,6 @@ def rebuild_search_index(modeladmin, request, queryset):
 
 
 rebuild_search_index.short_description = "Reconstruir index de busca"
-
-
-def update_database_slug(modeladmin, request, queryset):
-    """Update db slugs from datasets and tables, to ease filtering by the packages"""
-    update_database_slug_task()
-
-
-update_database_slug.short_description = "Atualizar slugs do banco"
 
 
 def update_table_metadata(modeladmin: ModelAdmin, request: HttpRequest, queryset: QuerySet):
@@ -477,7 +468,6 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     actions = [
         reorder_tables,
         reset_table_order,
-        update_database_slug,
         update_table_metadata,
         update_page_views,
         update_search_index,
@@ -534,7 +524,6 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     actions = [
         reorder_columns,
         reset_column_order,
-        update_database_slug,
         update_table_metadata,
         update_table_neighbors,
         update_page_views,
