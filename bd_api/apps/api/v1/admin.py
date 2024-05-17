@@ -102,14 +102,14 @@ class ColumnInline(OrderedTranslatedInline):
     ]
 
     def get_formset(self, request, obj=None, **kwargs):
-        """Save the parent object to the inline (Not thread safe)"""
-        self.parent_inline_obj = obj
+        """Get formset, and save the current object"""
+        self.current_obj = obj
         return super().get_formset(request, obj, **kwargs)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        """Limit the observation level queryset to the parent object"""
+        """Limit the observation level queryset to the current object"""
         if db_field.name == "observation_level":
-            kwargs["queryset"] = ObservationLevel.objects.filter(table=self.parent_inline_obj)
+            kwargs["queryset"] = ObservationLevel.objects.filter(table=self.current_obj)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
@@ -573,6 +573,16 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         TableDirectoryListFilter,
     ]
     ordering = ["-updated_at"]
+
+    def get_form(self, request, obj=None, **kwargs):
+        """Get form, and save the current object"""
+        self.current_obj = obj
+        return super().get_form(request, obj, **kwargs)
+
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        if db_field.name == "raw_data_source":
+            kwargs["queryset"] = RawDataSource.objects.filter(dataset=self.current_obj.dataset)
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
 
 
 class TableNeighborAdmin(admin.ModelAdmin):
