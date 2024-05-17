@@ -6,7 +6,7 @@ from django.core.management import call_command
 from google.api_core.exceptions import GoogleAPICallError
 from google.cloud.bigquery import Table as GBQTable
 from huey import crontab
-from huey.contrib.djhuey import periodic_task
+from huey.contrib.djhuey import db_periodic_task
 from loguru import logger
 from pandas import read_gbq
 from requests import get
@@ -18,19 +18,19 @@ from bd_api.custom.environment import production_task
 logger = logger.bind(module="api.v1")
 
 
-@periodic_task(crontab(day_of_week="1-6", hour="5", minute="0"), retries=3, retry_delay=60)
+@db_periodic_task(crontab(day_of_week="1-6", hour="5", minute="0"), retries=3, retry_delay=60)
 @production_task
 def update_search_index_task():
     call_command("update_index", batchsize=100)
 
 
-@periodic_task(crontab(day_of_week="0", hour="5", minute="0"), retries=3, retry_delay=60)
+@db_periodic_task(crontab(day_of_week="0", hour="5", minute="0"), retries=3, retry_delay=60)
 @production_task
 def rebuild_search_index_task():
     call_command("rebuild_index", interactive=False, batchsize=100)
 
 
-@periodic_task(crontab(day_of_week="1-5", hour="6", minute="0"))
+@db_periodic_task(crontab(day_of_week="1-5", hour="6", minute="0"))
 @production_task
 def update_table_metadata_task(table_pks: list[str] = None):
     """Update the metadata of selected tables in the database"""
@@ -118,14 +118,14 @@ def update_table_metadata_task(table_pks: list[str] = None):
     messenger.send()
 
 
-@periodic_task(crontab(day_of_week="0", hour="6", minute="10"))
+@db_periodic_task(crontab(day_of_week="0", hour="6", minute="10"))
 def update_table_neighbors_task():
     for table in Table.objects.all():
         for neighbor in table.gen_neighbors():
             TableNeighbor.objects.update_or_create(**neighbor)
 
 
-@periodic_task(crontab(day_of_week="1-5", hour="7", minute="0"))
+@db_periodic_task(crontab(day_of_week="1-5", hour="7", minute="0"))
 @production_task
 def update_page_views_task(backfill: bool = False):
     if backfill:
@@ -176,7 +176,7 @@ def update_page_views_task(backfill: bool = False):
             dataset.save()
 
 
-@periodic_task(crontab(day_of_week="1-5", hour="8", minute="0"))
+@db_periodic_task(crontab(day_of_week="1-5", hour="8", minute="0"))
 @production_task
 def check_links_task():
     messenger = Messenger("Revise os seguintes links:")

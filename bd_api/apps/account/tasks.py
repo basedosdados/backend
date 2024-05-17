@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 from djstripe.models import Subscription as DJStripeSubscription
-from huey.contrib.djhuey import task
+from huey.contrib.djhuey import db_task
 from loguru import logger
 
 from bd_api.apps.account.models import Account, Subscription
 
 
-@task()
+@db_task()
 def sync_subscription_task():
     """Create internal subscriptions from stripe subscriptions
 
