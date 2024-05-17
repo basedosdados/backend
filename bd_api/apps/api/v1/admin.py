@@ -7,7 +7,7 @@ from django.contrib.admin import ModelAdmin
 from django.core.management import call_command
 from django.db.models.query import QuerySet
 from django.http import HttpRequest
-from django.shortcuts import get_object_or_404, render
+from django.shortcuts import render
 from django.utils.html import format_html
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
 from ordered_model.admin import OrderedInlineModelAdminMixin, OrderedStackedInline
@@ -102,14 +102,14 @@ class ColumnInline(OrderedTranslatedInline):
     ]
 
     def get_formset(self, request, obj=None, **kwargs):
-        """Save the parent object to the inline (Not thread safe)"""
-        self.parent_inline_obj = obj
+        """Get formset, and save the current object"""
+        self.current_obj = obj
         return super().get_formset(request, obj, **kwargs)
 
     def formfield_for_foreignkey(self, db_field, request, **kwargs):
-        """Limit the observation level queryset to the parent object"""
+        """Limit the observation level queryset to the current object"""
         if db_field.name == "observation_level":
-            kwargs["queryset"] = ObservationLevel.objects.filter(table=self.parent_inline_obj)
+            kwargs["queryset"] = ObservationLevel.objects.filter(table=self.current_obj)
         return super().formfield_for_foreignkey(db_field, request, **kwargs)
 
 
@@ -220,6 +220,11 @@ class CoverageInline(admin.StackedInline):
     form = CoverageInlineForm
     extra = 0
     show_change_link = True
+    readonly_fields = ["datetime_ranges"]
+
+    def datetime_ranges(self, cov):
+        """Show datetime ranges in coverage inline"""
+        return [str(dt) for dt in cov.datetime_ranges.all()]
 
 
 class UpdateInline(admin.StackedInline):
@@ -540,7 +545,6 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "partitions",
         "created_at",
         "updated_at",
-        "related_columns",
     ]
     search_fields = [
         "name",
@@ -569,83 +573,16 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         TableDirectoryListFilter,
     ]
     ordering = ["-updated_at"]
-    change_form_template = "admin/table_change_form.html"
 
-    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
-        """Adds custom context to the change form view"""
-        extra_context = extra_context or {}
-        obj = get_object_or_404(Table, pk=object_id) if object_id else None
-        if obj:
-            extra_context["table_coverages"] = []
-            extra_context["datetime_ranges"] = []
-            for coverage in obj.coverages.all():
-                extra_context["table_coverages"].append(
-                    {
-                        "id": coverage.id,
-                        "area": coverage.area.name if coverage.area else "",
-                        "datetime_range": coverage.datetime_ranges.first() or "",
-                    }
-                )
-                extra_context["datetime_ranges"].append(coverage.datetime_ranges.all())
+    def get_form(self, request, obj=None, **kwargs):
+        """Get form, and save the current object"""
+        self.current_obj = obj
+        return super().get_form(request, obj, **kwargs)
 
-            extra_context["table_observations"] = []
-            for observation in obj.observation_levels.all():
-                extra_context["table_observations"].append(
-                    {
-                        "id": observation.id,
-                        "entity": observation.entity.name if observation.entity else "",
-                        "columns": "".join([column.name for column in observation.columns.all()]),
-                    }
-                )
-
-            extra_context["table_cloudtables"] = []
-            for cloudtable in obj.cloud_tables.all():
-                extra_context["table_cloudtables"].append(
-                    {
-                        "id": cloudtable.id,
-                        "gcp_project_id": cloudtable.gcp_project_id,
-                        "gcp_dataset_id": cloudtable.gcp_dataset_id,
-                        "gcp_table_id": cloudtable.gcp_table_id,
-                        "columns": "",
-                    }
-                )
-
-        return super().changeform_view(request, object_id, form_url, extra_context)
-
-    def related_columns(self, obj):
-        """Adds information of number of columns, with link to add a new column"""
-        return format_html(
-            "<a href='/admin/v1/column/add/?table={0}'>{1} {2}</a>",
-            obj.id,
-            obj.columns.count(),
-            "columns" if obj.columns.count() > 1 else "column",
-        )
-
-    related_columns.short_description = "Columns"
-
-    def related_coverages(self, obj):
-        qs = DateTimeRange.objects.filter(coverage=obj)
-        lines = []
-        for datetimerange in qs:
-            lines.append(
-                '<a href="/admin/api/v1/datetimerange/{0}/change/" '
-                'target="_blank">Date Time Range</a>',
-                datetimerange.pk,
-            )
-        return format_html(
-            '<a href="/admin/api/v1/datetimerange/{}/change/" target="_blank">Date Time Range</a>',
-            obj.datetimerange.slug,
-        )
-
-    related_coverages.short_description = "Coverages"
-
-    def add_view(self, request, *args, **kwargs):
-        parent_model_id = request.GET.get("dataset")
-        if parent_model_id:
-            # If a parent model ID is provided, add the parent model field to the form
-            initial = {"parent_model": parent_model_id}
-            self.initial = initial  # noqa
-        return super().add_view(request, *args, **kwargs)
+    def formfield_for_manytomany(self, db_field, request, **kwargs):
+        if db_field.name == "raw_data_source":
+            kwargs["queryset"] = RawDataSource.objects.filter(dataset=self.current_obj.dataset)
+        return super().formfield_for_manytomany(db_field, request, **kwargs)
 
 
 class TableNeighborAdmin(admin.ModelAdmin):
