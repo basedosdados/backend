@@ -455,6 +455,23 @@ class Subscription(BaseModel):
         return self.admin.email or "test@stripe.com"
 
     @property
+    def subscribers_info(self) -> list[dict]:
+        info = [
+            {
+                "email": self.admin.email,
+                "role": "admin",
+            }
+        ]
+        for subscriber in self.subscribers.all():
+            info.append(
+                {
+                    "email": subscriber.email,
+                    "role": "subscriber",
+                }
+            )
+        return info
+
+    @property
     def stripe_subscription(self):
         return self.subscription.plan.product.metadata.get("code", "")
 

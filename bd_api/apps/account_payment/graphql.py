@@ -175,6 +175,14 @@ class StripeSubscriptionCreateMutation(Mutation):
     def mutate(cls, root, info, price_id):
         try:
             admin = info.context.user
+
+            for s in [
+                *admin.subscription_set.all(),
+                *admin.internal_subscription.all(),
+            ]:
+                if s.is_active:
+                    return cls(errors=["Conta possui inscrição ativa"])
+
             price = DJStripePrice.objects.get(djstripe_id=price_id)
             subscription: DJStripeSubscription = admin.customer.subscribe(
                 price=price.id,
@@ -226,6 +234,14 @@ class StripeSubscriptionCustomerCreateMutation(Mutation):
         try:
             admin = info.context.user
             account = Account.objects.get(id=account_id)
+
+            for s in [
+                *account.subscription_set.all(),
+                *account.internal_subscription.all(),
+            ]:
+                if s.is_active:
+                    return cls(errors=["Conta possui inscrição ativa"])
+
             subscription = Subscription.objects.get(id=subscription_id)
             assert admin.id == subscription.admin.id
             add_user(account.email)
