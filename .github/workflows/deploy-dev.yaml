@@ -136,7 +136,7 @@ jobs:
             envFrom:
               - secretRef:
                   name: api-development-secrets
-            settingsModule: "bd_api.settings.remote"
+            settingsModule: "backend.settings.remote"
           database:
             host: "cloud-sql-proxy"
             port: 5432

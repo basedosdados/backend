@@ -29,7 +29,7 @@ ENV PYTHONDONTWRITEBYTECODE 1
 ENV PYTHONUNBUFFERED 1
 
 # Copy app, generate static and set permissions
-RUN /env/bin/python manage.py collectstatic --no-input --settings=bd_api.settings.base && \
+RUN /env/bin/python manage.py collectstatic --no-input --settings=backend.settings.base && \
     chown -R www-data:www-data /app
 
 # Expose and run app
