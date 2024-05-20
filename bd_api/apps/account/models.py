@@ -458,7 +458,7 @@ class Subscription(BaseModel):
     def subscribers_info(self) -> list[dict]:
         info = [
             {
-                "email": self.admin,
+                "email": self.admin.email,
                 "role": "admin",
             }
         ]
