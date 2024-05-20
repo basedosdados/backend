@@ -247,9 +247,9 @@ fabric.properties
 
 .vscode/
 .DS_Store
-/bd_api/media/
-/bd_api/notebooks/
-/bd_api/staticfiles/
+/backend/media/
+/backend/notebooks/
+/backend/staticfiles/
 
 # Fixture
 fixtures*

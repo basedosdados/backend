@@ -33,7 +33,7 @@ jobs:
           poetry run pytest \
             --junitxml=pytest.xml \
             --cov-report=term-missing:skip-covered \
-            --cov=bd_api bd_api | tee pytest-coverage.txt
+            --cov=backend backend | tee pytest-coverage.txt
       - name: Report coverage
         uses: MishaKav/pytest-coverage-comment@main
         with:
