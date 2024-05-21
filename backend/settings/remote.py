@@ -78,8 +78,16 @@ STORAGES = {
     },
 }
 
+
 # Stripe
-STRIPE_LIVE_MODE = bool(getenv("STRIPE_LIVE_MODE"))
+def as_bool(var):
+    if isinstance(var, str):
+        if var.lower() in ["true", "t", "1"]:
+            return True
+    return False
+
+
+STRIPE_LIVE_MODE = as_bool(getenv("STRIPE_LIVE_MODE"))
 STRIPE_LIVE_SECRET_KEY = getenv("STRIPE_LIVE_SECRET_KEY")
 STRIPE_TEST_SECRET_KEY = getenv("STRIPE_TEST_SECRET_KEY")
 DJSTRIPE_WEBHOOK_SECRET = getenv("DJSTRIPE_WEBHOOK_SECRET")
