@@ -580,8 +580,8 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         return super().get_form(request, obj, **kwargs)
 
     def formfield_for_manytomany(self, db_field, request, **kwargs):
-        if db_field.name == "raw_data_source":
-            kwargs["queryset"] = RawDataSource.objects.filter(dataset=self.current_obj.dataset)
+        if self.current_obj and db_field.name == "raw_data_source":
+                kwargs["queryset"] = RawDataSource.objects.filter(dataset=self.current_obj.dataset)
         return super().formfield_for_manytomany(db_field, request, **kwargs)
 
 
