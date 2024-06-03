@@ -14,6 +14,15 @@ from django.db import models
 from django.db.models.query import QuerySet
 from django.utils import timezone
 
+from backend.apps.account.enums import (
+    AvailableForResearch,
+    DiscoveryMethod,
+    WorkArea,
+    WorkDataTool,
+    WorkGoal,
+    WorkRole,
+    WorkSize,
+)
 from backend.custom.graphql_jwt import owner_required
 from backend.custom.model import BaseModel
 from backend.custom.storage import OverwriteStorage, upload_to, validate_image
@@ -268,6 +277,51 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     deleted_at = models.DateTimeField(null=True, blank=True)
+
+    # UX Research <
+    work_area = models.TextField(
+        null=True,
+        blank=True,
+        choices=WorkArea.as_choices(),
+        verbose_name="Área",
+    )
+    work_role = models.TextField(
+        null=True,
+        blank=True,
+        choices=WorkRole.as_choices(),
+        verbose_name="Cargo",
+    )
+    work_size = models.TextField(
+        null=True,
+        blank=True,
+        choices=WorkSize.as_choices(),
+        verbose_name="Tamanho da empresa",
+    )
+    work_goal = models.TextField(
+        null=True,
+        blank=True,
+        choices=WorkGoal.as_choices(),
+        verbose_name="Objetivo com a ONG",
+    )
+    work_data_tool = models.TextField(
+        null=True,
+        blank=True,
+        choices=WorkDataTool.as_choices(),
+        verbose_name="Ferramenta principal de análise de dados",
+    )
+    discovery_method = models.TextField(
+        null=True,
+        blank=True,
+        choices=DiscoveryMethod.as_choices(),
+        verbose_name="Como conheceu a ONG",
+    )
+    available_for_research = models.TextField(
+        null=True,
+        blank=True,
+        choices=AvailableForResearch.as_choices(),
+        verbose_name="Se gostaria de participar de pesquisas",
+    )
+    # UX Research >
 
     objects = AccountManager()
 
