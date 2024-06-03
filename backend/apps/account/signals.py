@@ -11,7 +11,7 @@ from django.utils.http import urlsafe_base64_encode
 
 from backend.apps.account.models import Account, Subscription
 from backend.apps.account.token import token_generator
-from backend.custom.environment import get_frontend_url
+from backend.custom.environment import get_frontend_url, is_prd
 
 
 def send_activation_email(account: Account):
@@ -46,8 +46,9 @@ def send_activation_email_signal(sender, instance, created, raw, **kwargs):
     - The account is new
     - The account isn't active
     - The account isn't a fixture
+    - The environment is production
     """
-    if created and not raw and not instance.is_active:
+    if created and not raw and not instance.is_active and is_prd():
         send_activation_email(instance)
 
 
