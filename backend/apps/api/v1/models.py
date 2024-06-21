@@ -760,12 +760,7 @@ class Poll(BaseModel):
 
     def clean(self) -> None:
         """Assert that only one of "raw_data_source", "information_request" is set"""
-        count = 0
-        if self.raw_data_source:
-            count += 1
-        if self.information_request:
-            count += 1
-        if count != 1:
+        if  bool(self.raw_data_source) == bool(self.information_request):
             raise ValidationError(
                 "One and only one of 'raw_data_source',"
                 " or 'information_request' must be set."
