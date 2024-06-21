@@ -650,6 +650,14 @@ class Dataset(BaseModel):
         return max(updates) if updates else None
 
     @property
+    def raw_data_source_last_polled_at(self):
+        polls = [
+            u.last_polled_at for u in self.raw_data_sources.all()
+            if u.last_polled_at
+        ]  # fmt: skip
+        return max(polls) if polls else None
+
+    @property
     def raw_data_source_last_updated_at(self):
         updates = [
             u.last_updated_at for u in self.raw_data_sources.all()
@@ -717,7 +725,55 @@ class Update(BaseModel):
             raise ValidationError("Entity's category is not in category.slug = `datetime`.")
         return super().clean()
 
+class Poll(BaseModel):
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    entity = models.ForeignKey("Entity", on_delete=models.CASCADE, related_name="polls")
+    frequency = models.IntegerField()
+    lag = models.IntegerField(blank=True, null=True)
+    latest = models.DateTimeField(blank=True, null=True)
+    raw_data_source = models.ForeignKey(
+        "RawDataSource",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="polls",
+    )
+    information_request = models.ForeignKey(
+        "InformationRequest",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="polls",
+    )
 
+    graphql_nested_filter_fields_whitelist = ["id"]
+
+    def __str__(self):
+        return f"{str(self.frequency)} {str(self.entity)}"
+
+    class Meta:
+        """Meta definition for Poll."""
+
+        db_table = "poll"
+        verbose_name = "Poll"
+        verbose_name_plural = "Polls"
+        ordering = ["frequency"]
+
+    def clean(self) -> None:
+        """Assert that only one of "raw_data_source", "information_request" is set"""
+        count = 0
+        if self.raw_data_source:
+            count += 1
+        if self.information_request:
+            count += 1
+        if count != 1:
+            raise ValidationError(
+                "One and only one of 'raw_data_source',"
+                " or 'information_request' must be set."
+            )
+        if self.entity.category.slug != "datetime":
+            raise ValidationError("Entity's category is not in category.slug = `datetime`.")
+        return super().clean()
 class Table(BaseModel, OrderedModel):
     """Table model"""
 
