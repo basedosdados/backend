@@ -729,7 +729,6 @@ class Poll(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     entity = models.ForeignKey("Entity", on_delete=models.CASCADE, related_name="polls")
     frequency = models.IntegerField()
-    lag = models.IntegerField(blank=True, null=True)
     latest = models.DateTimeField(blank=True, null=True)
     raw_data_source = models.ForeignKey(
         "RawDataSource",
@@ -1549,6 +1548,11 @@ class RawDataSource(BaseModel, OrderedModel):
     def __str__(self):
         return f"{self.name} ({self.dataset.name})"
 
+    @property
+    def last_polled_at(self):
+        polls = [u.latest for u in self.polls.all() if u.latest]
+        return max(polls) if polls else None
+    
     @property
     def last_updated_at(self):
         updates = [u.latest for u in self.updates.all() if u.latest]
