@@ -685,7 +685,7 @@ class Update(BaseModel):
         on_delete=models.CASCADE,
         related_name="updates",
     )
-    updated_at = models.DateTimeField(auto_now=True)
+
     graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
