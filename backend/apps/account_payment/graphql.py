@@ -24,14 +24,20 @@ else:
 class StripePriceNode(DjangoObjectType):
     _id = ID(name="_id")
     amount = Float()
+    interval = String()
+    trial_period_days = String()
     product_name = String()
     product_slug = String()
     product_slots = String()
+    is_active = Boolean()
 
     class Meta:
         model = DJStripePrice
         fields = ("id",)
-        filter_fields = ("id",)
+        filter_fields = {
+            "id": ["exact"],
+            "active": ["exact"],
+        }
         interfaces = (PlainTextNode,)
         connection_class = CountableConnection
 
@@ -41,6 +47,14 @@ class StripePriceNode(DjangoObjectType):
     def resolve_amount(root, info):
         return root.unit_amount / 100
 
+    def resolve_interval(root, info):
+        if recurring := root.recurring:
+            return recurring.get("interval", "")
+
+    def resolve_trial_period_days(root, info):
+        if recurring := root.recurring:
+            return recurring.get("trial_period_days", "")
+
     def resolve_product_name(root, info):
         return root.product.name
 
@@ -49,6 +63,9 @@ class StripePriceNode(DjangoObjectType):
 
     def resolve_product_slots(root, info):
         return root.product.metadata.get("slots", "0")
+
+    def resolve_is_active(root, info):
+        return root.active
 
 
 class StripeCustomerNode(DjangoObjectType):
