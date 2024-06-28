@@ -23,7 +23,7 @@ from backend.apps.account.enums import (
     WorkRole,
     WorkSize,
 )
-from backend.custom.graphql_jwt import owner_required
+from backend.custom.graphql_jwt import owner_required, subscription_member
 from backend.custom.model import BaseModel
 from backend.custom.storage import OverwriteStorage, upload_to, validate_image
 
@@ -192,6 +192,7 @@ class AccountManager(BaseUserManager):
         account = self.create_user(email, password, profile=1, **kwargs)
         account.is_admin = True
         account.is_superuser = True
+        account.is_active = True
         account.save()
         return account
 
@@ -503,6 +504,9 @@ class Subscription(BaseModel):
 
     def __str__(self):
         return f"{self.admin.email} @ {self.subscription.plan}"
+
+    graphql_query_decorator = subscription_member(only_admin=False)
+    graphql_mutation_decorator = subscription_member(only_admin=True)
 
     @property
     def admin_email(self):

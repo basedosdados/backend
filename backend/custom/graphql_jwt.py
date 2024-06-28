@@ -2,6 +2,7 @@
 from functools import wraps
 from re import findall
 
+from django.db.models import Q
 from graphene import Field, ObjectType, String
 from graphql_jwt import exceptions
 from graphql_jwt.compat import get_operation_name
@@ -92,6 +93,44 @@ def owner_required(allow_anonymous=False, exc=exceptions.PermissionDenied):
                 if allow_anonymous and not uid:
                     return f(*args, **kwargs)
             raise exc
+
+        return wrapper
+
+    return decorator
+
+
+def subscription_member(only_admin=False, exc=exceptions.PermissionDenied):
+    """Decorator to limit graphql queries and mutations
+
+    - Super users are allowed to edit all resources
+    - Staff users are allowed to edit all resources
+    - If only_admin is True, only the admin(subscription owner) can edit/view the resource
+    - Authenticated users are allowed to edit/view their own subscriptions
+
+    References:
+    - https://django-graphql-jwt.domake.io/decorators.html
+    """
+
+    def decorator(f):
+        @wraps(f)
+        @context(f)
+        def wrapper(context, *args, **kwargs):
+            if not context.user.is_authenticated:
+                raise exc
+
+            if context.user.is_staff or context.user.is_superuser:
+                return f(*args, **kwargs)
+
+            subscriptions = f(*args, **kwargs)
+
+            if only_admin:
+                subscriptions = subscriptions.filter(admin=context.user)
+            else:
+                subscriptions = subscriptions.filter(
+                    Q(subscribers=context.user) | Q(admin=context.user)
+                )
+
+            return subscriptions
 
         return wrapper
 
