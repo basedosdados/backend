@@ -668,7 +668,12 @@ class Dataset(BaseModel):
 
 class Update(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    entity = models.ForeignKey("Entity", on_delete=models.CASCADE, related_name="updates")
+    entity = models.ForeignKey(
+        "Entity",
+        on_delete=models.CASCADE,
+        related_name="updates",
+        limit_choices_to={"category__slug": "datetime"},
+    )
     frequency = models.IntegerField()
     lag = models.IntegerField(blank=True, null=True)
     latest = models.DateTimeField(blank=True, null=True)
@@ -725,6 +730,7 @@ class Update(BaseModel):
             raise ValidationError("Entity's category is not in category.slug = `datetime`.")
         return super().clean()
 
+
 class Poll(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     entity = models.ForeignKey("Entity", on_delete=models.CASCADE, related_name="polls")
@@ -760,14 +766,15 @@ class Poll(BaseModel):
 
     def clean(self) -> None:
         """Assert that only one of "raw_data_source", "information_request" is set"""
-        if  bool(self.raw_data_source) == bool(self.information_request):
+        if bool(self.raw_data_source) == bool(self.information_request):
             raise ValidationError(
-                "One and only one of 'raw_data_source',"
-                " or 'information_request' must be set."
+                "One and only one of 'raw_data_source'," " or 'information_request' must be set."
             )
         if self.entity.category.slug != "datetime":
             raise ValidationError("Entity's category is not in category.slug = `datetime`.")
         return super().clean()
+
+
 class Table(BaseModel, OrderedModel):
     """Table model"""
 
@@ -1268,7 +1275,14 @@ class Column(BaseModel, OrderedModel):
         blank=True,
         null=True,
     )
-    date_coverage_reference = models.ForeignKey("Entity", on_delete=models.SET_NULL, related_name="columns", blank=True, null=True)
+    date_coverage_reference = models.ForeignKey(
+        "Entity",
+        on_delete=models.SET_NULL,
+        related_name="columns",
+        blank=True,
+        null=True,
+        limit_choices_to={"category__slug": "datetime"},
+    )
     measurement_unit = models.CharField(max_length=255, blank=True, null=True)
     contains_sensitive_data = models.BooleanField(default=False, blank=True, null=True)
     observations = models.TextField(blank=True, null=True)
@@ -1333,9 +1347,9 @@ class Column(BaseModel, OrderedModel):
                 return cloud_table
 
     @property
-    def date_coverage_entity_category(self):
+    def date_coverage_reference_category(self):
         """Category of Entity of date coverage"""
-        if entity := self.date_coverage_entity:
+        if entity := self.date_coverage_reference:
             if category := entity.category:
                 return category
 
@@ -1350,11 +1364,9 @@ class Column(BaseModel, OrderedModel):
             errors[
                 "directory_primary_key"
             ] = "Column indicated as a directory's primary key is not in a directory."
-        if category := self.date_coverage_entity_category:
-            if  category.slug != "datetime":
-                errors[
-                    "date_coverage_reference"
-                ] = "Entity is not datetime type"
+        if category := self.date_coverage_reference_category:
+            if category.slug != "datetime":
+                errors["date_coverage_reference"] = "Entity is not datetime type"
         if errors:
             raise ValidationError(errors)
         return super().clean()
@@ -1560,7 +1572,7 @@ class RawDataSource(BaseModel, OrderedModel):
     def last_polled_at(self):
         polls = [u.latest for u in self.polls.all() if u.latest]
         return max(polls) if polls else None
-    
+
     @property
     def last_updated_at(self):
         updates = [u.latest for u in self.updates.all() if u.latest]
