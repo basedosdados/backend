@@ -1747,6 +1747,9 @@ class DateTimeRange(BaseModel):
     end_minute = models.IntegerField(blank=True, null=True)
     end_second = models.IntegerField(blank=True, null=True)
     interval = models.IntegerField(blank=True, null=True)
+    unit = models.ForeignKey(
+        "Column", on_delete=models.CASCADE, related_name="datetime_ranges"
+    )
     is_closed = models.BooleanField("Is Closed", default=False)
 
     graphql_fields_blacklist = BaseModel.graphql_fields_blacklist + ["since", "until"]
