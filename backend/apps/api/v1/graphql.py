@@ -48,11 +48,14 @@ class Query(ObjectType):
     get_table_one_big_table_query = String(
         table_id=UUID(required=True),
         columns=List(String),
+        include_table_translation=Boolean(),
     )
 
     def resolve_get_table_neighbor(root, info, table_id, **kwargs):
         return TableNeighbor.objects.filter(table_a__pk=table_id).all()
 
-    def resolve_get_table_one_big_table_query(root, info, table_id, columns=None, **kwargs):
+    def resolve_get_table_one_big_table_query(
+        root, info, table_id, columns=None, include_table_translation=True, **kwargs
+    ):
         if table := Table.objects.filter(pk=table_id).first():
-            return table.gen_one_big_table_query(columns)
+            return table.gen_one_big_table_query(columns, include_table_translation)

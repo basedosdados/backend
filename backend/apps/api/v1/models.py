@@ -725,6 +725,7 @@ class Update(BaseModel):
             raise ValidationError("Entity's category is not in category.slug = `datetime`.")
         return super().clean()
 
+
 class Poll(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     entity = models.ForeignKey("Entity", on_delete=models.CASCADE, related_name="polls")
@@ -760,14 +761,15 @@ class Poll(BaseModel):
 
     def clean(self) -> None:
         """Assert that only one of "raw_data_source", "information_request" is set"""
-        if  bool(self.raw_data_source) == bool(self.information_request):
+        if bool(self.raw_data_source) == bool(self.information_request):
             raise ValidationError(
-                "One and only one of 'raw_data_source',"
-                " or 'information_request' must be set."
+                "One and only one of 'raw_data_source'," " or 'information_request' must be set."
             )
         if self.entity.category.slug != "datetime":
             raise ValidationError("Entity's category is not in category.slug = `datetime`.")
         return super().clean()
+
+
 class Table(BaseModel, OrderedModel):
     """Table model"""
 
@@ -1040,7 +1042,9 @@ class Table(BaseModel, OrderedModel):
             )
         return all_neighbors
 
-    def gen_one_big_table_query(self, columns: list[str] = None):
+    def gen_one_big_table_query(
+        self, columns: list[str] = None, include_table_translation: bool = True
+    ):
         """Get a denormalized sql query, similar to a one big table"""
 
         def has_directory(column: Column):
@@ -1086,7 +1090,7 @@ class Table(BaseModel, OrderedModel):
             for column in self.columns.order_by("order").all():
                 if columns and column.name not in columns:
                     continue
-                if column.covered_by_dictionary:
+                if column.covered_by_dictionary and include_table_translation:
                     sql_cte_table = f"dicionario_{column.name}"
                     sql_cte = f"""
                         {sql_cte_table} AS (
@@ -1106,7 +1110,7 @@ class Table(BaseModel, OrderedModel):
                     sql_ctes.append(dedent(sql_cte))
                     sql_joins.append(dedent(sql_join))
                     sql_selects.append(dedent(sql_select))
-                elif has_directory(column):
+                elif has_directory(column) and include_table_translation:
                     sql_cte_table = f"diretorio_{column.name}"
                     sql_cte_column = get_column(column, column.dir_cloud_table)
                     sql_select_id = f"dados.{column.name} AS {column.name}"
@@ -1547,7 +1551,7 @@ class RawDataSource(BaseModel, OrderedModel):
     def last_polled_at(self):
         polls = [u.latest for u in self.polls.all() if u.latest]
         return max(polls) if polls else None
-    
+
     @property
     def last_updated_at(self):
         updates = [u.latest for u in self.updates.all() if u.latest]
