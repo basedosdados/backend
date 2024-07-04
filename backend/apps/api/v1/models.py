@@ -970,7 +970,7 @@ class Table(BaseModel, OrderedModel):
         units = []
         for coverage in self.coverages.all():
             for datetime_range in coverage.datetime_ranges.all():
-                units.append(datetime_range.unit.id)
+                units.append(datetime_range.unit.name)
         most_common_unit = max(set(units), key=units.count)
         return most_common_unit
 
