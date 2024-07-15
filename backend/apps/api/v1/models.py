@@ -1052,36 +1052,69 @@ class Table(BaseModel, OrderedModel):
                 return False
             if not column.dir_cloud_table:
                 return False
-            if "setor_censitario" in str(column.dir_cloud_table):
-                return False
             if "diretorios_data_tempo" in str(column.dir_cloud_table):
                 return False
             return True
 
-        def get_column(column: Column, cloud_table: CloudTable):
+        def get_directory_description_column(column: Column, cloud_table: CloudTable):
             """Get cte column name with adjustments"""
+
+
             map_directory_description_column = {
-                "br_bd_diretorios_brasil.area_conhecimento": f"descricao_{column.name}",
-                "br_bd_diretorios_brasil.cbo_1994": "descricao",
-                "br_bd_diretorios_brasil.cbo_2002": "descricao",
-                "br_bd_diretorios_brasil.cep": "centroide",
-                "br_bd_diretorios_brasil.cid_10": f"descricao_{column.name}",
-                "br_bd_diretorios_brasil.cid_9": "descricao",
-                "br_bd_diretorios_brasil.cnae_1": "descricao",
-                "br_bd_diretorios_brasil.cnae_2": "descricao",
-                "br_bd_diretorios_brasil.curso_superior": "nome_curso",
-                "br_bd_diretorios_brasil.distrito": "nome",
-                "br_bd_diretorios_brasil.empresa": "nome_fantasia",
-                "br_bd_diretorios_brasil.escola": "nome",
-                "br_bd_diretorios_brasil.etnia_indigena": "nome",
-                "br_bd_diretorios_brasil.instituicao_ensino_superior": "nome",
-                "br_bd_diretorios_brasil.municipio": "nome",
-                "br_bd_diretorios_brasil.natureza_juridica": "descricao",
-                "br_bd_diretorios_brasil.regiao_metropolitana": "nome",
-                "br_bd_diretorios_brasil.uf": "nome",
-                "br_bd_diretorios_brasil.cnae_2_3_subclasses": "descricao",
+                "br_bd_diretorios_brasil.area_conhecimento.especialidade": ["descricao_especialidade",
+                                                                            "descricao_subarea",
+                                                                            "descricao_area",
+                                                                            "descricao_grande_area"],
+                "br_bd_diretorios_brasil.cbo_1994.cbo_1994": ["descricao"],
+                "br_bd_diretorios_brasil.cbo_2002.cbo_2002": ["descricao","descricao_familia","descricao_subgrupo","descricao_subgrupo_principal","descricao_grande_grupo"],
+                "br_bd_diretorios_brasil.cep": ["centroide"],
+                "br_bd_diretorios_brasil.cid_10.subcategoria": ["descricao_subcategoria",
+                                                                "descricao_categoria",
+                                                                "descricao_capitulo"],
+                "br_bd_diretorios_brasil.cid_10.categoria": ["descricao_categoria",
+                                                             "descricao_capitulo"],
+                "br_bd_diretorios_brasil.cid_9.categoria": ["descricao"],
+                "br_bd_diretorios_brasil.cnae_1.cnae_1": ["descricao",
+                                                          "descricao_grupo",
+                                                          "descricao_divisao",
+                                                          "descricao_secao"],
+                "br_bd_diretorios_brasil.cnae_2.subclasse": ["descricao_subclasse", 
+                                                             "descricao_classe",
+                                                             "descricao_grupo", 
+                                                             "descricao_divisao",
+                                                             "descricao_secao"],
+                "br_bd_diretorios_brasil.curso_superior.id_curso": ["nome_curso","nome_area","grau_academico"],
+                "br_bd_diretorios_brasil.distrito_1991.id_distrito": ["nome"],
+                "br_bd_diretorios_brasil.distrito_2000.id_distrito": ["nome"],
+                "br_bd_diretorios_brasil.distrito_2010.id_distrito": ["nome"],
+                "br_bd_diretorios_brasil.empresa.cnpj": ["nome_fantasia",
+                                                         "razao_social",
+                                                         "situacao_cadastral"],
+                "br_bd_diretorios_brasil.empresa.cnpj_basico":["razao_social",
+                                                               "capital_social"],
+                "br_bd_diretorios_brasil.escola.id_escola": ["nome","latitude","longitude"],
+                "br_bd_diretorios_brasil.etnia_indigena.id_etnia_indigena": ["nome"],
+                "br_bd_diretorios_brasil.instituicao_ensino_superior.id_ies": ["nome","tipo_instituicao"],
+                "br_bd_diretorios_brasil.municipio.id_municipio_tse": ["nome", "centroide"],
+                "br_bd_diretorios_brasil.municipio.id_municipio_6": ["nome", "centroide"],
+                "br_bd_diretorios_brasil.municipio.id_municipio": ["nome", "centroide"],
+                "br_bd_diretorios_brasil.natureza_juridica.id_natureza_juridica": ["descricao"],
+                "br_bd_diretorios_brasil.setor_censitario_2010.id_setor_censitario": ["nome_municipio",
+                                                                                      "nome_distrito",
+                                                                                      "nome_subdistrito",
+                                                                                      "nome_bairro"],
+                "br_bd_diretorios_brasil.setor_censitario_2022.id_setor_censitario": ["nome_municipio",
+                                                                                      "nome_distrito",
+                                                                                      "nome_subdistrito",
+                                                                                      "nome_bairro"],
+                "br_bd_diretorios_brasil.uf.id_uf": ["sigla","nome"],
+                "br_bd_diretorios_brasil.uf.sigla": ["nome"],
+                "br_bd_diretorios_mundo.pais.sigla_pais_iso3": ["nome"],
+                "br_bd_diretorios_mundo.nomenclatura_comum_mercosul.id_ncm": ["nome_ncm_portugues", "nome_unidade"],
+                "br_bd_diretorios_mundo.sistema_harmonizado.sh4":["nome_sh4_portugues","nome_sh2_portugues","nome_sec_portugues"]
+
             }
-            return map_directory_description_column.get(cloud_table.gcp_suffix_id)
+            return map_directory_description_column.get(f"{cloud_table.gcp_suffix_id}.{column.dir_column.name}")
 
         def get_components():
             sql_ctes, sql_joins, sql_selects = [], [], []
@@ -1112,17 +1145,17 @@ class Table(BaseModel, OrderedModel):
                     sql_selects.append(dedent(sql_select))
                 elif has_directory(column) and include_table_translation:
                     sql_cte_table = f"diretorio_{column.name}"
-                    sql_cte_column = get_column(column, column.dir_cloud_table)
+                    sql_cte_column = get_directory_description_column(column, column.dir_cloud_table)
+                    sql_select_label = [f"{sql_cte_table}.{sql_cte_column} AS {column.name}_{sql_cte_column}" for sql_cte_column in sql_cte_column]
+                    
                     sql_select_id = f"dados.{column.name} AS {column.name}"
-                    sql_select_label = (
-                        f"{sql_cte_table}.{sql_cte_column} AS {column.name}_{sql_cte_column}"
-                    )
+
                     sql_join = f"""
-                        LEFT JOIN `{column.dir_cloud_table}` AS {sql_cte_table}
+                        LEFT JOIN (SELECT DISTINCT {column.dir_column.name},{','.join(sql_cte_column)} FROM `{column.dir_cloud_table}`) AS {sql_cte_table}
                             ON dados.{column.name} = {sql_cte_table}.{column.dir_column.name}"""
                     sql_joins.append(dedent(sql_join))
                     sql_selects.append(dedent(sql_select_id))
-                    sql_selects.append(dedent(sql_select_label))
+                    sql_selects.extend(dedent(sql_select_label))
                 else:
                     sql_selects.append(column.name)
 
