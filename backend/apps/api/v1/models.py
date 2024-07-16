@@ -1146,6 +1146,7 @@ class Table(BaseModel, OrderedModel):
         """
         Clean method for Table model
             - Coverages must not overlap
+            - Temporal coverage units must refer to the same column.
         """
         errors = {}
         try:
@@ -1178,12 +1179,22 @@ class Table(BaseModel, OrderedModel):
                 datetime_ranges.sort(key=lambda x: x[0])
                 for i in range(1, len(datetime_ranges)):
                     if datetime_ranges[i - 1][1] > datetime_ranges[i][0]:
-                        errors = f"Temporal coverages in area {area} overlap"
+                        errors['coverages_areas'] = f"Temporal coverages in area {area} overlap"
         except ValueError:
             pass
-
+        
+        def all_same(items):
+            return all(x == items[0] for x in items)
+        units = []
+        for coverage in self.coverages.all():
+            for datetime_range in coverage.datetime_ranges.all():
+                units.append(datetime_range.unit.id)
+        if not all_same(units):
+            errors['datetime_range_units'] = f"Datetime range units do not refer all to the same column."
+        
         if errors:
             raise ValidationError(errors)
+        return super().clean()
 
 
 class TableNeighbor(BaseModel):
