@@ -17,7 +17,7 @@ def log_task_execution(task_name):
             try:
                 result = func(*args, **kwargs)
             except Exception as e:
-                status = "falied"
+                status = "failed"
                 error = str(e)
             finally:
                 end_time = datetime.now()
