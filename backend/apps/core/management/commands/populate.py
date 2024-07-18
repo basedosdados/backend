@@ -82,13 +82,13 @@ class Command(BaseCommand):
     help = "Populate database with initial data"
 
     def get_all_files(self):
-        data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
-        files = os.listdir(data_dir)
+        directory = os.path.join(os.getcwd(), "metabase_data")
+        files = os.listdir(directory)
         self.files = files
 
     def load_table_data(self, table_name):
-        data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
-        with open(f"{data_dir}/{table_name}.json") as f:
+        directory = os.path.join(os.getcwd(), "metabase_data")
+        with open(f"{directory}/{table_name}.json") as f:
             data = json.load(f)
 
         return data
@@ -214,7 +214,6 @@ class Command(BaseCommand):
         self.references.add(table_name, item["id"], instance.id)
 
     def handle(self, *args, **kwargs):
-        self.stdout.write(self.style.SUCCESS("Hello World"))
         app_name = "v1"
 
         app = apps.get_app_config(app_name)
