@@ -67,3 +67,16 @@ def production_task(func):
             return func(*args, **kwargs)
 
     return wrapper
+
+
+def not_production_task(func):
+    """
+    Decorator that avoids function call if it is production
+    """
+
+    @wraps(func)
+    def wrapper(*args, **kwargs):
+        if not is_prd():
+            return func(*args, **kwargs)
+
+    return wrapper
