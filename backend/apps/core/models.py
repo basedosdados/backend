@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from datetime import datetime
 from uuid import uuid4
 
 from django.db import models
@@ -17,7 +18,7 @@ class Metadata(BaseModel):
 
 class TaskExecution(models.Model):
     task_name = models.CharField(max_length=255)
-    execution_time = models.DateTimeField()
+    execution_time = models.DateTimeField(default=datetime.now)
     duration = models.FloatField(default=0)
     status = models.CharField(max_length=255)
     result = models.TextField(null=True, blank=True)
