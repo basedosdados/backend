@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import traceback
 from datetime import datetime
 from functools import wraps
 
@@ -14,23 +15,31 @@ def log_task_execution(task_name):
             error = None
             start_time = datetime.now()
 
+            task_log = TaskExecution.objects.filter(status="running", task_name=task_name).first()
+
+            if not task_log:
+                task_log = TaskExecution(
+                    task_name=task_name,
+                    status="running",
+                    execution_time=start_time,
+                )
+
+                TaskExecution.objects.bulk_create([task_log])
+
             try:
                 result = func(*args, **kwargs)
             except Exception as e:
                 status = "failed"
-                error = str(e)
+                error = f"{str(e)}\n{traceback.format_exc()}"
             finally:
                 end_time = datetime.now()
                 duration = (end_time - start_time).total_seconds()
 
-                TaskExecution.objects.create(
-                    task_name=task_name,
-                    status=status,
-                    result=result,
-                    error=error,
-                    execution_time=start_time,
-                    duration=duration,
-                )
+                task_log.status = status
+                task_log.result = result
+                task_log.error = error
+                task_log.duration = duration
+                task_log.save()
             return result
 
         return wrapper
