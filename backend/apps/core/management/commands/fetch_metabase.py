@@ -55,7 +55,7 @@ class Command(BaseCommand):
         response = requests.get(BASE_URL + "/api/database", headers=headers)
 
         if response.status_code != 200:
-            raise Exception(response.text)
+            raise Exception(response.text + f" for {METABASE_USER}")
 
         return response.json()["data"]
 
