@@ -54,6 +54,9 @@ class Command(BaseCommand):
 
         response = requests.get(BASE_URL + "/api/database", headers=headers)
 
+        if response.status_code != 200:
+            raise Exception(response.text)
+
         return response.json()["data"]
 
     def get_tables(self, token: str, database_id: int):
