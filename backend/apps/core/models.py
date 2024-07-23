@@ -20,7 +20,7 @@ class TaskExecution(models.Model):
     task_name = models.CharField(max_length=255)
     execution_time = models.DateTimeField(default=datetime.now)
     duration = models.FloatField(default=0)
-    status = models.CharField(max_length=255)
+    status = models.CharField(max_length=100, default="running")
     result = models.TextField(null=True, blank=True)
     error = models.TextField(null=True, blank=True)
 

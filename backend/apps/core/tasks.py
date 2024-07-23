@@ -38,7 +38,7 @@ def get_monitor_availability():
         )
 
 
-@db_periodic_task(crontab(minute="0", hour="*/2"))
+@db_periodic_task(crontab(day_of_week="monday", hour="3", minute="0"))
 @not_production_task
 @log_task_execution("sync_database_with_prod")
 def sync_database_with_prod():
