@@ -67,7 +67,9 @@ class Layer:
         for model in self.models:
             context.stdout.write(context.style.SUCCESS(f"{'-' * self.depth * 2} {model.__name__}"))
             for field in model._meta.get_fields():
-                if isinstance(field, models.ForeignKey):
+                if isinstance(field, models.ForeignKey) or isinstance(
+                    field, models.ManyToManyField
+                ):
                     name = f"{field.name} -> {field.related_model.__name__}"
 
                     if field.null:
@@ -92,6 +94,24 @@ class Command(BaseCommand):
             data = json.load(f)
 
         return data
+
+    def get_m2m_data(self, table_name, current_table_name, field_name, id):
+        cache_context = f"m2m_cache_{table_name}"
+
+        if not hasattr(self, cache_context):
+            data = self.load_table_data(table_name)
+            cache = {}
+
+            for item in data:
+                related_id = item[current_table_name]
+                if related_id not in cache:
+                    cache[related_id] = []
+
+                cache[related_id].append(item[field_name])
+
+            setattr(self, cache_context, cache)
+
+        return getattr(self, cache_context).get(id, [])
 
     def model_has_data(self, model_name):
         if f"{model_name}.json" in self.files:
@@ -139,7 +159,9 @@ class Command(BaseCommand):
                 has_all_dependencies = True
 
                 for field in model._meta.get_fields():
-                    if isinstance(field, models.ForeignKey):
+                    if isinstance(field, models.ForeignKey) or isinstance(
+                        field, models.ManyToManyField
+                    ):
                         if (
                             field.related_model not in other_models
                             and field.related_model not in sorted_models
@@ -178,8 +200,9 @@ class Command(BaseCommand):
         payload = {}
         retry = None
         table_name = model._meta.db_table
+        m2m_payload = {}
 
-        for field in model._meta.local_fields:
+        for field in model._meta.get_fields():
             if isinstance(field, models.ForeignKey):
                 field_name = f"{field.name}_id"
                 current_value = item[field_name]
@@ -188,6 +211,7 @@ class Command(BaseCommand):
                     continue
 
                 reference = self.references.get(field.related_model._meta.db_table, current_value)
+
                 if reference:
                     payload[field_name] = reference
                 else:
@@ -200,12 +224,47 @@ class Command(BaseCommand):
                         "table_name": field.related_model._meta.db_table,
                         "field_name": field_name,
                     }
+            elif isinstance(field, models.ManyToManyField):
+                field_name = field.name
+                m2m_table_name = field.m2m_db_table()
 
+                current_model_name = f"{model.__name__.lower()}_id"
+                field_model_name = field.related_model.__name__.lower() + "_id"
+
+                m2m_related_data = self.get_m2m_data(
+                    m2m_table_name, current_model_name, field_model_name, item["id"]
+                )
+
+                instances = [
+                    self.references.get(field.related_model._meta.db_table, current_value)
+                    for current_value in m2m_related_data
+                ]
+
+                if instances:
+                    m2m_payload[field_name] = instances
             else:
-                payload[field.name] = item[field.name]
+                current_value = item.get(field.name)
+
+                if current_value is None:
+                    continue
+
+                payload[field.name] = current_value
 
         instance = model(**payload)
         instance.save()
+
+        # Set many to many relationships
+        if m2m_payload:
+            for field_name, related_data in m2m_payload.items():
+                field = getattr(instance, field_name)
+
+                try:
+                    field.set(related_data)
+                except Exception as e:
+                    print(e)
+                    print(field_name)
+                    print(related_data)
+                    raise e
 
         if retry:
             retry["instance"] = instance
