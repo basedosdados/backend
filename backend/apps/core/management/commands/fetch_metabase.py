@@ -76,16 +76,14 @@ class Command(BaseCommand):
 
         return tables
 
-    def get_table_data(self, token: str, database_id: int, table: Table):
-        headers = self.get_headers(token)
-        fields = [f'"{field}"' for field in table.fields]
-        formated_field = ", ".join(fields)
-        query = f'SELECT {formated_field} FROM "{table.name}"'
+    def def_get_data_paginated(self, headers, database_id, query, page=0):
+        limit = 2000
+        new_query = query + f" LIMIT {limit} OFFSET {page * limit}"
 
         payload = {
             "database": database_id,
             "native": {
-                "query": query,
+                "query": new_query,
             },
             "type": "native",
         }
@@ -93,12 +91,32 @@ class Command(BaseCommand):
         response = requests.post(BASE_URL + "/api/dataset", headers=headers, json=payload)
 
         if response.status_code != 202:
-            return
+            self.stderr.write(f"Error fetching data: {response.text}")
+            return []
 
         response_json = response.json()
-        rows = []
+        return response_json["data"]["rows"]
 
-        for row in response_json["data"]["rows"]:
+    def get_table_data(self, token: str, database_id: int, table: Table):
+        headers = self.get_headers(token)
+        fields = [f'"{field}"' for field in table.fields]
+        formated_field = ", ".join(fields)
+        query = f'SELECT {formated_field} FROM "{table.name}"'
+
+        raw_rows = []
+        page = 0
+        while True:
+            data = self.def_get_data_paginated(headers, database_id, query, page)
+            if len(data) == 0:
+                break
+
+            raw_rows += data
+            page += 1
+
+        self.stdout.write(self.style.SUCCESS(f"Fetched {len(raw_rows)} rows from {str(table)}"))
+
+        rows = []
+        for row in raw_rows:
             instance = {}
             for i, field in enumerate(table.fields):
                 instance[field] = row[i]
@@ -109,7 +127,6 @@ class Command(BaseCommand):
             self.save_data(table.name, json.dumps(rows, ensure_ascii=False, indent=4))
         else:
             self.stdout.write(self.style.WARNING(f"No data found for {str(table)}"))
-            self.stdout.write(self.style.WARNING(query))
 
     def clean_data(self):
         directory = os.path.join(os.getcwd(), "metabase_data")
