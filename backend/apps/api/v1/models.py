@@ -669,7 +669,7 @@ class Dataset(BaseModel):
 class Update(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     entity = models.ForeignKey("Entity", on_delete=models.CASCADE, related_name="updates")
-    frequency = models.IntegerField()
+    frequency = models.IntegerField(blank=True, null=True)
     lag = models.IntegerField(blank=True, null=True)
     latest = models.DateTimeField(blank=True, null=True)
     table = models.ForeignKey(
