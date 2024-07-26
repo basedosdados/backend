@@ -734,8 +734,14 @@ class Update(BaseModel):
 
 class Poll(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    entity = models.ForeignKey("Entity", on_delete=models.CASCADE, related_name="polls")
-    frequency = models.IntegerField()
+    entity = models.ForeignKey(
+        "Entity",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="polls"
+    )
+    frequency = models.IntegerField(blank=True, null=True)
     latest = models.DateTimeField(blank=True, null=True)
     raw_data_source = models.ForeignKey(
         "RawDataSource",
