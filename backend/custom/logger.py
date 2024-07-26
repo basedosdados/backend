@@ -8,7 +8,7 @@ from loguru import logger
 LOGGER_LEVEL = getenv("LOGGER_LEVEL", "DEBUG")
 LOGGER_IGNORE = getenv("LOGGER_IGNORE", "").split(",")
 LOGGER_SERIALIZE = bool(getenv("LOGGER_SERIALIZE", False))
-LOGGER_FORMAT = "[{time:YYYY-MM-DD HH:mm:ss}] <lvl>{message}</>"
+LOGGER_FORMAT = "[{time:YYYY-MM-DD HH:mm:ss}] <lvl>{extra[app_name]}: {message}</>"
 
 
 class InterceptHandler(Handler):
@@ -28,7 +28,14 @@ class InterceptHandler(Handler):
             frame = frame.f_back
             depth += 1
 
-        logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
+        # Include the logger name (app name) in the log record
+        app_name = record.name
+        extra = record.__dict__.get("extra", {})
+        extra["app_name"] = app_name
+
+        logger.bind(**extra).opt(depth=depth, exception=record.exc_info).log(
+            level, record.getMessage()
+        )
 
 
 def setup_logger(logging_settings=None):

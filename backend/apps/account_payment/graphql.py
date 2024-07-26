@@ -192,19 +192,23 @@ class StripeSubscriptionCreateMutation(Mutation):
     def mutate(cls, root, info, price_id):
         try:
             admin = info.context.user
+            internal_subscriptions = admin.internal_subscription.all()
 
             for s in [
                 *admin.subscription_set.all(),
-                *admin.internal_subscription.all(),
+                *internal_subscriptions,
             ]:
                 if s.is_active:
                     return cls(errors=["Conta possui inscrição ativa"])
 
             price = DJStripePrice.objects.get(djstripe_id=price_id)
+            trial_period_days = 0 if len(internal_subscriptions) > 0 else 7
+
             subscription: DJStripeSubscription = admin.customer.subscribe(
                 price=price.id,
                 payment_behavior="default_incomplete",
                 payment_settings={"save_default_payment_method": "on_subscription"},
+                trial_period_days=trial_period_days,
             )
             Subscription.objects.create(admin=admin, subscription=subscription)
             return cls(subscription=subscription)
