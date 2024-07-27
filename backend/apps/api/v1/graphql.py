@@ -4,6 +4,7 @@ from graphene import UUID, Boolean, Float, List, ObjectType, String
 from graphene_django import DjangoObjectType
 
 from backend.apps.api.v1.models import Table, TableNeighbor
+from backend.apps.api.v1.sql_generator import OneBigTableQueryGenerator
 from backend.custom.graphql_base import PlainTextNode
 
 
@@ -58,4 +59,7 @@ class Query(ObjectType):
         root, info, table_id, columns=None, include_table_translation=True, **kwargs
     ):
         if table := Table.objects.filter(pk=table_id).first():
-            return table.gen_one_big_table_query(columns, include_table_translation)
+            sql_query = OneBigTableQueryGenerator().generate(
+                table, columns, include_table_translation
+            )
+            return sql_query
