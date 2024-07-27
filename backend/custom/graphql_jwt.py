@@ -4,11 +4,13 @@ from re import findall
 
 from django.db.models import Q
 from graphene import Field, ObjectType, String
-from graphql_jwt import exceptions
+from graphql_jwt import Verify, exceptions
 from graphql_jwt.compat import get_operation_name
 from graphql_jwt.decorators import context
 from graphql_jwt.relay import JSONWebTokenMutation
 from graphql_jwt.settings import jwt_settings
+
+from backend.apps.account.models import Account
 
 
 class User(ObjectType):
@@ -135,3 +137,14 @@ def subscription_member(only_admin=False, exc=exceptions.PermissionDenied):
         return wrapper
 
     return decorator
+
+
+class CustomVerify(Verify):
+    @classmethod
+    def mutate(cls, *args, **kwargs):
+        response = super().mutate(*args, **kwargs)
+        email = response.payload.get("email")
+        user = Account.objects.get(email=email)
+        if user:
+            response.payload.update({"pro_subscription_status": user.pro_subscription_status})
+        return response
