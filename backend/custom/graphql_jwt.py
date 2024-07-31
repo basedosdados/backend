@@ -10,8 +10,6 @@ from graphql_jwt.decorators import context
 from graphql_jwt.relay import JSONWebTokenMutation
 from graphql_jwt.settings import jwt_settings
 
-from backend.apps.account.models import Account
-
 
 class User(ObjectType):
     id = String()
@@ -142,6 +140,8 @@ def subscription_member(only_admin=False, exc=exceptions.PermissionDenied):
 class CustomVerify(Verify):
     @classmethod
     def mutate(cls, *args, **kwargs):
+        from backend.apps.account.models import Account
+
         response = super().mutate(*args, **kwargs)
         email = response.payload.get("email")
         user = Account.objects.get(email=email)
