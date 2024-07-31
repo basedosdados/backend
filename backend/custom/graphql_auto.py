@@ -39,10 +39,10 @@ from graphene_django.forms.mutation import (
 )
 from graphene_django.registry import get_global_registry
 from graphene_file_upload.scalars import Upload
-from graphql_jwt import ObtainJSONWebToken, Refresh, Verify
+from graphql_jwt import ObtainJSONWebToken, Refresh
 
 from backend.custom.graphql_base import CountableConnection, FileFieldScalar, PlainTextNode
-from backend.custom.graphql_jwt import ObtainJSONWebTokenWithUser
+from backend.custom.graphql_jwt import CustomVerify, ObtainJSONWebTokenWithUser
 from backend.custom.model import BaseModel
 
 
@@ -248,7 +248,7 @@ def build_mutation_schema(application_name: str):
         {
             "token_auth": ObtainJSONWebToken.Field(),
             "auth_token": ObtainJSONWebTokenWithUser.Field(),
-            "verify_token": Verify.Field(),
+            "verify_token": CustomVerify.Field(),
             "refresh_token": Refresh.Field(),
         }
     )
