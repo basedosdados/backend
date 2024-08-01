@@ -838,7 +838,6 @@ class Table(BaseModel, OrderedModel):
     )
     data_cleaning_description = models.TextField(blank=True, null=True)
     data_cleaning_code_url = models.URLField(blank=True, null=True)
-    raw_data_url = models.URLField(blank=True, null=True, max_length=500)
     auxiliary_files_url = models.URLField(blank=True, null=True)
     architecture_url = models.URLField(blank=True, null=True)
     source_bucket_name = models.CharField(
@@ -852,6 +851,12 @@ class Table(BaseModel, OrderedModel):
     page_views = models.BigIntegerField(
         default=0,
         help_text="Number of page views by Google Analytics",
+    )
+    is_deprecated = models.BooleanField(
+        defalt=False,
+        blank=True,
+        null=True,
+        help_text="We stopped maintaining this table for some reason. Examples: raw data deprecated, new version elsewhere, etc."
     )
 
     order_with_respect_to = ("dataset",)
