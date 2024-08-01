@@ -213,6 +213,9 @@ class DateTimeRangeInline(admin.StackedInline):
     model = DateTimeRange
     extra = 0
     show_change_link = True
+    fields = [
+        "unit",
+    ]
 
 
 class CoverageInline(admin.StackedInline):
@@ -545,6 +548,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "partitions",
         "created_at",
         "updated_at",
+        "coverage_datetime_unit",
     ]
     search_fields = [
         "name",

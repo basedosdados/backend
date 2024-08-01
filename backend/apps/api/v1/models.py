@@ -978,6 +978,15 @@ class Table(BaseModel, OrderedModel):
             "website": self.data_cleaned_by.website,
         }
 
+    @property
+    def coverage_datetime_unit(self) -> str:
+        units = []
+        for coverage in self.coverages.all():
+            for datetime_range in coverage.datetime_ranges.all():
+                units.append(datetime_range.unit.name)
+        most_common_unit = max(set(units), key=units.count)
+        return most_common_unit
+
     def get_similarity_of_area(self, other: "Table"):
         count_all = 0
         count_yes = 0
@@ -1057,6 +1066,7 @@ class Table(BaseModel, OrderedModel):
         """
         Clean method for Table model
             - Coverages must not overlap
+            - Temporal coverage units must refer to the same column.
         """
         errors = {}
         try:
@@ -1089,12 +1099,22 @@ class Table(BaseModel, OrderedModel):
                 datetime_ranges.sort(key=lambda x: x[0])
                 for i in range(1, len(datetime_ranges)):
                     if datetime_ranges[i - 1][1] > datetime_ranges[i][0]:
-                        errors = f"Temporal coverages in area {area} overlap"
+                        errors['coverages_areas'] = f"Temporal coverages in area {area} overlap"
         except ValueError:
             pass
-
+        
+        def all_same(items):
+            return all(x == items[0] for x in items)
+        units = []
+        for coverage in self.coverages.all():
+            for datetime_range in coverage.datetime_ranges.all():
+                units.append(datetime_range.unit.id)
+        if not all_same(units):
+            errors['datetime_range_units'] = f"Datetime range units do not refer all to the same column."
+        
         if errors:
             raise ValidationError(errors)
+        return super().clean()
 
 
 class TableNeighbor(BaseModel):
@@ -1667,6 +1687,10 @@ class DateTimeRange(BaseModel):
     end_minute = models.IntegerField(blank=True, null=True)
     end_second = models.IntegerField(blank=True, null=True)
     interval = models.IntegerField(blank=True, null=True)
+    unit = models.ForeignKey(
+        "Column", on_delete=models.SET_NULL, related_name="datetime_ranges",
+        null=True, blank=True
+    )
     is_closed = models.BooleanField("Is Closed", default=False)
 
     graphql_fields_blacklist = BaseModel.graphql_fields_blacklist + ["since", "until"]
