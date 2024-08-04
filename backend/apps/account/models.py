@@ -549,6 +549,12 @@ class Subscription(BaseModel):
     def is_pro(self):
         return "bd_pro" in self.subscription.plan.product.metadata.get("code", "")
 
+    @property
+    def canceled_at(self):
+        if self.subscription:
+            return self.subscription.canceled_at
+        return None
+
 
 def split_password(password: str) -> Tuple[str, str, str, str]:
     """Split a password into four parts: algorithm, iterations, salt, and hash"""

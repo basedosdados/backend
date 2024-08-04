@@ -3,14 +3,17 @@ from datetime import datetime
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
+from django.db.models import Q
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.template.loader import render_to_string
 from django.utils.encoding import force_bytes
 from django.utils.http import urlsafe_base64_encode
+from djstripe.models import Customer as DJStripeCustomer
 
 from backend.apps.account.models import Account, Subscription
 from backend.apps.account.token import token_generator
+from backend.apps.account_payment.webhooks import add_user
 from backend.custom.environment import get_frontend_url, is_prd
 
 
@@ -38,6 +41,30 @@ def send_activation_email(account: Account):
     msg.send()
 
 
+def create_subscription(user: Account):
+    """
+    Create an internal subscription if the email has a Stripe subscription.
+    """
+    customer = DJStripeCustomer.objects.filter(email=user.email).first()
+    stripe_subscription = None
+
+    if customer:
+        stripe_subscription = customer.subscriptions.filter(
+            Q(status="active") | Q(status="trialing")
+        ).first()
+
+    if stripe_subscription:
+        Subscription.objects.create(
+            admin=user,
+            subscription=stripe_subscription,
+        )
+
+        customer.subscriber = user
+        customer.save()
+        # Add user to Google Group
+        add_user(user.email)
+
+
 @receiver(post_save, sender=Account)
 def send_activation_email_signal(sender, instance, created, raw, **kwargs):
     """Send activation email to instance after registration
@@ -50,6 +77,11 @@ def send_activation_email_signal(sender, instance, created, raw, **kwargs):
     """
     if created and not raw and not instance.is_active and is_prd():
         send_activation_email(instance)
+
+    # Check if the account has an active subscription in Stripe
+    # If it does, create an internal subscription
+    if created:
+        create_subscription(instance)
 
 
 def send_welcome_email(account: Account):
