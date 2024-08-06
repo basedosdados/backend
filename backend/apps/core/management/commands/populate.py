@@ -205,7 +205,7 @@ class Command(BaseCommand):
         for field in model._meta.get_fields():
             if isinstance(field, models.ForeignKey):
                 field_name = f"{field.name}_id"
-                current_value = item[field_name]
+                current_value = item.get(field_name)
 
                 if current_value is None:
                     continue
@@ -349,7 +349,7 @@ class Command(BaseCommand):
             instance = retry["instance"]
             field_name = retry["field_name"]
             related_table_name = retry["table_name"]
-            current_value = item[field_name]
+            current_value = item.get(field_name)
 
             reference = self.references.get(related_table_name, current_value)
 
