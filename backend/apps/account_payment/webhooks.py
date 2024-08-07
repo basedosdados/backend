@@ -18,9 +18,11 @@ def get_subscription(event: Event) -> Subscription:
     """Get internal subscription model, mirror of stripe"""
     logger.info(f"Procurando inscrição interna do cliente {event.customer.email}")
     subscription = DJStripeSubscription.objects.get(id=event.data["object"]["id"])
-    if hasattr(subscription, "internal_subscription"):
+    internal_subscription = Subscription.objects.filter(subscription=subscription).first()
+
+    if internal_subscription:
         logger.info(f"Retornando inscrição interna do cliente {event.customer.email}")
-        return subscription.internal_subscription
+        return internal_subscription
     else:
         if event.customer.subscriber:
             logger.info(f"Criando inscrição interna do cliente {event.customer.email}")
@@ -118,12 +120,22 @@ def update_customer(event: Event, **kwargs):
 @webhooks.handler("customer.subscription.updated")
 def subscribe(event: Event, **kwargs):
     """Add customer to allowed google groups"""
+    subscription = get_subscription(event)
+
     if event.data["object"]["status"] in ["trialing", "active"]:
-        if subscription := get_subscription(event):
+        if subscription:
             logger.info(f"Adicionando a inscrição do cliente {event.customer.email}")
-            add_user(event.customer.email)
             subscription.is_active = True
             subscription.save()
+        # Add user to google group if subscription exists or not
+        add_user(event.customer.email)
+    else:
+        if subscription:
+            logger.info(f"Removendo a inscrição do cliente {event.customer.email}")
+            subscription.is_active = False
+            subscription.save()
+        # Remove user from google group if subscription exists or not
+        remove_user(event.customer.email)
 
 
 @webhooks.handler("customer.subscription.deleted")
@@ -131,9 +143,30 @@ def unsubscribe(event: Event, **kwargs):
     """Remove customer from allowed google groups"""
     if subscription := get_subscription(event):
         logger.info(f"Removendo a inscrição do cliente {event.customer.email}")
-        remove_user(event.customer.email)
         subscription.is_active = False
         subscription.save()
+    # Remove user from google group if subscription exists or not
+    remove_user(event.customer.email)
+
+
+@webhooks.handler("customer.subscription.paused")
+def pause_subscription(event: Event, **kwargs):
+    """Pause customer subscription"""
+    if subscription := get_subscription(event):
+        logger.info(f"Pausando a inscrição do cliente {event.customer.email}")
+        subscription.is_active = False
+        subscription.save()
+        remove_user(event.customer.email)
+
+
+@webhooks.handler("customer.subscription.resumed")
+def resume_subscription(event: Event, **kwargs):
+    """Resume customer subscription"""
+    if subscription := get_subscription(event):
+        logger.info(f"Resumindo a inscrição do cliente {event.customer.email}")
+        subscription.is_active = True
+        subscription.save()
+        add_user(event.customer.email)
 
 
 # Reference
