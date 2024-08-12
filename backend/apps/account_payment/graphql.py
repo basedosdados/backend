@@ -10,6 +10,7 @@ from graphene_django.filter import DjangoFilterConnectionField
 from graphql_jwt.decorators import login_required
 from loguru import logger
 from stripe import Customer as StripeCustomer
+from stripe import SetupIntent
 
 from backend.apps.account.models import Account, Subscription
 from backend.apps.account_payment.webhooks import add_user, remove_user
@@ -181,15 +182,16 @@ class StripeSubscriptionNode(DjangoObjectType):
 class StripeSubscriptionCreateMutation(Mutation):
     """Create stripe subscription"""
 
-    subscription = Field(StripeSubscriptionNode)
+    client_secret = String()
     errors = List(String)
 
     class Arguments:
         price_id = ID(required=True)
+        coupon = String(required=False)
 
     @classmethod
     @login_required
-    def mutate(cls, root, info, price_id):
+    def mutate(cls, root, info, price_id, coupon=None):
         try:
             admin = info.context.user
             internal_subscriptions = admin.internal_subscription.all()
@@ -202,16 +204,32 @@ class StripeSubscriptionCreateMutation(Mutation):
                     return cls(errors=["Conta possui inscrição ativa"])
 
             price = DJStripePrice.objects.get(djstripe_id=price_id)
-            trial_period_days = 0 if len(internal_subscriptions) > 0 else 7
+            is_trial_active = len(internal_subscriptions) == 0
 
-            subscription: DJStripeSubscription = admin.customer.subscribe(
-                price=price.id,
-                payment_behavior="default_incomplete",
-                payment_settings={"save_default_payment_method": "on_subscription"},
-                trial_period_days=trial_period_days,
-            )
-            Subscription.objects.create(admin=admin, subscription=subscription)
-            return cls(subscription=subscription)
+            customer, _ = DJStripeCustomer.get_or_create(admin)
+            price_id = price.id
+
+            if is_trial_active:
+                subscription = None
+                setup_intent = SetupIntent.create(
+                    customer=customer.id,
+                    usage="off_session",
+                    metadata={
+                        "price_id": price_id,
+                    },
+                )
+            else:
+                subscription: DJStripeSubscription = customer.subscribe(
+                    price=price_id,
+                    payment_behavior="default_incomplete",
+                    payment_settings={"save_default_payment_method": "on_subscription"},
+                )
+
+            if subscription:
+                payment_intent = subscription.latest_invoice.payment_intent
+                return cls(client_secret=payment_intent.client_secret)
+
+            return cls(client_secret=setup_intent.client_secret)
         except Exception as e:
             logger.error(e)
             return cls(errors=[str(e)])

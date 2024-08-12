@@ -396,11 +396,16 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
 
     @property
     def pro_subscription_status(self) -> str:
+        def convert_status(status: str) -> str:
+            if status == "trialing":
+                return "active"
+            return status
+
         """BD Pro subscription status"""
         if self.pro_owner_subscription:
-            return self.pro_owner_subscription.stripe_subscription_status
+            return convert_status(self.pro_owner_subscription.stripe_subscription_status)
         if self.pro_member_subscription:
-            return self.pro_member_subscription.stripe_subscription_status
+            return convert_status(self.pro_member_subscription.stripe_subscription_status)
 
     def __str__(self):
         return self.email
@@ -552,7 +557,7 @@ class Subscription(BaseModel):
     @property
     def canceled_at(self):
         if self.subscription:
-            return self.subscription.canceled_at
+            return self.subscription.canceled_at.isoformat()
         return None
 
 

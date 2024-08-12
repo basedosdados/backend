@@ -7,6 +7,7 @@ from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 from loguru import logger
+from stripe import Customer as StripeCustomer
 
 from backend.apps.account.models import Subscription
 from backend.custom.client import send_discord_message as send
@@ -117,9 +118,8 @@ def update_customer(event: Event, **kwargs):
         account.save(update_fields=["email"])
 
 
-@webhooks.handler("customer.subscription.updated")
-def subscribe(event: Event, **kwargs):
-    """Add customer to allowed google groups"""
+def handle_subscription(event: Event):
+    """Handle subscription status"""
     subscription = get_subscription(event)
 
     if event.data["object"]["status"] in ["trialing", "active"]:
@@ -136,6 +136,18 @@ def subscribe(event: Event, **kwargs):
             subscription.save()
         # Remove user from google group if subscription exists or not
         remove_user(event.customer.email)
+
+
+@webhooks.handler("customer.subscription.updated")
+def subscription_updated(event: Event, **kwargs):
+    """Handle subscription status update"""
+    handle_subscription(event)
+
+
+@webhooks.handler("customer.subscription.created")
+def subscribe(event: Event, **kwargs):
+    """Add customer to allowed google groups"""
+    handle_subscription(event)
 
 
 @webhooks.handler("customer.subscription.deleted")
@@ -167,6 +179,27 @@ def resume_subscription(event: Event, **kwargs):
         subscription.is_active = True
         subscription.save()
         add_user(event.customer.email)
+
+
+@webhooks.handler("setup_intent.succeeded")
+def setup_intent_succeeded(event: Event, **kwargs):
+    """Update customer default payment method and subscribe to plan with trial"""
+    logger.info(f"Setup intent updated {event.customer.email}")
+
+    customer = event.customer
+    setup_intent = event.data["object"]
+    metadata = setup_intent.get("metadata")
+    price_id = metadata.get("price_id")
+
+    StripeCustomer.modify(
+        customer.id, invoice_settings={"default_payment_method": setup_intent.get("payment_method")}
+    )
+
+    if price_id:
+        customer.subscribe(
+            price=price_id,
+            trial_period_days=7,
+        )
 
 
 # Reference
