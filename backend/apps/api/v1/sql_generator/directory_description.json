@@ -2,7 +2,7 @@
     "br_bd_diretorios_brasil.area_conhecimento.especialidade": ["descricao_especialidade", "descricao_subarea", "descricao_area", "descricao_grande_area"],
     "br_bd_diretorios_brasil.cbo_1994.cbo_1994": ["descricao"],
     "br_bd_diretorios_brasil.cbo_2002.cbo_2002": ["descricao", "descricao_familia", "descricao_subgrupo", "descricao_subgrupo_principal", "descricao_grande_grupo"],
-    "br_bd_diretorios_brasil.cep": ["logradouro","localidade"],
+    "br_bd_diretorios_brasil.cep.cep": ["logradouro","localidade"],
     "br_bd_diretorios_brasil.cid_10.subcategoria": ["descricao_subcategoria", "descricao_categoria", "descricao_capitulo"],
     "br_bd_diretorios_brasil.cid_10.categoria": ["descricao_categoria", "descricao_capitulo"],
     "br_bd_diretorios_brasil.cid_9.categoria": ["descricao"],
