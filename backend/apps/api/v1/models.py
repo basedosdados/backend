@@ -1108,7 +1108,8 @@ class Table(BaseModel, OrderedModel):
         units = []
         for coverage in self.coverages.all():
             for datetime_range in coverage.datetime_ranges.all():
-                units.append(datetime_range.unit.id)
+                if datetime_range.unit:
+                    units.append(datetime_range.unit.id)
         if not all_same(units):
             errors['datetime_range_units'] = f"Datetime range units do not refer all to the same column."
         
