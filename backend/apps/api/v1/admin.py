@@ -29,6 +29,7 @@ from backend.apps.api.v1.forms import (
     ReorderColumnsForm,
     ReorderTablesForm,
     TableInlineForm,
+    PollInlineForm,
     UpdateInlineForm,
 )
 from backend.apps.api.v1.models import (
@@ -53,6 +54,7 @@ from backend.apps.api.v1.models import (
     ObservationLevel,
     Organization,
     Pipeline,
+    Poll,
     QualityCheck,
     RawDataSource,
     Status,
@@ -229,6 +231,19 @@ class CoverageInline(admin.StackedInline):
         """Show datetime ranges in coverage inline"""
         return [str(dt) for dt in cov.datetime_ranges.all()]
 
+class PollInline(admin.StackedInline):
+    model = Poll
+    form = PollInlineForm
+    extra = 0
+    fields = [
+        "id",
+        "entity",
+        "frequency",
+        "latest",
+    ]
+    autocomplete_fields = [
+        "entity",
+    ]
 
 class UpdateInline(admin.StackedInline):
     model = Update
@@ -699,7 +714,7 @@ class RawDataSourceAdmin(TabbedTranslationAdmin):
         "languages",
         "area_ip_address_required",
     ]
-    inlines = [CoverageInline]
+    inlines = [CoverageInline, PollInline]
 
 
 class InformationRequestAdmin(TabbedTranslationAdmin):
@@ -707,7 +722,7 @@ class InformationRequestAdmin(TabbedTranslationAdmin):
     search_fields = ["__str__", "dataset__name"]
     readonly_fields = ["id", "created_at", "updated_at"]
     autocomplete_fields = ["dataset"]
-    inlines = [CoverageInline, ObservationLevelInline]
+    inlines = [CoverageInline, ObservationLevelInline, PollInline]
 
 
 class CoverageTypeAdminFilter(admin.SimpleListFilter):
@@ -830,6 +845,23 @@ class LanguageAdmin(TabbedTranslationAdmin):
         "slug",
     ]
 
+class PollAdmin(admin.ModelAdmin):
+    readonly_fields = [
+        "id",
+    ]
+    list_display = [
+        "__str__",
+    ]
+    search_fields = [
+        "entity",
+        "raw_data_source",
+        "information_request",
+    ]
+    autocomplete_fields = [
+        "entity",
+        "raw_data_source",
+        "information_request",
+    ]
 
 class UpdateAdmin(admin.ModelAdmin):
     readonly_fields = [
@@ -1014,6 +1046,7 @@ admin.site.register(License, LicenseAdmin)
 admin.site.register(ObservationLevel, ObservationLevelAdmin)
 admin.site.register(Organization, OrganizationAdmin)
 admin.site.register(Pipeline)
+admin.site.register(Poll, PollAdmin)
 admin.site.register(RawDataSource, RawDataSourceAdmin)
 admin.site.register(Status, StatusAdmin)
 admin.site.register(Table, TableAdmin)
