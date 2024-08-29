@@ -557,7 +557,19 @@ class Subscription(BaseModel):
     @property
     def canceled_at(self):
         if self.subscription:
-            return self.subscription.canceled_at.isoformat()
+            return self.subscription.cancel_at.isoformat()
+        return None
+
+    @property
+    def plan_interval(self):
+        if self.subscription:
+            return self.subscription.plan.interval
+        return None
+
+    @property
+    def next_billing_cycle(self):
+        if self.subscription:
+            return self.subscription.current_period_end.isoformat()
         return None
 
 

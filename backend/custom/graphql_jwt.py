@@ -146,5 +146,13 @@ class CustomVerify(Verify):
         email = response.payload.get("email")
         user = Account.objects.get(email=email)
         if user:
-            response.payload.update({"pro_subscription_status": user.pro_subscription_status})
+            subscription = user.pro_owner_subscription or user.pro_member_subscription
+            is_subscription_active = subscription.is_active if subscription else False
+
+            response.payload.update(
+                {
+                    "pro_subscription_status": user.pro_subscription_status,
+                    "is_subscription_active": is_subscription_active,
+                }
+            )
         return response
