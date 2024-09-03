@@ -195,7 +195,8 @@ def setup_intent_succeeded(event: Event, **kwargs):
         customer.id, invoice_settings={"default_payment_method": setup_intent.get("payment_method")}
     )
 
-    if price_id:
+    if not customer.subscriptions and price_id:
+        logger.info(f"Add subscription to user {event.customer.email}")
         customer.subscribe(
             price=price_id,
             trial_period_days=7,

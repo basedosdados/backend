@@ -46,7 +46,9 @@ class StripePriceNode(DjangoObjectType):
         return root.djstripe_id
 
     def resolve_amount(root, info):
-        return root.unit_amount / 100
+        if root.unit_amount:
+            return root.unit_amount / 100
+        return 0
 
     def resolve_interval(root, info):
         if recurring := root.recurring:
