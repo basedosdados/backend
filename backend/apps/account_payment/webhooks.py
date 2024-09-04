@@ -8,6 +8,7 @@ from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 from loguru import logger
 from stripe import Customer as StripeCustomer
+from stripe import Subscription as StripeSubscription
 
 from backend.apps.account.models import Subscription
 from backend.custom.client import send_discord_message as send
@@ -195,7 +196,10 @@ def setup_intent_succeeded(event: Event, **kwargs):
         customer.id, invoice_settings={"default_payment_method": setup_intent.get("payment_method")}
     )
 
-    if not customer.subscriptions and price_id:
+    subscriptions = StripeSubscription.list(customer=customer.id)
+    has_subscription = len(subscriptions.get("data")) > 0
+
+    if not has_subscription and price_id:
         logger.info(f"Add subscription to user {event.customer.email}")
         customer.subscribe(
             price=price_id,
