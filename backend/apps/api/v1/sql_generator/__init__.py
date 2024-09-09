@@ -98,7 +98,7 @@ class OneBigTableQueryGenerator:
                 self.get_components_by_directory(column)
 
             else:
-                self.sql_selects.append(column.name)
+                self.sql_selects.append(f"dados.{column.name} as {column.name}")
 
     def generate(
         self, table: Table, columns: list[str] = None, include_table_translation: bool = True
