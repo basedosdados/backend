@@ -385,6 +385,8 @@ def get_stripe_promo(promotion_code):
     :return: The Stripe Promotion Code object if found.
     :raises Exception: If the promotion code is not found or any error occurs.
     """
+    if not promotion_code:
+        raise Exception("Promotion code not provided")
     try:
         promotion_code_list = stripe.PromotionCode.list(code=promotion_code, limit=1)
 
