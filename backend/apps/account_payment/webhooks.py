@@ -191,6 +191,7 @@ def setup_intent_succeeded(event: Event, **kwargs):
     setup_intent = event.data["object"]
     metadata = setup_intent.get("metadata")
     price_id = metadata.get("price_id")
+    promotion_code = metadata.get("promotion_code")
 
     StripeCustomer.modify(
         customer.id, invoice_settings={"default_payment_method": setup_intent.get("payment_method")}
@@ -199,12 +200,14 @@ def setup_intent_succeeded(event: Event, **kwargs):
     subscriptions = StripeSubscription.list(customer=customer.id)
     has_subscription = len(subscriptions.get("data")) > 0
 
+    if promotion_code:
+        discounts = [{"promotion_code": promotion_code}]
+    else:
+        discounts = []
+
     if not has_subscription and price_id:
         logger.info(f"Add subscription to user {event.customer.email}")
-        customer.subscribe(
-            price=price_id,
-            trial_period_days=7,
-        )
+        customer.subscribe(price=price_id, trial_period_days=7, discounts=discounts)
 
 
 # Reference

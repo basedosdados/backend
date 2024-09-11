@@ -207,9 +207,22 @@ class StripeSubscriptionCreateMutation(Mutation):
 
             price = DJStripePrice.objects.get(djstripe_id=price_id)
             is_trial_active = len(internal_subscriptions) == 0
+            promotion_code = None
+
+            try:
+                promotion = get_stripe_promo(coupon)
+                if promotion and promotion.active:
+                    promotion_code = promotion.id
+            except Exception:
+                ...
 
             customer, _ = DJStripeCustomer.get_or_create(admin)
             price_id = price.id
+
+            if promotion_code:
+                discounts = [{"promotion_code": promotion_code}]
+            else:
+                discounts = []
 
             if is_trial_active:
                 subscription = None
@@ -218,6 +231,7 @@ class StripeSubscriptionCreateMutation(Mutation):
                     usage="off_session",
                     metadata={
                         "price_id": price_id,
+                        "promotion_code": promotion_code,
                     },
                 )
             else:
@@ -225,6 +239,7 @@ class StripeSubscriptionCreateMutation(Mutation):
                     price=price_id,
                     payment_behavior="default_incomplete",
                     payment_settings={"save_default_payment_method": "on_subscription"},
+                    discounts=discounts,
                 )
 
             if subscription:
@@ -235,6 +250,49 @@ class StripeSubscriptionCreateMutation(Mutation):
         except Exception as e:
             logger.error(e)
             return cls(errors=[str(e)])
+
+
+class StripeCouponValidationMutation(Mutation):
+    """Validate a Stripe coupon and return discount details"""
+
+    is_valid = Boolean()
+    discount_amount = Float()
+    errors = List(String)
+
+    class Arguments:
+        coupon = String(required=True)
+        price_id = ID(required=True)
+
+    @classmethod
+    @login_required
+    def mutate(cls, root, info, coupon, price_id):
+        try:
+            try:
+                promotion_code_object = get_stripe_promo(coupon)
+                if promotion_code_object and promotion_code_object.active:
+                    coupon_object = stripe.Coupon.retrieve(promotion_code_object.coupon.id)
+                else:
+                    return cls(is_valid=False, discount_amount=0, errors=["Cupom inválido"])
+            except Exception as e:
+                return cls(is_valid=False, discount_amount=0, errors=["Cupom inválido", str(e)])
+
+            if not coupon_object.valid:
+                return cls(is_valid=False, discount_amount=0, errors=["Cupom não está ativo"])
+
+            price = DJStripePrice.objects.get(djstripe_id=price_id)
+            price_amount = price.unit_amount / 100.0
+
+            discount_amount = 0.0
+
+            if coupon_object.amount_off:
+                discount_amount = coupon_object.amount_off / 100.0
+            elif coupon_object.percent_off:
+                discount_amount = (coupon_object.percent_off / 100.0) * price_amount
+
+            return cls(is_valid=True, discount_amount=discount_amount)
+        except Exception as e:
+            logger.error(e)
+            return cls(is_valid=False, errors=[str(e)])
 
 
 class StripeSubscriptionDeleteMutation(Mutation):
@@ -319,6 +377,28 @@ class StripeSubscriptionCustomerDeleteMutation(Mutation):
             return cls(errors=[str(e)])
 
 
+def get_stripe_promo(promotion_code):
+    """
+    Helper function to retrieve a Stripe Promotion Code by its code.
+
+    :param promotion_code: The code of the promotion to be retrieved.
+    :return: The Stripe Promotion Code object if found.
+    :raises Exception: If the promotion code is not found or any error occurs.
+    """
+    if not promotion_code:
+        raise Exception("Promotion code not provided")
+    try:
+        promotion_code_list = stripe.PromotionCode.list(code=promotion_code, limit=1)
+
+        if promotion_code_list.data:
+            return promotion_code_list.data[0]
+        else:
+            raise Exception("Promotion code not found")
+
+    except Exception as e:
+        raise Exception(f"Error retrieving promotion code: {str(e)}")
+
+
 class Query(ObjectType):
     stripe_price = PlainTextNode.Field(StripePriceNode)
     all_stripe_price = DjangoFilterConnectionField(StripePriceNode)
@@ -331,6 +411,7 @@ class Mutation(ObjectType):
     delete_stripe_subscription = StripeSubscriptionDeleteMutation.Field()
     create_stripe_customer_subscription = StripeSubscriptionCustomerCreateMutation.Field()
     update_stripe_customer_subscription = StripeSubscriptionCustomerDeleteMutation.Field()
+    validate_stripe_coupon = StripeCouponValidationMutation.Field()
 
 
 # Reference
