@@ -8,6 +8,7 @@ from backend.apps.api.v1.models import (
     Coverage,
     ObservationLevel,
     Table,
+    Poll,
     Update,
 )
 
@@ -105,6 +106,11 @@ class CoverageInlineForm(UUIDHiddenIdForm):
             "is_closed",
         ]
 
+
+class PollInlineForm(UUIDHiddenIdForm):
+    class Meta(UUIDHiddenIdForm.Meta):
+        model = Poll
+        fields = "__all__"
 
 class UpdateInlineForm(UUIDHiddenIdForm):
     class Meta(UUIDHiddenIdForm.Meta):
