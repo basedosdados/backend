@@ -4,12 +4,6 @@ on:
   push:
     branches:
       - dev
-  workflow_dispatch:
-    inputs:
-      branch:
-        description: 'Branch to deploy (must be dev)'
-        required: true
-        default: 'dev'
 jobs:
   release-docker:
     name: Release Image
