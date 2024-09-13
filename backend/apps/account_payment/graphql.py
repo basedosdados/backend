@@ -4,7 +4,18 @@ from django.conf import settings
 from djstripe.models import Customer as DJStripeCustomer
 from djstripe.models import Price as DJStripePrice
 from djstripe.models import Subscription as DJStripeSubscription
-from graphene import ID, Boolean, Field, Float, InputObjectType, List, Mutation, ObjectType, String
+from graphene import (
+    ID,
+    Boolean,
+    Field,
+    Float,
+    InputObjectType,
+    Int,
+    List,
+    Mutation,
+    ObjectType,
+    String,
+)
 from graphene_django import DjangoObjectType
 from graphene_django.filter import DjangoFilterConnectionField
 from graphql_jwt.decorators import login_required
@@ -257,6 +268,8 @@ class StripeCouponValidationMutation(Mutation):
 
     is_valid = Boolean()
     discount_amount = Float()
+    duration = String()
+    duration_in_months = Int()
     errors = List(String)
 
     class Arguments:
@@ -272,12 +285,27 @@ class StripeCouponValidationMutation(Mutation):
                 if promotion_code_object and promotion_code_object.active:
                     coupon_object = stripe.Coupon.retrieve(promotion_code_object.coupon.id)
                 else:
-                    return cls(is_valid=False, discount_amount=0, errors=["Cupom inválido"])
+                    return cls(
+                        is_valid=False,
+                        discount_amount=0,
+                        duration_in_months=0,
+                        errors=["Cupom inválido"],
+                    )
             except Exception as e:
-                return cls(is_valid=False, discount_amount=0, errors=["Cupom inválido", str(e)])
+                return cls(
+                    is_valid=False,
+                    discount_amount=0,
+                    duration_in_months=0,
+                    errors=["Cupom inválido", str(e)],
+                )
 
             if not coupon_object.valid:
-                return cls(is_valid=False, discount_amount=0, errors=["Cupom não está ativo"])
+                return cls(
+                    is_valid=False,
+                    discount_amount=0,
+                    duration_in_months=0,
+                    errors=["Cupom não está ativo"],
+                )
 
             price = DJStripePrice.objects.get(djstripe_id=price_id)
             price_amount = price.unit_amount / 100.0
@@ -289,7 +317,18 @@ class StripeCouponValidationMutation(Mutation):
             elif coupon_object.percent_off:
                 discount_amount = (coupon_object.percent_off / 100.0) * price_amount
 
-            return cls(is_valid=True, discount_amount=discount_amount)
+            duration_in_months = coupon_object.duration_in_months
+            duration = coupon_object.duration
+
+            if coupon_object.duration != "repeating":
+                duration_in_months = 0
+
+            return cls(
+                is_valid=True,
+                discount_amount=discount_amount,
+                duration_in_months=duration_in_months,
+                duration=duration,
+            )
         except Exception as e:
             logger.error(e)
             return cls(is_valid=False, errors=[str(e)])
