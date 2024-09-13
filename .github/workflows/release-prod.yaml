@@ -1,6 +1,15 @@
 ---
 name: Release Image (Production)
-on: workflow_dispatch
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy (must be main)'
+        required: true
+        default: 'main'
 jobs:
   release-docker:
     name: Release Image

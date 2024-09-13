@@ -3,7 +3,7 @@ name: Deploy (Staging)
 on:
   workflow_run:
     workflows: [Release Image (Staging)]
-    branches: [main]
+    branches: [staging]
     types: [completed]
   workflow_dispatch:
 jobs:

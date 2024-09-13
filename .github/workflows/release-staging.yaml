@@ -1,7 +1,15 @@
 ---
 name: Release Image (Staging)
 on:
+  push:
+    branches:
+      - staging
   workflow_dispatch:
+    inputs:
+      branch:
+        description: 'Branch to deploy (must be staging)'
+        required: true
+        default: 'staging'
 jobs:
   release-docker:
     name: Release Image
