@@ -3,6 +3,7 @@ name: Deploy (Development)
 on:
   workflow_run:
     workflows: [Release Image (Development)]
+    branches: [dev]
     types: [completed]
   workflow_dispatch:
 jobs:
