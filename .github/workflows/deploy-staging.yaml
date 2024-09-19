@@ -3,9 +3,8 @@ name: Deploy (Staging)
 on:
   workflow_run:
     workflows: [Release Image (Staging)]
-    branches: [main]
+    branches: [staging]
     types: [completed]
-  workflow_dispatch:
 jobs:
   deploy-staging:
     runs-on: ubuntu-latest
@@ -19,7 +18,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: main
+          ref: staging
       - name: Import secrets from Vault
         id: import_secrets
         uses: hashicorp/vault-action@v2.8.0

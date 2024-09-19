@@ -1,6 +1,9 @@
 ---
 name: Release Image (Production)
-on: workflow_dispatch
+on:
+  push:
+    branches:
+      - main
 jobs:
   release-docker:
     name: Release Image
