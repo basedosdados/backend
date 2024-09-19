@@ -5,7 +5,6 @@ on:
     workflows: [Release Image (Staging)]
     branches: [staging]
     types: [completed]
-  workflow_dispatch:
 jobs:
   deploy-staging:
     runs-on: ubuntu-latest
