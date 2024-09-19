@@ -3,8 +3,8 @@ name: Deploy (Development)
 on:
   workflow_run:
     workflows: [Release Image (Development)]
+    branches: [dev]
     types: [completed]
-  workflow_dispatch:
 jobs:
   deploy-dev:
     runs-on: ubuntu-latest
@@ -15,42 +15,10 @@ jobs:
       name: development
       url: https://api.development.basedosdados.org
     steps:
-      - name: Download branch name
-        uses: actions/github-script@v6
-        if: ${{ github.event_name == 'workflow_run' }}
-        with:
-          script: |
-            let allArtifacts = await github.rest.actions.listWorkflowRunArtifacts({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               run_id: context.payload.workflow_run.id,
-            });
-            let matchArtifact = allArtifacts.data.artifacts.filter((artifact) => {
-              return artifact.name == "branch"
-            })[0];
-            let download = await github.rest.actions.downloadArtifact({
-               owner: context.repo.owner,
-               repo: context.repo.repo,
-               artifact_id: matchArtifact.id,
-               archive_format: 'zip',
-            });
-            let fs = require('fs');
-            fs.writeFileSync(`${process.env.GITHUB_WORKSPACE}/artifact.zip`, Buffer.from(download.data));
-      - name: Extract branch name
-        if: ${{ github.event_name == 'workflow_run' }}
-        run: unzip artifact.zip
-      - name: Read branch name
-        id: extract_branch
-        run: |
-          if [ ! -f "branch" ]; then
-            echo "branch=main" >> "$GITHUB_OUTPUT"
-          else
-            echo "branch=$(cat branch)" >> "$GITHUB_OUTPUT"
-          fi
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ steps.extract_branch.outputs.branch }}
+          ref: dev
       - name: Import secrets from Vault
         id: import_secrets
         uses: hashicorp/vault-action@v2.8.0
