@@ -4,6 +4,9 @@ from time import sleep
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin import ModelAdmin
+from django.core.exceptions import ValidationError
+import logging
+logger = logging.getLogger(__name__)
 from django.core.management import call_command
 from django.db.models.query import QuerySet
 from django.http import HttpRequest
@@ -214,7 +217,7 @@ class DateTimeRangeInline(admin.StackedInline):
     extra = 0
     show_change_link = True
     fields = [
-        "unit",
+        "units",
     ]
 
 
@@ -548,7 +551,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "partitions",
         "created_at",
         "updated_at",
-        "coverage_datetime_unit",
+        "coverage_datetime_units",
     ]
     search_fields = [
         "name",
@@ -755,6 +758,26 @@ class DateTimeRangeAdmin(admin.ModelAdmin):
         "end_second",
     ]
 
+    def save_model(self, request, obj, form, change):
+        try:
+            logger.info(f"Attempting to save DateTimeRange: {obj}")
+            obj.full_clean()
+            super().save_model(request, obj, form, change)
+            logger.info(f"Successfully saved DateTimeRange: {obj}")
+        except ValidationError as e:
+            logger.error(f"ValidationError while saving DateTimeRange: {e}")
+            for field, errors in e.message_dict.items():
+                form.add_error(field, '\n'.join(errors))
+                logger.error(f"Field '{field}' errors: {errors}")
+            self.message_user(request, f"Error saving DateTimeRange: {e}", level='ERROR')
+        except Exception as e:
+            logger.exception(f"Unexpected error while saving DateTimeRange: {e}")
+            self.message_user(request, f"Unexpected error: {e}", level='ERROR')
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        logger.info(f"Form fields: {form.fields}")
+        return form
 
 class CoverageAdmin(admin.ModelAdmin):
     readonly_fields = ["id"]
