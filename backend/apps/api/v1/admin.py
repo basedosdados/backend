@@ -214,7 +214,7 @@ class DateTimeRangeInline(admin.StackedInline):
     extra = 0
     show_change_link = True
     fields = [
-        "unit",
+        "units",
     ]
 
 
@@ -548,7 +548,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "partitions",
         "created_at",
         "updated_at",
-        "coverage_datetime_unit",
+        "coverage_datetime_units",
     ]
     search_fields = [
         "name",
@@ -754,7 +754,6 @@ class DateTimeRangeAdmin(admin.ModelAdmin):
         "end_minute",
         "end_second",
     ]
-
 
 class CoverageAdmin(admin.ModelAdmin):
     readonly_fields = ["id"]
