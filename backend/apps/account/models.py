@@ -211,6 +211,7 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
     uuid = models.UUIDField(primary_key=False, default=uuid4)
 
     email = models.EmailField("Email", unique=True)
+    gcp_email = models.EmailField("GCP email", null=True, blank=True)  # Google Cloud Platform email
     username = models.CharField("Username", max_length=40, blank=True, null=True, unique=True)
 
     first_name = models.CharField("Nome", max_length=40, blank=True)

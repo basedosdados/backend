@@ -10,7 +10,7 @@ from loguru import logger
 from stripe import Customer as StripeCustomer
 from stripe import Subscription as StripeSubscription
 
-from backend.apps.account.models import Subscription
+from backend.apps.account.models import Account, Subscription
 from backend.custom.client import send_discord_message as send
 from backend.custom.environment import get_backend_url
 
@@ -110,6 +110,31 @@ def list_user(group_key: str = None):
         raise e
 
 
+def is_email_in_group(email: str, group_key: str = None) -> bool:
+    """Check if a user is in a Google group."""
+    if not group_key:
+        group_key = settings.GOOGLE_DIRECTORY_GROUP_KEY
+    if "+" in email and email.index("+") < email.index("@"):
+        email = email.split("+")[0] + "@" + email.split("@")[1]
+
+    try:
+        service = get_service()
+        service.members().get(
+            groupKey=group_key,
+            memberKey=email,
+        ).execute()
+        return True
+    except HttpError as e:
+        if e.resp.status == 404:
+            return False
+        else:
+            logger.error(f"Erro ao verificar o usuário {email} no grupo {group_key}: {e}")
+            raise e
+    except Exception as e:
+        logger.error(f"Erro inesperado ao verificar o usuário {email}: {e}")
+        raise e
+
+
 @webhooks.handler("customer.updated")
 def update_customer(event: Event, **kwargs):
     """Propagate customer email update if exists"""
@@ -123,21 +148,29 @@ def update_customer(event: Event, **kwargs):
 def handle_subscription(event: Event):
     """Handle subscription status"""
     subscription = get_subscription(event)
+    account = Account.objects.filter(email=event.customer.email).first()
 
     if event.data["object"]["status"] in ["trialing", "active"]:
         if subscription:
             logger.info(f"Adicionando a inscrição do cliente {event.customer.email}")
             subscription.is_active = True
             subscription.save()
+
         # Add user to google group if subscription exists or not
-        add_user(event.customer.email)
+        if account:
+            add_user(account.gcp_email or account.email)
+        else:
+            add_user(event.customer.email)
     else:
         if subscription:
             logger.info(f"Removendo a inscrição do cliente {event.customer.email}")
             subscription.is_active = False
             subscription.save()
         # Remove user from google group if subscription exists or not
-        remove_user(event.customer.email)
+        if account:
+            remove_user(account.gcp_email or account.email)
+        else:
+            remove_user(event.customer.email)
 
 
 @webhooks.handler("customer.subscription.updated")
@@ -159,9 +192,14 @@ def unsubscribe(event: Event, **kwargs):
         logger.info(f"Removendo a inscrição do cliente {event.customer.email}")
         subscription.is_active = False
         subscription.save()
+
+    account = Account.objects.filter(email=event.customer.email).first()
     # Remove user from google group if subscription exists or not
     try:
-        remove_user(event.customer.email)
+        if account:
+            remove_user(account.gcp_email or account.email)
+        else:
+            remove_user(event.customer.email)
     except Exception as e:
         logger.error(e)
 
@@ -169,29 +207,39 @@ def unsubscribe(event: Event, **kwargs):
 @webhooks.handler("customer.subscription.paused")
 def pause_subscription(event: Event, **kwargs):
     """Pause customer subscription"""
+    account = Account.objects.filter(email=event.customer.email).first()
+
     if subscription := get_subscription(event):
         logger.info(f"Pausando a inscrição do cliente {event.customer.email}")
         subscription.is_active = False
         subscription.save()
 
-        try:
+    try:
+        if account:
+            remove_user(account.gcp_email or account.email)
+        else:
             remove_user(event.customer.email)
-        except Exception as e:
-            logger.error(e)
+    except Exception as e:
+        logger.error(e)
 
 
 @webhooks.handler("customer.subscription.resumed")
 def resume_subscription(event: Event, **kwargs):
     """Resume customer subscription"""
+    account = Account.objects.filter(email=event.customer.email).first()
+
     if subscription := get_subscription(event):
         logger.info(f"Resumindo a inscrição do cliente {event.customer.email}")
         subscription.is_active = True
         subscription.save()
 
-        try:
+    try:
+        if account:
+            add_user(account.gcp_email or account.email)
+        else:
             add_user(event.customer.email)
-        except Exception as e:
-            logger.error(e)
+    except Exception as e:
+        logger.error(e)
 
 
 @webhooks.handler("setup_intent.succeeded")
