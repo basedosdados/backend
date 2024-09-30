@@ -25,6 +25,7 @@ from stripe import SetupIntent
 
 from backend.apps.account.models import Account, Subscription
 from backend.apps.account_payment.webhooks import add_user, is_email_in_group, remove_user
+from backend.custom.environment import get_backend_url
 from backend.custom.graphql_base import CountableConnection, PlainTextNode
 
 if settings.STRIPE_LIVE_MODE:
@@ -243,6 +244,7 @@ class StripeSubscriptionCreateMutation(Mutation):
                     metadata={
                         "price_id": price_id,
                         "promotion_code": promotion_code,
+                        "backend_url": get_backend_url(),
                     },
                 )
             else:

@@ -12,6 +12,7 @@ from stripe import Subscription as StripeSubscription
 
 from backend.apps.account.models import Account, Subscription
 from backend.custom.client import send_discord_message as send
+from backend.custom.environment import get_backend_url
 
 logger = logger.bind(module="payment")
 
@@ -194,10 +195,13 @@ def unsubscribe(event: Event, **kwargs):
 
     account = Account.objects.filter(email=event.customer.email).first()
     # Remove user from google group if subscription exists or not
-    if account:
-        remove_user(account.gcp_email or account.email)
-    else:
-        remove_user(event.customer.email)
+    try:
+        if account:
+            remove_user(account.gcp_email or account.email)
+        else:
+            remove_user(event.customer.email)
+    except Exception as e:
+        logger.error(e)
 
 
 @webhooks.handler("customer.subscription.paused")
@@ -209,10 +213,14 @@ def pause_subscription(event: Event, **kwargs):
         logger.info(f"Pausando a inscrição do cliente {event.customer.email}")
         subscription.is_active = False
         subscription.save()
+
+    try:
         if account:
             remove_user(account.gcp_email or account.email)
         else:
             remove_user(event.customer.email)
+    except Exception as e:
+        logger.error(e)
 
 
 @webhooks.handler("customer.subscription.resumed")
@@ -225,10 +233,13 @@ def resume_subscription(event: Event, **kwargs):
         subscription.is_active = True
         subscription.save()
 
+    try:
         if account:
             add_user(account.gcp_email or account.email)
         else:
             add_user(event.customer.email)
+    except Exception as e:
+        logger.error(e)
 
 
 @webhooks.handler("setup_intent.succeeded")
@@ -241,6 +252,10 @@ def setup_intent_succeeded(event: Event, **kwargs):
     metadata = setup_intent.get("metadata")
     price_id = metadata.get("price_id")
     promotion_code = metadata.get("promotion_code")
+    backend_url = metadata.get("backend_url")
+
+    if not backend_url == get_backend_url():
+        return logger.info(f"Ignore setup intent from {backend_url}")
 
     StripeCustomer.modify(
         customer.id, invoice_settings={"default_payment_method": setup_intent.get("payment_method")}
