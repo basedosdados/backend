@@ -441,11 +441,17 @@ class ChangeUserGCPEmail(Mutation):
             user.save()
 
             if is_email_in_group(old_email):
-                remove_user(old_email)
+                try:
+                    remove_user(old_email)
+                except Exception:
+                    pass
 
             subscription = user.pro_subscription()
             if subscription and not is_email_in_group(email):
-                add_user(email)
+                try:
+                    add_user(email)
+                except Exception:
+                    pass
 
             return cls(ok=True)
         except Exception as e:

@@ -93,7 +93,7 @@ def remove_user(email: str, group_key: str = None) -> None:
         if e.resp.status == 404:
             logger.warning(f"{email} já foi removido do google groups")
         else:
-            send(f"Verifique o erro ao remover o usuário do google groups: {e}")
+            send(f"Verifique o erro ao remover o usuário do google groups '{email}': {e}")
             logger.error(e)
             raise e
 
@@ -119,11 +119,17 @@ def is_email_in_group(email: str, group_key: str = None) -> bool:
 
     try:
         service = get_service()
-        service.members().get(
-            groupKey=group_key,
-            memberKey=email,
-        ).execute()
-        return True
+        response = (
+            service.members()
+            .get(
+                groupKey=group_key,
+                memberKey=email,
+            )
+            .execute()
+        )
+
+        member_email = response.get("email", "").lower()
+        return member_email == email.lower()
     except HttpError as e:
         if e.resp.status == 404:
             return False
