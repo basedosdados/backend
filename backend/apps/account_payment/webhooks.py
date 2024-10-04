@@ -87,7 +87,7 @@ def remove_user(email: str, group_key: str = None) -> None:
         service = get_service()
         service.members().delete(
             groupKey=group_key,
-            memberKey=email,
+            memberKey=email.lower(),
         ).execute()
     except HttpError as e:
         if e.resp.status == 404:
@@ -123,7 +123,7 @@ def is_email_in_group(email: str, group_key: str = None) -> bool:
             service.members()
             .get(
                 groupKey=group_key,
-                memberKey=email,
+                memberKey=email.lower(),
             )
             .execute()
         )
@@ -131,11 +131,8 @@ def is_email_in_group(email: str, group_key: str = None) -> bool:
         member_email = response.get("email", "").lower()
         return member_email == email.lower()
     except HttpError as e:
-        if e.resp.status == 404:
-            return False
-        else:
-            logger.error(f"Erro ao verificar o usuário {email} no grupo {group_key}: {e}")
-            raise e
+        logger.error(f"Erro ao verificar o usuário {email} no grupo {group_key}: {e}")
+        return False
     except Exception as e:
         logger.error(f"Erro inesperado ao verificar o usuário {email}: {e}")
         raise e
@@ -173,10 +170,13 @@ def handle_subscription(event: Event):
             subscription.is_active = False
             subscription.save()
         # Remove user from google group if subscription exists or not
-        if account:
-            remove_user(account.gcp_email or account.email)
-        else:
-            remove_user(event.customer.email)
+        try:
+            if account:
+                remove_user(account.gcp_email or account.email)
+            else:
+                remove_user(event.customer.email)
+        except Exception as e:
+            logger.error(e)
 
 
 @webhooks.handler("customer.subscription.updated")
