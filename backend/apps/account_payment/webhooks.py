@@ -128,8 +128,11 @@ def is_email_in_group(email: str, group_key: str = None) -> bool:
             .execute()
         )
 
-        member_email = response.get("email", "").lower()
-        return member_email == email.lower()
+        member_email = response.get("email")
+        if not member_email:
+            return False
+
+        return member_email.lower() == email.lower()
     except HttpError as e:
         logger.error(f"Erro ao verificar o usuário {email} no grupo {group_key}: {e}")
         return False

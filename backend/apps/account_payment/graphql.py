@@ -432,8 +432,10 @@ class ChangeUserGCPEmail(Mutation):
     def mutate(cls, root, info, email):
         try:
             user = info.context.user
-            old_email = user.gcp_email or user.email
+            if user is None:
+                return cls(ok=False, errors=["User is none"])
 
+            old_email = user.gcp_email or user.email
             if old_email == email:
                 return cls(ok=True)
 
@@ -446,8 +448,12 @@ class ChangeUserGCPEmail(Mutation):
                 except Exception:
                     pass
 
-            subscription = user.pro_subscription()
-            if subscription and not is_email_in_group(email):
+            subscription = user.pro_subscription
+
+            if subscription is None:
+                return cls(ok=True)
+
+            if subscription.is_active and not is_email_in_group(email):
                 try:
                     add_user(email)
                 except Exception:
@@ -456,7 +462,7 @@ class ChangeUserGCPEmail(Mutation):
             return cls(ok=True)
         except Exception as e:
             logger.error(e)
-            return cls(errors=[str(e)])
+            return cls(ok=False, errors=[str(e)])
 
 
 # Query to check based on a email if the user is in a group
