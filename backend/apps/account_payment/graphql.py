@@ -453,7 +453,7 @@ class ChangeUserGCPEmail(Mutation):
             if subscription is None:
                 return cls(ok=True)
 
-            if subscription.is_active and not is_email_in_group(email):
+            if not is_email_in_group(email):
                 try:
                     add_user(email)
                 except Exception:
