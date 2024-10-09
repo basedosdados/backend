@@ -24,7 +24,8 @@ from stripe import Customer as StripeCustomer
 from stripe import SetupIntent
 
 from backend.apps.account.models import Account, Subscription
-from backend.apps.account_payment.webhooks import add_user, remove_user
+from backend.apps.account_payment.webhooks import add_user, is_email_in_group, remove_user
+from backend.custom.environment import get_backend_url
 from backend.custom.graphql_base import CountableConnection, PlainTextNode
 
 if settings.STRIPE_LIVE_MODE:
@@ -243,6 +244,7 @@ class StripeSubscriptionCreateMutation(Mutation):
                     metadata={
                         "price_id": price_id,
                         "promotion_code": promotion_code,
+                        "backend_url": get_backend_url(),
                     },
                 )
             else:
@@ -382,7 +384,7 @@ class StripeSubscriptionCustomerCreateMutation(Mutation):
 
             subscription = Subscription.objects.get(id=subscription_id)
             assert admin.id == subscription.admin.id
-            add_user(account.email)
+            add_user(account.gcp_email or account.email)
             subscription.subscribers.add(account)
             return cls(ok=True)
         except Exception as e:
@@ -408,9 +410,76 @@ class StripeSubscriptionCustomerDeleteMutation(Mutation):
             account = Account.objects.get(id=account_id)
             subscription = Subscription.objects.get(id=subscription_id)
             assert admin.id == subscription.admin.id
-            remove_user(account.email)
+            remove_user(account.gcp_email or account.email)
             subscription.subscribers.remove(account)
             return cls(ok=True)
+        except Exception as e:
+            logger.error(e)
+            return cls(errors=[str(e)])
+
+
+class ChangeUserGCPEmail(Mutation):
+    """Change user GCP email"""
+
+    ok = Boolean()
+    errors = List(String)
+
+    class Arguments:
+        email = String(required=True)
+
+    @classmethod
+    @login_required
+    def mutate(cls, root, info, email):
+        try:
+            user = info.context.user
+            if user is None:
+                return cls(ok=False, errors=["User is none"])
+
+            old_email = user.gcp_email or user.email
+            if old_email == email:
+                return cls(ok=True)
+
+            user.gcp_email = email
+            user.save()
+
+            if is_email_in_group(old_email):
+                try:
+                    remove_user(old_email)
+                except Exception:
+                    pass
+
+            subscription = user.pro_subscription
+
+            if subscription is None:
+                return cls(ok=True)
+
+            if not is_email_in_group(email):
+                try:
+                    add_user(email)
+                except Exception:
+                    pass
+
+            return cls(ok=True)
+        except Exception as e:
+            logger.error(e)
+            return cls(ok=False, errors=[str(e)])
+
+
+# Query to check based on a email if the user is in a group
+class IsEmailInGoogleGroup(Mutation):
+    """Check if user is in group"""
+
+    ok = Boolean()
+    errors = List(String)
+
+    class Arguments:
+        email = String(required=True)
+
+    @classmethod
+    @login_required
+    def mutate(cls, root, info, email):
+        try:
+            return cls(ok=is_email_in_group(email))
         except Exception as e:
             logger.error(e)
             return cls(errors=[str(e)])
@@ -441,6 +510,7 @@ def get_stripe_promo(promotion_code):
 class Query(ObjectType):
     stripe_price = PlainTextNode.Field(StripePriceNode)
     all_stripe_price = DjangoFilterConnectionField(StripePriceNode)
+    is_email_in_google_group = IsEmailInGoogleGroup.Field()
 
 
 class Mutation(ObjectType):
@@ -451,6 +521,7 @@ class Mutation(ObjectType):
     create_stripe_customer_subscription = StripeSubscriptionCustomerCreateMutation.Field()
     update_stripe_customer_subscription = StripeSubscriptionCustomerDeleteMutation.Field()
     validate_stripe_coupon = StripeCouponValidationMutation.Field()
+    change_user_gcp_email = ChangeUserGCPEmail.Field()
 
 
 # Reference

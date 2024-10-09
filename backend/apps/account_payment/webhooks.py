@@ -10,8 +10,9 @@ from loguru import logger
 from stripe import Customer as StripeCustomer
 from stripe import Subscription as StripeSubscription
 
-from backend.apps.account.models import Subscription
+from backend.apps.account.models import Account, Subscription
 from backend.custom.client import send_discord_message as send
+from backend.custom.environment import get_backend_url
 
 logger = logger.bind(module="payment")
 
@@ -86,13 +87,13 @@ def remove_user(email: str, group_key: str = None) -> None:
         service = get_service()
         service.members().delete(
             groupKey=group_key,
-            memberKey=email,
+            memberKey=email.lower(),
         ).execute()
     except HttpError as e:
         if e.resp.status == 404:
             logger.warning(f"{email} já foi removido do google groups")
         else:
-            send(f"Verifique o erro ao remover o usuário do google groups: {e}")
+            send(f"Verifique o erro ao remover o usuário do google groups '{email}': {e}")
             logger.error(e)
             raise e
 
@@ -109,6 +110,37 @@ def list_user(group_key: str = None):
         raise e
 
 
+def is_email_in_group(email: str, group_key: str = None) -> bool:
+    """Check if a user is in a Google group."""
+    if not group_key:
+        group_key = settings.GOOGLE_DIRECTORY_GROUP_KEY
+    if "+" in email and email.index("+") < email.index("@"):
+        email = email.split("+")[0] + "@" + email.split("@")[1]
+
+    try:
+        service = get_service()
+        response = (
+            service.members()
+            .get(
+                groupKey=group_key,
+                memberKey=email.lower(),
+            )
+            .execute()
+        )
+
+        member_email = response.get("email")
+        if not member_email:
+            return False
+
+        return member_email.lower() == email.lower()
+    except HttpError as e:
+        logger.error(f"Erro ao verificar o usuário {email} no grupo {group_key}: {e}")
+        return False
+    except Exception as e:
+        logger.error(f"Erro inesperado ao verificar o usuário {email}: {e}")
+        raise e
+
+
 @webhooks.handler("customer.updated")
 def update_customer(event: Event, **kwargs):
     """Propagate customer email update if exists"""
@@ -122,21 +154,32 @@ def update_customer(event: Event, **kwargs):
 def handle_subscription(event: Event):
     """Handle subscription status"""
     subscription = get_subscription(event)
+    account = Account.objects.filter(email=event.customer.email).first()
 
     if event.data["object"]["status"] in ["trialing", "active"]:
         if subscription:
             logger.info(f"Adicionando a inscrição do cliente {event.customer.email}")
             subscription.is_active = True
             subscription.save()
+
         # Add user to google group if subscription exists or not
-        add_user(event.customer.email)
+        if account:
+            add_user(account.gcp_email or account.email)
+        else:
+            add_user(event.customer.email)
     else:
         if subscription:
             logger.info(f"Removendo a inscrição do cliente {event.customer.email}")
             subscription.is_active = False
             subscription.save()
         # Remove user from google group if subscription exists or not
-        remove_user(event.customer.email)
+        try:
+            if account:
+                remove_user(account.gcp_email or account.email)
+            else:
+                remove_user(event.customer.email)
+        except Exception as e:
+            logger.error(e)
 
 
 @webhooks.handler("customer.subscription.updated")
@@ -158,28 +201,54 @@ def unsubscribe(event: Event, **kwargs):
         logger.info(f"Removendo a inscrição do cliente {event.customer.email}")
         subscription.is_active = False
         subscription.save()
+
+    account = Account.objects.filter(email=event.customer.email).first()
     # Remove user from google group if subscription exists or not
-    remove_user(event.customer.email)
+    try:
+        if account:
+            remove_user(account.gcp_email or account.email)
+        else:
+            remove_user(event.customer.email)
+    except Exception as e:
+        logger.error(e)
 
 
 @webhooks.handler("customer.subscription.paused")
 def pause_subscription(event: Event, **kwargs):
     """Pause customer subscription"""
+    account = Account.objects.filter(email=event.customer.email).first()
+
     if subscription := get_subscription(event):
         logger.info(f"Pausando a inscrição do cliente {event.customer.email}")
         subscription.is_active = False
         subscription.save()
-        remove_user(event.customer.email)
+
+    try:
+        if account:
+            remove_user(account.gcp_email or account.email)
+        else:
+            remove_user(event.customer.email)
+    except Exception as e:
+        logger.error(e)
 
 
 @webhooks.handler("customer.subscription.resumed")
 def resume_subscription(event: Event, **kwargs):
     """Resume customer subscription"""
+    account = Account.objects.filter(email=event.customer.email).first()
+
     if subscription := get_subscription(event):
         logger.info(f"Resumindo a inscrição do cliente {event.customer.email}")
         subscription.is_active = True
         subscription.save()
-        add_user(event.customer.email)
+
+    try:
+        if account:
+            add_user(account.gcp_email or account.email)
+        else:
+            add_user(event.customer.email)
+    except Exception as e:
+        logger.error(e)
 
 
 @webhooks.handler("setup_intent.succeeded")
@@ -192,6 +261,10 @@ def setup_intent_succeeded(event: Event, **kwargs):
     metadata = setup_intent.get("metadata")
     price_id = metadata.get("price_id")
     promotion_code = metadata.get("promotion_code")
+    backend_url = metadata.get("backend_url")
+
+    if not backend_url == get_backend_url():
+        return logger.info(f"Ignore setup intent from {backend_url}")
 
     StripeCustomer.modify(
         customer.id, invoice_settings={"default_payment_method": setup_intent.get("payment_method")}

@@ -62,7 +62,7 @@ def create_subscription(user: Account):
         customer.subscriber = user
         customer.save()
         # Add user to Google Group
-        add_user(user.email)
+        add_user(user.gcp_email or user.email)
 
 
 @receiver(post_save, sender=Account)
