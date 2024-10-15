@@ -6,26 +6,33 @@ from pydantic import BaseModel
 
 class Organization(BaseModel):
     id: str
-    name: str
     slug: str
+    name_pt: str
+    name_en: str
+    name_es: str
     picture: Optional[str]
-    website: Optional[str]
-    description: Optional[str]
 
 
 class Theme(BaseModel):
-    name: str
     slug: str
+    name_pt: str
+    name_en: str
+    name_es: str
 
 
 class Tag(BaseModel):
-    name: str
     slug: str
+    name_pt: str
+    name_en: str
+    name_es: str
 
 
 class Entity(BaseModel):
-    name: str
     keyword: str
+    slug: str
+    name_pt: str
+    name_en: str
+    name_es: str
 
 
 class RawDataSource(BaseModel):
