@@ -736,6 +736,15 @@ class CoverageTypeAdminFilter(admin.SimpleListFilter):
             return queryset.filter(key__isnull=False)
 
 
+class UnitsInline(admin.TabularInline):
+    model = DateTimeRange.units.through
+    extra = 0
+    fields = ["column"]
+    raw_id_fields = ["column"]
+    verbose_name = "Unit"
+    verbose_name_plural = "Units"
+
+
 class DateTimeRangeAdmin(admin.ModelAdmin):
     list_display = ["__str__", "coverage"]
     readonly_fields = ["id"]
@@ -753,7 +762,12 @@ class DateTimeRangeAdmin(admin.ModelAdmin):
         "end_hour",
         "end_minute",
         "end_second",
+        "units",
     ]
+
+    inlines = [UnitsInline]
+    raw_id_fields = ["coverage"]
+
 
 class CoverageAdmin(admin.ModelAdmin):
     readonly_fields = ["id"]
