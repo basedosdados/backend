@@ -10,6 +10,8 @@ from haystack.query import SearchQuerySet
 from backend.apps.api.v1.models import Entity, Organization, Tag, Theme
 
 
+import logging
+logger = logging.getLogger(__name__)
 class DatasetSearchForm(FacetedSearchForm):
     load_all: bool = True
 
@@ -19,6 +21,7 @@ class DatasetSearchForm(FacetedSearchForm):
         self.theme = kwargs.pop("theme", None) or []
         self.organization = kwargs.pop("organization", None) or []
         self.observation_level = kwargs.pop("observation_level", None) or []
+        self.locale = kwargs.pop("locale", "pt")
         super().__init__(*args, **kwargs)
 
     def search(self):
@@ -82,6 +85,10 @@ class DatasetSearchView(FacetedSearchView):
         except (TypeError, ValueError):
             return 10
 
+    @property
+    def locale(self):
+        return self.request.GET.get('locale', 'pt')
+
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs.update({"contains": self.request.GET.getlist("contains")})
@@ -89,6 +96,7 @@ class DatasetSearchView(FacetedSearchView):
         kwargs.update({"theme": self.request.GET.getlist("theme")})
         kwargs.update({"organization": self.request.GET.getlist("organization")})
         kwargs.update({"observation_level": self.request.GET.getlist("observation_level")})
+        kwargs.update({"locale": self.locale})
         return kwargs
 
     def get(self, request, *args, **kwargs):
@@ -100,6 +108,7 @@ class DatasetSearchView(FacetedSearchView):
                 "count": sqs.count(),
                 "results": self.get_results(sqs),
                 "aggregations": self.get_facets(sqs),
+                "locale": self.locale,
             }
         )
 
@@ -127,11 +136,16 @@ class DatasetSearchView(FacetedSearchView):
             ("entity_slug", "observation_levels", Entity),
             ("organization_slug", "organizations", Organization),
         ]:
-            to_name = model.objects.values("slug", "name")
-            to_name = {e["slug"]: e["name"] for e in to_name.all()}
+            to_name = model.objects.values("slug", f"name_{self.locale}", "name")
+            to_name = {e["slug"]: {
+                "name": e[f"name_{self.locale}"] or e["name"] or e["slug"],
+                "fallback": e[f"name_{self.locale}"] is None
+            } for e in to_name.all()}
             facets[key_front] = facets.pop(key_back, None)
             for field in facets[key_front] or []:
-                field["name"] = to_name.get(field["key"], "")
+                translated_name = to_name.get(field["key"], {})
+                field["name"] = translated_name.get("name", field["key"])
+                field["fallback"] = translated_name.get("fallback", True)
         return facets
 
     def get_results(self, sqs: SearchQuerySet):
@@ -142,55 +156,52 @@ class DatasetSearchView(FacetedSearchView):
         since = (self.page - 1) * self.page_size
 
         results = sorted(sqs.all(), key=key, reverse=True)
-        return [as_search_result(r) for r in results[since:until]]
+        return [as_search_result(r, self.locale) for r in results[since:until]]
 
 
-def as_search_result(result: SearchResult):
-    tag = []
-    for slug, name in zip(result.tag_slug or [], result.tag_name or []):
-        tag.append(
+def as_search_result(result: SearchResult, locale='pt'):
+    
+    tags = []
+    for slug, name in zip(result.tag_slug or [], getattr(result, f"tag_name_{locale}") or []):
+        tags.append(
             {
                 "slug": slug,
                 "name": name,
             }
         )
 
-    theme = []
-    for slug, name in zip(result.theme_slug or [], result.theme_name or []):
-        theme.append(
+    themes = []
+    for slug, name in zip(result.theme_slug or [], getattr(result, f"theme_name_{locale}") or []):
+        themes.append(
             {
                 "slug": slug,
                 "name": name,
             }
         )
 
-    entity = []
-    for slug, name in zip(result.entity_slug or [], result.entity_name or []):
-        entity.append(
+    entities = []
+    for slug, name in zip(result.entity_slug or [], getattr(result, f"entity_name_{locale}") or []):
+        entities.append(
             {
                 "slug": slug,
                 "name": name,
             }
         )
 
-    organization = []
-    for pk, slug, name, picture, website, description in zip(
+    organizations = []
+    for pk, slug, name, picture in zip(
         result.organization_id or [],
         result.organization_slug or [],
-        result.organization_name or [],
+        [(getattr(result, f"organization_name_{locale}") or []) or result.organization_name or result.organization_slug],
         result.organization_picture or [],
-        result.organization_website or [],
-        result.organization_description or [],
     ):
         picture = storage.url(picture)
-        organization.append(
+        organizations.append(
             {
                 "id": pk,
                 "slug": slug,
                 "name": name,
                 "picture": picture,
-                "website": website,
-                "description": description,
             }
         )
 
@@ -198,12 +209,12 @@ def as_search_result(result: SearchResult):
         "updated_at": result.updated_at,
         "id": result.dataset_id,
         "slug": result.dataset_slug,
-        "name": result.dataset_name,
-        "description": result.dataset_description,
-        "tags": tag,
-        "themes": theme,
-        "entities": entity,
-        "organizations": organization,
+        "name": getattr(result, f"dataset_name_{locale}") or result.dataset_name or result.dataset_slug,
+        "description": getattr(result, f"dataset_description_{locale}") or result.dataset_description,
+        "tags": tags,
+        "themes": themes,
+        "entities": entities,
+        "organizations": organizations,
         "temporal_coverages": result.temporal_coverage,
         "contains_open_data": result.contains_open_data,
         "contains_closed_data": result.contains_closed_data,
