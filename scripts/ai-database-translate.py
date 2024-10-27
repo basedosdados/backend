@@ -1,25 +1,25 @@
 #!/usr/bin/env python3
 """
-Use this script to change database content with the help of an LLM API. In this case we are translating content to other languages.
-How to use:
+AI Database Translation Script
 
-    create a .env file here with:
+This script uses an LLM API to translate database content from Portuguese to English and Spanish.
 
-```
-BETTER_EXCEPTIONS=1
-API_KEY=...
-DB_PASSWORD=
-DB_HOST=
-DB_PORT=5432
-DB_USER=api
-DB_NAME=api
-```
+Usage:
+1. Create a .env file in the same directory with the following content:
+   ```
+   BETTER_EXCEPTIONS=1
+   API_KEY=your_api_key_here
+   DB_PASSWORD=your_db_password
+   DB_HOST=your_db_host
+   DB_PORT=5432
+   DB_USER=api
+   DB_NAME=api
+   ```
+2. Run the script.
+3. Tweak the prompt or other code if necessary.
 
-Run the script.
-
-Tweak the prompt or other code if necessary.
+The script processes multiple tables and fields, translating content and updating the database.
 """
-
 
 from pprint import pprint
 from random import random
@@ -28,7 +28,6 @@ dotenv.load_dotenv()
 
 import json
 import better_exceptions; better_exceptions.hook()
-from ratelimiter import RateLimiter
 import google.generativeai as genai
 import csv as _csv
 from io import StringIO
@@ -45,16 +44,36 @@ model = genai.GenerativeModel('gemini-1.5-flash-latest')
 # model = genai.GenerativeModel('gemini-1.0-pro-latest')
 
 def main():
+    """
+    Main function to execute the translation process for all specified tables and fields.
+    """
     for table, fields in FIELDS_TO_TRANSLATE:
         print(f"{table:<20}: {str(fields):<30} - Entries to process: {get_data(table, fields, count_only=True)}")
+    print("Press Enter to continue...")
     input()
     for table, fields in FIELDS_TO_TRANSLATE:
         treat_table(table, fields)
 
 def get_new_fields(fields):
+    """
+    Generate new field names for English and Spanish translations.
+    
+    Args:
+        fields (list): Original field names.
+    
+    Returns:
+        list: New field names with '_en' and '_es' suffixes.
+    """
     return [f'{f}_en' for f in fields] + [f'{f}_es' for f in fields]
 
 def treat_table(table, fields):
+    """
+    Process and translate data for a specific table and set of fields.
+    
+    Args:
+        table (str): Name of the table to process.
+        fields (list): List of fields to translate.
+    """
     data = get_data(table, fields)
     data = dictify(sorted(data, key=lambda x: random()))
     data = [d | {f: None for f in get_new_fields(fields)} for d in data]
@@ -115,6 +134,12 @@ Would you please translate the following json, filling up the missing keys: {new
 
 
 def connect_db():
+    """
+    Establish a connection to the PostgreSQL database.
+    
+    Returns:
+        psycopg2.connection: Database connection object.
+    """
     db = psycopg2.connect(
         dbname=os.getenv('DB_NAME'),
         user=os.getenv('DB_USER'),
@@ -128,6 +153,15 @@ def connect_db():
 db = connect_db()
 cursor = db.cursor()
 def sql(q):
+    """
+    Execute an SQL query and return the results.
+    
+    Args:
+        q (str): SQL query to execute.
+    
+    Returns:
+        list: Query results.
+    """
     cursor.execute(q)
     result = cursor.fetchall()
     return result
@@ -143,6 +177,15 @@ def csv(data):
     return output.getvalue()
 
 def dictify(data):
+    """
+    Convert query results to a list of dictionaries.
+    
+    Args:
+        data: Query results to convert.
+    
+    Returns:
+        list: List of dictionaries representing the data.
+    """
     if not isinstance(data, list):
         out = [data]
     else:
@@ -159,7 +202,17 @@ def batchify(size, data):
         yield data[i:i + size]
 
 def batch_by_token_size(max_tokens, max_batch, data):
-    """Yield chunks from data where the total token count of each chunk does not exceed max_tokens."""
+    """
+    Yield chunks from data where the total token count of each chunk does not exceed max_tokens.
+    
+    Args:
+        max_tokens (int): Maximum number of tokens per batch.
+        max_batch (int): Maximum number of items per batch.
+        data (list): Data to be batched.
+    
+    Yields:
+        list: Batch of data items.
+    """
     def token_counter(item):
         return len(str(item).split())
     batch = []
@@ -177,6 +230,14 @@ def batch_by_token_size(max_tokens, max_batch, data):
 
 
 def write_response_to_db(res, table, fields):
+    """
+    Write translated content back to the database.
+    
+    Args:
+        res (dict): Translated data.
+        table (str): Name of the table to update.
+        fields (list): List of fields that were translated.
+    """
     new_fields = get_new_fields(fields)
     set_clause = ", ".join([f"{field} = %s" for field in new_fields])
     values = [res[field] for field in new_fields]
@@ -185,6 +246,17 @@ def write_response_to_db(res, table, fields):
 
 
 def get_data(table, fields, count_only=False):
+    """
+    Retrieve data from the database for translation.
+    
+    Args:
+        table (str): Name of the table to query.
+        fields (list): List of fields to retrieve.
+        count_only (bool): If True, return only the count of rows to process.
+    
+    Returns:
+        int or list: Count of rows or list of data to process.
+    """
     pt_fields = ", ".join(f + '_pt' for f in fields)
     if len(fields) == 1:
         # skip single fields if they are null at the source. Doing this properly for multi fields is hard so we don't do it
@@ -220,9 +292,36 @@ def rate_limiter(max_calls_per_minute):
         return wrapper
     return decorator
 
+def rate_limiter(max_calls_per_minute):
+    min_interval = 60.0 / max_calls_per_minute
+    last_called = 0
 
-@RateLimiter(max_calls=14, period=60)
-def gen_content(c): return model.generate_content(c)
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            nonlocal last_called
+            elapsed = time.time() - last_called
+            left_to_wait = min_interval - elapsed
+            if left_to_wait > 0:
+                time.sleep(left_to_wait)
+            ret = func(*args, **kwargs)
+            last_called = time.time()
+            return ret
+        return wrapper
+    return decorator
+
+@rate_limiter(max_calls_per_minute=14)
+def gen_content(c):
+    """
+    Generate content using the AI model with rate limiting.
+    
+    Args:
+        c (str): Prompt for content generation.
+    
+    Returns:
+        genai.types.GenerateContentResponse: Generated content.
+    """
+    return model.generate_content(c)
 
 EXAMPLE_DATA = ["""                                    id |             name_en              |                                                                                                                                                                                                                               description_en
     ----+----------------------------------+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -240,7 +339,6 @@ EXAMPLE_DATA = ["""                                    id |             name_en 
 FIELDS_TO_TRANSLATE = [
     ("dataset", ["name"]),
     ("dataset", ["description"]),
-    ("entity", ["name"]),
     ("analysis", ["name", "description"]),
     ("analysis_type", ["name"]),
     ("area", ["name"]),
@@ -248,6 +346,7 @@ FIELDS_TO_TRANSLATE = [
     ("column", ["description"]),
     ("column", ["observations"]),
     ("column_original_name", ["name"]),
+    ("entity", ["name"]),
     ("entity_category", ["name"]),
     ("information_request", ["observations"]),
     ("language", ["name"]),
@@ -260,11 +359,5 @@ FIELDS_TO_TRANSLATE = [
     ("tag", ["name"]),
     ("theme", ["name"]),
 ]
-
-
-
-
-
-
 
 main()
