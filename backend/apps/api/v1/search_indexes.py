@@ -17,13 +17,34 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         model_attr="slug",
         indexed=False,
     )
-    dataset_name = indexes.CharField(
-        model_attr="name",
+    dataset_name_pt = indexes.CharField(
+        model_attr="name_pt",
+        null=True,
         indexed=False,
     )
-    dataset_description = indexes.CharField(
-        model_attr="description",
-        default="",
+    dataset_name_en = indexes.CharField(
+        model_attr="name_en",
+        null=True,
+        indexed=False,
+    )
+    dataset_name_es = indexes.CharField(
+        model_attr="name_es",
+        null=True,
+        indexed=False,
+    )
+    dataset_description_pt = indexes.CharField(
+        model_attr="description_pt",
+        null=True,
+        indexed=False,
+    )
+    dataset_description_en = indexes.CharField(
+        model_attr="description_en",
+        null=True,
+        indexed=False,
+    )
+    dataset_description_es = indexes.CharField(
+        model_attr="description_es",
+        null=True,
         indexed=False,
     )
 
@@ -35,13 +56,34 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         model_attr="tables__slug",
         indexed=False,
     )
-    table_name = indexes.MultiValueField(
-        model_attr="tables__name",
+    table_name_pt = indexes.MultiValueField(
+        model_attr="tables__name_pt",
+        null=True,
         indexed=False,
     )
-    table_description = indexes.MultiValueField(
-        model_attr="tables__description",
-        default="",
+    table_name_en = indexes.MultiValueField(
+        model_attr="tables__name_en",
+        null=True,
+        indexed=False,
+    )
+    table_name_es = indexes.MultiValueField(
+        model_attr="tables__name_es",
+        null=True,
+        indexed=False,
+    )
+    table_description_pt = indexes.MultiValueField(
+        model_attr="tables__description_pt",
+        null=True,
+        indexed=False,
+    )
+    table_description_en = indexes.MultiValueField(
+        model_attr="tables__description_en",
+        null=True,
+        indexed=False,
+    )
+    table_description_es = indexes.MultiValueField(
+        model_attr="tables__description_es",
+        null=True,
         indexed=False,
     )
 
@@ -55,8 +97,22 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         faceted=True,
         indexed=False,
     )
-    organization_name = indexes.MultiValueField(
-        model_attr="organization__name",
+    organization_name_pt = indexes.MultiValueField(
+        model_attr="organization__name_pt",
+        null=True,
+        faceted=True,
+        indexed=False,
+    )
+    organization_name_en = indexes.MultiValueField(
+        model_attr="organization__name_en",
+        null=True,
+        faceted=True,
+        indexed=False,
+    )
+    organization_name_es = indexes.MultiValueField(
+        model_attr="organization__name_es",
+        null=True,
+        faceted=True,
         indexed=False,
     )
     organization_picture = indexes.MultiValueField(
@@ -69,9 +125,19 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         default="",
         indexed=False,
     )
-    organization_description = indexes.MultiValueField(
-        model_attr="organization__description",
-        default="",
+    organization_description_pt = indexes.MultiValueField(
+        model_attr="organization__description_pt",
+        null=True,
+        indexed=False,
+    )
+    organization_description_en = indexes.MultiValueField(
+        model_attr="organization__description_en",
+        null=True,
+        indexed=False,
+    )
+    organization_description_es = indexes.MultiValueField(
+        model_attr="organization__description_es",
+        null=True,
         indexed=False,
     )
 
@@ -81,37 +147,72 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         faceted=True,
         indexed=False,
     )
-    tag_name = indexes.MultiValueField(
-        model_attr="tags__name",
-        default="",
+    tag_name_pt = indexes.MultiValueField(
+        model_attr="tags__name_pt",
+        null=True,
+        faceted=True,
         indexed=False,
     )
-
+    tag_name_en = indexes.MultiValueField(
+        model_attr="tags__name_en",
+        null=True,
+        faceted=True,
+        indexed=False,
+    )
+    tag_name_es = indexes.MultiValueField(
+        model_attr="tags__name_es",
+        null=True,
+        faceted=True,
+        indexed=False,
+    )
     theme_slug = indexes.MultiValueField(
         model_attr="themes__slug",
         default="",
         faceted=True,
         indexed=False,
     )
-    theme_name = indexes.MultiValueField(
-        model_attr="themes__name",
-        default="",
+    theme_name_pt = indexes.MultiValueField(
+        model_attr="themes__name_pt",
+        null=True,
+        faceted=True,
         indexed=False,
     )
-
+    theme_name_en = indexes.MultiValueField(
+        model_attr="themes__name_en",
+        null=True,
+        faceted=True,
+        indexed=False,
+    )
+    theme_name_es = indexes.MultiValueField(
+        model_attr="themes__name_es",
+        null=True,
+        faceted=True,
+        indexed=False,
+    )
     entity_slug = indexes.MultiValueField(
         model_attr="tables__observation_levels__entity__slug",
         default="",
         faceted=True,
         indexed=False,
     )
-    entity_name = indexes.MultiValueField(
-        model_attr="tables__observation_levels__entity__name",
-        default="",
+    entity_name_pt = indexes.MultiValueField(
+        model_attr="tables__observation_levels__entity__name_pt",
+        null=True,
         faceted=True,
         indexed=False,
     )
-
+    entity_name_en = indexes.MultiValueField(
+        model_attr="tables__observation_levels__entity__name_en",
+        null=True,
+        faceted=True,
+        indexed=False,
+    )
+    entity_name_es = indexes.MultiValueField(
+        model_attr="tables__observation_levels__entity__name_es",
+        null=True,
+        faceted=True,
+        indexed=False,
+    )
     temporal_coverage = indexes.MultiValueField(
         default="",
         model_attr="coverage",

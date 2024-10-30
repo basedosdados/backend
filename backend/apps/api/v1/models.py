@@ -979,12 +979,16 @@ class Table(BaseModel, OrderedModel):
         }
 
     @property
-    def coverage_datetime_unit(self) -> str:
+    def coverage_datetime_units(self) -> str:
         units = []
         for coverage in self.coverages.all():
             for datetime_range in coverage.datetime_ranges.all():
-                units.append(datetime_range.unit.name)
-        most_common_unit = max(set(units), key=units.count)
+                units.extend([unit.name for unit in datetime_range.units.all()])
+        
+        if not units:
+            return None
+        
+        most_common_unit = list(set(units))
         return most_common_unit
 
     def get_similarity_of_area(self, other: "Table"):
@@ -1066,7 +1070,6 @@ class Table(BaseModel, OrderedModel):
         """
         Clean method for Table model
             - Coverages must not overlap
-            - Temporal coverage units must refer to the same column.
         """
         errors = {}
         try:
@@ -1102,16 +1105,6 @@ class Table(BaseModel, OrderedModel):
                         errors['coverages_areas'] = f"Temporal coverages in area {area} overlap"
         except ValueError:
             pass
-        
-        def all_same(items):
-            return all(x == items[0] for x in items)
-        units = []
-        for coverage in self.coverages.all():
-            for datetime_range in coverage.datetime_ranges.all():
-                if datetime_range.unit:
-                    units.append(datetime_range.unit.id)
-        if not all_same(units):
-            errors['datetime_range_units'] = f"Datetime range units do not refer all to the same column."
         
         if errors:
             raise ValidationError(errors)
@@ -1688,9 +1681,10 @@ class DateTimeRange(BaseModel):
     end_minute = models.IntegerField(blank=True, null=True)
     end_second = models.IntegerField(blank=True, null=True)
     interval = models.IntegerField(blank=True, null=True)
-    unit = models.ForeignKey(
-        "Column", on_delete=models.SET_NULL, related_name="datetime_ranges",
-        null=True, blank=True
+    units = models.ManyToManyField(
+        "Column",
+        related_name="datetime_ranges",
+        blank=True,
     )
     is_closed = models.BooleanField("Is Closed", default=False)
 
@@ -1770,13 +1764,22 @@ class DateTimeRange(BaseModel):
         return 0
 
     def clean(self):
+        errors = {}
         try:
             if self.since and self.until and self.since > self.until:
-                raise ValidationError("Start date must be less than or equal to end date")
+                errors['date_range'] = "Start date must be less than or equal to end date"
             if self.since and self.until and not self.interval:
-                raise ValidationError("Interval must exist in ranges with start and end dates")
-        except ValueError as exp:
-            raise ValidationError(str(exp))
+                errors['interval'] = "Interval must exist in ranges with start and end dates"
+            
+            # Add validation for units
+            #for unit in self.units.all():
+            #    if unit.bigquery_type.name not in ['DATE', 'DATETIME', 'TIME', 'TIMESTAMP']:
+            #        errors['units'] = f"Column '{unit.name}' is not a valid datetime unit"
+        except Exception as e:
+            errors['general'] = f"An error occurred: {str(e)}"
+        
+        if errors:
+            raise ValidationError(errors)
         return super().clean()
 
 

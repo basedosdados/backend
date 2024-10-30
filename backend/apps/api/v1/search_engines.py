@@ -23,14 +23,19 @@ class ASCIIFoldingElasticBackend(es_backend.Elasticsearch7SearchBackend, metacla
                 "tokenizer": "edgengram",
                 "filter": ["asciifolding", "lowercase"],
             },
+            "snowball_pt": {
+                "type": "snowball",
+                "language": "Portuguese",
+                "filter": ["asciifolding"],
+            },
             "snowball_en": {
                 "type": "snowball",
                 "language": "English",
                 "filter": ["asciifolding"],
             },
-            "snowball_pt": {
+            "snowball_es": {
                 "type": "snowball",
-                "language": "Portuguese",
+                "language": "Spanish",
                 "filter": ["asciifolding"],
             },
         }
@@ -63,6 +68,7 @@ class ASCIIFoldingElasticBackend(es_backend.Elasticsearch7SearchBackend, metacla
                             "edgengram": {"type": "text", "analyzer": "edgengram"},
                             "snowball_pt": {"type": "text", "analyzer": "snowball_pt"},
                             "snowball_en": {"type": "text", "analyzer": "snowball_en"},
+                            "snowball_es": {"type": "text", "analyzer": "snowball_es"},
                         }
             mapping.update({field_class.index_fieldname: field_mapping})
         return (content_field_name, mapping)
