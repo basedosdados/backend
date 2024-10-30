@@ -83,7 +83,7 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
     )
     table_description_es = indexes.MultiValueField(
         model_attr="tables__description_es",
-        default="",
+        null=True,
         indexed=False,
     )
 
