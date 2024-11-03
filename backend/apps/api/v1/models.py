@@ -1262,6 +1262,7 @@ class Column(BaseModel, OrderedModel):
         related_name="columns",
         blank=True,
         null=True,
+        limit_choices_to={'is_primary_key': True, 'table__is_directory': True}
     )
     measurement_unit = models.CharField(max_length=255, blank=True, null=True)
     contains_sensitive_data = models.BooleanField(default=False, blank=True, null=True)
