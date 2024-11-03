@@ -29,22 +29,24 @@ class Area(BaseModel):
             (1, '1'),
             (2, '2'),
             (3, '3'),
+            (4, '4'),
+            (5, '5'),
         ]
     )
     entity = models.ForeignKey(
         "Entity",
-        on_delete=models.PROTECT,
-        related_name="areas",
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
+        related_name="areas",
         limit_choices_to={'category__slug': 'spatial'}
     )
     parent = models.ForeignKey(
         "Area",
-        on_delete=models.PROTECT,
-        related_name="children",
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
+        related_name="children",
     )
 
     graphql_nested_filter_fields_whitelist = ["id"]
@@ -316,7 +318,10 @@ class Analysis(BaseModel):
     name = models.CharField(null=True, blank=True, max_length=255)
     description = models.TextField(null=True, blank=True)
     analysis_type = models.ForeignKey(
-        "AnalysisType", on_delete=models.CASCADE, related_name="analyses"
+        "AnalysisType",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="analyses",
     )
     datasets = models.ManyToManyField(
         "Dataset",
@@ -502,7 +507,7 @@ class Dataset(BaseModel):
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     organization = models.ForeignKey(
-        "Organization", on_delete=models.CASCADE, related_name="datasets"
+        "Organization", on_delete=models.SET_NULL, null=True, related_name="datasets"
     )
     themes = models.ManyToManyField(
         "Theme",
@@ -727,7 +732,7 @@ class Update(BaseModel):
         "Entity",
         blank=True,
         null=True,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="updates"
     )
     frequency = models.IntegerField(blank=True, null=True)
@@ -793,7 +798,7 @@ class Poll(BaseModel):
         "Entity",
         blank=True,
         null=True,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="polls"
     )
     frequency = models.IntegerField(blank=True, null=True)
@@ -856,21 +861,21 @@ class Table(BaseModel, OrderedModel):
     )
     license = models.ForeignKey(
         "License",
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="tables",
         blank=True,
         null=True,
     )
     partner_organization = models.ForeignKey(
         "Organization",
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="partner_tables",
         blank=True,
         null=True,
     )
     pipeline = models.ForeignKey(
         "Pipeline",
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="tables",
         blank=True,
         null=True,
@@ -880,14 +885,14 @@ class Table(BaseModel, OrderedModel):
     updated_at = models.DateTimeField(auto_now=True)
     published_by = models.ForeignKey(
         Account,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="tables_published",
         blank=True,
         null=True,
     )
     data_cleaned_by = models.ForeignKey(
         Account,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="tables_cleaned",
         blank=True,
         null=True,
@@ -1251,17 +1256,17 @@ class Column(BaseModel, OrderedModel):
     name = models.CharField(max_length=255)
     name_staging = models.CharField(max_length=255, blank=True, null=True)
     bigquery_type = models.ForeignKey(
-        "BigQueryType", on_delete=models.CASCADE, related_name="columns"
+        "BigQueryType", on_delete=models.SET_NULL, null=True, related_name="columns"
     )
     description = models.TextField(blank=True, null=True)
     covered_by_dictionary = models.BooleanField(default=False, blank=True, null=True)
     is_primary_key = models.BooleanField(default=False, blank=True, null=True)
     directory_primary_key = models.ForeignKey(
         "Column",
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
+        null=True,
         related_name="columns",
         blank=True,
-        null=True,
         limit_choices_to={'is_primary_key': True, 'table__is_directory': True}
     )
     measurement_unit = models.CharField(max_length=255, blank=True, null=True)
@@ -1271,17 +1276,17 @@ class Column(BaseModel, OrderedModel):
     is_partition = models.BooleanField(default=False)
     observation_level = models.ForeignKey(
         "ObservationLevel",
-        on_delete=models.CASCADE,
-        related_name="columns",
+        on_delete=models.SET_NULL,
         null=True,
+        related_name="columns",
         blank=True,
     )
     version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
         "Status",
-        on_delete=models.PROTECT,
-        related_name="columns",
+        on_delete=models.SET_NULL,
         null=True,
+        related_name="columns",
         blank=True,
     )
     is_closed = models.BooleanField(
@@ -1505,15 +1510,15 @@ class RawDataSource(BaseModel, OrderedModel):
         "Dataset", on_delete=models.CASCADE, related_name="raw_data_sources"
     )
     availability = models.ForeignKey(
-        "Availability", on_delete=models.CASCADE, related_name="raw_data_sources"
+        "Availability", on_delete=models.SET_NULL, null=True, related_name="raw_data_sources"
     )
     languages = models.ManyToManyField("Language", related_name="raw_data_sources", blank=True)
     license = models.ForeignKey(
         "License",
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
         related_name="raw_data_sources",
         blank=True,
-        null=True,
     )
     area_ip_address_required = models.ManyToManyField(
         "Area", related_name="raw_data_sources", blank=True
@@ -1568,7 +1573,7 @@ class InformationRequest(BaseModel, OrderedModel):
     version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
         "Status",
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="information_requests",
         null=True,
         blank=True,
@@ -1642,7 +1647,7 @@ class Entity(BaseModel):
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
     category = models.ForeignKey(
-        "EntityCategory", on_delete=models.CASCADE, related_name="entities"
+        "EntityCategory", on_delete=models.SET_NULL, null=True, related_name="entities"
     )
 
     graphql_nested_filter_fields_whitelist = ["id"]
@@ -1664,7 +1669,7 @@ class ObservationLevel(BaseModel):
 
     id = models.UUIDField(primary_key=True, default=uuid4)
     entity = models.ForeignKey(
-        "Entity", on_delete=models.CASCADE, related_name="observation_levels"
+        "Entity", on_delete=models.SET_NULL, null=True, related_name="observation_levels"
     )
     table = models.ForeignKey(
         "Table",
@@ -1864,10 +1869,10 @@ class QualityCheck(BaseModel):
     updated_at = models.DateTimeField(auto_now=True)
     pipeline = models.ForeignKey(
         "Pipeline",
-        on_delete=models.CASCADE,
-        related_name="quality_checks",
-        blank=True,
+        on_delete=models.SET_NULL,
         null=True,
+        blank=True,
+        related_name="quality_checks",
     )
     analysis = models.ForeignKey(
         "Analysis",
