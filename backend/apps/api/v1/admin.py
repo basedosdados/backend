@@ -19,6 +19,8 @@ from backend.apps.api.v1.filters import (
     TableDirectoryListFilter,
     TableObservationListFilter,
     TableOrganizationListFilter,
+    AreaAdministrativeLevelFilter,
+    AreaParentFilter,
 )
 from backend.apps.api.v1.forms import (
     CloudTableInlineForm,
@@ -431,10 +433,20 @@ class AreaAdmin(TabbedTranslationAdmin):
     list_display = [
         "name",
         "slug",
+        "administrative_level",
+        "parent",
     ]
     search_fields = [
         "name",
         "slug",
+    ]
+    list_filter = [
+        AreaAdministrativeLevelFilter,
+        AreaParentFilter,
+    ]
+    autocomplete_fields = [
+        "parent",
+        "entity",
     ]
 
 

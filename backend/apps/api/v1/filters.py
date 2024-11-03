@@ -2,7 +2,7 @@
 from django.contrib import admin
 from django.utils.translation import gettext_lazy
 
-from backend.apps.api.v1.models import Coverage, ObservationLevel, Organization
+from backend.apps.api.v1.models import Area, Coverage, ObservationLevel, Organization
 
 
 class OrganizationImageListFilter(admin.SimpleListFilter):
@@ -99,3 +99,36 @@ class TableDirectoryListFilter(admin.SimpleListFilter):
             return queryset.filter(is_directory=True)
         if self.value() == "false":
             return queryset.filter(is_directory=False)
+
+
+class AreaAdministrativeLevelFilter(admin.SimpleListFilter):
+    title = "Administrative Level"
+    parameter_name = "administrative_level"
+
+    def lookups(self, request, model_admin):
+        return [
+            (0, '0'),
+            (1, '1'),
+            (2, '2'),
+            (3, '3'),
+            (4, '4'),
+            (5, '5'),
+        ]
+
+    def queryset(self, request, queryset):
+        if self.value() is not None:
+            return queryset.filter(administrative_level=self.value())
+
+
+class AreaParentFilter(admin.SimpleListFilter):
+    title = "Parent Area"
+    parameter_name = "parent"
+
+    def lookups(self, request, model_admin):
+        # Get all areas that have children, ordered by name
+        parents = Area.objects.filter(children__isnull=False).distinct().order_by('name')
+        return [(area.id, f"{area.name}") for area in parents]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(parent_id=self.value())
