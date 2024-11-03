@@ -47,6 +47,21 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         null=True,
         indexed=False,
     )
+    
+    spatial_coverage = indexes.MultiValueField(
+        model_attr="spatial_coverage",
+        null=True,
+        faceted=True,
+        indexed=True,
+    )
+
+    temporal_coverage = indexes.MultiValueField(
+        model_attr="temporal_coverage",
+        null=True,
+        faceted=True,
+        indexed=True,
+    )
+
 
     table_id = indexes.MultiValueField(
         model_attr="tables__pk",
@@ -213,12 +228,7 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         faceted=True,
         indexed=False,
     )
-    temporal_coverage = indexes.MultiValueField(
-        default="",
-        model_attr="coverage",
-        indexed=False,
-    )
-
+    
     contains_open_data = indexes.BooleanField(
         model_attr="contains_open_data",
         indexed=False,
@@ -294,3 +304,12 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
 
     def prepare_organization_picture(self, obj):
         return getattr(obj.organization.picture, "name", None)
+
+    def get_field_mapping(self):
+        mapping = super().get_field_mapping()
+        mapping['spatial_coverage'] = {
+            'type': 'keyword',
+            'store': True,
+            'index': True,
+        }
+        return mapping

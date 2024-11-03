@@ -21,6 +21,31 @@ class Area(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255, blank=False, null=False)
+    administrative_level = models.IntegerField(
+        null=True, 
+        blank=True,
+        choices=[
+            (0, '0'),
+            (1, '1'),
+            (2, '2'),
+            (3, '3'),
+        ]
+    )
+    entity = models.ForeignKey(
+        "Entity",
+        on_delete=models.PROTECT,
+        related_name="areas",
+        null=True,
+        blank=True,
+        limit_choices_to={'category__slug': 'spatial'}
+    )
+    parent = models.ForeignKey(
+        "Area",
+        on_delete=models.PROTECT,
+        related_name="children",
+        null=True,
+        blank=True,
+    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -34,6 +59,27 @@ class Area(BaseModel):
         verbose_name = "Area"
         verbose_name_plural = "Areas"
         ordering = ["name"]
+
+    def clean(self):
+        """Validate the model fields."""
+        errors = {}
+        if self.administrative_level is not None and self.administrative_level not in [0, 1, 2, 3]:
+            errors['administrative_level'] = 'Administrative level must be 0, 1, 2, or 3'
+        
+        if self.entity and self.entity.category.slug != 'spatial':
+            errors['entity'] = 'Entity must have category "spatial"'
+        
+        if self.parent and self.parent.slug != 'world':
+            if self.administrative_level is None:
+                errors['administrative_level'] = 'Administrative level is required when parent is set'
+            elif self.parent.administrative_level is None:
+                errors['parent'] = 'Parent must have an administrative level'
+            elif self.parent.administrative_level != self.administrative_level - 1:
+                errors['parent'] = 'Parent must have administrative level exactly one level above'
+        
+        if errors:
+            raise ValidationError(errors)
+        return super().clean()
 
 
 class Coverage(BaseModel):
@@ -517,21 +563,31 @@ class Dataset(BaseModel):
         return log10(self.page_views)
 
     @property
-    def coverage(self) -> dict:
+    def temporal_coverage(self) -> dict:
         """Temporal coverage of all related entities"""
         resources = [
             *self.tables.all(),
             *self.raw_data_sources.all(),
             *self.information_requests.all(),
         ]
-        coverage = get_coverage(resources)
-        if coverage["start"] and coverage["end"]:
-            return f"{coverage['start']} - {coverage['end']}"
-        if coverage["start"]:
-            return f"{coverage['start']}"
-        if coverage["end"]:
-            return f"{coverage['end']}"
+        temporal_coverage = get_temporal_coverage(resources)
+        if temporal_coverage["start"] and temporal_coverage["end"]:
+            return f"{temporal_coverage['start']} - {temporal_coverage['end']}"
+        if temporal_coverage["start"]:
+            return f"{temporal_coverage['start']}"
+        if temporal_coverage["end"]:
+            return f"{temporal_coverage['end']}"
         return ""
+
+    @property
+    def spatial_coverage(self) -> list[str]:
+        """Union spatial coverage of all related resources"""
+        resources = [
+            *self.tables.all(),
+            *self.raw_data_sources.all(),
+            *self.information_requests.all(),
+        ]
+        return sorted(list(get_spatial_coverage(resources)))
 
     @property
     def entities(self) -> list[dict]:
@@ -931,14 +987,19 @@ class Table(BaseModel, OrderedModel):
         return False
 
     @property
-    def coverage(self) -> dict:
+    def temporal_coverage(self) -> dict:
         """Temporal coverage"""
-        return get_coverage([self])
+        return get_temporal_coverage([self])
 
     @property
-    def full_coverage(self) -> dict:
+    def full_temporal_coverage(self) -> dict:
         """Temporal coverage steps"""
-        return get_full_coverage([self])
+        return get_full_temporal_coverage([self])
+
+    @property
+    def spatial_coverage(self) -> list[str]:
+        """Unique list of areas across all coverages"""
+        return sorted(list(get_spatial_coverage([self])))
 
     @property
     def neighbors(self) -> list[dict]:
@@ -1201,6 +1262,7 @@ class Column(BaseModel, OrderedModel):
         related_name="columns",
         blank=True,
         null=True,
+        limit_choices_to={'is_primary_key': True, 'table__is_directory': True}
     )
     measurement_unit = models.CharField(max_length=255, blank=True, null=True)
     contains_sensitive_data = models.BooleanField(default=False, blank=True, null=True)
@@ -1241,16 +1303,24 @@ class Column(BaseModel, OrderedModel):
         ordering = ["name"]
 
     @property
-    def coverage(self) -> dict:
+    def temporal_coverage(self) -> dict:
         """Temporal coverage of column if exists, if not table coverage"""
-        coverage = get_coverage([self])
+        temporal_coverage = get_temporal_coverage([self])
         fallback = defaultdict(lambda: None)
-        if not coverage["start"] or not coverage["end"]:
-            fallback = self.table.coverage
+        if not temporal_coverage["start"] or not temporal_coverage["end"]:
+            fallback = self.table.temporal_coverage
         return {
-            "start": coverage["start"] or fallback["start"],
-            "end": coverage["end"] or fallback["end"],
+            "start": temporal_coverage["start"] or fallback["start"],
+            "end": temporal_coverage["end"] or fallback["end"],
         }
+
+    @property
+    def spatial_coverage(self) -> list[str]:
+        """Unique list of areas across all coverages, falling back to table coverage if empty"""
+        coverage = get_spatial_coverage([self])
+        if not coverage:
+            return get_spatial_coverage([self.table])
+        return coverage
 
     @property
     def dir_column(self):
@@ -1898,8 +1968,8 @@ class Date:
         return {"date": self.str, "type": self.type}
 
 
-def get_coverage(resources: list) -> dict:
-    """Get maximum datetime coverage of resources
+def get_temporal_coverage(resources: list) -> dict:
+    """Get maximum temporal coverage of resources
 
     Case:
     - Table A has data with dates between [X, Y]
@@ -1918,8 +1988,8 @@ def get_coverage(resources: list) -> dict:
     return {"start": since.str, "end": until.str}
 
 
-def get_full_coverage(resources: list) -> dict:
-    """Get datetime coverage steps of resources
+def get_full_temporal_coverage(resources: list) -> dict:
+    """Get temporal coverage steps of resources
 
     Cases:
     - Table A has data with dates between [X, Y], where [X, Y] is open
@@ -1957,3 +2027,45 @@ def get_full_coverage(resources: list) -> dict:
         return [open_since.as_dict, open_until.as_dict]
     if paid_since.str and paid_until.str:
         return [paid_since.as_dict, paid_until.as_dict]
+
+def get_spatial_coverage(resources: list) -> list:
+    """Get spatial coverage of resources by returning unique area slugs, keeping only the highest level in each branch
+    
+    For example:
+    - If areas = [br_mg_3100104, br_mg_3100104] -> returns [br_mg_3100104]
+    - If areas = [br_mg_3100104, br_sp_3500105] -> returns [br_mg_3100104, br_sp_3500105]
+    - If areas = [br_mg, us_ny, us] -> returns [br_mg, us]
+    - If areas = [br_mg, world, us] -> returns [world]
+    - If resources have no areas -> returns empty list
+    """
+    # Collect all unique area slugs across resources
+    all_areas = set()
+    for resource in resources:
+        for coverage in resource.coverages.all():
+            if coverage.area:
+                all_areas.add(coverage.area.slug)
+    
+    if not all_areas:
+        return []
+        
+    # If 'world' is present, it encompasses everything
+    if 'world' in all_areas:
+        return ['world']
+        
+    # Filter out areas that have a parent in the set
+    filtered_areas = set()
+    for area in all_areas:
+        parts = area.split('_')
+        is_parent_present = False
+        
+        # Check if any parent path exists in all_areas
+        for i in range(1, len(parts)):
+            parent = '_'.join(parts[:i])
+            if parent in all_areas:
+                is_parent_present = True
+                break
+                
+        if not is_parent_present:
+            filtered_areas.add(area)
+    
+    return sorted(list(filtered_areas))
