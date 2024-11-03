@@ -39,6 +39,13 @@ class RawDataSource(BaseModel):
     id: str
 
 
+class SpatialCoverage(BaseModel):
+    slug: str
+    name_pt: str
+    name_en: str
+    name_es: str
+
+
 class TemporalCoverage(BaseModel):
     start_date: str
     end_date: str
@@ -67,11 +74,12 @@ class Dataset(BaseModel):
     contains_open_data: bool
     contains_closed_data: bool
     #
-    tags: List[Tag]
     themes: List[Theme]
-    entities: List[Entity]
-    temporal_coverage: List[str]
     organization: List[Organization]
+    temporal_coverage: List[str]
+    spatial_coverage: List[SpatialCoverage]
+    tags: List[Tag]
+    entities: List[Entity]
 
 
 class Facet(BaseModel):

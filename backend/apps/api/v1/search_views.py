@@ -7,19 +7,17 @@ from haystack.generic_views import FacetedSearchView
 from haystack.models import SearchResult
 from haystack.query import SearchQuerySet
 
-from backend.apps.api.v1.models import Entity, Organization, Tag, Theme
+from backend.apps.api.v1.models import Entity, Organization, Tag, Theme, Area
 
-
-import logging
-logger = logging.getLogger(__name__)
 class DatasetSearchForm(FacetedSearchForm):
     load_all: bool = True
 
     def __init__(self, *args, **kwargs):
         self.contains = kwargs.pop("contains", None) or []
-        self.tag = kwargs.pop("tag", None) or []
         self.theme = kwargs.pop("theme", None) or []
         self.organization = kwargs.pop("organization", None) or []
+        self.spatial_coverage = kwargs.pop("spatial_coverage", None)
+        self.tag = kwargs.pop("tag", None) or []
         self.observation_level = kwargs.pop("observation_level", None) or []
         self.locale = kwargs.pop("locale", "pt")
         super().__init__(*args, **kwargs)
@@ -28,19 +26,30 @@ class DatasetSearchForm(FacetedSearchForm):
         if not self.is_valid():
             return self.no_query_found()
 
+        # Start with all results
+        sqs = self.searchqueryset.all()
+
+        # Debug print to see all form data
+        print("DEBUG: Form data:", {
+            'spatial_coverage': self.spatial_coverage,
+            'theme': self.theme,
+            'organization': self.organization,
+            'tag': self.tag,
+        })
+
+        # Text search if provided
         if q := self.cleaned_data.get("q"):
             sqs = (
-                self.searchqueryset
-                .auto_query(q)
+                sqs.auto_query(q)
                 .filter_and(**{"text.edgengram": q})
                 .filter_or(**{f"text.snowball_{self.locale}": q})
             )
-        else:
-            sqs = self.no_query_found()
 
+        # Contains filters
         for qp_value in self.contains:
             sqs = sqs.narrow(f'contains_{qp_value}:"true"')
 
+        # Regular filters
         for qp_key, facet_key in [
             ("tag", "tag_slug"),
             ("theme", "theme_slug"),
@@ -49,6 +58,37 @@ class DatasetSearchForm(FacetedSearchForm):
         ]:
             for qp_value in getattr(self, qp_key, []):
                 sqs = sqs.narrow(f'{facet_key}:"{sqs.query.clean(qp_value)}"')
+
+        if self.spatial_coverage:
+            # Build queries for all coverage values
+            coverage_queries = []
+            for coverage_list in self.spatial_coverage:
+                # Split the comma-separated values
+                coverages = coverage_list.split(',')
+                if 'world' in coverages:
+                    # If world is in the list, only look for world coverage
+                    coverage_queries = ['spatial_coverage_exact:"world"']
+                    break
+                else:
+                    # Regular case: handle hierarchical patterns for each coverage
+                    for coverage in coverages:
+                        parts = coverage.split('_')
+                        coverage_patterns = [
+                            '_'.join(parts[:i])
+                            for i in range(1, len(parts))
+                        ]
+                        coverage_patterns.append(coverage)  # Add the full coverage too
+                        
+                        # Build OR condition for all valid levels, including world
+                        patterns = ' OR '.join(
+                            f'spatial_coverage_exact:"{pattern}"' 
+                            for pattern in coverage_patterns + ['world']
+                        )
+                        coverage_queries.append(f'({patterns})')
+            
+            # Combine all coverage queries with AND
+            query = f'_exists_:spatial_coverage_exact AND {" AND ".join(coverage_queries)}'
+            sqs = sqs.raw_search(query)
 
         return sqs
 
@@ -91,9 +131,10 @@ class DatasetSearchView(FacetedSearchView):
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
         kwargs.update({"contains": self.request.GET.getlist("contains")})
-        kwargs.update({"tag": self.request.GET.getlist("tag")})
         kwargs.update({"theme": self.request.GET.getlist("theme")})
         kwargs.update({"organization": self.request.GET.getlist("organization")})
+        kwargs.update({"spatial_coverage": self.request.GET.getlist("spatial_coverage")})
+        kwargs.update({"tag": self.request.GET.getlist("tag")})
         kwargs.update({"observation_level": self.request.GET.getlist("observation_level")})
         kwargs.update({"locale": self.locale})
         return kwargs
@@ -112,10 +153,11 @@ class DatasetSearchView(FacetedSearchView):
         )
 
     def get_facets(self, sqs: SearchQuerySet, facet_size=22):
-        sqs = sqs.facet("tag_slug", size=facet_size)
         sqs = sqs.facet("theme_slug", size=facet_size)
-        sqs = sqs.facet("entity_slug", size=facet_size)
         sqs = sqs.facet("organization_slug", size=facet_size)
+        sqs = sqs.facet("spatial_coverage", size=facet_size)
+        sqs = sqs.facet("tag_slug", size=facet_size)
+        sqs = sqs.facet("entity_slug", size=facet_size)
 
         facets = {}
         facet_counts = sqs.facet_counts()
@@ -129,11 +171,12 @@ class DatasetSearchView(FacetedSearchView):
                         "count": value[1],
                     }
                 )
+
         for key_back, key_front, model in [
-            ("tag_slug", "tags", Tag),
             ("theme_slug", "themes", Theme),
-            ("entity_slug", "observation_levels", Entity),
             ("organization_slug", "organizations", Organization),
+            ("tag_slug", "tags", Tag),
+            ("entity_slug", "observation_levels", Entity),
         ]:
             to_name = model.objects.values("slug", f"name_{self.locale}", "name")
             to_name = {e["slug"]: {
@@ -145,6 +188,53 @@ class DatasetSearchView(FacetedSearchView):
                 translated_name = to_name.get(field["key"], {})
                 field["name"] = translated_name.get("name", field["key"])
                 field["fallback"] = translated_name.get("fallback", True)
+
+        # Special handling for spatial coverage
+        if "spatial_coverage" in facets:
+            spatial_coverages = []
+            coverage_counts = {}  # Dictionary to track counts per slug
+            coverage_data = {}    # Dictionary to store the full data per slug
+            
+            for field in facets.pop("spatial_coverage") or []:
+                coverage = field["key"]
+                areas = Area.objects.filter(slug=coverage, administrative_level=0)
+                
+                if coverage == "world":
+                    field["name"] = "World"
+                    field["fallback"] = False
+                    
+                    # Add all top-level areas (administrative_level = 0)
+                    top_level_areas = Area.objects.filter(administrative_level=0)
+                    for child_area in top_level_areas:
+                        slug = child_area.slug
+                        coverage_counts[slug] = coverage_counts.get(slug, 0) + field["count"]
+                        coverage_data[slug] = {
+                            "key": slug,
+                            "name": getattr(child_area, f'name_{self.locale}') or child_area.name or slug,
+                            "fallback": getattr(child_area, f'name_{self.locale}') is None
+                        }
+                elif areas.exists():
+                    for area in areas:
+                        slug = area.slug
+                        coverage_counts[slug] = coverage_counts.get(slug, 0) + field["count"]
+                        coverage_data[slug] = {
+                            "key": slug,
+                            "name": getattr(area, f'name_{self.locale}') or area.name or coverage,
+                            "fallback": getattr(area, f'name_{self.locale}') is None
+                        }
+            
+            # Create final list with collapsed counts and sort by count
+            spatial_coverages = []
+            for slug, count in coverage_counts.items():
+                entry = coverage_data[slug].copy()
+                entry["count"] = count
+                spatial_coverages.append(entry)
+            
+            # Sort by count in descending order
+            spatial_coverages.sort(key=lambda x: x["count"], reverse=True)
+            
+            facets["spatial_coverages"] = spatial_coverages
+
         return facets
 
     def get_results(self, sqs: SearchQuerySet):
@@ -160,27 +250,9 @@ class DatasetSearchView(FacetedSearchView):
 
 def as_search_result(result: SearchResult, locale='pt'):
     
-    tags = []
-    for slug, name in zip(result.tag_slug or [], getattr(result, f"tag_name_{locale}") or []):
-        tags.append(
-            {
-                "slug": slug,
-                "name": name,
-            }
-        )
-
     themes = []
     for slug, name in zip(result.theme_slug or [], getattr(result, f"theme_name_{locale}") or []):
         themes.append(
-            {
-                "slug": slug,
-                "name": name,
-            }
-        )
-
-    entities = []
-    for slug, name in zip(result.entity_slug or [], getattr(result, f"entity_name_{locale}") or []):
-        entities.append(
             {
                 "slug": slug,
                 "name": name,
@@ -204,6 +276,39 @@ def as_search_result(result: SearchResult, locale='pt'):
             }
         )
 
+    tags = []
+    for slug, name in zip(result.tag_slug or [], getattr(result, f"tag_name_{locale}") or []):
+        tags.append(
+            {
+                "slug": slug,
+                "name": name,
+            }
+        )
+
+    entities = []
+    for slug, name in zip(result.entity_slug or [], getattr(result, f"entity_name_{locale}") or []):
+        entities.append(
+            {
+                "slug": slug,
+                "name": name,
+            }
+        )
+
+    # Add spatial coverage translations
+    spatial_coverages = []
+    for coverage in (result.spatial_coverage or []):
+        area = Area.objects.filter(slug=coverage).first()
+        if area:
+            spatial_coverages.append({
+                'slug': coverage,
+                'name': getattr(area, f'name_{locale}') or area.name or coverage
+            })
+        else:
+            spatial_coverages.append({
+                'slug': coverage,
+                'name': coverage
+            })
+
     return {
         "updated_at": result.updated_at,
         "id": result.dataset_id,
@@ -214,7 +319,8 @@ def as_search_result(result: SearchResult, locale='pt'):
         "themes": themes,
         "entities": entities,
         "organizations": organizations,
-        "temporal_coverages": result.temporal_coverage,
+        "temporal_coverage": result.temporal_coverage,
+        "spatial_coverage": spatial_coverages,
         "contains_open_data": result.contains_open_data,
         "contains_closed_data": result.contains_closed_data,
         "contains_tables": result.contains_tables,

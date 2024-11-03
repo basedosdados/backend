@@ -489,7 +489,8 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     readonly_fields = [
         "id",
         "full_slug",
-        "coverage",
+        "spatial_coverage",
+        "temporal_coverage",
         "contains_tables",
         "contains_raw_data_sources",
         "contains_information_requests",
@@ -508,7 +509,8 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     list_display = [
         "name",
         "organization",
-        "coverage",
+        "spatial_coverage",
+        "temporal_coverage",
         "related_objects",
         "page_views",
         "created_at",
@@ -548,6 +550,8 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "partitions",
         "created_at",
         "updated_at",
+        "spatial_coverage",
+        "full_temporal_coverage",
         "coverage_datetime_units",
     ]
     search_fields = [
@@ -637,6 +641,8 @@ class ColumnAdmin(TabbedTranslationAdmin):
     readonly_fields = [
         "id",
         "order",
+        "spatial_coverage",
+        "temporal_coverage",
     ]
     search_fields = ["name", "table__name"]
     inlines = [
