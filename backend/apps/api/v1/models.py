@@ -142,7 +142,7 @@ class Coverage(BaseModel):
         "Area",
         blank=True,
         null=True,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="coverages",
     )
     is_closed = models.BooleanField("Is Closed", default=False)
@@ -430,7 +430,7 @@ class Organization(BaseModel):
     slug = models.SlugField(unique=False, max_length=255)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    area = models.ForeignKey("Area", on_delete=models.CASCADE, related_name="organizations")
+    area = models.ForeignKey("Area", on_delete=models.SET_NULL, null=True, related_name="organizations")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     website = models.URLField(blank=True, null=True, max_length=255)
