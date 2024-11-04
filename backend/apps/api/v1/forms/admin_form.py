@@ -7,6 +7,7 @@ from backend.apps.api.v1.models import (
     ColumnOriginalName,
     Coverage,
     ObservationLevel,
+    Poll,
     Table,
     Update,
 )
@@ -110,3 +111,12 @@ class UpdateInlineForm(UUIDHiddenIdForm):
     class Meta(UUIDHiddenIdForm.Meta):
         model = Update
         fields = "__all__"
+
+class PollInlineForm(forms.ModelForm):
+    class Meta:
+        model = Poll
+        fields = [
+            "entity",
+            "frequency",
+            "latest",
+        ]

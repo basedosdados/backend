@@ -29,6 +29,7 @@ from backend.apps.api.v1.forms import (
     ColumnOriginalNameInlineForm,
     CoverageInlineForm,
     ObservationLevelInlineForm,
+    PollInlineForm,
     ReorderColumnsForm,
     ReorderTablesForm,
     TableInlineForm,
@@ -64,6 +65,7 @@ from backend.apps.api.v1.models import (
     Tag,
     Theme,
     Update,
+    Poll,
 )
 from backend.apps.api.v1.tasks import (
     rebuild_search_index_task,
@@ -243,6 +245,21 @@ class UpdateInline(admin.StackedInline):
         "lag",
         "latest",
         "frequency",
+    ]
+    autocomplete_fields = [
+        "entity",
+    ]
+
+
+class PollInline(admin.StackedInline):
+    model = Poll
+    form = PollInlineForm
+    extra = 0
+    fields = [
+        "id",
+        "entity",
+        "frequency",
+        "latest",
     ]
     autocomplete_fields = [
         "entity",
@@ -718,7 +735,10 @@ class RawDataSourceAdmin(TabbedTranslationAdmin):
         "languages",
         "area_ip_address_required",
     ]
-    inlines = [CoverageInline]
+    inlines = [
+        CoverageInline,
+        PollInline,
+    ]
 
 
 class InformationRequestAdmin(TabbedTranslationAdmin):
@@ -726,7 +746,11 @@ class InformationRequestAdmin(TabbedTranslationAdmin):
     search_fields = ["__str__", "dataset__name"]
     readonly_fields = ["id", "created_at", "updated_at"]
     autocomplete_fields = ["dataset"]
-    inlines = [CoverageInline, ObservationLevelInline]
+    inlines = [
+        CoverageInline, 
+        ObservationLevelInline,
+        PollInline,
+    ]
 
 
 class CoverageTypeAdminFilter(admin.SimpleListFilter):
@@ -1060,6 +1084,30 @@ class QualityCheckAdmin(TabbedTranslationAdmin):
     ]
 
 
+class PollAdmin(admin.ModelAdmin):
+    readonly_fields = [
+        "id",
+    ]
+    search_fields = [
+        "entity__name",
+        "raw_data_source__name",
+        "information_request__dataset__name",
+    ]
+    autocomplete_fields = [
+        "entity",
+        "raw_data_source",
+        "information_request",
+    ]
+    list_filter = [
+        "entity__category__name",
+    ]
+    list_display = [
+        "__str__",
+        "raw_data_source",
+        "information_request",
+    ]
+
+
 admin.site.register(Analysis, AnalysisAdmin)
 admin.site.register(AnalysisType, AnalysisTypeAdmin)
 admin.site.register(Area, AreaAdmin)
@@ -1089,3 +1137,4 @@ admin.site.register(Tag, TagAdmin)
 admin.site.register(Theme, ThemeAdmin)
 admin.site.register(Update, UpdateAdmin)
 admin.site.register(QualityCheck, QualityCheckAdmin)
+admin.site.register(Poll, PollAdmin)

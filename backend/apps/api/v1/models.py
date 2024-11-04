@@ -733,7 +733,8 @@ class Update(BaseModel):
         blank=True,
         null=True,
         on_delete=models.SET_NULL,
-        related_name="updates"
+        related_name="updates",
+        limit_choices_to={'category__slug': 'datetime'}
     )
     frequency = models.IntegerField(blank=True, null=True)
     lag = models.IntegerField(blank=True, null=True)
@@ -775,6 +776,7 @@ class Update(BaseModel):
 
     def clean(self) -> None:
         """Assert that only one of "table", "raw_data_source", "information_request" is set"""
+        errors = {}
         count = 0
         if self.table:
             count += 1
@@ -787,8 +789,10 @@ class Update(BaseModel):
                 "One and only one of 'table', "
                 "'raw_data_source', or 'information_request' must be set."
             )
-        if self.entity.category.slug != "datetime":
-            raise ValidationError("Entity's category is not in category.slug = `datetime`.")
+        if self.entity and self.entity.category.slug != 'datetime':
+            errors['entity'] = 'Entity must have category "datetime"'
+        if errors:
+            raise ValidationError(errors)
         return super().clean()
 
 
@@ -799,7 +803,8 @@ class Poll(BaseModel):
         blank=True,
         null=True,
         on_delete=models.SET_NULL,
-        related_name="polls"
+        related_name="polls",
+        limit_choices_to={'category__slug': 'datetime'}
     )
     frequency = models.IntegerField(blank=True, null=True)
     latest = models.DateTimeField(blank=True, null=True)
@@ -833,12 +838,15 @@ class Poll(BaseModel):
 
     def clean(self) -> None:
         """Assert that only one of "raw_data_source", "information_request" is set"""
+        errors = {}
         if bool(self.raw_data_source) == bool(self.information_request):
             raise ValidationError(
                 "One and only one of 'raw_data_source'," " or 'information_request' must be set."
             )
-        if self.entity.category.slug != "datetime":
-            raise ValidationError("Entity's category is not in category.slug = `datetime`.")
+        if self.entity and self.entity.category.slug != 'datetime':
+            errors['entity'] = 'Entity must have category "datetime"'
+        if errors:
+            raise ValidationError(errors)
         return super().clean()
 
 
