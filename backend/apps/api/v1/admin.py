@@ -12,7 +12,6 @@ from django.utils.html import format_html
 from django.urls import reverse
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
 from ordered_model.admin import OrderedInlineModelAdminMixin, OrderedStackedInline
-
 from backend.apps.api.v1.filters import (
     DatasetOrganizationListFilter,
     OrganizationImageListFilter,
@@ -32,6 +31,7 @@ from backend.apps.api.v1.forms import (
     PollInlineForm,
     ReorderColumnsForm,
     ReorderTablesForm,
+    ReorderObservationLevelsForm,
     TableInlineForm,
     UpdateInlineForm,
 )
@@ -140,17 +140,23 @@ class CloudTableInline(admin.StackedInline):
     ]
 
 
-class ObservationLevelInline(admin.StackedInline):
+class ObservationLevelInline(OrderedStackedInline):
     model = ObservationLevel
     form = ObservationLevelInlineForm
     extra = 0
     fields = [
-        "id",
         "entity",
+        "order",
+        "move_up_down_links",
+    ]
+    readonly_fields = [
+        "order",
+        "move_up_down_links",
     ]
     autocomplete_fields = [
         "entity",
     ]
+    ordering = ["order"]
 
 
 class TableInline(OrderedTranslatedInline):
@@ -439,6 +445,48 @@ def reset_column_order(modeladmin, request, queryset):
 reset_column_order.short_description = "Reiniciar ordem das colunas"
 
 
+def reorder_observation_levels(modeladmin, request, queryset):
+    """Reorder observation levels in respect to parent"""
+    if "do_action" in request.POST:
+        form = ReorderObservationLevelsForm(request.POST)
+        if form.is_valid():
+            if queryset.count() != 1:
+                messages.error(
+                    request,
+                    "To pass the names manually you must select only one parent.",
+                )
+                return
+            
+            parent = queryset.first()
+            ordered_entities = form.cleaned_data["ordered_entities"].split()
+            
+            # Get observation levels for this parent
+            if hasattr(parent, 'observation_levels'):
+                obs_levels = parent.observation_levels.all()
+                
+                # Create a mapping of entity names to observation levels
+                obs_by_entity = {ol.entity.name: ol for ol in obs_levels}
+                
+                # Update order based on provided entity names
+                for i, entity_name in enumerate(ordered_entities):
+                    if entity_name in obs_by_entity:
+                        obs_by_entity[entity_name].order = i
+                        obs_by_entity[entity_name].save()
+                
+                messages.success(request, "Observation levels reordered successfully")
+            else:
+                messages.error(request, "Selected object has no observation levels")
+    else:
+        form = ReorderObservationLevelsForm()
+        return render(
+            request,
+            "admin/reorder_observation_levels.html",
+            {"title": "Reorder observation levels", "parents": queryset, "form": form},
+        )
+
+reorder_observation_levels.short_description = "Alterar ordem dos níveis de observação"
+
+
 ################################################################################
 # Model Admins
 ################################################################################
@@ -564,6 +612,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     actions = [
         reorder_columns,
         reset_column_order,
+        reorder_observation_levels,
         update_table_metadata,
         update_table_neighbors,
         update_page_views,
@@ -696,7 +745,37 @@ class ColumnOriginalNameAdmin(TabbedTranslationAdmin):
     inlines = [CoverageInline]
 
 
+def reset_observation_level_order(modeladmin, request, queryset):
+    """Reset observation level order in respect to parent"""
+    # Group observation levels by their parent
+    by_table = {}
+    by_raw_data_source = {}
+    by_information_request = {}
+    by_analysis = {}
+    
+    for obs in queryset:
+        if obs.table_id:
+            by_table.setdefault(obs.table_id, []).append(obs)
+        elif obs.raw_data_source_id:
+            by_raw_data_source.setdefault(obs.raw_data_source_id, []).append(obs)
+        elif obs.information_request_id:
+            by_information_request.setdefault(obs.information_request_id, []).append(obs)
+        elif obs.analysis_id:
+            by_analysis.setdefault(obs.analysis_id, []).append(obs)
+
+    # Reset order within each parent group
+    for parent_levels in [by_table, by_raw_data_source, by_information_request, by_analysis]:
+        for levels in parent_levels.values():
+            sorted_levels = sorted(levels, key=lambda x: x.entity.name)
+            for i, obs_level in enumerate(sorted_levels):
+                obs_level.order = i
+                obs_level.save()
+
+reset_observation_level_order.short_description = "Reiniciar ordem dos níveis de observação"
+
+
 class ObservationLevelAdmin(admin.ModelAdmin):
+    actions = [reset_observation_level_order]
     readonly_fields = [
         "id",
     ]
@@ -714,6 +793,9 @@ class ObservationLevelAdmin(admin.ModelAdmin):
     ]
     list_filter = [
         "entity__category__name",
+        "table",
+        "raw_data_source",
+        "information_request",
     ]
     list_display = [
         "__str__",
@@ -724,6 +806,9 @@ class ObservationLevelAdmin(admin.ModelAdmin):
 
 
 class RawDataSourceAdmin(TabbedTranslationAdmin):
+    actions = [
+        reorder_observation_levels,
+    ]
     list_display = ["name", "dataset", "created_at", "updated_at"]
     search_fields = ["name", "dataset__name"]
     readonly_fields = ["id", "created_at", "updated_at"]
@@ -742,6 +827,9 @@ class RawDataSourceAdmin(TabbedTranslationAdmin):
 
 
 class InformationRequestAdmin(TabbedTranslationAdmin):
+    actions = [
+        reorder_observation_levels,
+    ]
     list_display = ["__str__", "dataset", "created_at", "updated_at"]
     search_fields = ["__str__", "dataset__name"]
     readonly_fields = ["id", "created_at", "updated_at"]
@@ -1029,6 +1117,9 @@ class AnalysisTypeAdmin(TabbedTranslationAdmin):
 
 
 class AnalysisAdmin(TabbedTranslationAdmin):
+    actions = [
+        reorder_observation_levels,
+    ]
     readonly_fields = [
         "id",
     ]

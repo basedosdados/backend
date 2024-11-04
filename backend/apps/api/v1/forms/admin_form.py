@@ -94,7 +94,18 @@ class CloudTableInlineForm(UUIDHiddenIdForm):
 class ObservationLevelInlineForm(UUIDHiddenIdForm):
     class Meta(UUIDHiddenIdForm.Meta):
         model = ObservationLevel
-        fields = "__all__"
+        fields = [
+            "id",
+            "entity",
+            "table",
+            "raw_data_source",
+            "information_request",
+            "analysis",
+        ]
+        readonly_fields = [
+            "order",
+            "move_up_down_links",
+        ]
 
 
 class CoverageInlineForm(UUIDHiddenIdForm):
