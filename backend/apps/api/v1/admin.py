@@ -9,6 +9,7 @@ from django.db.models.query import QuerySet
 from django.http import HttpRequest
 from django.shortcuts import render
 from django.utils.html import format_html
+from django.urls import reverse
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
 from ordered_model.admin import OrderedInlineModelAdminMixin, OrderedStackedInline
 
@@ -788,7 +789,7 @@ class DateTimeRangeAdmin(admin.ModelAdmin):
 
 
 class CoverageAdmin(admin.ModelAdmin):
-    readonly_fields = ["id"]
+    readonly_fields = ["id", "datetime_ranges_display"]
     list_display = [
         "area",
         "coverage_type",
@@ -812,9 +813,44 @@ class CoverageAdmin(admin.ModelAdmin):
         "information_request__dataset__name",
         "column__name",
     ]
-    inlines = [
-        DateTimeRangeInline,
-    ]
+
+    def datetime_ranges_display(self, obj):
+        """Display datetime ranges with links to their admin pages"""
+        ranges = obj.datetime_ranges.all()
+        links = []
+        for dt_range in ranges:
+            url = reverse('admin:v1_datetimerange_change', args=[dt_range.id])
+            links.append(
+                format_html('<a href="{}">{}</a>', url, str(dt_range))
+            )
+        
+        # Add link to add new datetime range
+        add_url = reverse('admin:v1_datetimerange_add') + f'?coverage={obj.id}'
+        links.append(
+            format_html(
+                '<a class="addlink" href="{}">Add DateTime Range</a>',
+                add_url
+            )
+        )
+        
+        return format_html('<br>'.join(links))
+    
+    datetime_ranges_display.short_description = "DateTime Ranges"
+
+    def get_queryset(self, request):
+        """Optimize queryset by prefetching related objects"""
+        qs = super().get_queryset(request).select_related(
+            'table',
+            'column',
+            'raw_data_source',
+            'information_request',
+            'area'
+        )
+        # Add prefetch for datetime_ranges and their units
+        return qs.prefetch_related(
+            'datetime_ranges',
+            'datetime_ranges__units'
+        )
 
 
 class EntityCategoryAdmin(TabbedTranslationAdmin):
