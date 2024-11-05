@@ -12,6 +12,8 @@ from django.utils.html import format_html
 from django.urls import reverse
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
 from ordered_model.admin import OrderedInlineModelAdminMixin, OrderedStackedInline
+from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.models import User
 
 from backend.apps.api.v1.filters import (
     DatasetOrganizationListFilter,
@@ -570,6 +572,13 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     related_objects.short_description = "Tables"
 
 
+class CustomUserAdmin(UserAdmin):
+    search_fields = ['username', 'first_name', 'last_name', 'email']
+
+if User in admin.site._registry:
+    admin.site.unregister(User)
+admin.site.register(User, CustomUserAdmin)
+
 class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     form = TableForm
     actions = [
@@ -600,12 +609,12 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "dataset__name",
     ]
     autocomplete_fields = [
-        "dataset",
-        "partner_organization",
-    ]
-    filter_horizontal = [
+        'dataset',
+        'partner_organization',
         'published_by',
         'data_cleaned_by',
+    ]
+    filter_horizontal = [
         'raw_data_source',
     ]
     list_display = [
@@ -628,14 +637,25 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     ]
     ordering = ["-updated_at"]
 
+    def get_queryset(self, request):
+        """Optimize queryset by prefetching related objects"""
+        return super().get_queryset(request).prefetch_related(
+            'published_by',
+            'data_cleaned_by'
+        )
+
     def get_publishers(self, obj):
         """Display all publishers for the table"""
-        return ", ".join([f"{pub.first_name} {pub.last_name}" for pub in obj.published_by.all()])
+        # Convert to list to avoid multiple DB hits
+        publishers = list(obj.published_by.all())
+        return ", ".join(f"{pub.first_name} {pub.last_name}" for pub in publishers)
     get_publishers.short_description = "Publishers"
 
     def get_data_cleaners(self, obj):
         """Display all data cleaners for the table"""
-        return ", ".join([f"{cleaner.first_name} {cleaner.last_name}" for cleaner in obj.data_cleaned_by.all()])
+        # Convert to list to avoid multiple DB hits
+        cleaners = list(obj.data_cleaned_by.all())
+        return ", ".join(f"{cleaner.first_name} {cleaner.last_name}" for cleaner in cleaners)
     get_data_cleaners.short_description = "Data Cleaners"
 
 
