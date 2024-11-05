@@ -131,16 +131,22 @@ class ColumnOriginalNameInline(TranslationStackedInline):
     ]
 
 
-class CloudTableInline(admin.StackedInline):
+class CloudTableInline(admin.TabularInline):
     model = CloudTable
-    form = CloudTableInlineForm
     extra = 0
-    fields = [
-        "id",
+    can_delete = False
+    show_change_link = True
+    readonly_fields = [
         "gcp_project_id",
         "gcp_dataset_id",
         "gcp_table_id",
     ]
+    fields = readonly_fields
+    template = 'admin/cloud_table_inline.html'
+
+    def has_add_permission(self, request, obj=None):
+        """Remove the inline add form, users will add through the '+' button"""
+        return False
 
 
 class ObservationLevelInline(admin.StackedInline):
