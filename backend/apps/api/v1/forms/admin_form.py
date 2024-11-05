@@ -63,14 +63,9 @@ class TableInlineForm(UUIDHiddenIdForm):
             "data_cleaned_by",
             "data_cleaning_description",
             "data_cleaning_code_url",
-            "raw_data_url",
             "auxiliary_files_url",
             "architecture_url",
             "source_bucket_name",
-            "uncompressed_file_size",
-            "compressed_file_size",
-            "number_rows",
-            "number_columns",
             "is_closed",
         ]
         readonly_fields = [

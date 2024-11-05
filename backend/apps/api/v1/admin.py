@@ -533,6 +533,7 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "contains_tables",
         "contains_raw_data_sources",
         "contains_information_requests",
+        "page_views",
         "created_at",
         "updated_at",
         "related_objects",
@@ -556,7 +557,6 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "spatial_coverage",
         "temporal_coverage",
         "related_objects",
-        "page_views",
         "created_at",
         "updated_at",
     ]
@@ -609,6 +609,11 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "spatial_coverage",
         "full_temporal_coverage",
         "coverage_datetime_units",
+        "number_rows",
+        "number_columns",
+        "uncompressed_file_size",
+        "compressed_file_size",
+        "page_views",
     ]
     search_fields = [
         "name",
@@ -626,10 +631,6 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     list_display = [
         "name",
         "dataset",
-        "number_columns",
-        "number_rows",
-        "uncompressed_file_size",
-        "page_views",
         "get_publishers",
         "get_data_cleaners",
         "created_at",
