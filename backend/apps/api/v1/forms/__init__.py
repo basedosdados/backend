@@ -6,6 +6,7 @@ from backend.apps.api.v1.forms.admin_form import (  # noqa: F401
     CoverageInlineForm,
     ObservationLevelInlineForm,
     PollInlineForm,
+    TableForm,
     TableInlineForm,
     UpdateInlineForm,
 )
