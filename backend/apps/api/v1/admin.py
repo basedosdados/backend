@@ -32,6 +32,7 @@ from backend.apps.api.v1.forms import (
     PollInlineForm,
     ReorderColumnsForm,
     ReorderTablesForm,
+    TableForm,
     TableInlineForm,
     UpdateInlineForm,
 )
@@ -528,17 +529,22 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "updated_at",
         "related_objects",
     ]
-    search_fields = ["name", "slug", "organization__name"]
+    search_fields = [
+        "name", 
+        "slug", 
+        "organizations__name"
+    ]
     filter_horizontal = [
         "tags",
         "themes",
+        "organizations",
     ]
     list_filter = [
         DatasetOrganizationListFilter,
     ]
     list_display = [
         "name",
-        "organization",
+        "get_organizations",
         "spatial_coverage",
         "temporal_coverage",
         "related_objects",
@@ -548,6 +554,11 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     ]
     ordering = ["-updated_at"]
 
+    def get_organizations(self, obj):
+        """Display all organizations for the dataset"""
+        return ", ".join([org.name for org in obj.organizations.all()])
+    get_organizations.short_description = "Organizations"
+
     def related_objects(self, obj):
         return format_html(
             "<a class='related-widget-wrapper-link add-related' "
@@ -556,11 +567,11 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
             obj.tables.count(),
             "tables" if obj.tables.count() > 1 else "table",
         )
-
     related_objects.short_description = "Tables"
 
 
 class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
+    form = TableForm
     actions = [
         reorder_columns,
         reset_column_order,
@@ -591,8 +602,11 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     autocomplete_fields = [
         "dataset",
         "partner_organization",
-        "published_by",
-        "data_cleaned_by",
+    ]
+    filter_horizontal = [
+        'published_by',
+        'data_cleaned_by',
+        'raw_data_source',
     ]
     list_display = [
         "name",
@@ -601,6 +615,8 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "number_rows",
         "uncompressed_file_size",
         "page_views",
+        "get_publishers",
+        "get_data_cleaners",
         "created_at",
         "updated_at",
     ]
@@ -612,15 +628,15 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     ]
     ordering = ["-updated_at"]
 
-    def get_form(self, request, obj=None, **kwargs):
-        """Get form, and save the current object"""
-        self.current_obj = obj
-        return super().get_form(request, obj, **kwargs)
+    def get_publishers(self, obj):
+        """Display all publishers for the table"""
+        return ", ".join([f"{pub.first_name} {pub.last_name}" for pub in obj.published_by.all()])
+    get_publishers.short_description = "Publishers"
 
-    def formfield_for_manytomany(self, db_field, request, **kwargs):
-        if self.current_obj and db_field.name == "raw_data_source":
-            kwargs["queryset"] = RawDataSource.objects.filter(dataset=self.current_obj.dataset)
-        return super().formfield_for_manytomany(db_field, request, **kwargs)
+    def get_data_cleaners(self, obj):
+        """Display all data cleaners for the table"""
+        return ", ".join([f"{cleaner.first_name} {cleaner.last_name}" for cleaner in obj.data_cleaned_by.all()])
+    get_data_cleaners.short_description = "Data Cleaners"
 
 
 class TableNeighborAdmin(admin.ModelAdmin):
@@ -662,7 +678,7 @@ class ColumnAdmin(TabbedTranslationAdmin):
         "table",
     ]
     list_filter = [
-        "table__dataset__organization__name",
+        "table__dataset__organizations__name",
     ]
     autocomplete_fields = [
         "table",
