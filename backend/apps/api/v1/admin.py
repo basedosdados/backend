@@ -30,6 +30,7 @@ from backend.apps.api.v1.forms import (
     ColumnInlineForm,
     ColumnOriginalNameInlineForm,
     CoverageInlineForm,
+    MeasurementUnitInlineForm,
     ObservationLevelInlineForm,
     PollInlineForm,
     ReorderColumnsForm,
@@ -57,6 +58,8 @@ from backend.apps.api.v1.models import (
     Key,
     Language,
     License,
+    MeasurementUnit,
+    MeasurementUnitCategory,
     ObservationLevel,
     Organization,
     Pipeline,
@@ -87,6 +90,12 @@ from backend.custom.client import get_gbq_client
 class OrderedTranslatedInline(OrderedStackedInline, TranslationStackedInline):
     pass
 
+
+class MeasurementUnitInline(OrderedTranslatedInline):
+    model = MeasurementUnit
+    form = MeasurementUnitInlineForm
+    extra = 0
+    show_change_link = True
 
 class ColumnInline(OrderedTranslatedInline):
     model = Column
@@ -686,6 +695,34 @@ class TableNeighborAdmin(admin.ModelAdmin):
     ordering = ["table_a", "table_b"]
 
 
+class MeasurementUnitCategoryAdmin(TabbedTranslationAdmin):
+    list_display = [
+        "slug",
+        "name",
+    ]
+    search_fields = [
+        "slug",
+        "name",
+    ]
+
+class MeasurementUnitAdmin(TabbedTranslationAdmin):
+    list_display = [
+        "slug",
+        "name",
+        "tex",
+        "category",
+    ]
+    search_fields = [
+        "slug",
+        "name",
+        "tex",
+        "category__name",
+    ]
+    list_filter = [
+        "category",
+    ]
+
+
 class ColumnForm(forms.ModelForm):
     class Meta:
         model = Column
@@ -1169,6 +1206,8 @@ admin.site.register(InformationRequest, InformationRequestAdmin)
 admin.site.register(Key, KeyAdmin)
 admin.site.register(Language, LanguageAdmin)
 admin.site.register(License, LicenseAdmin)
+admin.site.register(MeasurementUnit, MeasurementUnitAdmin)
+admin.site.register(MeasurementUnitCategory, MeasurementUnitCategoryAdmin)
 admin.site.register(ObservationLevel, ObservationLevelAdmin)
 admin.site.register(Organization, OrganizationAdmin)
 admin.site.register(Pipeline)

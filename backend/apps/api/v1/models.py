@@ -1265,6 +1265,52 @@ class BigQueryType(BaseModel):
         verbose_name_plural = "BigQuery Types"
         ordering = ["name"]
 
+class MeasurementUnitCategory(BaseModel):
+    """Model definition for MeasurementUnitCategory."""
+
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    slug = models.SlugField(unique=True)
+    name = models.CharField(max_length=255)
+    
+    graphql_nested_filter_fields_whitelist = ["id"]
+
+    def __str__(self):
+        return str(self.slug)
+
+    class Meta:
+        """Meta definition for Measurement Unit Category."""
+
+        db_table = "measurement_unit_category"
+        verbose_name = "Measurement Unit Category"
+        verbose_name_plural = "Measurement Unit Categories"
+        ordering = ["slug"]
+
+class MeasurementUnit(BaseModel):
+    """Model definition for MeasurementUnit."""
+
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    slug = models.SlugField(unique=True)
+    name = models.CharField(max_length=255)
+    tex = models.CharField(max_length=255, blank=True, null=True)
+    category = models.ForeignKey(
+        "MeasurementUnitCategory",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="measurement_units",
+    )
+
+    graphql_nested_filter_fields_whitelist = ["id"]
+
+    def __str__(self):
+        return str(self.slug)
+
+    class Meta:
+        """Meta definition for MeasurementUnit."""
+
+        db_table = "measurement_unit"
+        verbose_name = "Measurement Unit"
+        verbose_name_plural = "Measurement Units"
+        ordering = ["slug"]
 
 class Column(BaseModel, OrderedModel):
     """Model definition for Column."""

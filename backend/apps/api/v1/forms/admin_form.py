@@ -6,6 +6,7 @@ from backend.apps.api.v1.models import (
     Column,
     ColumnOriginalName,
     Coverage,
+    MeasurementUnit,
     ObservationLevel,
     Poll,
     RawDataSource,
@@ -72,6 +73,12 @@ class TableInlineForm(UUIDHiddenIdForm):
             "order",
             "move_up_down_links",
         ]
+
+
+class MeasurementUnitInlineForm(UUIDHiddenIdForm):
+    class Meta(UUIDHiddenIdForm.Meta):
+        model = MeasurementUnit
+        fields = "__all__"
 
 
 class ColumnInlineForm(UUIDHiddenIdForm):

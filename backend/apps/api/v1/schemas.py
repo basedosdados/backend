@@ -35,6 +35,13 @@ class Entity(BaseModel):
     name_es: str
 
 
+class MeasurementUnit(BaseModel):
+    slug: str
+    name_pt: str
+    name_en: str
+    name_es: str
+
+
 class RawDataSource(BaseModel):
     id: str
 
