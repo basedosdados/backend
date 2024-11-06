@@ -1,0 +1,32 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+    <form action="" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="action" value="reorder_observation_levels">
+        <input type="hidden" name="do_action" value="yes">
+
+        <div style="margin-bottom: 10px;">
+            {{ form.ordered_entities.label_tag}}
+            <div>
+                {{ form.ordered_entities }}
+                {{ form.ordered_entities.help_text }}
+                {{ form.ordered_entities.errors }}
+            </div>
+        </div>
+
+        <div style="margin-bottom: 10px;">
+            <input type="submit" class="default" style="float: none" value="Reorder">
+        </div>
+
+        <h2>Reorder observation levels for:</h2>
+        <ul>
+            {% for parent in parents %}
+                <li>
+                    {{ parent }}
+                    <input type="hidden" name="_selected_action" value="{{ parent.pk }}">
+                </li>
+            {% endfor %}
+        </ul>
+    </form>
+{% endblock %}

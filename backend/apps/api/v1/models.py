@@ -14,6 +14,9 @@ from backend.custom.model import BaseModel
 from backend.custom.storage import OverwriteStorage, upload_to, validate_image
 from backend.custom.utils import check_kebab_case, check_snake_case
 
+import logging
+
+logger = logging.getLogger('django.request')
 
 class Area(BaseModel):
     """Area model"""
@@ -1728,7 +1731,7 @@ class Entity(BaseModel):
         ordering = ["slug"]
 
 
-class ObservationLevel(BaseModel):
+class ObservationLevel(BaseModel, OrderedModel):
     """Model definition for ObservationLevel."""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -1764,6 +1767,8 @@ class ObservationLevel(BaseModel):
         related_name="observation_levels",
     )
 
+    order_with_respect_to = ('table', 'raw_data_source', 'information_request', 'analysis')
+
     graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
@@ -1775,25 +1780,23 @@ class ObservationLevel(BaseModel):
         db_table = "observation_level"
         verbose_name = "Observation Level"
         verbose_name_plural = "Observation Levels"
-        ordering = ["id"]
+        ordering = ["order"]
 
-    def clean(self) -> None:
-        """Assert that only one of "table", "raw_data_source", "information_request" is set"""
-        count = 0
-        if self.table:
-            count += 1
-        if self.raw_data_source:
-            count += 1
-        if self.information_request:
-            count += 1
-        if self.analysis:
-            count += 1
-        if count != 1:
-            raise ValidationError(
-                "One and only one of 'table', 'raw_data_source', "
-                "'information_request', 'analysis' must be set."
-            )
-        return super().clean()
+    def get_ordering_queryset(self):
+        """Get queryset for ordering within the appropriate parent"""
+        qs = super().get_ordering_queryset()
+        
+        # Filter by the appropriate parent field
+        if self.table_id:
+            return qs.filter(table_id=self.table_id)
+        elif self.raw_data_source_id:
+            return qs.filter(raw_data_source_id=self.raw_data_source_id)
+        elif self.information_request_id:
+            return qs.filter(information_request_id=self.information_request_id)
+        elif self.analysis_id:
+            return qs.filter(analysis_id=self.analysis_id)
+        
+        return qs
 
 
 class DateTimeRange(BaseModel):
