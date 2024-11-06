@@ -880,6 +880,10 @@ class Table(BaseModel, OrderedModel):
     status = models.ForeignKey(
         "Status", on_delete=models.PROTECT, related_name="tables", null=True, blank=True
     )
+    is_deprecated = models.BooleanField(
+        default=False,
+        help_text="We stopped maintaining this table for some reason. Examples: raw data deprecated, new version elsewhere, etc."
+    )
     license = models.ForeignKey(
         "License",
         on_delete=models.SET_NULL,
