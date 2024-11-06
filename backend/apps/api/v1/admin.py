@@ -154,7 +154,9 @@ class CloudTableInline(admin.TabularInline):
     template = 'admin/cloud_table_inline.html'
 
     def has_add_permission(self, request, obj=None):
-        """Remove the inline add form, users will add through the '+' button"""
+        return False
+        
+    def has_change_permission(self, request, obj=None):
         return False
 
 
