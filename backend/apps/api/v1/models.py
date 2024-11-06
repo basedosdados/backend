@@ -814,6 +814,13 @@ class Poll(BaseModel):
     )
     frequency = models.IntegerField(blank=True, null=True)
     latest = models.DateTimeField(blank=True, null=True)
+    pipeline = models.ForeignKey(
+        "Pipeline",
+        blank=True,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="polls",
+    )
     raw_data_source = models.ForeignKey(
         "RawDataSource",
         blank=True,

@@ -304,9 +304,11 @@ class PollInline(admin.StackedInline):
         "entity",
         "frequency",
         "latest",
+        "pipeline",
     ]
     autocomplete_fields = [
         "entity",
+        "pipeline",
     ]
 
 
@@ -1287,6 +1289,7 @@ class PollAdmin(admin.ModelAdmin):
     ]
     autocomplete_fields = [
         "entity",
+        "pipeline",
         "raw_data_source",
         "information_request",
     ]
@@ -1297,6 +1300,19 @@ class PollAdmin(admin.ModelAdmin):
         "__str__",
         "raw_data_source",
         "information_request",
+    ]
+
+class PipelineAdmin(admin.ModelAdmin):
+    readonly_fields = [
+        "id",
+    ]
+    search_fields = [
+        "id",
+        "github_url",
+    ]
+    list_display = [
+        "id",
+        "github_url",
     ]
 
 
@@ -1322,7 +1338,7 @@ admin.site.register(MeasurementUnit, MeasurementUnitAdmin)
 admin.site.register(MeasurementUnitCategory, MeasurementUnitCategoryAdmin)
 admin.site.register(ObservationLevel, ObservationLevelAdmin)
 admin.site.register(Organization, OrganizationAdmin)
-admin.site.register(Pipeline)
+admin.site.register(Pipeline, PipelineAdmin)
 admin.site.register(RawDataSource, RawDataSourceAdmin)
 admin.site.register(Status, StatusAdmin)
 admin.site.register(Table, TableAdmin)
