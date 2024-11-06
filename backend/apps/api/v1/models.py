@@ -14,6 +14,9 @@ from backend.custom.model import BaseModel
 from backend.custom.storage import OverwriteStorage, upload_to, validate_image
 from backend.custom.utils import check_kebab_case, check_snake_case
 
+import logging
+
+logger = logging.getLogger('django.request')
 
 class Area(BaseModel):
     """Area model"""
@@ -21,6 +24,33 @@ class Area(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255, blank=False, null=False)
+    administrative_level = models.IntegerField(
+        null=True, 
+        blank=True,
+        choices=[
+            (0, '0'),
+            (1, '1'),
+            (2, '2'),
+            (3, '3'),
+            (4, '4'),
+            (5, '5'),
+        ]
+    )
+    entity = models.ForeignKey(
+        "Entity",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="areas",
+        limit_choices_to={'category__slug': 'spatial'}
+    )
+    parent = models.ForeignKey(
+        "Area",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="children",
+    )
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -34,6 +64,27 @@ class Area(BaseModel):
         verbose_name = "Area"
         verbose_name_plural = "Areas"
         ordering = ["name"]
+
+    def clean(self):
+        """Validate the model fields."""
+        errors = {}
+        if self.administrative_level is not None and self.administrative_level not in [0, 1, 2, 3]:
+            errors['administrative_level'] = 'Administrative level must be 0, 1, 2, or 3'
+        
+        if self.entity and self.entity.category.slug != 'spatial':
+            errors['entity'] = 'Entity must have category "spatial"'
+        
+        if self.parent and self.parent.slug != 'world':
+            if self.administrative_level is None:
+                errors['administrative_level'] = 'Administrative level is required when parent is set'
+            elif self.parent.administrative_level is None:
+                errors['parent'] = 'Parent must have an administrative level'
+            elif self.parent.administrative_level != self.administrative_level - 1:
+                errors['parent'] = 'Parent must have administrative level exactly one level above'
+        
+        if errors:
+            raise ValidationError(errors)
+        return super().clean()
 
 
 class Coverage(BaseModel):
@@ -96,7 +147,7 @@ class Coverage(BaseModel):
         "Area",
         blank=True,
         null=True,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="coverages",
     )
     is_closed = models.BooleanField("Is Closed", default=False)
@@ -270,7 +321,10 @@ class Analysis(BaseModel):
     name = models.CharField(null=True, blank=True, max_length=255)
     description = models.TextField(null=True, blank=True)
     analysis_type = models.ForeignKey(
-        "AnalysisType", on_delete=models.CASCADE, related_name="analyses"
+        "AnalysisType",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="analyses",
     )
     datasets = models.ManyToManyField(
         "Dataset",
@@ -384,7 +438,7 @@ class Organization(BaseModel):
     slug = models.SlugField(unique=False, max_length=255)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    area = models.ForeignKey("Area", on_delete=models.CASCADE, related_name="organizations")
+    area = models.ForeignKey("Area", on_delete=models.SET_NULL, null=True, related_name="organizations")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     website = models.URLField(blank=True, null=True, max_length=255)
@@ -455,8 +509,11 @@ class Dataset(BaseModel):
     slug = models.SlugField(unique=False, max_length=255)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    organization = models.ForeignKey(
-        "Organization", on_delete=models.CASCADE, related_name="datasets"
+    organizations = models.ManyToManyField(
+        "Organization",
+        related_name="datasets",
+        verbose_name="Organizations",
+        help_text="Organizations associated with this dataset"
     )
     themes = models.ManyToManyField(
         "Theme",
@@ -504,9 +561,9 @@ class Dataset(BaseModel):
 
     @property
     def full_slug(self):
-        if self.organization.area.slug != "unknown":
-            return f"{self.organization.area.slug}_{self.organization.slug}_{self.slug}"
-        return f"{self.organization.slug}_{self.slug}"
+        if self.organizations.first().area.slug != "unknown":
+            return f"{self.organizations.first().area.slug}_{self.slug}"
+        return f"{self.slug}"
 
     @property
     def popularity(self):
@@ -517,21 +574,31 @@ class Dataset(BaseModel):
         return log10(self.page_views)
 
     @property
-    def coverage(self) -> dict:
+    def temporal_coverage(self) -> dict:
         """Temporal coverage of all related entities"""
         resources = [
             *self.tables.all(),
             *self.raw_data_sources.all(),
             *self.information_requests.all(),
         ]
-        coverage = get_coverage(resources)
-        if coverage["start"] and coverage["end"]:
-            return f"{coverage['start']} - {coverage['end']}"
-        if coverage["start"]:
-            return f"{coverage['start']}"
-        if coverage["end"]:
-            return f"{coverage['end']}"
+        temporal_coverage = get_temporal_coverage(resources)
+        if temporal_coverage["start"] and temporal_coverage["end"]:
+            return f"{temporal_coverage['start']} - {temporal_coverage['end']}"
+        if temporal_coverage["start"]:
+            return f"{temporal_coverage['start']}"
+        if temporal_coverage["end"]:
+            return f"{temporal_coverage['end']}"
         return ""
+
+    @property
+    def spatial_coverage(self) -> list[str]:
+        """Union spatial coverage of all related resources"""
+        resources = [
+            *self.tables.all(),
+            *self.raw_data_sources.all(),
+            *self.information_requests.all(),
+        ]
+        return sorted(list(get_spatial_coverage(resources)))
 
     @property
     def entities(self) -> list[dict]:
@@ -671,8 +738,9 @@ class Update(BaseModel):
         "Entity",
         blank=True,
         null=True,
-        on_delete=models.CASCADE,
-        related_name="updates"
+        on_delete=models.SET_NULL,
+        related_name="updates",
+        limit_choices_to={'category__slug': 'datetime'}
     )
     frequency = models.IntegerField(blank=True, null=True)
     lag = models.IntegerField(blank=True, null=True)
@@ -714,6 +782,7 @@ class Update(BaseModel):
 
     def clean(self) -> None:
         """Assert that only one of "table", "raw_data_source", "information_request" is set"""
+        errors = {}
         count = 0
         if self.table:
             count += 1
@@ -726,8 +795,10 @@ class Update(BaseModel):
                 "One and only one of 'table', "
                 "'raw_data_source', or 'information_request' must be set."
             )
-        if self.entity.category.slug != "datetime":
-            raise ValidationError("Entity's category is not in category.slug = `datetime`.")
+        if self.entity and self.entity.category.slug != 'datetime':
+            errors['entity'] = 'Entity must have category "datetime"'
+        if errors:
+            raise ValidationError(errors)
         return super().clean()
 
 
@@ -737,11 +808,19 @@ class Poll(BaseModel):
         "Entity",
         blank=True,
         null=True,
-        on_delete=models.CASCADE,
-        related_name="polls"
+        on_delete=models.SET_NULL,
+        related_name="polls",
+        limit_choices_to={'category__slug': 'datetime'}
     )
     frequency = models.IntegerField(blank=True, null=True)
     latest = models.DateTimeField(blank=True, null=True)
+    pipeline = models.ForeignKey(
+        "Pipeline",
+        blank=True,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="polls",
+    )
     raw_data_source = models.ForeignKey(
         "RawDataSource",
         blank=True,
@@ -772,12 +851,15 @@ class Poll(BaseModel):
 
     def clean(self) -> None:
         """Assert that only one of "raw_data_source", "information_request" is set"""
+        errors = {}
         if bool(self.raw_data_source) == bool(self.information_request):
             raise ValidationError(
                 "One and only one of 'raw_data_source'," " or 'information_request' must be set."
             )
-        if self.entity.category.slug != "datetime":
-            raise ValidationError("Entity's category is not in category.slug = `datetime`.")
+        if self.entity and self.entity.category.slug != 'datetime':
+            errors['entity'] = 'Entity must have category "datetime"'
+        if errors:
+            raise ValidationError(errors)
         return super().clean()
 
 
@@ -798,23 +880,27 @@ class Table(BaseModel, OrderedModel):
     status = models.ForeignKey(
         "Status", on_delete=models.PROTECT, related_name="tables", null=True, blank=True
     )
+    is_deprecated = models.BooleanField(
+        default=False,
+        help_text="We stopped maintaining this table for some reason. Examples: raw data deprecated, new version elsewhere, etc."
+    )
     license = models.ForeignKey(
         "License",
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="tables",
         blank=True,
         null=True,
     )
     partner_organization = models.ForeignKey(
         "Organization",
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="partner_tables",
         blank=True,
         null=True,
     )
     pipeline = models.ForeignKey(
         "Pipeline",
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="tables",
         blank=True,
         null=True,
@@ -822,23 +908,22 @@ class Table(BaseModel, OrderedModel):
     is_directory = models.BooleanField(default=False, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    published_by = models.ForeignKey(
+    published_by = models.ManyToManyField(
         Account,
-        on_delete=models.CASCADE,
         related_name="tables_published",
         blank=True,
-        null=True,
+        verbose_name="Published by",
+        help_text="People who published the table",
     )
-    data_cleaned_by = models.ForeignKey(
+    data_cleaned_by = models.ManyToManyField(
         Account,
-        on_delete=models.CASCADE,
         related_name="tables_cleaned",
         blank=True,
-        null=True,
+        verbose_name="Data cleaned by",
+        help_text="People who cleaned the data",
     )
     data_cleaning_description = models.TextField(blank=True, null=True)
     data_cleaning_code_url = models.URLField(blank=True, null=True)
-    raw_data_url = models.URLField(blank=True, null=True, max_length=500)
     auxiliary_files_url = models.URLField(blank=True, null=True)
     architecture_url = models.URLField(blank=True, null=True)
     source_bucket_name = models.CharField(
@@ -931,14 +1016,19 @@ class Table(BaseModel, OrderedModel):
         return False
 
     @property
-    def coverage(self) -> dict:
+    def temporal_coverage(self) -> dict:
         """Temporal coverage"""
-        return get_coverage([self])
+        return get_temporal_coverage([self])
 
     @property
-    def full_coverage(self) -> dict:
+    def full_temporal_coverage(self) -> dict:
         """Temporal coverage steps"""
-        return get_full_coverage([self])
+        return get_full_temporal_coverage([self])
+
+    @property
+    def spatial_coverage(self) -> list[str]:
+        """Unique list of areas across all coverages"""
+        return sorted(list(get_spatial_coverage([self])))
 
     @property
     def neighbors(self) -> list[dict]:
@@ -953,30 +1043,38 @@ class Table(BaseModel, OrderedModel):
         return max(updates) if updates else None
 
     @property
-    def published_by_info(self) -> dict:
-        if not self.published_by:
-            return None
-        return {
-            "firstName": self.published_by.first_name,
-            "lastName": self.published_by.last_name,
-            "email": self.published_by.email,
-            "github": self.published_by.github,
-            "twitter": self.published_by.twitter,
-            "website": self.published_by.website,
-        }
+    def published_by_info(self) -> list[dict]:
+        """Return list of author information"""
+        if not self.published_by.exists():
+            return []
+        return [
+            {
+                "firstName": author.first_name,
+                "lastName": author.last_name,
+                "email": author.email,
+                "github": author.github,
+                "twitter": author.twitter,
+                "website": author.website,
+            }
+            for author in self.published_by.all()
+        ]
 
     @property
-    def data_cleaned_by_info(self) -> dict:
-        if not self.data_cleaned_by:
-            return None
-        return {
-            "firstName": self.data_cleaned_by.first_name,
-            "lastName": self.data_cleaned_by.last_name,
-            "email": self.data_cleaned_by.email,
-            "github": self.data_cleaned_by.github,
-            "twitter": self.data_cleaned_by.twitter,
-            "website": self.data_cleaned_by.website,
-        }
+    def data_cleaned_by_info(self) -> list[dict]:
+        """Return list of data cleaner information"""
+        if not self.data_cleaned_by.exists():
+            return []
+        return [
+            {
+                "firstName": cleaner.first_name,
+                "lastName": cleaner.last_name,
+                "email": cleaner.email,
+                "github": cleaner.github,
+                "twitter": cleaner.twitter,
+                "website": cleaner.website,
+            }
+            for cleaner in self.data_cleaned_by.all()
+        ]
 
     @property
     def coverage_datetime_units(self) -> str:
@@ -1181,6 +1279,52 @@ class BigQueryType(BaseModel):
         verbose_name_plural = "BigQuery Types"
         ordering = ["name"]
 
+class MeasurementUnitCategory(BaseModel):
+    """Model definition for MeasurementUnitCategory."""
+
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    slug = models.SlugField(unique=True)
+    name = models.CharField(max_length=255)
+    
+    graphql_nested_filter_fields_whitelist = ["id"]
+
+    def __str__(self):
+        return str(self.slug)
+
+    class Meta:
+        """Meta definition for Measurement Unit Category."""
+
+        db_table = "measurement_unit_category"
+        verbose_name = "Measurement Unit Category"
+        verbose_name_plural = "Measurement Unit Categories"
+        ordering = ["slug"]
+
+class MeasurementUnit(BaseModel):
+    """Model definition for MeasurementUnit."""
+
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    slug = models.SlugField(unique=True)
+    name = models.CharField(max_length=255)
+    tex = models.CharField(max_length=255, blank=True, null=True)
+    category = models.ForeignKey(
+        "MeasurementUnitCategory",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="measurement_units",
+    )
+
+    graphql_nested_filter_fields_whitelist = ["id"]
+
+    def __str__(self):
+        return str(self.slug)
+
+    class Meta:
+        """Meta definition for MeasurementUnit."""
+
+        db_table = "measurement_unit"
+        verbose_name = "Measurement Unit"
+        verbose_name_plural = "Measurement Units"
+        ordering = ["slug"]
 
 class Column(BaseModel, OrderedModel):
     """Model definition for Column."""
@@ -1190,17 +1334,18 @@ class Column(BaseModel, OrderedModel):
     name = models.CharField(max_length=255)
     name_staging = models.CharField(max_length=255, blank=True, null=True)
     bigquery_type = models.ForeignKey(
-        "BigQueryType", on_delete=models.CASCADE, related_name="columns"
+        "BigQueryType", on_delete=models.SET_NULL, null=True, related_name="columns"
     )
     description = models.TextField(blank=True, null=True)
     covered_by_dictionary = models.BooleanField(default=False, blank=True, null=True)
     is_primary_key = models.BooleanField(default=False, blank=True, null=True)
     directory_primary_key = models.ForeignKey(
         "Column",
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
+        null=True,
         related_name="columns",
         blank=True,
-        null=True,
+        limit_choices_to={'is_primary_key': True, 'table__is_directory': True}
     )
     measurement_unit = models.CharField(max_length=255, blank=True, null=True)
     contains_sensitive_data = models.BooleanField(default=False, blank=True, null=True)
@@ -1209,17 +1354,17 @@ class Column(BaseModel, OrderedModel):
     is_partition = models.BooleanField(default=False)
     observation_level = models.ForeignKey(
         "ObservationLevel",
-        on_delete=models.CASCADE,
-        related_name="columns",
+        on_delete=models.SET_NULL,
         null=True,
+        related_name="columns",
         blank=True,
     )
     version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
         "Status",
-        on_delete=models.PROTECT,
-        related_name="columns",
+        on_delete=models.SET_NULL,
         null=True,
+        related_name="columns",
         blank=True,
     )
     is_closed = models.BooleanField(
@@ -1241,16 +1386,24 @@ class Column(BaseModel, OrderedModel):
         ordering = ["name"]
 
     @property
-    def coverage(self) -> dict:
+    def temporal_coverage(self) -> dict:
         """Temporal coverage of column if exists, if not table coverage"""
-        coverage = get_coverage([self])
+        temporal_coverage = get_temporal_coverage([self])
         fallback = defaultdict(lambda: None)
-        if not coverage["start"] or not coverage["end"]:
-            fallback = self.table.coverage
+        if not temporal_coverage["start"] or not temporal_coverage["end"]:
+            fallback = self.table.temporal_coverage
         return {
-            "start": coverage["start"] or fallback["start"],
-            "end": coverage["end"] or fallback["end"],
+            "start": temporal_coverage["start"] or fallback["start"],
+            "end": temporal_coverage["end"] or fallback["end"],
         }
+
+    @property
+    def spatial_coverage(self) -> list[str]:
+        """Unique list of areas across all coverages, falling back to table coverage if empty"""
+        coverage = get_spatial_coverage([self])
+        if not coverage:
+            return get_spatial_coverage([self.table])
+        return coverage
 
     @property
     def dir_column(self):
@@ -1435,15 +1588,15 @@ class RawDataSource(BaseModel, OrderedModel):
         "Dataset", on_delete=models.CASCADE, related_name="raw_data_sources"
     )
     availability = models.ForeignKey(
-        "Availability", on_delete=models.CASCADE, related_name="raw_data_sources"
+        "Availability", on_delete=models.SET_NULL, null=True, related_name="raw_data_sources"
     )
     languages = models.ManyToManyField("Language", related_name="raw_data_sources", blank=True)
     license = models.ForeignKey(
         "License",
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
         related_name="raw_data_sources",
         blank=True,
-        null=True,
     )
     area_ip_address_required = models.ManyToManyField(
         "Area", related_name="raw_data_sources", blank=True
@@ -1498,7 +1651,7 @@ class InformationRequest(BaseModel, OrderedModel):
     version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
         "Status",
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
         related_name="information_requests",
         null=True,
         blank=True,
@@ -1572,7 +1725,7 @@ class Entity(BaseModel):
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
     category = models.ForeignKey(
-        "EntityCategory", on_delete=models.CASCADE, related_name="entities"
+        "EntityCategory", on_delete=models.SET_NULL, null=True, related_name="entities"
     )
 
     graphql_nested_filter_fields_whitelist = ["id"]
@@ -1589,12 +1742,12 @@ class Entity(BaseModel):
         ordering = ["slug"]
 
 
-class ObservationLevel(BaseModel):
+class ObservationLevel(BaseModel, OrderedModel):
     """Model definition for ObservationLevel."""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
     entity = models.ForeignKey(
-        "Entity", on_delete=models.CASCADE, related_name="observation_levels"
+        "Entity", on_delete=models.SET_NULL, null=True, related_name="observation_levels"
     )
     table = models.ForeignKey(
         "Table",
@@ -1625,6 +1778,8 @@ class ObservationLevel(BaseModel):
         related_name="observation_levels",
     )
 
+    order_with_respect_to = ('table', 'raw_data_source', 'information_request', 'analysis')
+
     graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
@@ -1636,25 +1791,23 @@ class ObservationLevel(BaseModel):
         db_table = "observation_level"
         verbose_name = "Observation Level"
         verbose_name_plural = "Observation Levels"
-        ordering = ["id"]
+        ordering = ["order"]
 
-    def clean(self) -> None:
-        """Assert that only one of "table", "raw_data_source", "information_request" is set"""
-        count = 0
-        if self.table:
-            count += 1
-        if self.raw_data_source:
-            count += 1
-        if self.information_request:
-            count += 1
-        if self.analysis:
-            count += 1
-        if count != 1:
-            raise ValidationError(
-                "One and only one of 'table', 'raw_data_source', "
-                "'information_request', 'analysis' must be set."
-            )
-        return super().clean()
+    def get_ordering_queryset(self):
+        """Get queryset for ordering within the appropriate parent"""
+        qs = super().get_ordering_queryset()
+        
+        # Filter by the appropriate parent field
+        if self.table_id:
+            return qs.filter(table_id=self.table_id)
+        elif self.raw_data_source_id:
+            return qs.filter(raw_data_source_id=self.raw_data_source_id)
+        elif self.information_request_id:
+            return qs.filter(information_request_id=self.information_request_id)
+        elif self.analysis_id:
+            return qs.filter(analysis_id=self.analysis_id)
+        
+        return qs
 
 
 class DateTimeRange(BaseModel):
@@ -1794,10 +1947,10 @@ class QualityCheck(BaseModel):
     updated_at = models.DateTimeField(auto_now=True)
     pipeline = models.ForeignKey(
         "Pipeline",
-        on_delete=models.CASCADE,
-        related_name="quality_checks",
-        blank=True,
+        on_delete=models.SET_NULL,
         null=True,
+        blank=True,
+        related_name="quality_checks",
     )
     analysis = models.ForeignKey(
         "Analysis",
@@ -1898,8 +2051,8 @@ class Date:
         return {"date": self.str, "type": self.type}
 
 
-def get_coverage(resources: list) -> dict:
-    """Get maximum datetime coverage of resources
+def get_temporal_coverage(resources: list) -> dict:
+    """Get maximum temporal coverage of resources
 
     Case:
     - Table A has data with dates between [X, Y]
@@ -1918,8 +2071,8 @@ def get_coverage(resources: list) -> dict:
     return {"start": since.str, "end": until.str}
 
 
-def get_full_coverage(resources: list) -> dict:
-    """Get datetime coverage steps of resources
+def get_full_temporal_coverage(resources: list) -> dict:
+    """Get temporal coverage steps of resources
 
     Cases:
     - Table A has data with dates between [X, Y], where [X, Y] is open
@@ -1957,3 +2110,45 @@ def get_full_coverage(resources: list) -> dict:
         return [open_since.as_dict, open_until.as_dict]
     if paid_since.str and paid_until.str:
         return [paid_since.as_dict, paid_until.as_dict]
+
+def get_spatial_coverage(resources: list) -> list:
+    """Get spatial coverage of resources by returning unique area slugs, keeping only the highest level in each branch
+    
+    For example:
+    - If areas = [br_mg_3100104, br_mg_3100104] -> returns [br_mg_3100104]
+    - If areas = [br_mg_3100104, br_sp_3500105] -> returns [br_mg_3100104, br_sp_3500105]
+    - If areas = [br_mg, us_ny, us] -> returns [br_mg, us]
+    - If areas = [br_mg, world, us] -> returns [world]
+    - If resources have no areas -> returns empty list
+    """
+    # Collect all unique area slugs across resources
+    all_areas = set()
+    for resource in resources:
+        for coverage in resource.coverages.all():
+            if coverage.area:
+                all_areas.add(coverage.area.slug)
+    
+    if not all_areas:
+        return []
+        
+    # If 'world' is present, it encompasses everything
+    if 'world' in all_areas:
+        return ['world']
+        
+    # Filter out areas that have a parent in the set
+    filtered_areas = set()
+    for area in all_areas:
+        parts = area.split('_')
+        is_parent_present = False
+        
+        # Check if any parent path exists in all_areas
+        for i in range(1, len(parts)):
+            parent = '_'.join(parts[:i])
+            if parent in all_areas:
+                is_parent_present = True
+                break
+                
+        if not is_parent_present:
+            filtered_areas.add(area)
+    
+    return sorted(list(filtered_areas))
