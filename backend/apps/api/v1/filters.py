@@ -27,12 +27,13 @@ class DatasetOrganizationListFilter(admin.SimpleListFilter):
     parameter_name = "organization"
 
     def lookups(self, request, model_admin):
-        values = Organization.objects.order_by("name").distinct().values("name", "pk")
-        return [(v.get("pk"), v.get("name")) for v in values]
+        organizations = Organization.objects.all().order_by('slug')
+        return [(org.id, org.name) for org in organizations]
 
     def queryset(self, request, queryset):
         if self.value():
-            return queryset.filter(organization=self.value())
+            return queryset.filter(organizations__id=self.value())
+        return queryset
 
 
 class TableOrganizationListFilter(admin.SimpleListFilter):

@@ -509,8 +509,11 @@ class Dataset(BaseModel):
     slug = models.SlugField(unique=False, max_length=255)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    organization = models.ForeignKey(
-        "Organization", on_delete=models.SET_NULL, null=True, related_name="datasets"
+    organizations = models.ManyToManyField(
+        "Organization",
+        related_name="datasets",
+        verbose_name="Organizations",
+        help_text="Organizations associated with this dataset"
     )
     themes = models.ManyToManyField(
         "Theme",
@@ -558,9 +561,9 @@ class Dataset(BaseModel):
 
     @property
     def full_slug(self):
-        if self.organization.area.slug != "unknown":
-            return f"{self.organization.area.slug}_{self.organization.slug}_{self.slug}"
-        return f"{self.organization.slug}_{self.slug}"
+        if self.organizations.first().area.slug != "unknown":
+            return f"{self.organizations.first().area.slug}_{self.slug}"
+        return f"{self.slug}"
 
     @property
     def popularity(self):
@@ -894,23 +897,22 @@ class Table(BaseModel, OrderedModel):
     is_directory = models.BooleanField(default=False, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    published_by = models.ForeignKey(
+    published_by = models.ManyToManyField(
         Account,
-        on_delete=models.SET_NULL,
         related_name="tables_published",
         blank=True,
-        null=True,
+        verbose_name="Published by",
+        help_text="People who published the table",
     )
-    data_cleaned_by = models.ForeignKey(
+    data_cleaned_by = models.ManyToManyField(
         Account,
-        on_delete=models.SET_NULL,
         related_name="tables_cleaned",
         blank=True,
-        null=True,
+        verbose_name="Data cleaned by",
+        help_text="People who cleaned the data",
     )
     data_cleaning_description = models.TextField(blank=True, null=True)
     data_cleaning_code_url = models.URLField(blank=True, null=True)
-    raw_data_url = models.URLField(blank=True, null=True, max_length=500)
     auxiliary_files_url = models.URLField(blank=True, null=True)
     architecture_url = models.URLField(blank=True, null=True)
     source_bucket_name = models.CharField(
@@ -1030,30 +1032,38 @@ class Table(BaseModel, OrderedModel):
         return max(updates) if updates else None
 
     @property
-    def published_by_info(self) -> dict:
-        if not self.published_by:
-            return None
-        return {
-            "firstName": self.published_by.first_name,
-            "lastName": self.published_by.last_name,
-            "email": self.published_by.email,
-            "github": self.published_by.github,
-            "twitter": self.published_by.twitter,
-            "website": self.published_by.website,
-        }
+    def published_by_info(self) -> list[dict]:
+        """Return list of author information"""
+        if not self.published_by.exists():
+            return []
+        return [
+            {
+                "firstName": author.first_name,
+                "lastName": author.last_name,
+                "email": author.email,
+                "github": author.github,
+                "twitter": author.twitter,
+                "website": author.website,
+            }
+            for author in self.published_by.all()
+        ]
 
     @property
-    def data_cleaned_by_info(self) -> dict:
-        if not self.data_cleaned_by:
-            return None
-        return {
-            "firstName": self.data_cleaned_by.first_name,
-            "lastName": self.data_cleaned_by.last_name,
-            "email": self.data_cleaned_by.email,
-            "github": self.data_cleaned_by.github,
-            "twitter": self.data_cleaned_by.twitter,
-            "website": self.data_cleaned_by.website,
-        }
+    def data_cleaned_by_info(self) -> list[dict]:
+        """Return list of data cleaner information"""
+        if not self.data_cleaned_by.exists():
+            return []
+        return [
+            {
+                "firstName": cleaner.first_name,
+                "lastName": cleaner.last_name,
+                "email": cleaner.email,
+                "github": cleaner.github,
+                "twitter": cleaner.twitter,
+                "website": cleaner.website,
+            }
+            for cleaner in self.data_cleaned_by.all()
+        ]
 
     @property
     def coverage_datetime_units(self) -> str:
@@ -1258,6 +1268,52 @@ class BigQueryType(BaseModel):
         verbose_name_plural = "BigQuery Types"
         ordering = ["name"]
 
+class MeasurementUnitCategory(BaseModel):
+    """Model definition for MeasurementUnitCategory."""
+
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    slug = models.SlugField(unique=True)
+    name = models.CharField(max_length=255)
+    
+    graphql_nested_filter_fields_whitelist = ["id"]
+
+    def __str__(self):
+        return str(self.slug)
+
+    class Meta:
+        """Meta definition for Measurement Unit Category."""
+
+        db_table = "measurement_unit_category"
+        verbose_name = "Measurement Unit Category"
+        verbose_name_plural = "Measurement Unit Categories"
+        ordering = ["slug"]
+
+class MeasurementUnit(BaseModel):
+    """Model definition for MeasurementUnit."""
+
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    slug = models.SlugField(unique=True)
+    name = models.CharField(max_length=255)
+    tex = models.CharField(max_length=255, blank=True, null=True)
+    category = models.ForeignKey(
+        "MeasurementUnitCategory",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="measurement_units",
+    )
+
+    graphql_nested_filter_fields_whitelist = ["id"]
+
+    def __str__(self):
+        return str(self.slug)
+
+    class Meta:
+        """Meta definition for MeasurementUnit."""
+
+        db_table = "measurement_unit"
+        verbose_name = "Measurement Unit"
+        verbose_name_plural = "Measurement Units"
+        ordering = ["slug"]
 
 class Column(BaseModel, OrderedModel):
     """Model definition for Column."""

@@ -263,10 +263,10 @@ def as_search_result(result: SearchResult, locale='pt'):
     for pk, slug, name, picture in zip(
         result.organization_id or [],
         result.organization_slug or [],
-        [(getattr(result, f"organization_name_{locale}") or []) or result.organization_name or result.organization_slug],
+        getattr(result, f"organization_name_{locale}") or result.organization_name or result.organization_slug or [],
         result.organization_picture or [],
     ):
-        picture = storage.url(picture)
+        picture = storage.url(picture) if picture else None
         organizations.append(
             {
                 "id": pk,

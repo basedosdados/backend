@@ -410,7 +410,6 @@ def fixture_tabela_bairros(
         is_directory=False,
         data_cleaning_description="Descrição da limpeza de dados",
         data_cleaning_code_url="http://cleaning.com/bairros",
-        raw_data_url="http://raw.com/bairros",
         auxiliary_files_url="http://aux.com/bairros",
         architecture_url="http://arch.com/bairros",
         source_bucket_name="basedosdados-dev",

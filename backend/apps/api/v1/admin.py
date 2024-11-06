@@ -12,6 +12,9 @@ from django.utils.html import format_html
 from django.urls import reverse
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
 from ordered_model.admin import OrderedInlineModelAdminMixin, OrderedStackedInline
+from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.models import User
+
 from backend.apps.api.v1.filters import (
     DatasetOrganizationListFilter,
     OrganizationImageListFilter,
@@ -27,11 +30,13 @@ from backend.apps.api.v1.forms import (
     ColumnInlineForm,
     ColumnOriginalNameInlineForm,
     CoverageInlineForm,
+    MeasurementUnitInlineForm,
     ObservationLevelInlineForm,
     PollInlineForm,
     ReorderColumnsForm,
-    ReorderTablesForm,
     ReorderObservationLevelsForm,
+    ReorderTablesForm,
+    TableForm,
     TableInlineForm,
     UpdateInlineForm,
 )
@@ -54,6 +59,8 @@ from backend.apps.api.v1.models import (
     Key,
     Language,
     License,
+    MeasurementUnit,
+    MeasurementUnitCategory,
     ObservationLevel,
     Organization,
     Pipeline,
@@ -84,6 +91,12 @@ from backend.custom.client import get_gbq_client
 class OrderedTranslatedInline(OrderedStackedInline, TranslationStackedInline):
     pass
 
+
+class MeasurementUnitInline(OrderedTranslatedInline):
+    model = MeasurementUnit
+    form = MeasurementUnitInlineForm
+    extra = 0
+    show_change_link = True
 
 class ColumnInline(OrderedTranslatedInline):
     model = Column
@@ -128,16 +141,24 @@ class ColumnOriginalNameInline(TranslationStackedInline):
     ]
 
 
-class CloudTableInline(admin.StackedInline):
+class CloudTableInline(admin.TabularInline):
     model = CloudTable
-    form = CloudTableInlineForm
     extra = 0
-    fields = [
-        "id",
+    can_delete = False
+    show_change_link = True
+    readonly_fields = [
         "gcp_project_id",
         "gcp_dataset_id",
         "gcp_table_id",
     ]
+    fields = readonly_fields
+    template = 'admin/cloud_table_inline.html'
+
+    def has_add_permission(self, request, obj=None):
+        return False
+        
+    def has_change_permission(self, request, obj=None):
+        return False
 
 
 class ObservationLevelInline(OrderedStackedInline):
@@ -572,29 +593,39 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "contains_tables",
         "contains_raw_data_sources",
         "contains_information_requests",
+        "page_views",
         "created_at",
         "updated_at",
         "related_objects",
     ]
-    search_fields = ["name", "slug", "organization__name"]
+    search_fields = [
+        "name", 
+        "slug", 
+        "organizations__name"
+    ]
     filter_horizontal = [
         "tags",
         "themes",
+        "organizations",
     ]
     list_filter = [
         DatasetOrganizationListFilter,
     ]
     list_display = [
         "name",
-        "organization",
+        "get_organizations",
         "spatial_coverage",
         "temporal_coverage",
         "related_objects",
-        "page_views",
         "created_at",
         "updated_at",
     ]
     ordering = ["-updated_at"]
+
+    def get_organizations(self, obj):
+        """Display all organizations for the dataset"""
+        return ", ".join([org.name for org in obj.organizations.all()])
+    get_organizations.short_description = "Organizations"
 
     def related_objects(self, obj):
         return format_html(
@@ -604,11 +635,18 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
             obj.tables.count(),
             "tables" if obj.tables.count() > 1 else "table",
         )
-
     related_objects.short_description = "Tables"
 
 
+class CustomUserAdmin(UserAdmin):
+    search_fields = ['username', 'first_name', 'last_name', 'email']
+
+if User in admin.site._registry:
+    admin.site.unregister(User)
+admin.site.register(User, CustomUserAdmin)
+
 class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
+    form = TableForm
     actions = [
         reorder_columns,
         reset_column_order,
@@ -632,24 +670,30 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "spatial_coverage",
         "full_temporal_coverage",
         "coverage_datetime_units",
+        "number_rows",
+        "number_columns",
+        "uncompressed_file_size",
+        "compressed_file_size",
+        "page_views",
     ]
     search_fields = [
         "name",
         "dataset__name",
     ]
     autocomplete_fields = [
-        "dataset",
-        "partner_organization",
-        "published_by",
-        "data_cleaned_by",
+        'dataset',
+        'partner_organization',
+        'published_by',
+        'data_cleaned_by',
+    ]
+    filter_horizontal = [
+        'raw_data_source',
     ]
     list_display = [
         "name",
         "dataset",
-        "number_columns",
-        "number_rows",
-        "uncompressed_file_size",
-        "page_views",
+        "get_publishers",
+        "get_data_cleaners",
         "created_at",
         "updated_at",
     ]
@@ -661,15 +705,26 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     ]
     ordering = ["-updated_at"]
 
-    def get_form(self, request, obj=None, **kwargs):
-        """Get form, and save the current object"""
-        self.current_obj = obj
-        return super().get_form(request, obj, **kwargs)
+    def get_queryset(self, request):
+        """Optimize queryset by prefetching related objects"""
+        return super().get_queryset(request).prefetch_related(
+            'published_by',
+            'data_cleaned_by'
+        )
 
-    def formfield_for_manytomany(self, db_field, request, **kwargs):
-        if self.current_obj and db_field.name == "raw_data_source":
-            kwargs["queryset"] = RawDataSource.objects.filter(dataset=self.current_obj.dataset)
-        return super().formfield_for_manytomany(db_field, request, **kwargs)
+    def get_publishers(self, obj):
+        """Display all publishers for the table"""
+        # Convert to list to avoid multiple DB hits
+        publishers = list(obj.published_by.all())
+        return ", ".join(f"{pub.first_name} {pub.last_name}" for pub in publishers)
+    get_publishers.short_description = "Publishers"
+
+    def get_data_cleaners(self, obj):
+        """Display all data cleaners for the table"""
+        # Convert to list to avoid multiple DB hits
+        cleaners = list(obj.data_cleaned_by.all())
+        return ", ".join(f"{cleaner.first_name} {cleaner.last_name}" for cleaner in cleaners)
+    get_data_cleaners.short_description = "Data Cleaners"
 
 
 class TableNeighborAdmin(admin.ModelAdmin):
@@ -692,6 +747,34 @@ class TableNeighborAdmin(admin.ModelAdmin):
     ordering = ["table_a", "table_b"]
 
 
+class MeasurementUnitCategoryAdmin(TabbedTranslationAdmin):
+    list_display = [
+        "slug",
+        "name",
+    ]
+    search_fields = [
+        "slug",
+        "name",
+    ]
+
+class MeasurementUnitAdmin(TabbedTranslationAdmin):
+    list_display = [
+        "slug",
+        "name",
+        "tex",
+        "category",
+    ]
+    search_fields = [
+        "slug",
+        "name",
+        "tex",
+        "category__name",
+    ]
+    list_filter = [
+        "category",
+    ]
+
+
 class ColumnForm(forms.ModelForm):
     class Meta:
         model = Column
@@ -711,7 +794,7 @@ class ColumnAdmin(TabbedTranslationAdmin):
         "table",
     ]
     list_filter = [
-        "table__dataset__organization__name",
+        "table__dataset__organizations__name",
     ]
     autocomplete_fields = [
         "table",
@@ -1217,6 +1300,8 @@ admin.site.register(InformationRequest, InformationRequestAdmin)
 admin.site.register(Key, KeyAdmin)
 admin.site.register(Language, LanguageAdmin)
 admin.site.register(License, LicenseAdmin)
+admin.site.register(MeasurementUnit, MeasurementUnitAdmin)
+admin.site.register(MeasurementUnitCategory, MeasurementUnitCategoryAdmin)
 admin.site.register(ObservationLevel, ObservationLevelAdmin)
 admin.site.register(Organization, OrganizationAdmin)
 admin.site.register(Pipeline)

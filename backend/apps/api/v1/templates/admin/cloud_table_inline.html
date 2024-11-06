@@ -1,0 +1,15 @@
+{% load i18n admin_urls %}
+
+{# Include the standard stacked inline template #}
+{% include "admin/edit_inline/tabular.html" %}
+
+{# Add the custom add button #}
+{% if inline_admin_formset.formset.instance.pk %}
+  <div class="submit-row" style="margin: 0; padding: 8px; text-align: left; background: none">
+    <a href="{% url 'admin:v1_cloudtable_add' %}?table={{ inline_admin_formset.formset.instance.pk }}" 
+       class="addlink" 
+       style="background: #79aec8; padding: 10px 15px; color: white; border-radius: 4px; text-decoration: none;">
+      {% trans "Add Cloud Table" %}
+    </a>
+  </div>
+{% endif %}
