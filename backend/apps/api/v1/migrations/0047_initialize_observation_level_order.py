@@ -34,7 +34,7 @@ def reverse_migration(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('v1', '0039_observationlevel_order'),
+        ('v1', '0046_observationlevel_order'),
     ]
 
     operations = [

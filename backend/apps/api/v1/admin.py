@@ -165,20 +165,37 @@ class ObservationLevelInline(OrderedStackedInline):
     model = ObservationLevel
     form = ObservationLevelInlineForm
     extra = 0
-    fields = [
-        "entity",
-        "order",
-        "move_up_down_links",
-    ]
+    show_change_link = True
     readonly_fields = [
+        "entity",
         "order",
         "move_up_down_links",
     ]
-    autocomplete_fields = [
-        "entity",
-    ]
+    fields = readonly_fields
+    template = 'admin/observation_level_inline.html'
     ordering = ["order"]
 
+    def get_formset(self, request, obj=None, **kwargs):
+        self.parent_obj = obj
+        return super().get_formset(request, obj, **kwargs)
+
+    def get_ordering_prefix(self):
+        """Return the appropriate ordering prefix based on parent model"""
+        if isinstance(self.parent_obj, Table):
+            return 'table'
+        elif isinstance(self.parent_obj, RawDataSource):
+            return 'rawdatasource'
+        elif isinstance(self.parent_obj, InformationRequest):
+            return 'informationrequest'
+        elif isinstance(self.parent_obj, Analysis):
+            return 'analysis'
+        return super().get_ordering_prefix()
+
+    def has_add_permission(self, request, obj=None):
+        return False
+        
+    def has_change_permission(self, request, obj=None):
+        return False
 
 class TableInline(OrderedTranslatedInline):
     model = Table
@@ -888,7 +905,7 @@ class ObservationLevelAdmin(admin.ModelAdmin):
     ]
 
 
-class RawDataSourceAdmin(TabbedTranslationAdmin):
+class RawDataSourceAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     actions = [
         reorder_observation_levels,
     ]
@@ -905,11 +922,12 @@ class RawDataSourceAdmin(TabbedTranslationAdmin):
     ]
     inlines = [
         CoverageInline,
+        ObservationLevelInline,
         PollInline,
     ]
 
 
-class InformationRequestAdmin(TabbedTranslationAdmin):
+class InformationRequestAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     actions = [
         reorder_observation_levels,
     ]
