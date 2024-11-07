@@ -601,6 +601,36 @@ class Dataset(BaseModel):
         return sorted(list(get_spatial_coverage(resources)))
 
     @property
+    def spatial_coverage_name_pt(self) -> list[str]:
+        """Union spatial coverage of all related resources"""
+        resources = [
+            *self.tables.all(),
+            *self.raw_data_sources.all(),
+            *self.information_requests.all(),
+        ]
+        return sorted(list(get_spatial_coverage_name(resources, locale = 'pt')))
+
+    @property
+    def spatial_coverage_name_en(self) -> list[str]:
+        """Union spatial coverage of all related resources"""
+        resources = [
+            *self.tables.all(),
+            *self.raw_data_sources.all(),
+            *self.information_requests.all(),
+        ]
+        return sorted(list(get_spatial_coverage_name(resources, locale = 'en')))
+
+    @property
+    def spatial_coverage_name_es(self) -> list[str]:
+        """Union spatial coverage of all related resources"""
+        resources = [
+            *self.tables.all(),
+            *self.raw_data_sources.all(),
+            *self.information_requests.all(),
+        ]
+        return sorted(list(get_spatial_coverage_name(resources, locale = 'es')))
+
+    @property
     def entities(self) -> list[dict]:
         """Entity of all related resources"""
         entities = []
@@ -1031,6 +1061,21 @@ class Table(BaseModel, OrderedModel):
         return sorted(list(get_spatial_coverage([self])))
 
     @property
+    def spatial_coverage_name_pt(self) -> list[str]:
+        """Union spatial coverage of all related resources"""
+        return get_spatial_coverage_name([self], locale = 'pt')
+
+    @property
+    def spatial_coverage_name_en(self) -> list[str]:
+        """Union spatial coverage of all related resources"""
+        return get_spatial_coverage_name([self], locale = 'en')
+
+    @property
+    def spatial_coverage_name_es(self) -> list[str]:
+        """Union spatial coverage of all related resources"""
+        return get_spatial_coverage_name([self], locale = 'es')
+
+    @property
     def neighbors(self) -> list[dict]:
         """Similiar tables and columns without filters"""
         all_neighbors = [t.as_dict for t in TableNeighbor.objects.filter(table_a=self)]
@@ -1403,6 +1448,30 @@ class Column(BaseModel, OrderedModel):
         coverage = get_spatial_coverage([self])
         if not coverage:
             return get_spatial_coverage([self.table])
+        return coverage
+
+    @property
+    def spatial_coverage_name_pt(self) -> list[str]:
+        """Union spatial coverage of all related resources"""
+        coverage = get_spatial_coverage_name([self], locale = 'pt')
+        if not coverage:
+            coverage = get_spatial_coverage_name([self.table], locale = 'pt')
+        return coverage
+    
+    @property
+    def spatial_coverage_name_en(self) -> list[str]:
+        """Union spatial coverage of all related resources"""
+        coverage = get_spatial_coverage_name([self], locale = 'en')
+        if not coverage:
+            coverage = get_spatial_coverage_name([self.table], locale = 'en')
+        return coverage
+
+    @property
+    def spatial_coverage_name_es(self) -> list[str]:
+        """Union spatial coverage of all related resources"""
+        coverage = get_spatial_coverage_name([self], locale = 'es')
+        if not coverage:
+            coverage = get_spatial_coverage_name([self.table], locale = 'es')
         return coverage
 
     @property
@@ -2150,5 +2219,65 @@ def get_spatial_coverage(resources: list) -> list:
                 
         if not is_parent_present:
             filtered_areas.add(area)
+    
+    return sorted(list(filtered_areas))
+
+def get_spatial_coverage_name(resources: list, locale: str = 'pt') -> list:
+    """Get spatial coverage of resources by returning unique area names in the specified locale, 
+    keeping only the highest level in each branch
+    
+    Args:
+        resources: List of resources to get coverage from
+        locale: Language code ('pt', 'en', etc). Defaults to 'pt'
+    
+    For example:
+    - If areas = [br_mg_3100104, br_mg_3100104] -> returns [Belo Horizonte]
+    - If areas = [br_mg_3100104, br_sp_3500105] -> returns [Belo Horizonte, São Paulo]
+    - If areas = [br_mg, us_ny, us] -> returns [Minas Gerais, United States] (en)
+                                      returns [Minas Gerais, Estados Unidos] (pt)
+    - If areas = [br_mg, world, us] -> returns [World] (en)
+                                      returns [Mundo] (pt)
+    - If resources have no areas -> returns empty list
+    """
+    # Translation mapping for special cases
+    translations = {
+        'world': {
+            'pt': 'Mundo',
+            'en': 'World',
+            'es': 'Mundo',
+        }
+    }
+    
+    # Collect all unique areas (both slug and name) across resources
+    all_areas = {}
+    for resource in resources:
+        for coverage in resource.coverages.all():
+            if coverage.area:
+                # Get localized name using getattr, fallback to default name if not found
+                localized_name = getattr(coverage.area, f'name_{locale}', None) or coverage.area.name
+                all_areas[coverage.area.slug] = localized_name
+    
+    if not all_areas:
+        return []
+        
+    # If 'world' is present, it encompasses everything
+    if 'world' in all_areas:
+        return [translations['world'].get(locale, translations['world']['pt'])]
+        
+    # Filter out areas that have a parent in the set
+    filtered_areas = set()
+    for area_slug in all_areas:
+        parts = area_slug.split('_')
+        is_parent_present = False
+        
+        # Check if any parent path exists in all_areas
+        for i in range(1, len(parts)):
+            parent = '_'.join(parts[:i])
+            if parent in all_areas:
+                is_parent_present = True
+                break
+                
+        if not is_parent_present:
+            filtered_areas.add(all_areas[area_slug])
     
     return sorted(list(filtered_areas))
