@@ -538,9 +538,6 @@ class Dataset(BaseModel):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    is_closed = models.BooleanField(
-        default=False, help_text="Dataset is for BD Pro subscribers only"
-    )
     page_views = models.BigIntegerField(
         default=0,
         help_text="Number of page views by Google Analytics",
@@ -662,14 +659,22 @@ class Dataset(BaseModel):
         closed_data = False
         tables = self.tables.all()
         for table in tables:
+            # Check for closed coverages
             table_coverages = table.coverages.filter(is_closed=True)
             if table_coverages:
                 closed_data = True
                 break
+            
+            # Check for closed columns
             for column in table.columns.all():
                 if column.is_closed:  # in the future it will be column.coverages
                     closed_data = True
                     break
+            
+            # Check if uncompressed file size is above 1 GB
+            if table.uncompressed_file_size and table.uncompressed_file_size > 1000000000:
+                closed_data = True
+                break
 
         return closed_data
 
