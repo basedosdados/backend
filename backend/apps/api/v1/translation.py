@@ -14,6 +14,8 @@ from .models import (
     InformationRequest,
     Language,
     License,
+    MeasurementUnit,
+    MeasurementUnitCategory,
     Organization,
     QualityCheck,
     RawDataSource,
@@ -75,6 +77,14 @@ class LicenseTranslationOptions(TranslationOptions):
     fields = ("name",)
 
 
+class MeasurementUnitTranslationOptions(TranslationOptions):
+    fields = ("name",)
+
+
+class MeasurementUnitCategoryTranslationOptions(TranslationOptions):
+    fields = ("name",)
+
+
 class OrganizationTranslationOptions(TranslationOptions):
     fields = ("name", "description")
 
@@ -124,6 +134,8 @@ translator.register(EntityCategory, EntityCategoryTranslationOptions)
 translator.register(InformationRequest, InformationRequestTranslationOptions)
 translator.register(Language, LanguageTranslationOptions)
 translator.register(License, LicenseTranslationOptions)
+translator.register(MeasurementUnit, MeasurementUnitTranslationOptions)
+translator.register(MeasurementUnitCategory, MeasurementUnitCategoryTranslationOptions)
 translator.register(Organization, OrganizationTranslationOptions)
 translator.register(QualityCheck, QualityCheckTranslationOptions)
 translator.register(RawDataSource, RawDataSourceTranslationOptions)

@@ -47,6 +47,21 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         null=True,
         indexed=False,
     )
+    
+    spatial_coverage = indexes.MultiValueField(
+        model_attr="spatial_coverage",
+        null=True,
+        faceted=True,
+        indexed=True,
+    )
+
+    temporal_coverage = indexes.MultiValueField(
+        model_attr="temporal_coverage",
+        null=True,
+        faceted=True,
+        indexed=True,
+    )
+
 
     table_id = indexes.MultiValueField(
         model_attr="tables__pk",
@@ -88,55 +103,60 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
     )
 
     organization_id = indexes.MultiValueField(
-        model_attr="organization__pk",
+        model_attr="organizations__id",
         faceted=True,
         indexed=False,
     )
     organization_slug = indexes.MultiValueField(
-        model_attr="organization__slug",
+        model_attr="organizations__slug",
+        faceted=True,
+        indexed=False,
+    )
+    organization_name = indexes.MultiValueField(
+        model_attr="organizations__name",
         faceted=True,
         indexed=False,
     )
     organization_name_pt = indexes.MultiValueField(
-        model_attr="organization__name_pt",
+        model_attr="organizations__name_pt",
         null=True,
         faceted=True,
         indexed=False,
     )
     organization_name_en = indexes.MultiValueField(
-        model_attr="organization__name_en",
+        model_attr="organizations__name_en",
         null=True,
         faceted=True,
         indexed=False,
     )
     organization_name_es = indexes.MultiValueField(
-        model_attr="organization__name_es",
+        model_attr="organizations__name_es",
         null=True,
         faceted=True,
         indexed=False,
     )
     organization_picture = indexes.MultiValueField(
-        model_attr="organization__picture",
+        model_attr="organizations__picture",
         default="",
         indexed=False,
     )
     organization_website = indexes.MultiValueField(
-        model_attr="organization__website",
+        model_attr="organizations__website",
         default="",
         indexed=False,
     )
     organization_description_pt = indexes.MultiValueField(
-        model_attr="organization__description_pt",
+        model_attr="organizations__description_pt",
         null=True,
         indexed=False,
     )
     organization_description_en = indexes.MultiValueField(
-        model_attr="organization__description_en",
+        model_attr="organizations__description_en",
         null=True,
         indexed=False,
     )
     organization_description_es = indexes.MultiValueField(
-        model_attr="organization__description_es",
+        model_attr="organizations__description_es",
         null=True,
         indexed=False,
     )
@@ -213,12 +233,7 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         faceted=True,
         indexed=False,
     )
-    temporal_coverage = indexes.MultiValueField(
-        default="",
-        model_attr="coverage",
-        indexed=False,
-    )
-
+    
     contains_open_data = indexes.BooleanField(
         model_attr="contains_open_data",
         indexed=False,
@@ -293,4 +308,42 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         return self.get_model().objects.exclude(status__slug="under_review")
 
     def prepare_organization_picture(self, obj):
-        return getattr(obj.organization.picture, "name", None)
+        """
+        Get pictures from all organizations associated with the dataset
+        """
+        pictures = []
+        for org in obj.organizations.all():
+            pictures.append(getattr(org.picture, "name", None))
+        return pictures
+
+    def get_field_mapping(self):
+        mapping = super().get_field_mapping()
+        mapping['spatial_coverage'] = {
+            'type': 'keyword',
+            'store': True,
+            'index': True,
+        }
+        return mapping
+
+    def prepare(self, obj):
+        data = super().prepare(obj)
+        
+        organization_fields = [
+            'organization_id', 
+            'organization_slug', 
+            'organization_name',
+            'organization_name_pt', 
+            'organization_name_en', 
+            'organization_name_es',
+            'organization_picture', 
+            'organization_website',
+            'organization_description_pt',
+            'organization_description_en',
+            'organization_description_es'
+        ]
+        
+        for field in organization_fields:
+            if field in data and not isinstance(data[field], (list, tuple)):
+                data[field] = [data[field]] if data[field] is not None else []
+        
+        return data
