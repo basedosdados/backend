@@ -655,7 +655,7 @@ class Dataset(BaseModel):
 
     @property
     def contains_closed_data(self):
-        """Returns true if there are tables or columns with closed coverages"""
+        """Returns true if there are tables or columns with closed coverages, or if the uncompressed file size is above 1 GB"""
         closed_data = False
         tables = self.tables.all()
         for table in tables:
