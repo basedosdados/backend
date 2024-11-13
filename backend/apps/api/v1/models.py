@@ -545,6 +545,7 @@ class Dataset(BaseModel):
         default=0,
         help_text="Number of page views by Google Analytics",
     )
+    link_url = models.URLField(blank=True, null=True, verbose_name='Link')
 
     graphql_nested_filter_fields_whitelist = ["id", "slug"]
 
