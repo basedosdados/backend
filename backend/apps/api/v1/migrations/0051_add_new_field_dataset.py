@@ -12,8 +12,8 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name='dataset',
-            name='link',
-            field=models.TextField(blank=True, null=True, default='', max_length=255 , verbose_name='Link')
+            name='usage_guide',
+            field=models.TextField(blank=True, null=True, default='', max_length=255 , verbose_name='Guia de Uso')
         ),
     ]
 
