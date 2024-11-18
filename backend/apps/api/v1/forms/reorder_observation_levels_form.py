@@ -1,5 +1,6 @@
 from django import forms
 
+
 class ReorderObservationLevelsForm(forms.Form):
     ordered_entities = forms.CharField(
         required=False,

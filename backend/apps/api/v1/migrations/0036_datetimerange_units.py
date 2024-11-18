@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='datetimerange',
             name='units',
-            field=models.ManyToManyField(blank=True, related_name='datetime_ranges', to='v1.column'),
+            field=models.ManyToManyField(blank=True, related_name='datetime_ranges', to='v1.column')
         ),
     ]

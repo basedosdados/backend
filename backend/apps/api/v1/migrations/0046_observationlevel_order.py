@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from django.db import migrations, models
 
+
 class Migration(migrations.Migration):
     dependencies = [
         ("v1", "0045_add_measurement_categories_and_units"),

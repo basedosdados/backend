@@ -1,5 +1,6 @@
 from django.db import migrations
 
+
 def initialize_observation_level_order(apps, schema_editor):
     ObservationLevel = apps.get_model('v1', 'ObservationLevel')
     

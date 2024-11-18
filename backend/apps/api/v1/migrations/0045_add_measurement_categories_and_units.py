@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from django.db import migrations
 
+
 def create_categories_and_units(apps, schema_editor):
     MeasurementUnitCategory = apps.get_model('v1', 'MeasurementUnitCategory')
     MeasurementUnit = apps.get_model('v1', 'MeasurementUnit')

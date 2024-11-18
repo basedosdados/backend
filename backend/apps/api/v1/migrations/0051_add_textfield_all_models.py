@@ -2,6 +2,7 @@
 
 from django.db import migrations, models
 
+
 def add_new_field_to_all_tables(apps, schema_editor):
     for model in apps.get_models():
         schema_editor.add_field(
