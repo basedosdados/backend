@@ -7,7 +7,8 @@ from haystack.generic_views import FacetedSearchView
 from haystack.models import SearchResult
 from haystack.query import SearchQuerySet
 
-from backend.apps.api.v1.models import Entity, Organization, Tag, Theme, Area
+from backend.apps.api.v1.models import Area, Entity, Organization, Tag, Theme
+
 
 class DatasetSearchForm(FacetedSearchForm):
     load_all: bool = True

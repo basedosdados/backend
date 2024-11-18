@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import datetime
@@ -13,8 +14,6 @@ from backend.apps.account.models import Account
 from backend.custom.model import BaseModel
 from backend.custom.storage import OverwriteStorage, upload_to, validate_image
 from backend.custom.utils import check_kebab_case, check_snake_case
-
-import logging
 
 logger = logging.getLogger('django.request')
 
