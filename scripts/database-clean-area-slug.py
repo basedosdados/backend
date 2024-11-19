@@ -13,6 +13,7 @@ This script updates the slugs in the Area table by:
 """
 
 import os
+
 import dotenv
 import psycopg2
 from tqdm import tqdm
