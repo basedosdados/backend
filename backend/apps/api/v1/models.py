@@ -542,6 +542,7 @@ class Dataset(BaseModel):
         default=0,
         help_text="Number of page views by Google Analytics",
     )
+    usage_guide = models.TextField(blank=True, null=True, default='', max_length=255 , verbose_name='Guia de Uso')
 
     graphql_nested_filter_fields_whitelist = ["id", "slug"]
 
