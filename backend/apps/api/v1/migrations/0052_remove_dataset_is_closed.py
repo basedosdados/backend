@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('v1', '0050_table_is_deprecated'),
+        ('v1', '0051_add_new_field_dataset'),
     ]
 
     operations = [
