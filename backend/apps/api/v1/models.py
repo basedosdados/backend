@@ -672,8 +672,11 @@ class Dataset(BaseModel):
                     closed_data = True
                     break
             
-            # Check if uncompressed file size is above 1 GB
-            if table.uncompressed_file_size and table.uncompressed_file_size > 1000000000:
+            # Check if uncompressed file size is between 100 MB and 1 GB
+            if (table.uncompressed_file_size and 
+                table.uncompressed_file_size >  100000000 and 
+                table.uncompressed_file_size <= 1000000000
+            ):
                 closed_data = True
                 break
 
