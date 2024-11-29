@@ -657,30 +657,10 @@ class Dataset(BaseModel):
     @property
     def contains_closed_data(self):
         """Returns true if there are tables or columns with closed coverages, or if the uncompressed file size is above 1 GB"""
-        closed_data = False
-        tables = self.tables.all()
-        for table in tables:
-            # Check for closed coverages
-            table_coverages = table.coverages.filter(is_closed=True)
-            if table_coverages:
-                closed_data = True
-                break
-            
-            # Check for closed columns
-            for column in table.columns.all():
-                if column.is_closed:  # in the future it will be column.coverages
-                    closed_data = True
-                    break
-            
-            # Check if uncompressed file size is between 100 MB and 1 GB
-            if (table.uncompressed_file_size and 
-                table.uncompressed_file_size >  100000000 and 
-                table.uncompressed_file_size <= 1000000000
-            ):
-                closed_data = True
-                break
-
-        return closed_data
+        for table in self.tables.all():
+            if table.contains_closed_data:
+                return True
+        return False
 
     @property
     def contains_tables(self):
@@ -1052,6 +1032,11 @@ class Table(BaseModel, OrderedModel):
         for column in self.columns.all():
             if column.coverages.filter(is_closed=True).first():
                 return True
+        if (self.uncompressed_file_size and 
+            self.uncompressed_file_size >  100  * 1024 * 1024 and 
+            self.uncompressed_file_size <= 1000 * 1024 * 1024
+        ):
+            return True
         return False
 
     @property
