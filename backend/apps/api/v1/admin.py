@@ -612,6 +612,7 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "contains_tables",
         "contains_raw_data_sources",
         "contains_information_requests",
+        "contains_closed_data",
         "page_views",
         "created_at",
         "updated_at",
@@ -693,6 +694,8 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "number_columns",
         "uncompressed_file_size",
         "compressed_file_size",
+        "contains_open_data",
+        "contains_closed_data",
         "page_views",
     ]
     search_fields = [

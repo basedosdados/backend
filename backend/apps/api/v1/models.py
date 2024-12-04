@@ -538,13 +538,11 @@ class Dataset(BaseModel):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    is_closed = models.BooleanField(
-        default=False, help_text="Dataset is for BD Pro subscribers only"
-    )
     page_views = models.BigIntegerField(
         default=0,
         help_text="Number of page views by Google Analytics",
     )
+    usage_guide = models.TextField(blank=True, null=True, default='', max_length=255 , verbose_name='Guia de Uso')
 
     graphql_nested_filter_fields_whitelist = ["id", "slug"]
 
@@ -658,20 +656,11 @@ class Dataset(BaseModel):
 
     @property
     def contains_closed_data(self):
-        """Returns true if there are tables or columns with closed coverages"""
-        closed_data = False
-        tables = self.tables.all()
-        for table in tables:
-            table_coverages = table.coverages.filter(is_closed=True)
-            if table_coverages:
-                closed_data = True
-                break
-            for column in table.columns.all():
-                if column.is_closed:  # in the future it will be column.coverages
-                    closed_data = True
-                    break
-
-        return closed_data
+        """Returns true if there are tables or columns with closed coverages, or if the uncompressed file size is above 1 GB"""
+        for table in self.tables.all():
+            if table.contains_closed_data:
+                return True
+        return False
 
     @property
     def contains_tables(self):
@@ -1043,6 +1032,11 @@ class Table(BaseModel, OrderedModel):
         for column in self.columns.all():
             if column.coverages.filter(is_closed=True).first():
                 return True
+        if (self.uncompressed_file_size and 
+            self.uncompressed_file_size >  100  * 1024 * 1024 and 
+            self.uncompressed_file_size <= 1000 * 1024 * 1024
+        ):
+            return True
         return False
 
     @property
