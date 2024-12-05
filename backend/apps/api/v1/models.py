@@ -438,7 +438,13 @@ class Organization(BaseModel):
     slug = models.SlugField(unique=False, max_length=255)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    area = models.ForeignKey("Area", on_delete=models.SET_NULL, null=True, related_name="organizations")
+    area = models.ForeignKey(
+        "Area",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="organizations",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     website = models.URLField(blank=True, null=True, max_length=255)
