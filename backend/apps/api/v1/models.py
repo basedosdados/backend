@@ -476,7 +476,7 @@ class Organization(BaseModel):
 
     @property
     def full_slug(self):
-        if self.area.slug != "unknown":
+        if self.area:
             return f"{self.area.slug}_{self.slug}"
         return f"{self.slug}"
 
