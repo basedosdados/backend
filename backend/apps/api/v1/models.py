@@ -108,6 +108,13 @@ class Coverage(BaseModel):
         on_delete=models.CASCADE,
         related_name="coverages",
     )
+    raw_data_source_component = models.ForeignKey(
+        "RawDataSourceComponent",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="coverages",
+    )
     information_request = models.ForeignKey(
         "InformationRequest",
         blank=True,
@@ -784,6 +791,13 @@ class Update(BaseModel):
         on_delete=models.CASCADE,
         related_name="updates",
     )
+    raw_data_source_component = models.ForeignKey(
+        "RawDataSourceComponent",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="updates",
+    )
     information_request = models.ForeignKey(
         "InformationRequest",
         blank=True,
@@ -848,6 +862,13 @@ class Poll(BaseModel):
     )
     raw_data_source = models.ForeignKey(
         "RawDataSource",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="polls",
+    )
+    raw_data_source_component = models.ForeignKey(
+        "RawDataSourceComponent",
         blank=True,
         null=True,
         on_delete=models.CASCADE,
@@ -1675,7 +1696,7 @@ class RawDataSource(BaseModel, OrderedModel):
     contains_structured_data = models.BooleanField(default=False)
     contains_api = models.BooleanField(default=False)
     is_free = models.BooleanField(default=False)
-    required_registration = models.BooleanField(default=False)
+    requires_registration = models.BooleanField(default=False)
     version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
         "Status",
@@ -1701,14 +1722,69 @@ class RawDataSource(BaseModel, OrderedModel):
 
     @property
     def last_polled_at(self):
-        polls = [u.latest for u in self.polls.all() if u.latest]
+        polls = [
+            poll.latest 
+            for raw_data_source_component in self.raw_data_source_components.all()
+            for poll in raw_data_source_component.polls.all()
+            if poll.latest
+        ]
         return max(polls) if polls else None
 
     @property
     def last_updated_at(self):
-        updates = [u.latest for u in self.updates.all() if u.latest]
+        updates = [
+            update.latest 
+            for raw_data_source_component in self.raw_data_source_components.all()
+            for update in raw_data_source_component.updates.all()
+            if update.latest
+        ]
         return max(updates) if updates else None
 
+
+class RawDataSourceComponent(BaseModel, OrderedModel):
+    """Model definition for RawDataSourceComponent."""
+
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    name = models.CharField(max_length=255)
+    description = models.TextField(blank=True, null=True)
+    url = models.URLField(max_length=500, blank=True, null=True)
+    raw_data_source = models.ForeignKey(
+        "RawDataSource", on_delete=models.CASCADE, related_name="raw_data_source_components"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    version = models.IntegerField(null=True, blank=True)
+    status = models.ForeignKey(
+        "Status",
+        on_delete=models.PROTECT,
+        related_name="raw_data_source_components",
+        null=True,
+        blank=True,
+    )
+    order_with_respect_to = ("raw_data_source",)
+
+    graphql_nested_filter_fields_whitelist = ["id"]
+
+    class Meta:
+        """Meta definition for RawDataSource."""
+
+        db_table = "raw_data_source_component"
+        verbose_name = "Raw Data Source Component"
+        verbose_name_plural = "Raw Data Source Components"
+        ordering = ["url"]
+
+    def __str__(self):
+        return f"{self.name} ({self.raw_data_source.name})"
+
+    @property
+    def last_polled_at(self):
+        polls = [poll.latest for poll in self.polls.all() if poll.latest]
+        return max(polls) if polls else None
+
+    @property
+    def last_updated_at(self):
+        updates = [update.latest for update in self.updates.all() if update.latest]
+        return max(updates) if updates else None
 
 class InformationRequest(BaseModel, OrderedModel):
     """Model definition for InformationRequest."""
@@ -1827,6 +1903,13 @@ class ObservationLevel(BaseModel, OrderedModel):
     )
     raw_data_source = models.ForeignKey(
         "RawDataSource",
+        blank=True,
+        null=True,
+        on_delete=models.CASCADE,
+        related_name="observation_levels",
+    )
+    raw_data_source_component = models.ForeignKey(
+        "RawDataSourceComponent",
         blank=True,
         null=True,
         on_delete=models.CASCADE,
