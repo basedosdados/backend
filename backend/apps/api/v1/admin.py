@@ -66,6 +66,7 @@ from backend.apps.api.v1.models import (
     Pipeline,
     QualityCheck,
     RawDataSource,
+    RawDataSourceComponent,
     Status,
     Table,
     TableNeighbor,
@@ -222,10 +223,28 @@ class RawDataSourceInline(OrderedTranslatedInline):
     fields = [
         "order",
         "move_up_down_links",
-        "id",
         "name",
         "description",
         "availability",
+        "url",
+    ]
+    readonly_fields = [
+        "order",
+        "move_up_down_links",
+    ]
+    ordering = [
+        "order",
+    ]
+
+class RawDataSourceComponentInline(OrderedTranslatedInline):
+    model = RawDataSourceComponent
+    extra = 0
+    show_change_link = True
+    fields = [
+        "order",
+        "move_up_down_links",
+        "name",
+        "description",
         "url",
     ]
     readonly_fields = [
@@ -926,8 +945,27 @@ class RawDataSourceAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "area_ip_address_required",
     ]
     inlines = [
+        RawDataSourceComponentInline,
         CoverageInline,
         ObservationLevelInline,
+        UpdateInline,
+        PollInline,
+    ]
+
+class RawDataSourceComponentAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
+    actions = [
+        reorder_observation_levels,
+    ]
+    list_display = ["name", "raw_data_source", "created_at", "updated_at"]
+    search_fields = ["name", "raw_data_source__name"]
+    readonly_fields = ["id", "created_at", "updated_at"]
+    autocomplete_fields = [
+        "raw_data_source",
+    ]
+    inlines = [
+        CoverageInline,
+        ObservationLevelInline,
+        UpdateInline,
         PollInline,
     ]
 
@@ -1343,6 +1381,7 @@ admin.site.register(ObservationLevel, ObservationLevelAdmin)
 admin.site.register(Organization, OrganizationAdmin)
 admin.site.register(Pipeline, PipelineAdmin)
 admin.site.register(RawDataSource, RawDataSourceAdmin)
+admin.site.register(RawDataSourceComponent, RawDataSourceComponentAdmin)
 admin.site.register(Status, StatusAdmin)
 admin.site.register(Table, TableAdmin)
 admin.site.register(TableNeighbor, TableNeighborAdmin)

@@ -19,6 +19,7 @@ from .models import (
     Organization,
     QualityCheck,
     RawDataSource,
+    RawDataSourceComponent,
     Status,
     Table,
     Tag,
@@ -102,6 +103,11 @@ class RawDataSourceTranslationOptions(TranslationOptions):
         "description",
     )
 
+class RawDataSourceComponentTranslationOptions(TranslationOptions):
+    fields = (
+        "name",
+        "description",
+    )
 
 class StatusTranslationOptions(TranslationOptions):
     fields = ("name",)
@@ -139,6 +145,7 @@ translator.register(MeasurementUnitCategory, MeasurementUnitCategoryTranslationO
 translator.register(Organization, OrganizationTranslationOptions)
 translator.register(QualityCheck, QualityCheckTranslationOptions)
 translator.register(RawDataSource, RawDataSourceTranslationOptions)
+translator.register(RawDataSourceComponent, RawDataSourceComponentTranslationOptions)
 translator.register(Status, StatusTranslationOptions)
 translator.register(Table, TableTranslationOptions)
 translator.register(Tag, TagTranslationOptions)
