@@ -652,7 +652,7 @@ class Dataset(BaseModel):
     def contains_open_data(self):
         """Returns true if there are tables or columns with open coverages"""
         open_data = False
-        tables = self.tables.all()
+        tables = self.tables.exclude(status__slug="under_review").exclude(slug="dicionario").all()
         for table in tables:
             table_coverages = table.coverages.filter(is_closed=False)
             if table_coverages:
@@ -663,7 +663,7 @@ class Dataset(BaseModel):
     @property
     def contains_closed_data(self):
         """Returns true if there are tables or columns with closed coverages, or if the uncompressed file size is above 1 GB"""
-        for table in self.tables.all():
+        for table in self.tables.exclude(status__slug="under_review").exclude(slug="dicionario").all():
             if table.contains_closed_data:
                 return True
         return False
@@ -671,21 +671,21 @@ class Dataset(BaseModel):
     @property
     def contains_tables(self):
         """Returns true if there are tables in the dataset"""
-        return len(self.tables.all()) > 0
+        return len(self.tables.exclude(status__slug="under_review").exclude(slug="dicionario").all()) > 0
 
     @property
     def contains_raw_data_sources(self):
         """Returns true if there are raw data sources in the dataset"""
-        return len(self.raw_data_sources.all()) > 0
+        return len(self.raw_data_sources.exclude(status__slug="under_review").all()) > 0
 
     @property
     def contains_information_requests(self):
         """Returns true if there are information requests in the dataset"""
-        return len(self.information_requests.all()) > 0
+        return len(self.information_requests.exclude(status__slug="under_review").all()) > 0
 
     @property
     def n_tables(self):
-        return len(self.tables.exclude(status__slug="under_review").all())
+        return len(self.tables.exclude(status__slug="under_review").exclude(slug="dicionario").all())
 
     @property
     def n_raw_data_sources(self):
@@ -697,18 +697,18 @@ class Dataset(BaseModel):
 
     @property
     def first_table_id(self):
-        if resource := self.tables.exclude(status__slug="under_review").order_by("order").first():
+        if resource := self.tables.exclude(status__slug="under_review").exclude(slug="dicionario").order_by("order").first():
             return resource.pk
 
     @property
     def first_open_table_id(self):
-        for resource in self.tables.exclude(status__slug="under_review").order_by("order").all():
+        for resource in self.tables.exclude(status__slug="under_review").exclude(slug="dicionario").order_by("order").all():
             if resource.contains_open_data:
                 return resource.pk
 
     @property
     def first_closed_table_id(self):
-        for resource in self.tables.exclude(status__slug="under_review").order_by("order").all():
+        for resource in self.tables.exclude(status__slug="under_review").exclude(slug="dicionario").order_by("order").all():
             if resource.contains_closed_data:
                 return resource.pk
 
@@ -735,7 +735,7 @@ class Dataset(BaseModel):
     @property
     def table_last_updated_at(self):
         updates = [
-            u.last_updated_at for u in self.tables.all()
+            u.last_updated_at for u in self.tables.exclude(status__slug="under_review").exclude(slug="dicionario").all()
             if u.last_updated_at
         ]  # fmt: skip
         return max(updates) if updates else None
@@ -743,7 +743,7 @@ class Dataset(BaseModel):
     @property
     def raw_data_source_last_polled_at(self):
         polls = [
-            u.last_polled_at for u in self.raw_data_sources.all()
+            u.last_polled_at for u in self.raw_data_sources.exclude(status__slug="under_review").all()
             if u.last_polled_at
         ]  # fmt: skip
         return max(polls) if polls else None
@@ -751,7 +751,7 @@ class Dataset(BaseModel):
     @property
     def raw_data_source_last_updated_at(self):
         updates = [
-            u.last_updated_at for u in self.raw_data_sources.all()
+            u.last_updated_at for u in self.raw_data_sources.exclude(status__slug="under_review").all()
             if u.last_updated_at
         ]  # fmt: skip
         return max(updates) if updates else None
