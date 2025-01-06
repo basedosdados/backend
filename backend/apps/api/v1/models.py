@@ -652,7 +652,7 @@ class Dataset(BaseModel):
     def contains_open_data(self):
         """Returns true if there are tables or columns with open coverages"""
         open_data = False
-        tables = self.tables.exclude(status__slug="under_review").exclude(slug="dicionario").exclude(slug="dictionary").all()
+        tables = self.tables.exclude(status__slug="under_review").exclude(slug__in=["dicionario", "dictionary"]).all()
         for table in tables:
             table_coverages = table.coverages.filter(is_closed=False)
             if table_coverages:
@@ -663,7 +663,7 @@ class Dataset(BaseModel):
     @property
     def contains_closed_data(self):
         """Returns true if there are tables or columns with closed coverages, or if the uncompressed file size is above 1 GB"""
-        for table in self.tables.exclude(status__slug="under_review").exclude(slug="dicionario").exclude(slug="dictionary").all():
+        for table in self.tables.exclude(status__slug="under_review").exclude(slug__in=["dicionario", "dictionary"]).all():
             if table.contains_closed_data:
                 return True
         return False
@@ -671,44 +671,70 @@ class Dataset(BaseModel):
     @property
     def contains_tables(self):
         """Returns true if there are tables in the dataset"""
-        return len(self.tables.exclude(status__slug="under_review").exclude(slug="dicionario").exclude(slug="dictionary").all()) > 0
+        return len(
+            self.tables
+                .exclude(status__slug="under_review")
+                .exclude(slug__in=["dicionario", "dictionary"])
+                .all()
+        ) > 0
 
     @property
     def contains_raw_data_sources(self):
         """Returns true if there are raw data sources in the dataset"""
-        return len(self.raw_data_sources.exclude(status__slug="under_review").all()) > 0
+        return len(
+            self.raw_data_sources
+                .exclude(status__slug="under_review")
+                .all()
+        ) > 0
 
     @property
     def contains_information_requests(self):
         """Returns true if there are information requests in the dataset"""
-        return len(self.information_requests.exclude(status__slug="under_review").all()) > 0
+        return len(
+            self.information_requests
+                .exclude(status__slug="under_review")
+                .all()
+        ) > 0
 
     @property
     def n_tables(self):
-        return len(self.tables.exclude(status__slug="under_review").exclude(slug="dicionario").exclude(slug="dictionary").all())
+        return len(
+            self.tables
+                .exclude(status__slug="under_review")
+                .exclude(slug__in=["dicionario", "dictionary"])
+                .all()
+        )
 
     @property
     def n_raw_data_sources(self):
-        return len(self.raw_data_sources.exclude(status__slug="under_review").all())
+        return len(
+            self.raw_data_sources
+                .exclude(status__slug="under_review")
+                .all()
+        )
 
     @property
     def n_information_requests(self):
-        return len(self.information_requests.exclude(status__slug="under_review").all())
+        return len(
+            self.information_requests
+                .exclude(status__slug="under_review")
+                .all()
+        )
 
     @property
     def first_table_id(self):
-        if resource := self.tables.exclude(status__slug="under_review").exclude(slug="dicionario").exclude(slug="dictionary").order_by("order").first():
+        if resource := self.tables.exclude(status__slug="under_review").exclude(slug__in=["dicionario", "dictionary"]).order_by("order").first():
             return resource.pk
 
     @property
     def first_open_table_id(self):
-        for resource in self.tables.exclude(status__slug="under_review").exclude(slug="dicionario").exclude(slug="dictionary").order_by("order").all():
+        for resource in self.tables.exclude(status__slug="under_review").exclude(slug__in=["dicionario", "dictionary"]).order_by("order").all():
             if resource.contains_open_data:
                 return resource.pk
 
     @property
     def first_closed_table_id(self):
-        for resource in self.tables.exclude(status__slug="under_review").exclude(slug="dicionario").exclude(slug="dictionary").order_by("order").all():
+        for resource in self.tables.exclude(status__slug="under_review").exclude(slug__in=["dicionario", "dictionary"]).order_by("order").all():
             if resource.contains_closed_data:
                 return resource.pk
 
@@ -735,7 +761,7 @@ class Dataset(BaseModel):
     @property
     def table_last_updated_at(self):
         updates = [
-            u.last_updated_at for u in self.tables.exclude(status__slug="under_review").exclude(slug="dicionario").exclude(slug="dictionary").all()
+            u.last_updated_at for u in self.tables.exclude(status__slug="under_review").exclude(slug__in=["dicionario", "dictionary"]).all()
             if u.last_updated_at
         ]  # fmt: skip
         return max(updates) if updates else None
