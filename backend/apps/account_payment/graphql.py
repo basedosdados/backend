@@ -36,7 +36,9 @@ else:
 
 class StripePriceNode(DjangoObjectType):
     _id = ID(name="_id")
+    name = String()
     amount = Float()
+    currency = String()
     interval = String()
     trial_period_days = String()
     product_name = String()
@@ -57,10 +59,16 @@ class StripePriceNode(DjangoObjectType):
     def resolve__id(root, info):
         return root.djstripe_id
 
+    def resolve_name(root, info):
+        return root.name
+
     def resolve_amount(root, info):
         if root.unit_amount:
             return root.unit_amount / 100
         return 0
+
+    def resolve_currency(root, info):
+        return root.currency
 
     def resolve_interval(root, info):
         if recurring := root.recurring:
