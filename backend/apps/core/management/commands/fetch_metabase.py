@@ -37,14 +37,10 @@ class Command(BaseCommand):
 
         response = requests.post(BASE_URL + "/api/session", headers=headers, json=json_data).json()
 
-        print('RESPONSE LINHA 38: ', response)
-        print('JSON_DATA linha 33: ', json_data)
-
         if "id" not in response:
             self.stderr.write("Falha na autenticação.")
             return ""
 
-        print('RESPONSE["id"] : ', response["id"])
         return response["id"]
 
     def get_headers(self, token: str):
@@ -55,14 +51,10 @@ class Command(BaseCommand):
 
     def get_databases(self, token: str):
         headers = self.get_headers(token)
-        print('HEADERS LINHA 56: ', headers)
 
         response = requests.get(BASE_URL + "/api/database", headers=headers)
-        print('RESPONSE LINHA 59: ', response)
-        print('RESPONSE.status_code LINHA 59: ', response.status_code)
 
         if response.status_code != 200:
-            print('RESPONSE.TEXT: ', response.history)
             raise Exception(response.text + f" for {METABASE_USER}")
 
         return response.json()["data"]
@@ -102,7 +94,6 @@ class Command(BaseCommand):
             self.stderr.write(f"Error fetching data: {response.text}")
             return []
 
-        breakpoint()
         response_json = response.json()
         return response_json["data"]["rows"]
 
