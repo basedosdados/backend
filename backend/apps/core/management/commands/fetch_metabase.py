@@ -38,6 +38,7 @@ class Command(BaseCommand):
         response = requests.post(BASE_URL + "/api/session", headers=headers, json=json_data).json()
 
         print('RESPONSE LINHA 38: ', response)
+        print('JSON_DATA linha 33: ', json_data)
 
         if "id" not in response:
             self.stderr.write("Falha na autenticação.")
