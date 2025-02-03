@@ -7,7 +7,8 @@ from haystack.generic_views import FacetedSearchView
 from haystack.models import SearchResult
 from haystack.query import SearchQuerySet
 
-from backend.apps.api.v1.models import Entity, Organization, Tag, Theme, Area
+from backend.apps.api.v1.models import Area, Entity, Organization, Tag, Theme
+
 
 class DatasetSearchForm(FacetedSearchForm):
     load_all: bool = True
@@ -30,12 +31,15 @@ class DatasetSearchForm(FacetedSearchForm):
         sqs = self.searchqueryset.all()
 
         # Debug print to see all form data
-        print("DEBUG: Form data:", {
-            'spatial_coverage': self.spatial_coverage,
-            'theme': self.theme,
-            'organization': self.organization,
-            'tag': self.tag,
-        })
+        print(
+            "DEBUG: Form data:",
+            {
+                "spatial_coverage": self.spatial_coverage,
+                "theme": self.theme,
+                "organization": self.organization,
+                "tag": self.tag,
+            },
+        )
 
         # Text search if provided
         if q := self.cleaned_data.get("q"):
@@ -64,28 +68,25 @@ class DatasetSearchForm(FacetedSearchForm):
             coverage_queries = []
             for coverage_list in self.spatial_coverage:
                 # Split the comma-separated values
-                coverages = coverage_list.split(',')
-                if 'world' in coverages:
+                coverages = coverage_list.split(",")
+                if "world" in coverages:
                     # If world is in the list, only look for world coverage
                     coverage_queries = ['spatial_coverage_exact:"world"']
                     break
                 else:
                     # Regular case: handle hierarchical patterns for each coverage
                     for coverage in coverages:
-                        parts = coverage.split('_')
-                        coverage_patterns = [
-                            '_'.join(parts[:i])
-                            for i in range(1, len(parts))
-                        ]
+                        parts = coverage.split("_")
+                        coverage_patterns = ["_".join(parts[:i]) for i in range(1, len(parts))]
                         coverage_patterns.append(coverage)  # Add the full coverage too
-                        
+
                         # Build OR condition for all valid levels, including world
-                        patterns = ' OR '.join(
-                            f'spatial_coverage_exact:"{pattern}"' 
-                            for pattern in coverage_patterns + ['world']
+                        patterns = " OR ".join(
+                            f'spatial_coverage_exact:"{pattern}"'
+                            for pattern in coverage_patterns + ["world"]
                         )
-                        coverage_queries.append(f'({patterns})')
-            
+                        coverage_queries.append(f"({patterns})")
+
             # Combine all coverage queries with AND
             query = f'_exists_:spatial_coverage_exact AND {" AND ".join(coverage_queries)}'
             sqs = sqs.raw_search(query)
@@ -126,7 +127,7 @@ class DatasetSearchView(FacetedSearchView):
 
     @property
     def locale(self):
-        return self.request.GET.get('locale', 'pt')
+        return self.request.GET.get("locale", "pt")
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -181,10 +182,13 @@ class DatasetSearchView(FacetedSearchView):
             ("entity_slug", "observation_levels", Entity),
         ]:
             to_name = model.objects.values("slug", f"name_{self.locale}", "name")
-            to_name = {e["slug"]: {
-                "name": e[f"name_{self.locale}"] or e["name"] or e["slug"],
-                "fallback": e[f"name_{self.locale}"] is None
-            } for e in to_name.all()}
+            to_name = {
+                e["slug"]: {
+                    "name": e[f"name_{self.locale}"] or e["name"] or e["slug"],
+                    "fallback": e[f"name_{self.locale}"] is None,
+                }
+                for e in to_name.all()
+            }
             facets[key_front] = facets.pop(key_back, None)
             for field in facets[key_front] or []:
                 translated_name = to_name.get(field["key"], {})
@@ -195,16 +199,16 @@ class DatasetSearchView(FacetedSearchView):
         if "spatial_coverage" in facets:
             spatial_coverages = []
             coverage_counts = {}  # Dictionary to track counts per slug
-            coverage_data = {}    # Dictionary to store the full data per slug
-            
+            coverage_data = {}  # Dictionary to store the full data per slug
+
             for field in facets.pop("spatial_coverage") or []:
                 coverage = field["key"]
                 areas = Area.objects.filter(slug=coverage, administrative_level=0)
-                
+
                 if coverage == "world":
                     field["name"] = "World"
                     field["fallback"] = False
-                    
+
                     # Add all top-level areas (administrative_level = 0)
                     top_level_areas = Area.objects.filter(administrative_level=0)
                     for child_area in top_level_areas:
@@ -212,8 +216,10 @@ class DatasetSearchView(FacetedSearchView):
                         coverage_counts[slug] = coverage_counts.get(slug, 0) + field["count"]
                         coverage_data[slug] = {
                             "key": slug,
-                            "name": getattr(child_area, f'name_{self.locale}') or child_area.name or slug,
-                            "fallback": getattr(child_area, f'name_{self.locale}') is None
+                            "name": getattr(child_area, f"name_{self.locale}")
+                            or child_area.name
+                            or slug,
+                            "fallback": getattr(child_area, f"name_{self.locale}") is None,
                         }
                 elif areas.exists():
                     for area in areas:
@@ -221,20 +227,20 @@ class DatasetSearchView(FacetedSearchView):
                         coverage_counts[slug] = coverage_counts.get(slug, 0) + field["count"]
                         coverage_data[slug] = {
                             "key": slug,
-                            "name": getattr(area, f'name_{self.locale}') or area.name or coverage,
-                            "fallback": getattr(area, f'name_{self.locale}') is None
+                            "name": getattr(area, f"name_{self.locale}") or area.name or coverage,
+                            "fallback": getattr(area, f"name_{self.locale}") is None,
                         }
-            
+
             # Create final list with collapsed counts and sort by count
             spatial_coverages = []
             for slug, count in coverage_counts.items():
                 entry = coverage_data[slug].copy()
                 entry["count"] = count
                 spatial_coverages.append(entry)
-            
+
             # Sort by count in descending order
             spatial_coverages.sort(key=lambda x: x["count"], reverse=True)
-            
+
             facets["spatial_coverages"] = spatial_coverages
 
         return facets
@@ -250,8 +256,7 @@ class DatasetSearchView(FacetedSearchView):
         return [as_search_result(r, self.locale) for r in results[since:until]]
 
 
-def as_search_result(result: SearchResult, locale='pt'):
-    
+def as_search_result(result: SearchResult, locale="pt"):
     themes = []
     for slug, name in zip(result.theme_slug or [], getattr(result, f"theme_name_{locale}") or []):
         themes.append(
@@ -265,7 +270,10 @@ def as_search_result(result: SearchResult, locale='pt'):
     for pk, slug, name, picture in zip(
         result.organization_id or [],
         result.organization_slug or [],
-        getattr(result, f"organization_name_{locale}") or result.organization_name or result.organization_slug or [],
+        getattr(result, f"organization_name_{locale}")
+        or result.organization_name
+        or result.organization_slug
+        or [],
         result.organization_picture or [],
     ):
         picture = storage.url(picture) if picture else None
@@ -298,25 +306,24 @@ def as_search_result(result: SearchResult, locale='pt'):
 
     # Add spatial coverage translations
     spatial_coverages = []
-    for coverage in (result.spatial_coverage or []):
+    for coverage in result.spatial_coverage or []:
         area = Area.objects.filter(slug=coverage).first()
         if area:
-            spatial_coverages.append({
-                'slug': coverage,
-                'name': getattr(area, f'name_{locale}') or area.name or coverage
-            })
+            spatial_coverages.append(
+                {"slug": coverage, "name": getattr(area, f"name_{locale}") or area.name or coverage}
+            )
         else:
-            spatial_coverages.append({
-                'slug': coverage,
-                'name': coverage
-            })
+            spatial_coverages.append({"slug": coverage, "name": coverage})
 
     return {
         "updated_at": result.updated_at,
         "id": result.dataset_id,
         "slug": result.dataset_slug,
-        "name": getattr(result, f"dataset_name_{locale}") or result.dataset_name or result.dataset_slug,
-        "description": getattr(result, f"dataset_description_{locale}") or result.dataset_description,
+        "name": getattr(result, f"dataset_name_{locale}")
+        or result.dataset_name
+        or result.dataset_slug,
+        "description": getattr(result, f"dataset_description_{locale}")
+        or result.dataset_description,
         "tags": tags,
         "themes": themes,
         "entities": entities,
