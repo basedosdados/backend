@@ -6,15 +6,18 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('v1', '0047_initialize_observation_level_order'),
+        ("v1", "0047_initialize_observation_level_order"),
     ]
 
     operations = [
         migrations.AlterModelOptions(
-            name='observationlevel',
-            options={'ordering': ['order'], 'verbose_name': 'Observation Level', 'verbose_name_plural': 'Observation Levels'},
+            name="observationlevel",
+            options={
+                "ordering": ["order"],
+                "verbose_name": "Observation Level",
+                "verbose_name_plural": "Observation Levels",
+            },
         ),
     ]

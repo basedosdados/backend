@@ -29,22 +29,22 @@ class UUIDHiddenIdForm(forms.ModelForm):
 class TableForm(forms.ModelForm):
     class Meta:
         model = Table
-        fields = '__all__'
-    
+        fields = "__all__"
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         if self.instance:
             # Check both the saved instance and current form data
             dataset_id = self.instance.dataset_id
             if not dataset_id and self.data:
-                dataset_id = self.data.get('dataset')
-                
+                dataset_id = self.data.get("dataset")
+
             if dataset_id:
-                self.fields['raw_data_source'].queryset = RawDataSource.objects.filter(
+                self.fields["raw_data_source"].queryset = RawDataSource.objects.filter(
                     dataset_id=dataset_id
                 )
             else:
-                self.fields['raw_data_source'].queryset = RawDataSource.objects.none()
+                self.fields["raw_data_source"].queryset = RawDataSource.objects.none()
 
 
 class TableInlineForm(UUIDHiddenIdForm):
@@ -146,6 +146,7 @@ class UpdateInlineForm(UUIDHiddenIdForm):
     class Meta(UUIDHiddenIdForm.Meta):
         model = Update
         fields = "__all__"
+
 
 class PollInlineForm(forms.ModelForm):
     class Meta:
