@@ -15,7 +15,8 @@ from backend.custom.model import BaseModel
 from backend.custom.storage import OverwriteStorage, upload_to, validate_image
 from backend.custom.utils import check_kebab_case, check_snake_case
 
-logger = logging.getLogger('django.request')
+logger = logging.getLogger("django.request")
+
 
 class Area(BaseModel):
     """Area model"""
@@ -24,16 +25,16 @@ class Area(BaseModel):
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255, blank=False, null=False)
     administrative_level = models.IntegerField(
-        null=True, 
+        null=True,
         blank=True,
         choices=[
-            (0, '0'),
-            (1, '1'),
-            (2, '2'),
-            (3, '3'),
-            (4, '4'),
-            (5, '5'),
-        ]
+            (0, "0"),
+            (1, "1"),
+            (2, "2"),
+            (3, "3"),
+            (4, "4"),
+            (5, "5"),
+        ],
     )
     entity = models.ForeignKey(
         "Entity",
@@ -41,7 +42,7 @@ class Area(BaseModel):
         null=True,
         blank=True,
         related_name="areas",
-        limit_choices_to={'category__slug': 'spatial'}
+        limit_choices_to={"category__slug": "spatial"},
     )
     parent = models.ForeignKey(
         "Area",
@@ -68,19 +69,21 @@ class Area(BaseModel):
         """Validate the model fields."""
         errors = {}
         if self.administrative_level is not None and self.administrative_level not in [0, 1, 2, 3]:
-            errors['administrative_level'] = 'Administrative level must be 0, 1, 2, or 3'
-        
-        if self.entity and self.entity.category.slug != 'spatial':
-            errors['entity'] = 'Entity must have category "spatial"'
-        
-        if self.parent and self.parent.slug != 'world':
+            errors["administrative_level"] = "Administrative level must be 0, 1, 2, or 3"
+
+        if self.entity and self.entity.category.slug != "spatial":
+            errors["entity"] = 'Entity must have category "spatial"'
+
+        if self.parent and self.parent.slug != "world":
             if self.administrative_level is None:
-                errors['administrative_level'] = 'Administrative level is required when parent is set'
+                errors[
+                    "administrative_level"
+                ] = "Administrative level is required when parent is set"
             elif self.parent.administrative_level is None:
-                errors['parent'] = 'Parent must have an administrative level'
+                errors["parent"] = "Parent must have an administrative level"
             elif self.parent.administrative_level != self.administrative_level - 1:
-                errors['parent'] = 'Parent must have administrative level exactly one level above'
-        
+                errors["parent"] = "Parent must have administrative level exactly one level above"
+
         if errors:
             raise ValidationError(errors)
         return super().clean()
@@ -437,7 +440,13 @@ class Organization(BaseModel):
     slug = models.SlugField(unique=False, max_length=255)
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    area = models.ForeignKey("Area", on_delete=models.SET_NULL, null=True, related_name="organizations")
+    area = models.ForeignKey(
+        "Area",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="organizations",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     website = models.URLField(blank=True, null=True, max_length=255)
@@ -469,7 +478,7 @@ class Organization(BaseModel):
 
     @property
     def full_slug(self):
-        if self.area.slug != "unknown":
+        if self.area:
             return f"{self.area.slug}_{self.slug}"
         return f"{self.slug}"
 
@@ -512,7 +521,7 @@ class Dataset(BaseModel):
         "Organization",
         related_name="datasets",
         verbose_name="Organizations",
-        help_text="Organizations associated with this dataset"
+        help_text="Organizations associated with this dataset",
     )
     themes = models.ManyToManyField(
         "Theme",
@@ -537,12 +546,12 @@ class Dataset(BaseModel):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    is_closed = models.BooleanField(
-        default=False, help_text="Dataset is for BD Pro subscribers only"
-    )
     page_views = models.BigIntegerField(
         default=0,
         help_text="Number of page views by Google Analytics",
+    )
+    usage_guide = models.TextField(
+        blank=True, null=True, default="", max_length=255, verbose_name="Guia de Uso"
     )
 
     graphql_nested_filter_fields_whitelist = ["id", "slug"]
@@ -607,7 +616,7 @@ class Dataset(BaseModel):
             *self.raw_data_sources.all(),
             *self.information_requests.all(),
         ]
-        return sorted(list(get_spatial_coverage_name(resources, locale = 'pt')))
+        return sorted(list(get_spatial_coverage_name(resources, locale="pt")))
 
     @property
     def spatial_coverage_name_en(self) -> list[str]:
@@ -617,7 +626,7 @@ class Dataset(BaseModel):
             *self.raw_data_sources.all(),
             *self.information_requests.all(),
         ]
-        return sorted(list(get_spatial_coverage_name(resources, locale = 'en')))
+        return sorted(list(get_spatial_coverage_name(resources, locale="en")))
 
     @property
     def spatial_coverage_name_es(self) -> list[str]:
@@ -627,7 +636,7 @@ class Dataset(BaseModel):
             *self.raw_data_sources.all(),
             *self.information_requests.all(),
         ]
-        return sorted(list(get_spatial_coverage_name(resources, locale = 'es')))
+        return sorted(list(get_spatial_coverage_name(resources, locale="es")))
 
     @property
     def entities(self) -> list[dict]:
@@ -647,7 +656,11 @@ class Dataset(BaseModel):
     def contains_open_data(self):
         """Returns true if there are tables or columns with open coverages"""
         open_data = False
-        tables = self.tables.all()
+        tables = (
+            self.tables.exclude(status__slug="under_review")
+            .exclude(slug__in=["dicionario", "dictionary"])
+            .all()
+        )
         for table in tables:
             table_coverages = table.coverages.filter(is_closed=False)
             if table_coverages:
@@ -657,39 +670,46 @@ class Dataset(BaseModel):
 
     @property
     def contains_closed_data(self):
-        """Returns true if there are tables or columns with closed coverages"""
-        closed_data = False
-        tables = self.tables.all()
-        for table in tables:
-            table_coverages = table.coverages.filter(is_closed=True)
-            if table_coverages:
-                closed_data = True
-                break
-            for column in table.columns.all():
-                if column.is_closed:  # in the future it will be column.coverages
-                    closed_data = True
-                    break
-
-        return closed_data
+        """Returns true if there are tables or columns with closed coverages, or if the uncompressed
+        file size is above 1 GB"""
+        for table in (
+            self.tables.exclude(status__slug="under_review")
+            .exclude(slug__in=["dicionario", "dictionary"])
+            .all()
+        ):
+            if table.contains_closed_data:
+                return True
+        return False
 
     @property
     def contains_tables(self):
         """Returns true if there are tables in the dataset"""
-        return len(self.tables.all()) > 0
+        return (
+            len(
+                self.tables.exclude(status__slug="under_review")
+                .exclude(slug__in=["dicionario", "dictionary"])
+                .all()
+            )
+            > 0
+        )
 
     @property
     def contains_raw_data_sources(self):
         """Returns true if there are raw data sources in the dataset"""
-        return len(self.raw_data_sources.all()) > 0
+        return len(self.raw_data_sources.exclude(status__slug="under_review").all()) > 0
 
     @property
     def contains_information_requests(self):
         """Returns true if there are information requests in the dataset"""
-        return len(self.information_requests.all()) > 0
+        return len(self.information_requests.exclude(status__slug="under_review").all()) > 0
 
     @property
     def n_tables(self):
-        return len(self.tables.exclude(status__slug="under_review").all())
+        return len(
+            self.tables.exclude(status__slug="under_review")
+            .exclude(slug__in=["dicionario", "dictionary"])
+            .all()
+        )
 
     @property
     def n_raw_data_sources(self):
@@ -701,18 +721,33 @@ class Dataset(BaseModel):
 
     @property
     def first_table_id(self):
-        if resource := self.tables.exclude(status__slug="under_review").order_by("order").first():
+        if (
+            resource := self.tables.exclude(status__slug="under_review")
+            .exclude(slug__in=["dicionario", "dictionary"])
+            .order_by("order")
+            .first()
+        ):
             return resource.pk
 
     @property
     def first_open_table_id(self):
-        for resource in self.tables.exclude(status__slug="under_review").order_by("order").all():
+        for resource in (
+            self.tables.exclude(status__slug="under_review")
+            .exclude(slug__in=["dicionario", "dictionary"])
+            .order_by("order")
+            .all()
+        ):
             if resource.contains_open_data:
                 return resource.pk
 
     @property
     def first_closed_table_id(self):
-        for resource in self.tables.exclude(status__slug="under_review").order_by("order").all():
+        for resource in (
+            self.tables.exclude(status__slug="under_review")
+            .exclude(slug__in=["dicionario", "dictionary"])
+            .order_by("order")
+            .all()
+        ):
             if resource.contains_closed_data:
                 return resource.pk
 
@@ -739,7 +774,8 @@ class Dataset(BaseModel):
     @property
     def table_last_updated_at(self):
         updates = [
-            u.last_updated_at for u in self.tables.all()
+            u.last_updated_at for u in self.tables.exclude(status__slug="under_review").exclude(
+                slug__in=["dicionario", "dictionary"]).all()
             if u.last_updated_at
         ]  # fmt: skip
         return max(updates) if updates else None
@@ -747,7 +783,8 @@ class Dataset(BaseModel):
     @property
     def raw_data_source_last_polled_at(self):
         polls = [
-            u.last_polled_at for u in self.raw_data_sources.all()
+            u.last_polled_at for u in self.raw_data_sources.exclude(
+                status__slug="under_review").all()
             if u.last_polled_at
         ]  # fmt: skip
         return max(polls) if polls else None
@@ -755,7 +792,8 @@ class Dataset(BaseModel):
     @property
     def raw_data_source_last_updated_at(self):
         updates = [
-            u.last_updated_at for u in self.raw_data_sources.all()
+            u.last_updated_at for u in self.raw_data_sources.exclude(
+                status__slug="under_review").all()
             if u.last_updated_at
         ]  # fmt: skip
         return max(updates) if updates else None
@@ -769,7 +807,7 @@ class Update(BaseModel):
         null=True,
         on_delete=models.SET_NULL,
         related_name="updates",
-        limit_choices_to={'category__slug': 'datetime'}
+        limit_choices_to={"category__slug": "datetime"},
     )
     frequency = models.IntegerField(blank=True, null=True)
     lag = models.IntegerField(blank=True, null=True)
@@ -824,8 +862,8 @@ class Update(BaseModel):
                 "One and only one of 'table', "
                 "'raw_data_source', or 'information_request' must be set."
             )
-        if self.entity and self.entity.category.slug != 'datetime':
-            errors['entity'] = 'Entity must have category "datetime"'
+        if self.entity and self.entity.category.slug != "datetime":
+            errors["entity"] = 'Entity must have category "datetime"'
         if errors:
             raise ValidationError(errors)
         return super().clean()
@@ -839,7 +877,7 @@ class Poll(BaseModel):
         null=True,
         on_delete=models.SET_NULL,
         related_name="polls",
-        limit_choices_to={'category__slug': 'datetime'}
+        limit_choices_to={"category__slug": "datetime"},
     )
     frequency = models.IntegerField(blank=True, null=True)
     latest = models.DateTimeField(blank=True, null=True)
@@ -885,8 +923,8 @@ class Poll(BaseModel):
             raise ValidationError(
                 "One and only one of 'raw_data_source'," " or 'information_request' must be set."
             )
-        if self.entity and self.entity.category.slug != 'datetime':
-            errors['entity'] = 'Entity must have category "datetime"'
+        if self.entity and self.entity.category.slug != "datetime":
+            errors["entity"] = 'Entity must have category "datetime"'
         if errors:
             raise ValidationError(errors)
         return super().clean()
@@ -911,7 +949,7 @@ class Table(BaseModel, OrderedModel):
     )
     is_deprecated = models.BooleanField(
         default=False,
-        help_text="We stopped maintaining this table for some reason. Examples: raw data deprecated, new version elsewhere, etc."
+        help_text="We stopped maintaining this table for some reason. Examples: raw data deprecated, new version elsewhere, etc.",  # noqa: E501
     )
     license = models.ForeignKey(
         "License",
@@ -1042,6 +1080,12 @@ class Table(BaseModel, OrderedModel):
         for column in self.columns.all():
             if column.coverages.filter(is_closed=True).first():
                 return True
+        if (
+            self.uncompressed_file_size
+            and self.uncompressed_file_size > 100 * 1024 * 1024
+            and self.uncompressed_file_size <= 1000 * 1024 * 1024
+        ):
+            return True
         return False
 
     @property
@@ -1062,17 +1106,17 @@ class Table(BaseModel, OrderedModel):
     @property
     def spatial_coverage_name_pt(self) -> list[str]:
         """Union spatial coverage of all related resources"""
-        return get_spatial_coverage_name([self], locale = 'pt')
+        return get_spatial_coverage_name([self], locale="pt")
 
     @property
     def spatial_coverage_name_en(self) -> list[str]:
         """Union spatial coverage of all related resources"""
-        return get_spatial_coverage_name([self], locale = 'en')
+        return get_spatial_coverage_name([self], locale="en")
 
     @property
     def spatial_coverage_name_es(self) -> list[str]:
         """Union spatial coverage of all related resources"""
-        return get_spatial_coverage_name([self], locale = 'es')
+        return get_spatial_coverage_name([self], locale="es")
 
     @property
     def neighbors(self) -> list[dict]:
@@ -1126,10 +1170,10 @@ class Table(BaseModel, OrderedModel):
         for coverage in self.coverages.all():
             for datetime_range in coverage.datetime_ranges.all():
                 units.extend([unit.name for unit in datetime_range.units.all()])
-        
+
         if not units:
             return None
-        
+
         most_common_unit = list(set(units))
         return most_common_unit
 
@@ -1244,10 +1288,10 @@ class Table(BaseModel, OrderedModel):
                 datetime_ranges.sort(key=lambda x: x[0])
                 for i in range(1, len(datetime_ranges)):
                     if datetime_ranges[i - 1][1] > datetime_ranges[i][0]:
-                        errors['coverages_areas'] = f"Temporal coverages in area {area} overlap"
+                        errors["coverages_areas"] = f"Temporal coverages in area {area} overlap"
         except ValueError:
             pass
-        
+
         if errors:
             raise ValidationError(errors)
         return super().clean()
@@ -1323,13 +1367,14 @@ class BigQueryType(BaseModel):
         verbose_name_plural = "BigQuery Types"
         ordering = ["name"]
 
+
 class MeasurementUnitCategory(BaseModel):
     """Model definition for MeasurementUnitCategory."""
 
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=True)
     name = models.CharField(max_length=255)
-    
+
     graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
@@ -1342,6 +1387,7 @@ class MeasurementUnitCategory(BaseModel):
         verbose_name = "Measurement Unit Category"
         verbose_name_plural = "Measurement Unit Categories"
         ordering = ["slug"]
+
 
 class MeasurementUnit(BaseModel):
     """Model definition for MeasurementUnit."""
@@ -1370,6 +1416,7 @@ class MeasurementUnit(BaseModel):
         verbose_name_plural = "Measurement Units"
         ordering = ["slug"]
 
+
 class Column(BaseModel, OrderedModel):
     """Model definition for Column."""
 
@@ -1389,7 +1436,7 @@ class Column(BaseModel, OrderedModel):
         null=True,
         related_name="columns",
         blank=True,
-        limit_choices_to={'is_primary_key': True, 'table__is_directory': True}
+        limit_choices_to={"is_primary_key": True, "table__is_directory": True},
     )
     measurement_unit = models.CharField(max_length=255, blank=True, null=True)
     contains_sensitive_data = models.BooleanField(default=False, blank=True, null=True)
@@ -1452,25 +1499,25 @@ class Column(BaseModel, OrderedModel):
     @property
     def spatial_coverage_name_pt(self) -> list[str]:
         """Union spatial coverage of all related resources"""
-        coverage = get_spatial_coverage_name([self], locale = 'pt')
+        coverage = get_spatial_coverage_name([self], locale="pt")
         if not coverage:
-            coverage = get_spatial_coverage_name([self.table], locale = 'pt')
+            coverage = get_spatial_coverage_name([self.table], locale="pt")
         return coverage
-    
+
     @property
     def spatial_coverage_name_en(self) -> list[str]:
         """Union spatial coverage of all related resources"""
-        coverage = get_spatial_coverage_name([self], locale = 'en')
+        coverage = get_spatial_coverage_name([self], locale="en")
         if not coverage:
-            coverage = get_spatial_coverage_name([self.table], locale = 'en')
+            coverage = get_spatial_coverage_name([self.table], locale="en")
         return coverage
 
     @property
     def spatial_coverage_name_es(self) -> list[str]:
         """Union spatial coverage of all related resources"""
-        coverage = get_spatial_coverage_name([self], locale = 'es')
+        coverage = get_spatial_coverage_name([self], locale="es")
         if not coverage:
-            coverage = get_spatial_coverage_name([self.table], locale = 'es')
+            coverage = get_spatial_coverage_name([self.table], locale="es")
         return coverage
 
     @property
@@ -1846,7 +1893,7 @@ class ObservationLevel(BaseModel, OrderedModel):
         related_name="observation_levels",
     )
 
-    order_with_respect_to = ('table', 'raw_data_source', 'information_request', 'analysis')
+    order_with_respect_to = ("table", "raw_data_source", "information_request", "analysis")
 
     graphql_nested_filter_fields_whitelist = ["id"]
 
@@ -1864,7 +1911,7 @@ class ObservationLevel(BaseModel, OrderedModel):
     def get_ordering_queryset(self):
         """Get queryset for ordering within the appropriate parent"""
         qs = super().get_ordering_queryset()
-        
+
         # Filter by the appropriate parent field
         if self.table_id:
             return qs.filter(table_id=self.table_id)
@@ -1874,7 +1921,7 @@ class ObservationLevel(BaseModel, OrderedModel):
             return qs.filter(information_request_id=self.information_request_id)
         elif self.analysis_id:
             return qs.filter(analysis_id=self.analysis_id)
-        
+
         return qs
 
 
@@ -1988,17 +2035,17 @@ class DateTimeRange(BaseModel):
         errors = {}
         try:
             if self.since and self.until and self.since > self.until:
-                errors['date_range'] = "Start date must be less than or equal to end date"
+                errors["date_range"] = "Start date must be less than or equal to end date"
             if self.since and self.until and not self.interval:
-                errors['interval'] = "Interval must exist in ranges with start and end dates"
-            
+                errors["interval"] = "Interval must exist in ranges with start and end dates"
+
             # Add validation for units
-            #for unit in self.units.all():
+            # for unit in self.units.all():
             #    if unit.bigquery_type.name not in ['DATE', 'DATETIME', 'TIME', 'TIMESTAMP']:
             #        errors['units'] = f"Column '{unit.name}' is not a valid datetime unit"
         except Exception as e:
-            errors['general'] = f"An error occurred: {str(e)}"
-        
+            errors["general"] = f"An error occurred: {str(e)}"
+
         if errors:
             raise ValidationError(errors)
         return super().clean()
@@ -2179,9 +2226,11 @@ def get_full_temporal_coverage(resources: list) -> dict:
     if paid_since.str and paid_until.str:
         return [paid_since.as_dict, paid_until.as_dict]
 
+
 def get_spatial_coverage(resources: list) -> list:
-    """Get spatial coverage of resources by returning unique area slugs, keeping only the highest level in each branch
-    
+    """Get spatial coverage of resources by returning unique area slugs, keeping only the highest
+        level in each branch
+
     For example:
     - If areas = [br_mg_3100104, br_mg_3100104] -> returns [br_mg_3100104]
     - If areas = [br_mg_3100104, br_sp_3500105] -> returns [br_mg_3100104, br_sp_3500105]
@@ -2195,40 +2244,41 @@ def get_spatial_coverage(resources: list) -> list:
         for coverage in resource.coverages.all():
             if coverage.area:
                 all_areas.add(coverage.area.slug)
-    
+
     if not all_areas:
         return []
-        
+
     # If 'world' is present, it encompasses everything
-    if 'world' in all_areas:
-        return ['world']
-        
+    if "world" in all_areas:
+        return ["world"]
+
     # Filter out areas that have a parent in the set
     filtered_areas = set()
     for area in all_areas:
-        parts = area.split('_')
+        parts = area.split("_")
         is_parent_present = False
-        
+
         # Check if any parent path exists in all_areas
         for i in range(1, len(parts)):
-            parent = '_'.join(parts[:i])
+            parent = "_".join(parts[:i])
             if parent in all_areas:
                 is_parent_present = True
                 break
-                
+
         if not is_parent_present:
             filtered_areas.add(area)
-    
+
     return sorted(list(filtered_areas))
 
-def get_spatial_coverage_name(resources: list, locale: str = 'pt') -> list:
-    """Get spatial coverage of resources by returning unique area names in the specified locale, 
+
+def get_spatial_coverage_name(resources: list, locale: str = "pt") -> list:
+    """Get spatial coverage of resources by returning unique area names in the specified locale,
     keeping only the highest level in each branch
-    
+
     Args:
         resources: List of resources to get coverage from
         locale: Language code ('pt', 'en', etc). Defaults to 'pt'
-    
+
     For example:
     - If areas = [br_mg_3100104, br_mg_3100104] -> returns [Belo Horizonte]
     - If areas = [br_mg_3100104, br_sp_3500105] -> returns [Belo Horizonte, São Paulo]
@@ -2240,43 +2290,45 @@ def get_spatial_coverage_name(resources: list, locale: str = 'pt') -> list:
     """
     # Translation mapping for special cases
     translations = {
-        'world': {
-            'pt': 'Mundo',
-            'en': 'World',
-            'es': 'Mundo',
+        "world": {
+            "pt": "Mundo",
+            "en": "World",
+            "es": "Mundo",
         }
     }
-    
+
     # Collect all unique areas (both slug and name) across resources
     all_areas = {}
     for resource in resources:
         for coverage in resource.coverages.all():
             if coverage.area:
                 # Get localized name using getattr, fallback to default name if not found
-                localized_name = getattr(coverage.area, f'name_{locale}', None) or coverage.area.name
+                localized_name = (
+                    getattr(coverage.area, f"name_{locale}", None) or coverage.area.name
+                )
                 all_areas[coverage.area.slug] = localized_name
-    
+
     if not all_areas:
         return []
-        
+
     # If 'world' is present, it encompasses everything
-    if 'world' in all_areas:
-        return [translations['world'].get(locale, translations['world']['pt'])]
-        
+    if "world" in all_areas:
+        return [translations["world"].get(locale, translations["world"]["pt"])]
+
     # Filter out areas that have a parent in the set
     filtered_areas = set()
     for area_slug in all_areas:
-        parts = area_slug.split('_')
+        parts = area_slug.split("_")
         is_parent_present = False
-        
+
         # Check if any parent path exists in all_areas
         for i in range(1, len(parts)):
-            parent = '_'.join(parts[:i])
+            parent = "_".join(parts[:i])
             if parent in all_areas:
                 is_parent_present = True
                 break
-                
+
         if not is_parent_present:
             filtered_areas.add(all_areas[area_slug])
-    
+
     return sorted(list(filtered_areas))

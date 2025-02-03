@@ -4,15 +4,16 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('v1', '0035_alter_poll_entity_alter_poll_frequency_and_more'),
+        ("v1", "0035_alter_poll_entity_alter_poll_frequency_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='datetimerange',
-            name='units',
-            field=models.ManyToManyField(blank=True, related_name='datetime_ranges', to='v1.column')
+            model_name="datetimerange",
+            name="units",
+            field=models.ManyToManyField(
+                blank=True, related_name="datetime_ranges", to="v1.column"
+            ),
         ),
     ]

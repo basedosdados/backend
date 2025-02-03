@@ -6,15 +6,13 @@ from django.db import migrations, models
 def add_new_field_to_all_tables(apps, schema_editor):
     for model in apps.get_models():
         schema_editor.add_field(
-            model,
-            name='url_links',
-            field=models.TextField(max_length=255, default='', blank=True)
+            model, name="url_links", field=models.TextField(max_length=255, default="", blank=True)
         )
 
-class Migration(migrations.Migration):
 
+class Migration(migrations.Migration):
     dependencies = [
-        ('v1', '0050_table_is_deprecated'),
+        ("v1", "0050_table_is_deprecated"),
     ]
 
     operations = [

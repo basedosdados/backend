@@ -27,7 +27,7 @@ class DatasetOrganizationListFilter(admin.SimpleListFilter):
     parameter_name = "organization"
 
     def lookups(self, request, model_admin):
-        organizations = Organization.objects.all().order_by('slug')
+        organizations = Organization.objects.all().order_by("slug")
         return [(org.id, org.name) for org in organizations]
 
     def queryset(self, request, queryset):
@@ -108,12 +108,12 @@ class AreaAdministrativeLevelFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         return [
-            (0, '0'),
-            (1, '1'),
-            (2, '2'),
-            (3, '3'),
-            (4, '4'),
-            (5, '5'),
+            (0, "0"),
+            (1, "1"),
+            (2, "2"),
+            (3, "3"),
+            (4, "4"),
+            (5, "5"),
         ]
 
     def queryset(self, request, queryset):
@@ -127,7 +127,7 @@ class AreaParentFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         # Get all areas that have children, ordered by name
-        parents = Area.objects.filter(children__isnull=False).distinct().order_by('name')
+        parents = Area.objects.filter(children__isnull=False).distinct().order_by("name")
         return [(area.id, f"{area.name}") for area in parents]
 
     def queryset(self, request, queryset):

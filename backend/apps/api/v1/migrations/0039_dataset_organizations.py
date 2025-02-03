@@ -5,7 +5,7 @@ from django.db import migrations, models
 
 
 def migrate_organization_to_organizations(apps, schema_editor):
-    Dataset = apps.get_model('v1', 'Dataset')
+    Dataset = apps.get_model("v1", "Dataset")
     for dataset in Dataset.objects.all():
         if dataset.organization:
             dataset.organizations.add(dataset.organization)
@@ -13,29 +13,28 @@ def migrate_organization_to_organizations(apps, schema_editor):
 
 class Migration(migrations.Migration):
     dependencies = [
-        ('v1', '0038_rename_level_area_administrative_level'),
+        ("v1", "0038_rename_level_area_administrative_level"),
     ]
 
     operations = [
         # Add new ManyToMany field
         migrations.AddField(
-            model_name='dataset',
-            name='organizations',
+            model_name="dataset",
+            name="organizations",
             field=models.ManyToManyField(
-                related_name='datasets',
-                to='v1.organization',
-                verbose_name='Organizations',
-                help_text='Organizations associated with this dataset',
+                related_name="datasets",
+                to="v1.organization",
+                verbose_name="Organizations",
+                help_text="Organizations associated with this dataset",
             ),
         ),
         # Run data migration
         migrations.RunPython(
-            migrate_organization_to_organizations,
-            reverse_code=migrations.RunPython.noop
+            migrate_organization_to_organizations, reverse_code=migrations.RunPython.noop
         ),
         # Remove old ForeignKey field
         migrations.RemoveField(
-            model_name='dataset',
-            name='organization',
+            model_name="dataset",
+            name="organization",
         ),
     ]

@@ -5,15 +5,20 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('v1', '0048_alter_observationlevel_options_and_more'),
+        ("v1", "0048_alter_observationlevel_options_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='poll',
-            name='pipeline',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='polls', to='v1.pipeline'),
+            model_name="poll",
+            name="pipeline",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="polls",
+                to="v1.pipeline",
+            ),
         ),
     ]

@@ -4,15 +4,14 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('v1', '0037_area_entity_area_level_area_parent'),
+        ("v1", "0037_area_entity_area_level_area_parent"),
     ]
 
     operations = [
         migrations.RenameField(
-            model_name='area',
-            old_name='level',
-            new_name='administrative_level',
+            model_name="area",
+            old_name="level",
+            new_name="administrative_level",
         ),
     ]

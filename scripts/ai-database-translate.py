@@ -102,16 +102,19 @@ def treat_table(table, fields):
         response = None
         try:
             pprint(d)
-            response = gen_content(f"""
+            response = gen_content(
+                f"""
 We are an NGO translating metadata for a open public database. We have json with data in portuguese.
-Would you please translate the following json, filling up the missing keys: {new_fields_description_for_prompt} . Just write the output json and nothing else.
+Would you please translate the following json, filling up the missing keys: 
+{new_fields_description_for_prompt} . Just write the output json and nothing else.
 
 ```
     {json.dumps(d, indent=4)}
 ```
 
 
-""")
+"""
+            )
             print(response.text)
             res = json.loads(response.text.strip("\n`json"))
             for res_line, original_line in zip(res, d):
@@ -184,8 +187,6 @@ def sql(q):
 
 
 def csv(data):
-    from io import StringIO
-
     output = StringIO()
     csv_writer = _csv.writer(output)
     if cursor.description:
@@ -282,7 +283,8 @@ def get_data(table, fields, count_only=False):
     """
     pt_fields = ", ".join(f + "_pt" for f in fields)
     if len(fields) == 1:
-        # skip single fields if they are null at the source. Doing this properly for multi fields is hard so we don't do it
+        # skip single fields if they are null at the source.
+        # Doing this properly for multi fields is hard so we don't do it
         restriction = " AND ".join(
             f"{f}_en IS NULL AND {f}_es IS NULL AND {f}_pt IS NOT NULL" for f in fields
         )
@@ -294,7 +296,9 @@ def get_data(table, fields, count_only=False):
 
 
 # def get_data():
-# out = sql('SELECT id, name_pt, description_pt FROM dataset WHERE id NOT IN (SELECT id FROM translated_dataset)')
+# out = sql('SELECT id, name_pt, description_pt FROM dataset WHERE id NOT IN (
+#           SELECT id FROM translated_dataset)
+#          ')
 # return out
 
 
@@ -370,7 +374,7 @@ EXAMPLE_DATA = [
     2 | Pesquisa Nacional de Saúde (PNS) | A Pesquisa Nacional de Saúde (PNS) é um inquérito de base domiciliar e âmbito nacional, realizada pelo Ministério da Saúde (MS) em parceria com o Instituto Brasileiro de Geografia e Estatística (IBGE), nos anos de 2013 e 2019.                                                                                                                                                                                                                                         +
         |                                  | A população pesquisada corresponde aos moradores de domicílios particulares permanentes do Brasil, exceto os localizados nos setores censitários especiais (compostos por aglomerados subnormais; quartéis, bases militares etc.; alojamento, acampamentos etc.; embarcações, barcos, navios etc.; aldeia indígena; penitenciárias, colônias penais, presídios, cadeias etc.; asilos, orfanatos, conventos, hospitais etc.; e assentamentos rurais).                       +
         |                                  |
-"""
+"""  # noqa
 ]
 
 FIELDS_TO_TRANSLATE = [
