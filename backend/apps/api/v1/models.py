@@ -996,7 +996,9 @@ class Table(BaseModel, OrderedModel):
     compressed_file_size = models.BigIntegerField(blank=True, null=True)
     number_rows = models.BigIntegerField(blank=True, null=True)
     number_columns = models.BigIntegerField(blank=True, null=True)
-    is_closed = models.BooleanField(default=False, help_text="Table is for BD Pro subscribers only")
+    is_closed = models.BooleanField(
+        default=False, help_text="Table is for BD Pro subscribers only"
+    )
     page_views = models.BigIntegerField(
         default=0,
         help_text="Number of page views by Google Analytics",

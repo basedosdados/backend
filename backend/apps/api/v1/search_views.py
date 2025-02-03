@@ -296,7 +296,9 @@ def as_search_result(result: SearchResult, locale="pt"):
         )
 
     entities = []
-    for slug, name in zip(result.entity_slug or [], getattr(result, f"entity_name_{locale}") or []):
+    for slug, name in zip(
+        result.entity_slug or [], getattr(result, f"entity_name_{locale}") or []
+    ):
         entities.append(
             {
                 "slug": slug,
@@ -310,7 +312,10 @@ def as_search_result(result: SearchResult, locale="pt"):
         area = Area.objects.filter(slug=coverage).first()
         if area:
             spatial_coverages.append(
-                {"slug": coverage, "name": getattr(area, f"name_{locale}") or area.name or coverage}
+                {
+                    "slug": coverage,
+                    "name": getattr(area, f"name_{locale}") or area.name or coverage,
+                }
             )
         else:
             spatial_coverages.append({"slug": coverage, "name": coverage})
