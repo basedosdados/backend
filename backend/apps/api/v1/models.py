@@ -1701,7 +1701,7 @@ class RawDataSource(BaseModel, OrderedModel):
     contains_structured_data = models.BooleanField(default=False)
     contains_api = models.BooleanField(default=False)
     is_free = models.BooleanField(default=False)
-    required_registration = models.BooleanField(default=False)
+    requires_registration = models.BooleanField(default=False)
     version = models.IntegerField(null=True, blank=True)
     status = models.ForeignKey(
         "Status",
