@@ -23,24 +23,26 @@ The script processes multiple tables and fields, translating content and updatin
 
 from pprint import pprint
 from random import random
+
 import dotenv
 
 dotenv.load_dotenv()
 
 import json
+
 import better_exceptions
 
 better_exceptions.hook()
-import google.generativeai as genai
 import csv as _csv
-from io import StringIO
 import os
 import time
 from collections import deque
 from functools import wraps
+from io import StringIO
+
+import google.generativeai as genai
 import psycopg2
 from tqdm import tqdm
-import sys
 
 genai.configure(api_key=os.getenv("API_KEY"))
 model = genai.GenerativeModel("gemini-1.5-flash-latest")
@@ -183,8 +185,6 @@ def sql(q):
 
 
 def csv(data):
-    from io import StringIO
-
     output = StringIO()
     csv_writer = _csv.writer(output)
     if cursor.description:
