@@ -1,4 +1,26 @@
 #!/usr/bin/env python3
+from collections import deque
+from pprint import pprint
+from random import random
+
+import dotenv
+
+dotenv.load_dotenv()
+import json
+
+import better_exceptions
+
+better_exceptions.hook()
+import csv as _csv
+import os
+import time
+from functools import wraps
+from io import StringIO
+
+import google.generativeai as genai
+import psycopg2
+from tqdm import tqdm
+
 """
 AI Database Translation Script
 
@@ -21,28 +43,6 @@ Usage:
 The script processes multiple tables and fields, translating content and updating the database.
 """
 
-from pprint import pprint
-from random import random
-
-import dotenv
-
-dotenv.load_dotenv()
-
-import json
-
-import better_exceptions
-
-better_exceptions.hook()
-import csv as _csv
-import os
-import time
-from collections import deque
-from functools import wraps
-from io import StringIO
-
-import google.generativeai as genai
-import psycopg2
-from tqdm import tqdm
 
 genai.configure(api_key=os.getenv("API_KEY"))
 model = genai.GenerativeModel("gemini-1.5-flash-latest")
@@ -293,7 +293,11 @@ def get_data(table, fields, count_only=False):
 
 
 # def get_data():
-# out = sql('SELECT id, name_pt, description_pt FROM dataset WHERE id NOT IN (SELECT id FROM translated_dataset)')
+# out = sql(
+#   'SELECT id, name_pt, description_pt FROM dataset WHERE id NOT IN (
+#       SELECT id FROM translated_dataset
+#       )
+#    ')
 # return out
 
 
@@ -322,7 +326,7 @@ def rate_limiter(max_calls_per_minute):
     return decorator
 
 
-def rate_limiter(max_calls_per_minute):
+def rate_limiter(max_calls_per_minute):  # noqa: F811
     min_interval = 60.0 / max_calls_per_minute
     last_called = 0
 

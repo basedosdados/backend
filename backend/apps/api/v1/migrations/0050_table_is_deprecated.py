@@ -14,7 +14,7 @@ class Migration(migrations.Migration):
             name="is_deprecated",
             field=models.BooleanField(
                 default=False,
-                help_text="We stopped maintaining this table for some reason. Examples: raw data deprecated, new version elsewhere, etc.",
+                help_text="We stopped maintaining this table for some reason.Examples: raw data deprecated, new version elsewhere, etc.",
             ),
         ),
     ]
