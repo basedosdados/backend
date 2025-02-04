@@ -175,7 +175,6 @@ class Command(BaseCommand):
                     sorted_models.append(model)
                     models_to_populate.remove(model)
 
-        return sorted_models
 
     def clean_database(self, _models):
         """
