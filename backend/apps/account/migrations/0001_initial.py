@@ -84,7 +84,9 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "twitter",
-                    models.CharField(blank=True, max_length=255, null=True, verbose_name="Twitter"),
+                    models.CharField(
+                        blank=True, max_length=255, null=True, verbose_name="Twitter"
+                    ),
                 ),
                 (
                     "linkedin",

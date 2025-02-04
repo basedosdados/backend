@@ -4,16 +4,16 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('v1', '0050_table_is_deprecated'),
+        ("v1", "0050_table_is_deprecated"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='dataset',
-            name='usage_guide',
-            field=models.TextField(blank=True, null=True, default='', max_length=255 , verbose_name='Guia de Uso')
+            model_name="dataset",
+            name="usage_guide",
+            field=models.TextField(
+                blank=True, null=True, default="", max_length=255, verbose_name="Guia de Uso"
+            ),
         ),
     ]
-
