@@ -451,17 +451,47 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
         self.save()
 
 
+class Team(BaseModel):
+    slug = models.SlugField(unique=True)
+    name = models.CharField("Name", max_length=100, unique=True)
+    description = models.TextField("Description", null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Team"
+        verbose_name_plural = "Teams"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+class Role(BaseModel):
+    slug = models.SlugField(unique=True)
+    name = models.CharField("Name", max_length=100, unique=True)
+    description = models.TextField("Description", null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Role"
+        verbose_name_plural = "Roles"
+        ordering = ["name"]
+
+    def __str__(self):
+        return self.name
+
+
 class Career(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     account = models.ForeignKey(Account, on_delete=models.DO_NOTHING, related_name="careers")
-
     team = models.CharField("Equipe", max_length=40, blank=True)
-    role = models.CharField("Cargo", max_length=40, blank=True)
-    level = models.CharField("Nível", max_length=40, blank=True)
-
-    start_at = models.DateField("Data de Início", null=True, blank=True)
-    end_at = models.DateField("Data de Término", null=True, blank=True)
-
+    team_new = models.ForeignKey(Team, on_delete=models.DO_NOTHING, related_name="careers", null=True, blank=True)
+    role = models.CharField("Role", max_length=40, blank=True)
+    role_new = models.ForeignKey(Role, on_delete=models.DO_NOTHING, related_name="careers", null=True, blank=True)
+    level = models.CharField("Level", max_length=40, blank=True)
+    start_at = models.DateField("Start at", null=True, blank=True)
+    end_at = models.DateField("End at", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -475,7 +505,7 @@ class Career(BaseModel):
     def get_team(self):
         return self.team
 
-    get_team.short_description = "Equipe"
+    get_team.short_description = "Team"
 
 
 class Subscription(BaseModel):

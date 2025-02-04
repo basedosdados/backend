@@ -927,6 +927,7 @@ class RawDataSourceAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     ]
     inlines = [
         CoverageInline,
+        UpdateInline,
         ObservationLevelInline,
         PollInline,
     ]
