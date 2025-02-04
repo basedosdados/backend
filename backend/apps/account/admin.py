@@ -10,7 +10,7 @@ from django.http import HttpRequest
 from django.utils.translation import gettext_lazy
 from faker import Faker
 
-from backend.apps.account.models import Account, BDGroup, BDRole, Career, Subscription
+from backend.apps.account.models import Account, BDGroup, BDRole, Team, Role, Career, Subscription
 from backend.apps.account.tasks import sync_subscription_task
 
 
@@ -301,9 +301,52 @@ class AccountAdmin(BaseAccountAdmin):
     is_subscriber.short_description = "Subscriber"
 
 
+class TeamAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "slug",
+        "description",
+    )
+    search_fields = (
+        "name",
+        "slug",
+    )
+    readonly_fields = ("created_at", "updated_at")
+    ordering = ["name"]
+
+
+class RoleAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "slug",
+        "description",
+    )
+    search_fields = (
+        "name",
+        "slug",
+    )
+    readonly_fields = ("created_at", "updated_at")
+    ordering = ["name"]
+
+
 class CareerAdmin(admin.ModelAdmin):
-    list_display = ("account", "team", "level", "role", "start_at", "end_at")
-    search_fields = ("account", "team")
+    list_display = (
+        "account",
+        "team",
+        "team_new",
+        "role",
+        "role_new",
+        "level",
+        "start_at",
+        "end_at",
+    )
+    search_fields = (
+        "account",
+        "team",
+        "team_new",
+        "role",
+        "role_new",
+    )
     readonly_fields = ("created_at", "updated_at")
     ordering = ["account", "start_at"]
 
@@ -336,6 +379,8 @@ class SubscriptionAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Account, AccountAdmin)
+admin.site.register(Team, TeamAdmin)
+admin.site.register(Role, RoleAdmin)
 admin.site.register(Career, CareerAdmin)
 admin.site.register(Subscription, SubscriptionAdmin)
 admin.site.register(BDGroup)

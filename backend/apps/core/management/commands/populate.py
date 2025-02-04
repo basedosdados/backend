@@ -156,15 +156,16 @@ class Command(BaseCommand):
 
         # while len(models_to_populate) > 0:
         for vezes in range(len(models_to_populate)):
-        # for vezes in range(1000):
+            for model in models_to_populate:
+                has_all_dependencies = True
 
             for model in models_to_populate:
-                
                 for field in model._meta.get_fields():
-
                     has_all_dependencies = True
-                    
-                    print(f"Campo: {field}\nModelos a testar: {len(models_to_populate)}\n{'#' *30}")
+
+                    print(
+                        f"Campo: {field}\nModelos a testar: {len(models_to_populate)}\n{'#' *30}"
+                    )
 
                     if isinstance(field, models.ForeignKey) or isinstance(
                         field, models.ManyToManyField
@@ -176,16 +177,15 @@ class Command(BaseCommand):
                             and field.null is False
                         ):
                             has_all_dependencies = False
-                            
 
                 if has_all_dependencies:
                     sorted_models.append(model)
                     models_to_populate.remove(model)
-        
+
         sorted_models = sorted_models + models_to_populate
         print(f"SORTED MODELS: {sorted_models}\n\n")
         print(f"MODELS TO POPULATE: {models_to_populate}\n\n")
-        # breakpoint()        
+
         return sorted_models
 
     def clean_database(self, _models):
@@ -208,7 +208,6 @@ class Command(BaseCommand):
                 model.objects.all().delete()
 
     def create_instance(self, model, item):
-        
         payload = {}
         retry = None
         table_name = model._meta.db_table
@@ -223,7 +222,9 @@ class Command(BaseCommand):
                     if current_value is None:
                         continue
 
-                    reference = self.references.get(field.related_model._meta.db_table, current_value)
+                    reference = self.references.get(
+                        field.related_model._meta.db_table, current_value
+                    )
 
                     if reference:
                         payload[field_name] = reference
@@ -265,7 +266,7 @@ class Command(BaseCommand):
             except:
                 breakpoint()
                 pass
-        
+
         instance = model(**payload)
         instance.save()
 
