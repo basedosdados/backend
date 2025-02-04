@@ -159,9 +159,12 @@ class Command(BaseCommand):
             for model in models_to_populate:
                 has_all_dependencies = True
 
+            for model in models_to_populate:
                 for field in model._meta.get_fields():
+                    has_all_dependencies = True
+
                     print(
-                        f"Campo: {field}\nModelos a testar: {len(models_to_populate)}\n{'#' * 30}"
+                        f"Campo: {field}\nModelos a testar: {len(models_to_populate)}\n{'#' *30}"
                     )
 
                     if isinstance(field, models.ForeignKey) or isinstance(
@@ -174,7 +177,6 @@ class Command(BaseCommand):
                             and field.null is False
                         ):
                             has_all_dependencies = False
-                            break
 
                 if has_all_dependencies:
                     sorted_models.append(model)
@@ -262,6 +264,7 @@ class Command(BaseCommand):
 
                     payload[field.name] = current_value
             except:
+                breakpoint()
                 pass
 
         instance = model(**payload)
