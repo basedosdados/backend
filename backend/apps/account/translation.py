@@ -3,11 +3,14 @@ from modeltranslation.translator import TranslationOptions, translator
 
 from .models import Account, Team, Role
 
+
 class TeamTranslationOptions(TranslationOptions):
     fields = ("name", "description")
 
+
 class RoleTranslationOptions(TranslationOptions):
     fields = ("name", "description")
+
 
 class AccountTranslationOptions(TranslationOptions):
     fields = ("description",)

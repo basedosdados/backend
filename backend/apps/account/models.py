@@ -468,6 +468,7 @@ class Team(BaseModel):
     def __str__(self):
         return self.name
 
+
 class Role(BaseModel):
     slug = models.SlugField(unique=True)
     name = models.CharField("Name", max_length=100, unique=True)
@@ -488,9 +489,13 @@ class Career(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     account = models.ForeignKey(Account, on_delete=models.DO_NOTHING, related_name="careers")
     team = models.CharField("Equipe", max_length=40, blank=True)
-    team_new = models.ForeignKey(Team, on_delete=models.DO_NOTHING, related_name="careers", null=True, blank=True)
+    team_new = models.ForeignKey(
+        Team, on_delete=models.DO_NOTHING, related_name="careers", null=True, blank=True
+    )
     role = models.CharField("Role", max_length=40, blank=True)
-    role_new = models.ForeignKey(Role, on_delete=models.DO_NOTHING, related_name="careers", null=True, blank=True)
+    role_new = models.ForeignKey(
+        Role, on_delete=models.DO_NOTHING, related_name="careers", null=True, blank=True
+    )
     level = models.CharField("Level", max_length=40, blank=True)
     start_at = models.DateField("Start at", null=True, blank=True)
     end_at = models.DateField("End at", null=True, blank=True)

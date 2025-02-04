@@ -5,15 +5,20 @@ import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('account', '0019_role_team_alter_career_end_at_alter_career_level_and_more'),
+        ("account", "0019_role_team_alter_career_end_at_alter_career_level_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='career',
-            name='role_new',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.DO_NOTHING, related_name='careers', to='account.role'),
+            model_name="career",
+            name="role_new",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.DO_NOTHING,
+                related_name="careers",
+                to="account.role",
+            ),
         ),
     ]
