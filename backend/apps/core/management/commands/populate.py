@@ -154,11 +154,18 @@ class Command(BaseCommand):
     def sort_models_by_depedencies(self, models_to_populate, other_models):
         sorted_models = []
 
-        while len(models_to_populate) > 0:
-            for model in models_to_populate:
-                has_all_dependencies = True
+        # while len(models_to_populate) > 0:
+        for vezes in range(len(models_to_populate)):
+        # for vezes in range(1000):
 
+            for model in models_to_populate:
+                
                 for field in model._meta.get_fields():
+
+                    has_all_dependencies = True
+                    
+                    print(f"Campo: {field}\nModelos a testar: {len(models_to_populate)}\n{'#' *30}")
+
                     if isinstance(field, models.ForeignKey) or isinstance(
                         field, models.ManyToManyField
                     ):
@@ -169,12 +176,16 @@ class Command(BaseCommand):
                             and field.null is False
                         ):
                             has_all_dependencies = False
-                            break
+                            
 
                 if has_all_dependencies:
                     sorted_models.append(model)
                     models_to_populate.remove(model)
-
+        
+        sorted_models = sorted_models + models_to_populate
+        print(f"SORTED MODELS: {sorted_models}\n\n")
+        print(f"MODELS TO POPULATE: {models_to_populate}\n\n")
+        # breakpoint()        
         return sorted_models
 
     def clean_database(self, _models):
@@ -197,59 +208,64 @@ class Command(BaseCommand):
                 model.objects.all().delete()
 
     def create_instance(self, model, item):
+        
         payload = {}
         retry = None
         table_name = model._meta.db_table
         m2m_payload = {}
 
         for field in model._meta.get_fields():
-            if isinstance(field, models.ForeignKey):
-                field_name = f"{field.name}_id"
-                current_value = item.get(field_name)
+            try:
+                if isinstance(field, models.ForeignKey):
+                    field_name = f"{field.name}_id"
+                    current_value = item.get(field_name)
 
-                if current_value is None:
-                    continue
+                    if current_value is None:
+                        continue
 
-                reference = self.references.get(field.related_model._meta.db_table, current_value)
+                    reference = self.references.get(field.related_model._meta.db_table, current_value)
 
-                if reference:
-                    payload[field_name] = reference
+                    if reference:
+                        payload[field_name] = reference
+                    else:
+                        # If the field is required and the reference is missing, we need to skip
+                        if field.null is False:
+                            return
+
+                        retry = {
+                            "item": item,
+                            "table_name": field.related_model._meta.db_table,
+                            "field_name": field_name,
+                        }
+                elif isinstance(field, models.ManyToManyField):
+                    field_name = field.name
+                    m2m_table_name = field.m2m_db_table()
+
+                    current_model_name = f"{model.__name__.lower()}_id"
+                    field_model_name = field.related_model.__name__.lower() + "_id"
+
+                    m2m_related_data = self.get_m2m_data(
+                        m2m_table_name, current_model_name, field_model_name, item["id"]
+                    )
+
+                    instances = [
+                        self.references.get(field.related_model._meta.db_table, current_value)
+                        for current_value in m2m_related_data
+                    ]
+
+                    if instances:
+                        m2m_payload[field_name] = instances
                 else:
-                    # If the field is required and the reference is missing, we need to skip
-                    if field.null is False:
-                        return
+                    current_value = item.get(field.name)
 
-                    retry = {
-                        "item": item,
-                        "table_name": field.related_model._meta.db_table,
-                        "field_name": field_name,
-                    }
-            elif isinstance(field, models.ManyToManyField):
-                field_name = field.name
-                m2m_table_name = field.m2m_db_table()
+                    if current_value is None:
+                        continue
 
-                current_model_name = f"{model.__name__.lower()}_id"
-                field_model_name = field.related_model.__name__.lower() + "_id"
-
-                m2m_related_data = self.get_m2m_data(
-                    m2m_table_name, current_model_name, field_model_name, item["id"]
-                )
-
-                instances = [
-                    self.references.get(field.related_model._meta.db_table, current_value)
-                    for current_value in m2m_related_data
-                ]
-
-                if instances:
-                    m2m_payload[field_name] = instances
-            else:
-                current_value = item.get(field.name)
-
-                if current_value is None:
-                    continue
-
-                payload[field.name] = current_value
-
+                    payload[field.name] = current_value
+            except:
+                breakpoint()
+                pass
+        
         instance = model(**payload)
         instance.save()
 
