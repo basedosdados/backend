@@ -507,10 +507,10 @@ class Career(BaseModel):
         verbose_name_plural = "Careers"
 
     def __str__(self):
-        return f"{self.account.email} @{self.role_new.name}"
+        return f"{self.account.email} @{self.role_new.name}" if self.role_new else ""
 
     def get_team(self):
-        return self.team_new.name
+        return self.team_new.name if self.team_new else ""
 
     get_team.short_description = "Team"
 
