@@ -211,7 +211,9 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
     uuid = models.UUIDField(primary_key=False, default=uuid4)
 
     email = models.EmailField("Email", unique=True)
-    gcp_email = models.EmailField("GCP email", null=True, blank=True)  # Google Cloud Platform email
+    gcp_email = models.EmailField(
+        "GCP email", null=True, blank=True
+    )  # Google Cloud Platform email
     username = models.CharField("Username", max_length=40, blank=True, null=True, unique=True)
 
     first_name = models.CharField("Nome", max_length=40, blank=True)
@@ -466,6 +468,7 @@ class Team(BaseModel):
     def __str__(self):
         return self.name
 
+
 class Role(BaseModel):
     slug = models.SlugField(unique=True)
     name = models.CharField("Name", max_length=100, unique=True)
@@ -485,10 +488,14 @@ class Role(BaseModel):
 class Career(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     account = models.ForeignKey(Account, on_delete=models.DO_NOTHING, related_name="careers")
-    team = models.CharField("Equipe", max_length=40, blank=True)
-    team_new = models.ForeignKey(Team, on_delete=models.DO_NOTHING, related_name="careers", null=True, blank=True)
-    role = models.CharField("Role", max_length=40, blank=True)
-    role_new = models.ForeignKey(Role, on_delete=models.DO_NOTHING, related_name="careers", null=True, blank=True)
+    team_old = models.CharField("Equipe", max_length=40, blank=True)
+    team_new = models.ForeignKey(
+        Team, on_delete=models.DO_NOTHING, related_name="careers", null=True, blank=True
+    )
+    role_old = models.CharField("Role", max_length=40, blank=True)
+    role_new = models.ForeignKey(
+        Role, on_delete=models.DO_NOTHING, related_name="careers", null=True, blank=True
+    )
     level = models.CharField("Level", max_length=40, blank=True)
     start_at = models.DateField("Start at", null=True, blank=True)
     end_at = models.DateField("End at", null=True, blank=True)
@@ -500,10 +507,10 @@ class Career(BaseModel):
         verbose_name_plural = "Careers"
 
     def __str__(self):
-        return f"{self.account.email} @{self.role}"
+        return f"{self.account.email} @{self.role_new.name}" if self.role_new else ""
 
     def get_team(self):
-        return self.team
+        return self.team_new.name if self.team_new else ""
 
     get_team.short_description = "Team"
 

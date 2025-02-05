@@ -62,7 +62,9 @@ class Command(BaseCommand):
     def get_tables(self, token: str, database_id: int):
         headers = self.get_headers(token)
 
-        response = requests.get(BASE_URL + f"/api/database/{database_id}/metadata", headers=headers)
+        response = requests.get(
+            BASE_URL + f"/api/database/{database_id}/metadata", headers=headers
+        )
 
         json_data = response.json()
         tables = []

@@ -332,20 +332,20 @@ class RoleAdmin(admin.ModelAdmin):
 class CareerAdmin(admin.ModelAdmin):
     list_display = (
         "account",
-        "team",
+        "team_old",
         "team_new",
-        "role",
+        "role_old",
         "role_new",
         "level",
         "start_at",
         "end_at",
     )
     search_fields = (
-        "account",
-        "team",
-        "team_new",
-        "role",
-        "role_new",
+        "account__email",
+        "team_old",
+        "team_new__name",
+        "role_old",
+        "role_new__name",
     )
     readonly_fields = ("created_at", "updated_at")
     ordering = ["account", "start_at"]
