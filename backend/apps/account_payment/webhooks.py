@@ -267,7 +267,8 @@ def setup_intent_succeeded(event: Event, **kwargs):
         return logger.info(f"Ignore setup intent from {backend_url}")
 
     StripeCustomer.modify(
-        customer.id, invoice_settings={"default_payment_method": setup_intent.get("payment_method")}
+        customer.id,
+        invoice_settings={"default_payment_method": setup_intent.get("payment_method")},
     )
 
     subscriptions = StripeSubscription.list(customer=customer.id)

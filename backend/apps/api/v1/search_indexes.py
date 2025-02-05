@@ -47,7 +47,7 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         null=True,
         indexed=False,
     )
-    
+
     spatial_coverage = indexes.MultiValueField(
         model_attr="spatial_coverage",
         null=True,
@@ -61,7 +61,6 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         faceted=True,
         indexed=True,
     )
-
 
     table_id = indexes.MultiValueField(
         model_attr="tables__pk",
@@ -233,7 +232,7 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         faceted=True,
         indexed=False,
     )
-    
+
     contains_open_data = indexes.BooleanField(
         model_attr="contains_open_data",
         indexed=False,
@@ -318,32 +317,32 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
 
     def get_field_mapping(self):
         mapping = super().get_field_mapping()
-        mapping['spatial_coverage'] = {
-            'type': 'keyword',
-            'store': True,
-            'index': True,
+        mapping["spatial_coverage"] = {
+            "type": "keyword",
+            "store": True,
+            "index": True,
         }
         return mapping
 
     def prepare(self, obj):
         data = super().prepare(obj)
-        
+
         organization_fields = [
-            'organization_id', 
-            'organization_slug', 
-            'organization_name',
-            'organization_name_pt', 
-            'organization_name_en', 
-            'organization_name_es',
-            'organization_picture', 
-            'organization_website',
-            'organization_description_pt',
-            'organization_description_en',
-            'organization_description_es'
+            "organization_id",
+            "organization_slug",
+            "organization_name",
+            "organization_name_pt",
+            "organization_name_en",
+            "organization_name_es",
+            "organization_picture",
+            "organization_website",
+            "organization_description_pt",
+            "organization_description_en",
+            "organization_description_es",
         ]
-        
+
         for field in organization_fields:
             if field in data and not isinstance(data[field], (list, tuple)):
                 data[field] = [data[field]] if data[field] is not None else []
-        
+
         return data

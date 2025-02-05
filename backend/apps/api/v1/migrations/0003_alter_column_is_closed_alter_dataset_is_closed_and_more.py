@@ -27,6 +27,8 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name="table",
             name="is_closed",
-            field=models.BooleanField(default=False, help_text="Table is for Pro subscribers only"),
+            field=models.BooleanField(
+                default=False, help_text="Table is for Pro subscribers only"
+            ),
         ),
     ]

@@ -4,29 +4,28 @@ from time import sleep
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin import ModelAdmin
+from django.contrib.auth.admin import UserAdmin
+from django.contrib.auth.models import User
 from django.core.management import call_command
 from django.db.models.query import QuerySet
 from django.http import HttpRequest
 from django.shortcuts import render
-from django.utils.html import format_html
 from django.urls import reverse
+from django.utils.html import format_html
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
 from ordered_model.admin import OrderedInlineModelAdminMixin, OrderedStackedInline
-from django.contrib.auth.admin import UserAdmin
-from django.contrib.auth.models import User
 
 from backend.apps.api.v1.filters import (
+    AreaAdministrativeLevelFilter,
+    AreaParentFilter,
     DatasetOrganizationListFilter,
     OrganizationImageListFilter,
     TableCoverageListFilter,
     TableDirectoryListFilter,
     TableObservationListFilter,
     TableOrganizationListFilter,
-    AreaAdministrativeLevelFilter,
-    AreaParentFilter,
 )
 from backend.apps.api.v1.forms import (
-    CloudTableInlineForm,
     ColumnInlineForm,
     ColumnOriginalNameInlineForm,
     CoverageInlineForm,
@@ -64,6 +63,7 @@ from backend.apps.api.v1.models import (
     ObservationLevel,
     Organization,
     Pipeline,
+    Poll,
     QualityCheck,
     RawDataSource,
     Status,
@@ -72,7 +72,6 @@ from backend.apps.api.v1.models import (
     Tag,
     Theme,
     Update,
-    Poll,
 )
 from backend.apps.api.v1.tasks import (
     rebuild_search_index_task,
@@ -97,6 +96,7 @@ class MeasurementUnitInline(OrderedTranslatedInline):
     form = MeasurementUnitInlineForm
     extra = 0
     show_change_link = True
+
 
 class ColumnInline(OrderedTranslatedInline):
     model = Column
@@ -152,11 +152,11 @@ class CloudTableInline(admin.TabularInline):
         "gcp_table_id",
     ]
     fields = readonly_fields
-    template = 'admin/cloud_table_inline.html'
+    template = "admin/cloud_table_inline.html"
 
     def has_add_permission(self, request, obj=None):
         return False
-        
+
     def has_change_permission(self, request, obj=None):
         return False
 
@@ -172,7 +172,7 @@ class ObservationLevelInline(OrderedStackedInline):
         "move_up_down_links",
     ]
     fields = readonly_fields
-    template = 'admin/observation_level_inline.html'
+    template = "admin/observation_level_inline.html"
     ordering = ["order"]
 
     def get_formset(self, request, obj=None, **kwargs):
@@ -182,20 +182,21 @@ class ObservationLevelInline(OrderedStackedInline):
     def get_ordering_prefix(self):
         """Return the appropriate ordering prefix based on parent model"""
         if isinstance(self.parent_obj, Table):
-            return 'table'
+            return "table"
         elif isinstance(self.parent_obj, RawDataSource):
-            return 'rawdatasource'
+            return "rawdatasource"
         elif isinstance(self.parent_obj, InformationRequest):
-            return 'informationrequest'
+            return "informationrequest"
         elif isinstance(self.parent_obj, Analysis):
-            return 'analysis'
+            return "analysis"
         return super().get_ordering_prefix()
 
     def has_add_permission(self, request, obj=None):
         return False
-        
+
     def has_change_permission(self, request, obj=None):
         return False
+
 
 class TableInline(OrderedTranslatedInline):
     model = Table
@@ -496,23 +497,23 @@ def reorder_observation_levels(modeladmin, request, queryset):
                     "To pass the names manually you must select only one parent.",
                 )
                 return
-            
+
             parent = queryset.first()
             ordered_entities = form.cleaned_data["ordered_entities"].split()
-            
+
             # Get observation levels for this parent
-            if hasattr(parent, 'observation_levels'):
+            if hasattr(parent, "observation_levels"):
                 obs_levels = parent.observation_levels.all()
-                
+
                 # Create a mapping of entity names to observation levels
                 obs_by_entity = {ol.entity.name: ol for ol in obs_levels}
-                
+
                 # Update order based on provided entity names
                 for i, entity_name in enumerate(ordered_entities):
                     if entity_name in obs_by_entity:
                         obs_by_entity[entity_name].order = i
                         obs_by_entity[entity_name].save()
-                
+
                 messages.success(request, "Observation levels reordered successfully")
             else:
                 messages.error(request, "Selected object has no observation levels")
@@ -523,6 +524,7 @@ def reorder_observation_levels(modeladmin, request, queryset):
             "admin/reorder_observation_levels.html",
             {"title": "Reorder observation levels", "parents": queryset, "form": form},
         )
+
 
 reorder_observation_levels.short_description = "Alterar ordem dos níveis de observação"
 
@@ -618,11 +620,7 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "updated_at",
         "related_objects",
     ]
-    search_fields = [
-        "name", 
-        "slug", 
-        "organizations__name"
-    ]
+    search_fields = ["name", "slug", "organizations__name"]
     filter_horizontal = [
         "tags",
         "themes",
@@ -645,6 +643,7 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     def get_organizations(self, obj):
         """Display all organizations for the dataset"""
         return ", ".join([org.name for org in obj.organizations.all()])
+
     get_organizations.short_description = "Organizations"
 
     def related_objects(self, obj):
@@ -655,15 +654,18 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
             obj.tables.count(),
             "tables" if obj.tables.count() > 1 else "table",
         )
+
     related_objects.short_description = "Tables"
 
 
 class CustomUserAdmin(UserAdmin):
-    search_fields = ['username', 'first_name', 'last_name', 'email']
+    search_fields = ["username", "first_name", "last_name", "email"]
+
 
 if User in admin.site._registry:
     admin.site.unregister(User)
 admin.site.register(User, CustomUserAdmin)
+
 
 class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     form = TableForm
@@ -703,13 +705,13 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "dataset__name",
     ]
     autocomplete_fields = [
-        'dataset',
-        'partner_organization',
-        'published_by',
-        'data_cleaned_by',
+        "dataset",
+        "partner_organization",
+        "published_by",
+        "data_cleaned_by",
     ]
     filter_horizontal = [
-        'raw_data_source',
+        "raw_data_source",
     ]
     list_display = [
         "name",
@@ -729,16 +731,14 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
 
     def get_queryset(self, request):
         """Optimize queryset by prefetching related objects"""
-        return super().get_queryset(request).prefetch_related(
-            'published_by',
-            'data_cleaned_by'
-        )
+        return super().get_queryset(request).prefetch_related("published_by", "data_cleaned_by")
 
     def get_publishers(self, obj):
         """Display all publishers for the table"""
         # Convert to list to avoid multiple DB hits
         publishers = list(obj.published_by.all())
         return ", ".join(f"{pub.first_name} {pub.last_name}" for pub in publishers)
+
     get_publishers.short_description = "Publishers"
 
     def get_data_cleaners(self, obj):
@@ -746,6 +746,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         # Convert to list to avoid multiple DB hits
         cleaners = list(obj.data_cleaned_by.all())
         return ", ".join(f"{cleaner.first_name} {cleaner.last_name}" for cleaner in cleaners)
+
     get_data_cleaners.short_description = "Data Cleaners"
 
 
@@ -778,6 +779,7 @@ class MeasurementUnitCategoryAdmin(TabbedTranslationAdmin):
         "slug",
         "name",
     ]
+
 
 class MeasurementUnitAdmin(TabbedTranslationAdmin):
     list_display = [
@@ -857,7 +859,7 @@ def reset_observation_level_order(modeladmin, request, queryset):
     by_raw_data_source = {}
     by_information_request = {}
     by_analysis = {}
-    
+
     for obs in queryset:
         if obs.table_id:
             by_table.setdefault(obs.table_id, []).append(obs)
@@ -875,6 +877,7 @@ def reset_observation_level_order(modeladmin, request, queryset):
             for i, obs_level in enumerate(sorted_levels):
                 obs_level.order = i
                 obs_level.save()
+
 
 reset_observation_level_order.short_description = "Reiniciar ordem dos níveis de observação"
 
@@ -942,7 +945,7 @@ class InformationRequestAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdm
     readonly_fields = ["id", "created_at", "updated_at"]
     autocomplete_fields = ["dataset"]
     inlines = [
-        CoverageInline, 
+        CoverageInline,
         ObservationLevelInline,
         PollInline,
     ]
@@ -1038,38 +1041,26 @@ class CoverageAdmin(admin.ModelAdmin):
         ranges = obj.datetime_ranges.all()
         links = []
         for dt_range in ranges:
-            url = reverse('admin:v1_datetimerange_change', args=[dt_range.id])
-            links.append(
-                format_html('<a href="{}">{}</a>', url, str(dt_range))
-            )
-        
+            url = reverse("admin:v1_datetimerange_change", args=[dt_range.id])
+            links.append(format_html('<a href="{}">{}</a>', url, str(dt_range)))
+
         # Add link to add new datetime range
-        add_url = reverse('admin:v1_datetimerange_add') + f'?coverage={obj.id}'
-        links.append(
-            format_html(
-                '<a class="addlink" href="{}">Add DateTime Range</a>',
-                add_url
-            )
-        )
-        
-        return format_html('<br>'.join(links))
-    
+        add_url = reverse("admin:v1_datetimerange_add") + f"?coverage={obj.id}"
+        links.append(format_html('<a class="addlink" href="{}">Add DateTime Range</a>', add_url))
+
+        return format_html("<br>".join(links))
+
     datetime_ranges_display.short_description = "DateTime Ranges"
 
     def get_queryset(self, request):
         """Optimize queryset by prefetching related objects"""
-        qs = super().get_queryset(request).select_related(
-            'table',
-            'column',
-            'raw_data_source',
-            'information_request',
-            'area'
+        qs = (
+            super()
+            .get_queryset(request)
+            .select_related("table", "column", "raw_data_source", "information_request", "area")
         )
         # Add prefetch for datetime_ranges and their units
-        return qs.prefetch_related(
-            'datetime_ranges',
-            'datetime_ranges__units'
-        )
+        return qs.prefetch_related("datetime_ranges", "datetime_ranges__units")
 
 
 class EntityCategoryAdmin(TabbedTranslationAdmin):
@@ -1305,6 +1296,7 @@ class PollAdmin(admin.ModelAdmin):
         "raw_data_source",
         "information_request",
     ]
+
 
 class PipelineAdmin(admin.ModelAdmin):
     readonly_fields = [
