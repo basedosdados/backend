@@ -488,12 +488,12 @@ class Role(BaseModel):
 class Career(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     account = models.ForeignKey(Account, on_delete=models.DO_NOTHING, related_name="careers")
-    team_old = models.CharField("Equipe", max_length=40, blank=True)
-    team_new = models.ForeignKey(
+    team_old = models.CharField("Team (old)", max_length=40, blank=True)
+    team = models.ForeignKey(
         Team, on_delete=models.DO_NOTHING, related_name="careers", null=True, blank=True
     )
-    role_old = models.CharField("Role", max_length=40, blank=True)
-    role_new = models.ForeignKey(
+    role_old = models.CharField("Role (old)", max_length=40, blank=True)
+    role = models.ForeignKey(
         Role, on_delete=models.DO_NOTHING, related_name="careers", null=True, blank=True
     )
     level = models.CharField("Level", max_length=40, blank=True)
@@ -507,10 +507,10 @@ class Career(BaseModel):
         verbose_name_plural = "Careers"
 
     def __str__(self):
-        return f"{self.account.email} @{self.role_new.name}" if self.role_new else ""
+        return f"{self.account.email} @{self.role.name}" if self.role else ""
 
     def get_team(self):
-        return self.team_new.name if self.team_new else ""
+        return self.team.name if self.team else ""
 
     get_team.short_description = "Team"
 
