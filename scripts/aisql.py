@@ -1,4 +1,5 @@
 import os
+from typing import Any, Dict, Literal
 import cachetools.func
 import psycopg2
 from psycopg2 import sql
@@ -57,8 +58,10 @@ CREATE TABLE ' || ct.gcp_dataset_id || '.' || ct.gcp_table_id || ' (
     columns = [desc[0] for desc in cursor.description]
     return [dict(zip(columns, row)) for row in cursor.fetchall()]
 
+Datasets = Dict[str, Dict[Literal['id', 'name', 'description'], str]]
+
 @cachetools.func.ttl_cache(ttl=60*60*24)
-def get_dataset_descriptions():
+def get_dataset_descriptions() -> Datasets:
     sql_query = """
     SELECT id, name, description 
     FROM dataset
