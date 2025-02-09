@@ -22,11 +22,14 @@ def main():
 
     with st.expander("Sample question:"):
         Q="Write me an sql query that helps me understand the correlation of dead newborns with pollution levels in regions such as municipalities. You can use a proxy for pollution if needed."
-        st.write(Q)
+        Q="""
+Write me an sql query that helps me understand the correlation of dead newborns with pollution levels in regions such as municipalities.
+You can use a proxy for pollution if needed. Use many proxies if needed to get a better feel for pollution.
+No need to use CORR function, Ill do it later. 
+"""
+        st.write(Q.strip())
 
     question = st.text_area("Faça seu pedido singelo ao Mago dos Dados", height=101)
-
-    ### CHANGE PROMPT TO USE FULL DUMP AND RETRY!
 
     if st.button("Vai filhão!"):
         if not question:
@@ -34,11 +37,12 @@ def main():
         else:
             with st.spinner("Filtering datasets..."):
                 interesting_datasets = select_datasets_of_interest(datasets, question)
-            with st.expander("Filtered on datasets:"):
+            with st.expander(f"Filtered to {len(interesting_datasets)} datasets:"):
                 st.write("Filtered on to datasets: ", list(interesting_datasets.values()))
             with st.spinner("Answering question..."):
                 response = answer_question(interesting_datasets, schema, question)
             st.write(response)
+            st.write("Got to [bigquery to try it out!](https://console.cloud.google.com/bigquery)")
 
 def select_datasets_of_interest(datasets: Datasets, question):
     model = GenerativeModel("gemini-2.0-flash")
@@ -69,7 +73,8 @@ def answer_question(datasets, schema, question):
     model = GenerativeModel("gemini-2.0-flash")
     token_count = model.count_tokens(question).total_tokens
     prompt = f"""Use the provided schema to provide an sql answering the following question.
-    Your answer must contain some reasoning, and finally the sql query.
+    Your answer must contain some detailed reasoning, and finally the sql query. 
+    All tables must be prefixed by basedosdados, like this: basedosdados.<dataset>.<table>
 
     Your answer should look like this:
     "
