@@ -1,9 +1,11 @@
-#%% SQL
 import os
+import cachetools.func
 import psycopg2
 from psycopg2 import sql
 import dotenv
-from collections import defaultdict
+from itertools import groupby
+from operator import itemgetter
+
 dotenv.load_dotenv(os.path.join(os.path.dirname(__file__), '.env'))
 
 db_host = os.environ["DB_HOST"]
@@ -21,82 +23,73 @@ db = psycopg2.connect(
 )
 cursor = db.cursor()
 
+@cachetools.func.ttl_cache(ttl=60*60*24)
 def get_schema():
-    sql = """--sql
+    sql_query = """--sql
     WITH columnexpr AS (
     SELECT
         table_id,
         STRING_AGG(
             c.name || ' ' || bt.name ||
-            ', -- Description: ' || COALESCE(c.description,
-        'No description') ||
-            CASE
-            WHEN c.measurement_unit IS NOT NULL THEN '; Unit: ' || c.measurement_unit
-            ELSE ''
-        END ||
-            CASE
-            WHEN c.observations IS NOT NULL THEN '; Notes: ' || c.observations
-            ELSE ''
-        END,
-        '
-        ' ORDER BY c.order) :: TEXT AS col_expr
-        FROM
-            "column" c INNER JOIN bigquery_type bt ON c.bigquery_type_id = bt.id
-        GROUP BY table_id
+            ', -- Description: ' || COALESCE(c.description, 'No description') ||
+            CASE WHEN c.measurement_unit IS NOT NULL THEN '; Unit: ' || c.measurement_unit ELSE '' END ||
+            CASE WHEN c.observations IS NOT NULL THEN '; Notes: ' || c.observations ELSE '' END,
+            '\n        ' ORDER BY c.order) :: TEXT AS col_expr
+    FROM
+        "column" c 
+    INNER JOIN bigquery_type bt ON c.bigquery_type_id = bt.id
+    GROUP BY table_id
     )
 
     SELECT
         ct.gcp_dataset_id, ct.gcp_table_id, dataset_id,
         '-- ' || t.name || '
 CREATE TABLE ' || ct.gcp_dataset_id || '.' || ct.gcp_table_id || ' (
-        ' ||  c.col_expr ||
-        '
-    ) COMMENT = ''' || COALESCE(t.description, 'No description') || ''';' AS schema_sql
+        ' ||  c.col_expr || '
+        ) COMMENT = ''' || COALESCE(t.description, 'No description') || ''';' AS schema_sql
     FROM
-        "table" t
-    INNER JOIN cloud_table ct ON
-        t.id = ct.table_id
-    INNER JOIN "columnexpr" c ON
-        t.id = c.table_id
-    ORDER BY
-        t.slug;
+        cloud_table ct 
+        INNER JOIN "table" t ON t.id = ct.table_id
+        INNER JOIN "columnexpr" c ON t.id = c.table_id
+    ORDER BY t.slug;
     """
-    cursor.execute(sql)
+    cursor.execute(sql_query)
     columns = [desc[0] for desc in cursor.description]
     return [dict(zip(columns, row)) for row in cursor.fetchall()]
 
+@cachetools.func.ttl_cache(ttl=60*60*24)
 def get_dataset_descriptions():
-    sql = """--sql
+    sql_query = """
     SELECT id, name, description 
     FROM dataset
     """
-    cursor.execute(sql)
+    cursor.execute(sql_query)
     columns = [desc[0] for desc in cursor.description]
-    out =  [dict(zip(columns, row)) for row in cursor.fetchall()]
+    out = [dict(zip(columns, row)) for row in cursor.fetchall()]
     return {d['id']: d for d in out}
-#%%
+import io
 
-schema = get_schema()
-datasets = get_dataset_descriptions()
+def gen_full_dump(schema=None, datasets=None):
+    schema = schema or get_schema(); datasets = datasets or get_dataset_descriptions()
 
-#%%
+    schema = [t for t in schema if t['dataset_id'] in datasets] # fitler tables by ds
 
-from itertools import groupby
-from operator import itemgetter
+    sorted_schema = sorted(schema, key=itemgetter('dataset_id'))
+    grouped_schemas = groupby(sorted_schema, key=itemgetter('dataset_id'))
 
-# Sort schema by dataset_id first since groupby requires sorted input
-sorted_schema = sorted(schema, key=itemgetter('dataset_id'))
-grouped_schemas = groupby(sorted_schema, key=itemgetter('dataset_id'))
-for dataset_id, tables in grouped_schemas:
-    tables = list(tables) # iterator
-    dataset_info = datasets[dataset_id]
-    print(f"\n{'='*80}")
-    print(f"Dataset: {dataset_info['name']}")
-    print(f"Description: {dataset_info['description']}")
-    print(f"{'='*80}\n")
-    
-    for table in tables:
-        print(table['schema_sql'])
-        print()
+    output = io.StringIO()
 
-# %%
+    for dataset_id, tables in grouped_schemas:
+        tables = list(tables)
+        dataset_info = datasets[dataset_id]
+        output.write(f"\n{'='*80}\n")
+        output.write(f"Dataset: {dataset_info['name']}\n")
+        output.write(f"Description: {dataset_info['description']}\n")
+        output.write(f"{'='*80}\n\n")
+        for table in tables:
+            output.write(table['schema_sql'])
+            output.write('\n\n')
+    return output.getvalue()
+
+if __name__ == '__main__':
+    print(gen_full_dump())
