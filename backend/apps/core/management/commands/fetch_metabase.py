@@ -102,7 +102,6 @@ class Command(BaseCommand):
             self.stderr.write(f"Error fetching data: {response.text}")
             return []
 
-        breakpoint()
         response_json = response.json()
         return response_json["data"]["rows"]
 

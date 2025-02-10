@@ -267,7 +267,6 @@ class Command(BaseCommand):
 
                     payload[field.name] = current_value
             except:
-                breakpoint()
                 pass
 
         instance = model(**payload)
