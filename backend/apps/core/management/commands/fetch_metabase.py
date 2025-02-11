@@ -106,6 +106,7 @@ class Command(BaseCommand):
         return response_json["data"]["rows"]
 
     def get_table_data(self, token: str, database_id: int, table: Table):
+        print('ENTROU no get_table_data')
         headers = self.get_headers(token)
         fields = [f'"{field}"' for field in table.fields]
         formated_field = ", ".join(fields)
@@ -120,20 +121,19 @@ class Command(BaseCommand):
 
             raw_rows += data
             page += 1
-
+        print('Saiu do while True, linha 124')
         self.stdout.write(self.style.SUCCESS(f"Fetched {len(raw_rows)} rows from {str(table)}"))
 
-        rows = []
+        rows = []         
+        print(f'Entrou no rows {rows}')
         for row in raw_rows:
-            print('linha 128 -> Entrou em ROWS \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
             instance = {}
             for i, field in enumerate(table.fields):
                 instance[field] = row[i]
-            print(f'ROWS: {rows} linha 132, for row in raw_rows')
-            print(f'ROWS: {rows}, RAW_ROWS: {raw_rows}')
+
             rows.append(instance)
         
-        print(f'ROWS APPENDED: {rows} linha 135')
+        print(f'ROWS APPENDED: {rows} linha 134')
 
         if len(rows) > 0:
             print('ENTROU NO IF LINHA 138')
@@ -176,8 +176,6 @@ class Command(BaseCommand):
 
         for table in tqdm(tables, desc="Fetching tables"):
             self.stdout.write(f"Fetching data from {str(table)}")
-            print('Terminou o tables')
-            print('ENTROU no get_table_data')
             self.get_table_data(token, database["id"], table)
             print('PASSOU do get_table_data')
 
