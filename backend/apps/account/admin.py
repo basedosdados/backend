@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from django import forms
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.contrib.admin import ModelAdmin
 from django.contrib.auth.admin import UserAdmin as BaseAccountAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
@@ -429,21 +429,29 @@ class DataAPIKeyAdmin(admin.ModelAdmin):
             None,
             {
                 "fields": (
-                    "id",
                     "account",
                     "name",
-                    "prefix",
-                    "hash",
                     "is_active",
+                    "expires_at",
                 )
             },
         ),
-        ("Timing", {"fields": ("expires_at", "last_used_at", "created_at", "updated_at")}),
     )
     ordering = ["-created_at"]
 
     def has_add_permission(self, request):
-        return False  # API keys should be created through the API, not admin
+        return True
+
+    def save_model(self, request, obj, form, change):
+        if not change:  # Only when creating new object
+            obj, key = DataAPIKey.create_key(**form.cleaned_data)
+            messages.success(
+                request,
+                "API Key generated successfully. "
+                "Please copy this key now as it won't be shown again: {key}",
+            )
+        else:
+            super().save_model(request, obj, form, change)
 
 
 admin.site.register(Account, AccountAdmin)
