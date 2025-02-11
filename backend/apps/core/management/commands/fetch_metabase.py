@@ -125,15 +125,21 @@ class Command(BaseCommand):
 
         rows = []
         for row in raw_rows:
+            print('linha 128 -> Entrou em ROWS \n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n')
             instance = {}
             for i, field in enumerate(table.fields):
                 instance[field] = row[i]
-
+            print(f'ROWS: {rows} linha 132, for row in raw_rows')
+            print(f'ROWS: {rows}, RAW_ROWS: {raw_rows}')
             rows.append(instance)
+        
+        print(f'ROWS APPENDED: {rows} linha 135')
 
         if len(rows) > 0:
+            print('ENTROU NO IF LINHA 138')
             self.save_data(table.name, json.dumps(rows, ensure_ascii=False, indent=4))
         else:
+            print('ENTROU NO ELSE LINHA 141')
             self.stdout.write(self.style.WARNING(f"No data found for {str(table)}"))
 
     def clean_data(self):
@@ -170,6 +176,9 @@ class Command(BaseCommand):
 
         for table in tqdm(tables, desc="Fetching tables"):
             self.stdout.write(f"Fetching data from {str(table)}")
+            print('Terminou o tables')
+            print('ENTROU no get_table_data')
             self.get_table_data(token, database["id"], table)
+            print('PASSOU do get_table_data')
 
         self.stdout.write(self.style.SUCCESS("Data fetched successfully."))
