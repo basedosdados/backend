@@ -37,14 +37,10 @@ class Command(BaseCommand):
 
         response = requests.post(BASE_URL + "/api/session", headers=headers, json=json_data).json()
 
-        print('RESPONSE LINHA 38: ', response)
-        print('JSON_DATA linha 33: ', json_data)
-
         if "id" not in response:
             self.stderr.write("Falha na autenticação.")
             return ""
 
-        print('RESPONSE["id"] : ', response["id"])
         return response["id"]
 
     def get_headers(self, token: str):
@@ -55,7 +51,6 @@ class Command(BaseCommand):
 
     def get_databases(self, token: str):
         headers = self.get_headers(token)
-        print('HEADERS LINHA 56: ', headers)
 
         response = requests.get(BASE_URL + "/api/database", headers=headers)
         print('RESPONSE LINHA 59: ', response)
@@ -133,13 +128,13 @@ class Command(BaseCommand):
 
             rows.append(instance)
         
-        print(f'ROWS APPENDED: {rows} linha 134')
+        print(f'ROWS APPENDED: {rows} linha 129')
 
         if len(rows) > 0:
-            print('ENTROU NO IF LINHA 138')
+            print('ENTROU NO IF LINHA 133')
             self.save_data(table.name, json.dumps(rows, ensure_ascii=False, indent=4))
         else:
-            print('ENTROU NO ELSE LINHA 141')
+            print('ENTROU NO ELSE LINHA 136')
             self.stdout.write(self.style.WARNING(f"No data found for {str(table)}"))
 
     def clean_data(self):
