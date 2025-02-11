@@ -53,8 +53,11 @@ class Command(BaseCommand):
         headers = self.get_headers(token)
 
         response = requests.get(BASE_URL + "/api/database", headers=headers)
+        print('RESPONSE LINHA 59: ', response)
+        print('RESPONSE.status_code LINHA 59: ', response.status_code)
 
         if response.status_code != 200:
+            print('RESPONSE.TEXT: ', response.history)
             raise Exception(response.text + f" for {METABASE_USER}")
 
         return response.json()["data"]
@@ -62,9 +65,7 @@ class Command(BaseCommand):
     def get_tables(self, token: str, database_id: int):
         headers = self.get_headers(token)
 
-        response = requests.get(
-            BASE_URL + f"/api/database/{database_id}/metadata", headers=headers
-        )
+        response = requests.get(BASE_URL + f"/api/database/{database_id}/metadata", headers=headers)
 
         json_data = response.json()
         tables = []
@@ -100,6 +101,7 @@ class Command(BaseCommand):
         return response_json["data"]["rows"]
 
     def get_table_data(self, token: str, database_id: int, table: Table):
+        print('ENTROU no get_table_data')
         headers = self.get_headers(token)
         fields = [f'"{field}"' for field in table.fields]
         formated_field = ", ".join(fields)
@@ -114,20 +116,25 @@ class Command(BaseCommand):
 
             raw_rows += data
             page += 1
-
+        print('Saiu do while True, linha 124')
         self.stdout.write(self.style.SUCCESS(f"Fetched {len(raw_rows)} rows from {str(table)}"))
 
-        rows = []
+        rows = []         
+        print(f'Entrou no rows {rows}')
         for row in raw_rows:
             instance = {}
             for i, field in enumerate(table.fields):
                 instance[field] = row[i]
 
             rows.append(instance)
+        
+        print(f'ROWS APPENDED: {rows} linha 129')
 
         if len(rows) > 0:
+            print('ENTROU NO IF LINHA 133')
             self.save_data(table.name, json.dumps(rows, ensure_ascii=False, indent=4))
         else:
+            print('ENTROU NO ELSE LINHA 136')
             self.stdout.write(self.style.WARNING(f"No data found for {str(table)}"))
 
     def clean_data(self):
@@ -165,5 +172,6 @@ class Command(BaseCommand):
         for table in tqdm(tables, desc="Fetching tables"):
             self.stdout.write(f"Fetching data from {str(table)}")
             self.get_table_data(token, database["id"], table)
+            print('PASSOU do get_table_data')
 
         self.stdout.write(self.style.SUCCESS("Data fetched successfully."))

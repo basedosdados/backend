@@ -201,6 +201,7 @@ class Command(BaseCommand):
 
             if foreign_keys:
                 field_names = [field.name for field in foreign_keys]
+                print(f"FOREIGN_KEYS Model Object to be cleaned: {model.objects}\n{'#' *15}")
                 model.objects.update(**{field_name: None for field_name in field_names})
 
         for model in tqdm(_models, desc="Cleaning database"):
@@ -264,7 +265,6 @@ class Command(BaseCommand):
 
                     payload[field.name] = current_value
             except:
-                breakpoint()
                 pass
 
         instance = model(**payload)
@@ -342,6 +342,7 @@ class Command(BaseCommand):
         reversed_models = all_models.copy()[::-1]
         self.stdout.write(self.style.WARNING("Cleaning database"))
         self.clean_database(reversed_models)
+        print(f'REVERSED MODELS: {reversed_models}')
         self.stdout.write(self.style.SUCCESS("Database cleaned"))
 
         self.references = References()
