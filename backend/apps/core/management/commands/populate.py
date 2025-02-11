@@ -202,9 +202,12 @@ class Command(BaseCommand):
             if foreign_keys:
                 field_names = [field.name for field in foreign_keys]
                 model.objects.update(**{field_name: None for field_name in field_names})
+                print(f"FOREIGN_KEYS Model Object to be cleaned: {model.objects}\n{'#' *15}")
 
         for model in tqdm(_models, desc="Cleaning database"):
+            print(f"MODELS TO BE DELETED: {model}\n{'#' *15}")
             with transaction.atomic():
+                print(f"ITS BEING DELETED: {model.objects.all()}\n{'#' *20}")
                 model.objects.all().delete()
 
     def create_instance(self, model, item):
