@@ -639,6 +639,15 @@ class DataAPIKey(BaseModel):
     def __str__(self):
         return f"{self.name} ({self.prefix}...)"
 
+    @classmethod
+    def create_key(cls, **kwargs):
+        key = str(uuid4())
+        obj = cls(**kwargs)
+        obj.prefix = key[:8]
+        obj.hash = key
+        obj.save()
+        return obj, key
+
 
 def split_password(password: str) -> Tuple[str, str, str, str]:
     """Split a password into four parts: algorithm, iterations, salt, and hash"""
