@@ -447,8 +447,8 @@ class DataAPIKeyAdmin(admin.ModelAdmin):
             obj, key = DataAPIKey.create_key(**form.cleaned_data)
             messages.success(
                 request,
-                "API Key generated successfully. "
-                "Please copy this key now as it won't be shown again: {key}",
+                f"API Key generated successfully. "
+                f"Please copy this key now as it won't be shown again: {key}",
             )
         else:
             super().save_model(request, obj, form, change)

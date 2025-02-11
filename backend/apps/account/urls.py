@@ -4,6 +4,7 @@ from django.urls import path
 from backend.apps.account.views import (
     AccountActivateConfirmView,
     AccountActivateView,
+    DataAPIKeyValidateView,
     PasswordResetConfirmView,
     PasswordResetView,
 )
@@ -28,5 +29,10 @@ urlpatterns = [
         "account/password_reset_confirm/<uidb64>/<token>/",
         PasswordResetConfirmView.as_view(),
         name="password_reset_confirm",
+    ),
+    path(
+        "account/validate_data_api_key",
+        DataAPIKeyValidateView.as_view(),
+        name="validate_data_api_key",
     ),
 ]
