@@ -10,7 +10,16 @@ from django.http import HttpRequest
 from django.utils.translation import gettext_lazy
 from faker import Faker
 
-from backend.apps.account.models import Account, BDGroup, BDRole, Team, Role, Career, Subscription, DataAPIKey
+from backend.apps.account.models import (
+    Account,
+    BDGroup,
+    BDRole,
+    Career,
+    DataAPIKey,
+    Role,
+    Subscription,
+    Team,
+)
 from backend.apps.account.tasks import sync_subscription_task
 
 
@@ -203,7 +212,7 @@ class DataAPIKeyInline(admin.TabularInline):
         "expires_at",
         "last_used_at",
         "created_at",
-        "updated_at"
+        "updated_at",
     )
     fields = readonly_fields
     can_delete = False
@@ -410,37 +419,26 @@ class DataAPIKeyAdmin(admin.ModelAdmin):
         "is_active",
         "expires_at",
         "last_used_at",
-        "created_at"
+        "created_at",
     )
     list_filter = ("is_active",)
     search_fields = ("name", "prefix", "account__email", "account__full_name")
-    readonly_fields = (
-        "id",
-        "prefix",
-        "hashed_key",
-        "last_used_at",
-        "created_at",
-        "updated_at"
-    )
+    readonly_fields = ("id", "prefix", "hash", "last_used_at", "created_at", "updated_at")
     fieldsets = (
-        (None, {
-            "fields": (
-                "id",
-                "account",
-                "name",
-                "prefix",
-                "hashed_key",
-                "is_active",
-            )
-        }),
-        ("Timing", {
-            "fields": (
-                "expires_at",
-                "last_used_at",
-                "created_at",
-                "updated_at"
-            )
-        }),
+        (
+            None,
+            {
+                "fields": (
+                    "id",
+                    "account",
+                    "name",
+                    "prefix",
+                    "hash",
+                    "is_active",
+                )
+            },
+        ),
+        ("Timing", {"fields": ("expires_at", "last_used_at", "created_at", "updated_at")}),
     )
     ordering = ["-created_at"]
 
