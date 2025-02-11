@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from hashlib import sha256
 from json import loads
 from typing import Any
 
@@ -10,6 +11,7 @@ from django.core.mail import EmailMultiAlternatives
 from django.http import JsonResponse
 from django.template.loader import render_to_string
 from django.urls import reverse_lazy as r
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.utils.encoding import force_bytes, force_str
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
@@ -20,6 +22,8 @@ from loguru import logger
 from backend.apps.account.signals import send_activation_email
 from backend.apps.account.token import token_generator
 from backend.custom.environment import get_frontend_url
+
+from .models import DataAPIKey
 
 
 class AccountActivateView(View):
@@ -139,3 +143,34 @@ class PasswordResetConfirmView(SuccessMessageMixin, PasswordResetConfirmView):
             return JsonResponse({}, status=200)
         else:
             return JsonResponse({}, status=422)
+
+
+class DataAPIKeyValidateView(View):
+    def get(self, request):
+        api_key = request.GET.get("id")
+        if not api_key:
+            return JsonResponse({"error": "API key not provided", "success": False}, status=400)
+
+        # Hash the API key
+        hashed_key = sha256(api_key.encode()).hexdigest()
+
+        try:
+            key = DataAPIKey.objects.get(hash=hashed_key)
+
+            # Check if key is expired
+            is_expired = False
+            if key.expires_at and key.expires_at < timezone.now():
+                is_expired = True
+
+            return JsonResponse(
+                {
+                    "success": True,
+                    "resource": {
+                        "isActive": key.is_active and not is_expired,
+                        "createdAt": key.created_at,
+                        "expiresAt": key.expires_at,
+                    },
+                }
+            )
+        except DataAPIKey.DoesNotExist:
+            return JsonResponse({"error": "API key not found", "success": False}, status=404)

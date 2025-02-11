@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from hashlib import sha256
 from typing import Tuple
 from uuid import uuid4
 
@@ -644,7 +645,7 @@ class DataAPIKey(BaseModel):
         key = str(uuid4())
         obj = cls(**kwargs)
         obj.prefix = key[:8]
-        obj.hash = key
+        obj.hash = sha256(key.encode()).hexdigest()
         obj.save()
         return obj, key
 
