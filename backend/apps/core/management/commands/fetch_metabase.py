@@ -128,13 +128,9 @@ class Command(BaseCommand):
 
             rows.append(instance)
         
-        print(f'ROWS APPENDED: {rows} linha 129')
-
         if len(rows) > 0:
-            print('ENTROU NO IF LINHA 133')
             self.save_data(table.name, json.dumps(rows, ensure_ascii=False, indent=4))
         else:
-            print('ENTROU NO ELSE LINHA 136')
             self.stdout.write(self.style.WARNING(f"No data found for {str(table)}"))
 
     def clean_data(self):
@@ -172,6 +168,7 @@ class Command(BaseCommand):
         for table in tqdm(tables, desc="Fetching tables"):
             self.stdout.write(f"Fetching data from {str(table)}")
             self.get_table_data(token, database["id"], table)
-            print('PASSOU do get_table_data')
+            print(f'FALTAM {len(tables) - 1 } -- TABLE ATUAL: {table}')
+        print('SAIU DO FOR LINHA 172')
 
         self.stdout.write(self.style.SUCCESS("Data fetched successfully."))
