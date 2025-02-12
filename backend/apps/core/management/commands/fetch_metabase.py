@@ -125,6 +125,9 @@ class Command(BaseCommand):
                 instance[field] = row[i]
 
             rows.append(instance)
+
+        if str(table) == "column":
+            print(f' tamanho de rows em column: {len(rows)} -- {rows}')
         
         if len(rows) > 0:
             self.save_data(table.name, json.dumps(rows, ensure_ascii=False, indent=4))
@@ -166,7 +169,7 @@ class Command(BaseCommand):
         for table in tqdm(tables, desc="Fetching tables"):
             self.stdout.write(f"Fetching data from {str(table)}")
             self.get_table_data(token, database["id"], table)
-            print(f'FALTAM {len(tables) - 1 }')
+            print(f'FALTAM {(len(tables)-1 )}')
         print('SAIU DO FOR LINHA 172')
 
         self.stdout.write(self.style.SUCCESS("Data fetched successfully."))
