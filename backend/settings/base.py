@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     "backend.apps.account_auth",
     "backend.apps.account_payment.apps.PaymentConfig",
     "backend.apps.api.v1",
+    "backend.apps.data_api",
     "backend.apps.core",
 ]
 
@@ -311,3 +312,7 @@ BETTERSTACK_BEARER_TOKEN = getenv("BETTERSTACK_BEARER_TOKEN")
 # reCAPTCHA
 RECAPTCHA_SITE_KEY = getenv("RECAPTCHA_SITE_KEY")
 RECAPTCHA_SECRET_KEY = getenv("RECAPTCHA_SECRET_KEY")
+
+# Data API
+CLOUD_FUNCTION_KEY = getenv("CLOUD_FUNCTION_KEY")
+STRIPE_WEBHOOK_SECRET = getenv("STRIPE_WEBHOOK_SECRET")

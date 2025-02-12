@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 from django import forms
-from django.contrib import admin, messages
+from django.contrib import admin
 from django.contrib.admin import ModelAdmin
 from django.contrib.auth.admin import UserAdmin as BaseAccountAdmin
 from django.contrib.auth.forms import ReadOnlyPasswordHashField
@@ -15,12 +15,12 @@ from backend.apps.account.models import (
     BDGroup,
     BDRole,
     Career,
-    DataAPIKey,
     Role,
     Subscription,
     Team,
 )
 from backend.apps.account.tasks import sync_subscription_task
+from backend.apps.data_api.admin import KeyInline
 
 
 def sync_subscription(modeladmin: ModelAdmin, request: HttpRequest, queryset: QuerySet):
@@ -201,30 +201,6 @@ class SubscriptionStatusListFilter(admin.SimpleListFilter):
             return queryset.filter(subscription__status=self.value())
 
 
-class DataAPIKeyInline(admin.TabularInline):
-    model = DataAPIKey
-    extra = 0
-    readonly_fields = (
-        "id",
-        "name",
-        "prefix",
-        "is_active",
-        "expires_at",
-        "last_used_at",
-        "created_at",
-        "updated_at",
-    )
-    fields = readonly_fields
-    can_delete = False
-    show_change_link = True
-
-    def has_add_permission(self, request, obj=None):
-        return False
-
-    def has_change_permission(self, request, obj=None):
-        return False
-
-
 class AccountAdmin(BaseAccountAdmin):
     form = AccountChangeForm
     add_form = AccountCreationForm
@@ -324,7 +300,7 @@ class AccountAdmin(BaseAccountAdmin):
     )
     search_fields = ("email", "full_name")
     ordering = ["-created_at"]
-    inlines = (CareerInline, SubscriptionInline, DataAPIKeyInline)
+    inlines = (CareerInline, SubscriptionInline, KeyInline)
     filter_horizontal = ()
 
     def is_subscriber(self, instance):
@@ -411,54 +387,10 @@ class SubscriptionAdmin(admin.ModelAdmin):
         return False
 
 
-class DataAPIKeyAdmin(admin.ModelAdmin):
-    list_display = (
-        "name",
-        "account",
-        "prefix",
-        "is_active",
-        "expires_at",
-        "last_used_at",
-        "created_at",
-    )
-    list_filter = ("is_active",)
-    search_fields = ("name", "prefix", "account__email", "account__full_name")
-    readonly_fields = ("id", "prefix", "hash", "last_used_at", "created_at", "updated_at")
-    fieldsets = (
-        (
-            None,
-            {
-                "fields": (
-                    "account",
-                    "name",
-                    "is_active",
-                    "expires_at",
-                )
-            },
-        ),
-    )
-    ordering = ["-created_at"]
-
-    def has_add_permission(self, request):
-        return True
-
-    def save_model(self, request, obj, form, change):
-        if not change:  # Only when creating new object
-            obj, key = DataAPIKey.create_key(**form.cleaned_data)
-            messages.success(
-                request,
-                f"API Key generated successfully. "
-                f"Please copy this key now as it won't be shown again: {key}",
-            )
-        else:
-            super().save_model(request, obj, form, change)
-
-
 admin.site.register(Account, AccountAdmin)
 admin.site.register(Career, CareerAdmin)
 admin.site.register(Role, RoleAdmin)
 admin.site.register(Subscription, SubscriptionAdmin)
 admin.site.register(Team, TeamAdmin)
-admin.site.register(DataAPIKey, DataAPIKeyAdmin)
 admin.site.register(BDGroup)
 admin.site.register(BDRole)
