@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from hashlib import sha256
 from typing import Tuple
 from uuid import uuid4
 
@@ -608,46 +607,6 @@ class Subscription(BaseModel):
         if self.subscription:
             return self.subscription.current_period_end.isoformat()
         return None
-
-
-class DataAPIKey(BaseModel):
-    id = models.UUIDField(primary_key=True, default=uuid4)
-    account = models.ForeignKey(Account, on_delete=models.DO_NOTHING, related_name="data_api_keys")
-    name = models.CharField(
-        max_length=100, null=True, blank=True, help_text="A friendly name to identify this API key"
-    )
-    hash = models.CharField(
-        max_length=64, unique=True, null=True, blank=True, help_text="The hashed API key"
-    )
-    prefix = models.CharField(
-        max_length=8,
-        unique=True,
-        null=True,
-        blank=True,
-        help_text="First 8 characters of the API key",
-    )
-    is_active = models.BooleanField(default=True)
-    expires_at = models.DateTimeField(null=True, blank=True, help_text="Optional expiration date")
-    last_used_at = models.DateTimeField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    class Meta:
-        verbose_name = "Data API Key"
-        verbose_name_plural = "Data API Keys"
-        ordering = ["created_at"]
-
-    def __str__(self):
-        return f"{self.name} ({self.prefix}...)"
-
-    @classmethod
-    def create_key(cls, **kwargs):
-        key = str(uuid4())
-        obj = cls(**kwargs)
-        obj.prefix = key[:8]
-        obj.hash = sha256(key.encode()).hexdigest()
-        obj.save()
-        return obj, key
 
 
 def split_password(password: str) -> Tuple[str, str, str, str]:
