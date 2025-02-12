@@ -5,7 +5,12 @@ import os
 from django.apps import apps
 from django.core.management.base import BaseCommand
 from django.db import models, transaction
+from haystack import connections
 from tqdm import tqdm
+
+from backend.apps.api.v1.models import Dataset
+
+ELASTICSEACH_BATCH_SIZE = 500
 
 
 class BulkUpdate:
@@ -78,6 +83,40 @@ class Layer:
                         context.stdout.write(
                             context.style.WARNING(f"{' ' * self.depth * 2} {name}")
                         )
+
+
+class Logger:
+    def __init__(self, stdout, style):
+        self.stdout = stdout
+        self.style = style
+
+    def success(self, message: str):
+        self.stdout.write(self.style.SUCCESS(message))
+
+    def warning(self, message: str):
+        self.stdout.write(self.style.WARNING(message))
+
+    def error(self, message: str):
+        self.stdout.write(self.style.ERROR(message))
+
+
+def update_elasticsearch_index(logger):
+    datasets = Dataset.objects.all()
+
+    for backend_name in connections.connections_info.keys():
+        backend = connections[backend_name]
+        unified_index = backend.get_unified_index()
+
+        index = unified_index.get_index(Dataset)
+
+        logger.success(f"Limpando índice em backend: {backend_name}")
+        index.clear()
+        total = datasets.count()
+
+        for start in range(0, total, ELASTICSEACH_BATCH_SIZE):
+            batch = datasets[start : start + ELASTICSEACH_BATCH_SIZE]
+            logger.success(f"Atualizando {start + 1} até {start + len(batch)} de {total}")
+            index.update(batch)
 
 
 class Command(BaseCommand):
@@ -163,9 +202,7 @@ class Command(BaseCommand):
                 for field in model._meta.get_fields():
                     has_all_dependencies = True
 
-                    print(
-                        f"Campo: {field}\nModelos a testar: {len(models_to_populate)}\n{'#' *30}"
-                    )
+                    print(f"Campo: {field}\nModelos a testar: {len(models_to_populate)}\n{'#' *30}")
 
                     if isinstance(field, models.ForeignKey) or isinstance(
                         field, models.ManyToManyField
@@ -263,7 +300,7 @@ class Command(BaseCommand):
                         continue
 
                     payload[field.name] = current_value
-            except:
+            except Exception:
                 breakpoint()
                 pass
 
@@ -291,6 +328,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         app_name = "v1"
+        logger = Logger()
 
         app = apps.get_app_config(app_name)
         self.get_all_files()
@@ -302,9 +340,9 @@ class Command(BaseCommand):
             if self.model_has_data(table_name):
                 models_to_populate.append(model)
             else:
-                self.stdout.write(self.style.WARNING(f"No data for {table_name}"))
+                logger.warning(f"No data for {table_name}")
 
-        self.stdout.write(self.style.SUCCESS(f"Will populate {len(models_to_populate)} models"))
+        logger.success(f"Will populate {len(models_to_populate)} models")
 
         leaf_layer = Layer()
         leaf_layer.models = self.get_models_without_foreign_keys(models_to_populate)
@@ -340,24 +378,24 @@ class Command(BaseCommand):
         # Clean database
         # make a copy, dont modify the original array
         reversed_models = all_models.copy()[::-1]
-        self.stdout.write(self.style.WARNING("Cleaning database"))
+        logger.warning("Cleaning database")
         self.clean_database(reversed_models)
-        self.stdout.write(self.style.SUCCESS("Database cleaned"))
+        logger.success("Database cleaned")
 
         self.references = References()
         # After populating all models, we need to retry the instances that had a missing references
         self.retry_instances = []
-        self.stdout.write(self.style.SUCCESS("Populating models"))
+        logger.success("Populating models")
 
         for model in all_models:
             table_name = model._meta.db_table
             data = self.load_table_data(table_name)
-            self.stdout.write(self.style.SUCCESS(f"Populating {table_name}"))
+            logger.success(f"Populating {table_name}")
 
             for item in tqdm(data, desc=f"Populating {table_name}"):
                 self.create_instance(model, item)
 
-        self.stdout.write(self.style.SUCCESS("Populating instances with missing references"))
+        logger.success("Populating instances with missing references")
 
         bulk = BulkUpdate()
 
@@ -375,5 +413,6 @@ class Command(BaseCommand):
                 bulk.add(instance, field_name)
 
         bulk.bulk_update()
-
-        self.stdout.write(self.style.SUCCESS("Data populated"))
+        logger.success("Data populated")
+        update_elasticsearch_index(logger)
+        logger.success("Elasticsearch updated")
