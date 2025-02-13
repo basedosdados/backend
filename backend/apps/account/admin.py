@@ -10,8 +10,17 @@ from django.http import HttpRequest
 from django.utils.translation import gettext_lazy
 from faker import Faker
 
-from backend.apps.account.models import Account, BDGroup, BDRole, Team, Role, Career, Subscription
+from backend.apps.account.models import (
+    Account,
+    BDGroup,
+    BDRole,
+    Career,
+    Role,
+    Subscription,
+    Team,
+)
 from backend.apps.account.tasks import sync_subscription_task
+from backend.apps.data_api.admin import KeyInline
 
 
 def sync_subscription(modeladmin: ModelAdmin, request: HttpRequest, queryset: QuerySet):
@@ -291,7 +300,7 @@ class AccountAdmin(BaseAccountAdmin):
     )
     search_fields = ("email", "full_name")
     ordering = ["-created_at"]
-    inlines = (CareerInline, SubscriptionInline)
+    inlines = (CareerInline, SubscriptionInline, KeyInline)
     filter_horizontal = ()
 
     def is_subscriber(self, instance):
@@ -379,9 +388,9 @@ class SubscriptionAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Account, AccountAdmin)
-admin.site.register(Team, TeamAdmin)
-admin.site.register(Role, RoleAdmin)
 admin.site.register(Career, CareerAdmin)
+admin.site.register(Role, RoleAdmin)
 admin.site.register(Subscription, SubscriptionAdmin)
+admin.site.register(Team, TeamAdmin)
 admin.site.register(BDGroup)
 admin.site.register(BDRole)
