@@ -53,8 +53,6 @@ class Command(BaseCommand):
         headers = self.get_headers(token)
 
         response = requests.get(BASE_URL + "/api/database", headers=headers)
-        print('RESPONSE LINHA 59: ', response)
-        print('RESPONSE.status_code LINHA 59: ', response.status_code)
 
         if response.status_code != 200:
             print('RESPONSE.TEXT: ', response.history)
@@ -125,9 +123,6 @@ class Command(BaseCommand):
                 instance[field] = row[i]
 
             rows.append(instance)
-
-        if str(table) == "column":
-            print(f' tamanho de rows em column: {len(rows)} -- {rows}')
         
         if len(rows) > 0:
             self.save_data(table.name, json.dumps(rows, ensure_ascii=False, indent=4))
@@ -169,7 +164,6 @@ class Command(BaseCommand):
         for table in tqdm(tables, desc="Fetching tables"):
             self.stdout.write(f"Fetching data from {str(table)}")
             self.get_table_data(token, database["id"], table)
-            print(f'FALTAM {(len(tables)-1 )}')
         print('SAIU DO FOR LINHA 172')
 
         self.stdout.write(self.style.SUCCESS("Data fetched successfully."))
