@@ -101,7 +101,7 @@ class Command(BaseCommand):
         return response_json["data"]["rows"]
 
     def get_table_data(self, token: str, database_id: int, table: Table):
-        print('ENTROU no get_table_data')
+        print(f'ENTROU no get_table_data -- {table}')
         headers = self.get_headers(token)
         fields = [f'"{field}"' for field in table.fields]
         formated_field = ", ".join(fields)
@@ -116,11 +116,9 @@ class Command(BaseCommand):
 
             raw_rows += data
             page += 1
-        print('Saiu do while True, linha 124')
         self.stdout.write(self.style.SUCCESS(f"Fetched {len(raw_rows)} rows from {str(table)}"))
 
         rows = []         
-        print(f'Entrou no rows {rows}')
         for row in raw_rows:
             instance = {}
             for i, field in enumerate(table.fields):
@@ -128,8 +126,6 @@ class Command(BaseCommand):
 
             rows.append(instance)
         
-        print(f'ROWS APPENDED: {rows} linha 129')
-
         if len(rows) > 0:
             print('ENTROU NO IF LINHA 133')
             self.save_data(table.name, json.dumps(rows, ensure_ascii=False, indent=4))
@@ -172,6 +168,6 @@ class Command(BaseCommand):
         for table in tqdm(tables, desc="Fetching tables"):
             self.stdout.write(f"Fetching data from {str(table)}")
             self.get_table_data(token, database["id"], table)
-            print('PASSOU do get_table_data')
+        print('SAIU DO FOR LINHA 172')
 
         self.stdout.write(self.style.SUCCESS("Data fetched successfully."))

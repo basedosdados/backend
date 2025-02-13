@@ -5,8 +5,12 @@ import os
 from django.apps import apps
 from django.core.management.base import BaseCommand
 from django.db import models, transaction
+from haystack import connections
 from tqdm import tqdm
 
+from backend.apps.api.v1.models import Dataset
+
+ELASTICSEACH_BATCH_SIZE = 500
 
 class BulkUpdate:
     """
@@ -79,6 +83,38 @@ class Layer:
                             context.style.WARNING(f"{' ' * self.depth * 2} {name}")
                         )
 
+class Logger:
+    def __init__(self, stdout, style):
+        self.stdout = stdout
+        self.style = style
+
+    def success(self, message: str):
+        self.stdout.write(self.style.SUCCESS(message))
+
+    def warning(self, message: str):
+        self.stdout.write(self.style.WARNING(message))
+
+    def error(self, message: str):
+        self.stdout.write(self.style.ERROR(message))
+
+
+def update_elasticsearch_index(logger):
+    datasets = Dataset.objects.all()
+
+    for backend_name in connections.connections_info.keys():
+        backend = connections[backend_name]
+        unified_index = backend.get_unified_index()
+
+        index = unified_index.get_index(Dataset)
+
+        logger.success(f"Limpando índice em backend: {backend_name}")
+        index.clear()
+        total = datasets.count()
+
+        for start in range(0, total, ELASTICSEACH_BATCH_SIZE):
+            batch = datasets[start : start + ELASTICSEACH_BATCH_SIZE]
+            logger.success(f"Atualizando {start + 1} até {start + len(batch)} de {total}")
+            index.update(batch)
 
 class Command(BaseCommand):
     help = "Populate database with initial data"
@@ -154,8 +190,8 @@ class Command(BaseCommand):
     def sort_models_by_depedencies(self, models_to_populate, other_models):
         sorted_models = []
 
-        # while len(models_to_populate) > 0:
-        for vezes in range(len(models_to_populate)):
+        while len(models_to_populate) > 0:
+        # for vezes in range(len(models_to_populate)):
             for model in models_to_populate:
                 has_all_dependencies = True
 
@@ -164,7 +200,7 @@ class Command(BaseCommand):
                     has_all_dependencies = True
 
                     print(
-                        f"Campo: {field}\nModelos a testar: {len(models_to_populate)}\n{'#' *30}"
+                        f"Campo: {field}\nModelos a testar: {len(models_to_populate)}\n{'#' * 30}"
                     )
 
                     if isinstance(field, models.ForeignKey) or isinstance(
@@ -182,7 +218,7 @@ class Command(BaseCommand):
                     sorted_models.append(model)
                     models_to_populate.remove(model)
 
-        sorted_models = sorted_models + models_to_populate
+        # sorted_models = sorted_models + models_to_populate
         print(f"SORTED MODELS: {sorted_models}\n\n")
         print(f"MODELS TO POPULATE: {models_to_populate}\n\n")
 
@@ -198,7 +234,6 @@ class Command(BaseCommand):
                 for field in model._meta.get_fields()
                 if isinstance(field, models.ForeignKey) and field.null is True
             ]
-
             if foreign_keys:
                 field_names = [field.name for field in foreign_keys]
                 print(f"FOREIGN_KEYS Model Object to be cleaned: {model.objects}\n{'#' *15}")
@@ -218,57 +253,52 @@ class Command(BaseCommand):
         m2m_payload = {}
 
         for field in model._meta.get_fields():
-            try:
-                if isinstance(field, models.ForeignKey):
-                    field_name = f"{field.name}_id"
-                    current_value = item.get(field_name)
+            if isinstance(field, models.ForeignKey):
+                field_name = f"{field.name}_id"
+                current_value = item.get(field_name)
 
-                    if current_value is None:
-                        continue
+                if current_value is None:
+                    continue
 
-                    reference = self.references.get(
-                        field.related_model._meta.db_table, current_value
-                    )
+                reference = self.references.get(field.related_model._meta.db_table, current_value)
 
-                    if reference:
-                        payload[field_name] = reference
-                    else:
-                        # If the field is required and the reference is missing, we need to skip
-                        if field.null is False:
-                            return
-
-                        retry = {
-                            "item": item,
-                            "table_name": field.related_model._meta.db_table,
-                            "field_name": field_name,
-                        }
-                elif isinstance(field, models.ManyToManyField):
-                    field_name = field.name
-                    m2m_table_name = field.m2m_db_table()
-
-                    current_model_name = f"{model.__name__.lower()}_id"
-                    field_model_name = field.related_model.__name__.lower() + "_id"
-
-                    m2m_related_data = self.get_m2m_data(
-                        m2m_table_name, current_model_name, field_model_name, item["id"]
-                    )
-
-                    instances = [
-                        self.references.get(field.related_model._meta.db_table, current_value)
-                        for current_value in m2m_related_data
-                    ]
-
-                    if instances:
-                        m2m_payload[field_name] = instances
+                if reference:
+                    payload[field_name] = reference
                 else:
-                    current_value = item.get(field.name)
+                    # If the field is required and the reference is missing, we need to skip
+                    if field.null is False:
+                        return
 
-                    if current_value is None:
-                        continue
+                    retry = {
+                        "item": item,
+                        "table_name": field.related_model._meta.db_table,
+                        "field_name": field_name,
+                    }
+            elif isinstance(field, models.ManyToManyField):
+                field_name = field.name
+                m2m_table_name = field.m2m_db_table()
 
-                    payload[field.name] = current_value
-            except:
-                pass
+                current_model_name = f"{model.__name__.lower()}_id"
+                field_model_name = field.related_model.__name__.lower() + "_id"
+
+                m2m_related_data = self.get_m2m_data(
+                    m2m_table_name, current_model_name, field_model_name, item["id"]
+                )
+
+                instances = [
+                    self.references.get(field.related_model._meta.db_table, current_value)
+                    for current_value in m2m_related_data
+                ]
+
+                if instances:
+                    m2m_payload[field_name] = instances
+            else:
+                current_value = item.get(field.name)
+
+                if current_value is None:
+                    continue
+
+                payload[field.name] = current_value
 
         instance = model(**payload)
         instance.save()
@@ -294,6 +324,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **kwargs):
         app_name = "v1"
+        logger = Logger()
 
         app = apps.get_app_config(app_name)
         self.get_all_files()
@@ -305,9 +336,9 @@ class Command(BaseCommand):
             if self.model_has_data(table_name):
                 models_to_populate.append(model)
             else:
-                self.stdout.write(self.style.WARNING(f"No data for {table_name}"))
+                logger.warning(f"No data for {table_name}")
 
-        self.stdout.write(self.style.SUCCESS(f"Will populate {len(models_to_populate)} models"))
+        logger.success(f"Will populate {len(models_to_populate)} models")
 
         leaf_layer = Layer()
         leaf_layer.models = self.get_models_without_foreign_keys(models_to_populate)
@@ -343,25 +374,24 @@ class Command(BaseCommand):
         # Clean database
         # make a copy, dont modify the original array
         reversed_models = all_models.copy()[::-1]
-        self.stdout.write(self.style.WARNING("Cleaning database"))
+        logger.warning("Cleaning database")
         self.clean_database(reversed_models)
-        print(f'REVERSED MODELS: {reversed_models}')
-        self.stdout.write(self.style.SUCCESS("Database cleaned"))
+        logger.success("Database cleaned")
 
         self.references = References()
         # After populating all models, we need to retry the instances that had a missing references
         self.retry_instances = []
-        self.stdout.write(self.style.SUCCESS("Populating models"))
+        logger.success("Populating models")
 
         for model in all_models:
             table_name = model._meta.db_table
             data = self.load_table_data(table_name)
-            self.stdout.write(self.style.SUCCESS(f"Populating {table_name}"))
+            logger.success(f"Populating {table_name}")
 
             for item in tqdm(data, desc=f"Populating {table_name}"):
                 self.create_instance(model, item)
 
-        self.stdout.write(self.style.SUCCESS("Populating instances with missing references"))
+        logger.success("Populating instances with missing references")
 
         bulk = BulkUpdate()
 
@@ -379,5 +409,6 @@ class Command(BaseCommand):
                 bulk.add(instance, field_name)
 
         bulk.bulk_update()
-
-        self.stdout.write(self.style.SUCCESS("Data populated"))
+        logger.success("Data populated")
+        update_elasticsearch_index(logger)
+        logger.success("Elasticsearch updated")
