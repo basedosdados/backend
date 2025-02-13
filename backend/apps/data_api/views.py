@@ -5,7 +5,9 @@ from hashlib import sha256
 
 from django.http import JsonResponse
 from django.utils import timezone
+from django.utils.decorators import method_decorator
 from django.views import View
+from django.views.decorators.csrf import csrf_exempt
 
 from backend.apps.api.v1.models import MeasurementUnit
 
@@ -100,6 +102,7 @@ class DataAPICurrentTierView(View):
             return JsonResponse({"error": "Endpoint not found", "success": False}, status=404)
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class DataAPICreditAddView(View):
     # TODO: remove GET method when in production
     def get(self, request):
@@ -190,6 +193,7 @@ class DataAPICreditAddView(View):
             return JsonResponse({"error": str(e), "success": False}, status=400)
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class DataAPICreditDeductView(View):
     # TODO: remove GET method when in production
     def get(self, request):
@@ -310,6 +314,7 @@ class DataAPIEndpointValidateView(View):
             return JsonResponse({"error": "Endpoint not found", "success": False}, status=404)
 
 
+@method_decorator(csrf_exempt, name="dispatch")
 class DataAPIRequestRegisterView(View):
     # TODO: remove GET method when in production
     def get(self, request):
