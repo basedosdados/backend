@@ -12,6 +12,7 @@ from faker import Faker
 
 from backend.apps.account.models import Account, BDGroup, BDRole, Team, Role, Career, Subscription, DataAPIKey
 from backend.apps.account.tasks import sync_subscription_task
+from backend.apps.data_api.admin import KeyInline
 
 
 def sync_subscription(modeladmin: ModelAdmin, request: HttpRequest, queryset: QuerySet):

@@ -53,6 +53,8 @@ class Command(BaseCommand):
         headers = self.get_headers(token)
 
         response = requests.get(BASE_URL + "/api/database", headers=headers)
+        print('RESPONSE LINHA 59: ', response)
+        print('RESPONSE.status_code LINHA 59: ', response.status_code)
 
         if response.status_code != 200:
             print('RESPONSE.TEXT: ', response.history)
@@ -125,8 +127,10 @@ class Command(BaseCommand):
             rows.append(instance)
         
         if len(rows) > 0:
+            print('ENTROU NO IF LINHA 133')
             self.save_data(table.name, json.dumps(rows, ensure_ascii=False, indent=4))
         else:
+            print('ENTROU NO ELSE LINHA 136')
             self.stdout.write(self.style.WARNING(f"No data found for {str(table)}"))
 
     def clean_data(self):
