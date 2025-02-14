@@ -58,3 +58,11 @@
     python manage.py dumpdata > fixture.json
     python manage.py loadfixture fixture.json
 ```
+
+---
+
+TODO: 
+## Make dev env easy to setup
+* Auto populate database from prod pref
+* Fix index version (elastic search original image is not working)
+* should .env files really be versioned?
