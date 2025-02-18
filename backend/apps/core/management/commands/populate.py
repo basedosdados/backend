@@ -218,7 +218,7 @@ class Command(BaseCommand):
                     sorted_models.append(model)
                     models_to_populate.remove(model)
 
-        # sorted_models = sorted_models + models_to_populate
+        sorted_models = sorted_models + models_to_populate
         print(f"SORTED MODELS: {sorted_models}\n\n")
         print(f"MODELS TO POPULATE: {models_to_populate}\n\n")
 
