@@ -6,7 +6,7 @@ from backend.apps.api.v1.graphql import Query as APIQuery
 from backend.custom.graphql_auto import build_schema
 
 schema = build_schema(
-    applications=["account", "v1"],
+    applications=["account", "v1", "data_api"],
     extra_queries=[
         APIQuery,
         PaymentQuery,
