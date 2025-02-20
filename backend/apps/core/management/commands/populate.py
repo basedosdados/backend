@@ -192,34 +192,34 @@ class Command(BaseCommand):
         """
         Clean database
         """
-        
+
         for model in tqdm(_models, desc="Set foreign keys to null"):
             foreign_keys = [
                 field
                 for field in model._meta.get_fields()
                 if isinstance(field, models.ForeignKey) and field.null is True
             ]
-            
+
             if foreign_keys:
                 field_names = [field.name for field in foreign_keys]
                 model.objects.update(**{field_name: None for field_name in field_names})
 
         models_to_delete = [model for model in tqdm(_models, desc="Cleaning database")]
-        
+
         while models_to_delete:
-            try:
-                with transaction.atomic():
-                    model.objects.all().delete()
-                
-                models_to_delete.remove(model)
+            for model in models_to_delete:
+                try:
+                    with transaction.atomic():
+                        model.objects.all().delete()
 
-                print(f"Ainda faltam {len(models_to_delete)} para serem excluidos")
+                    models_to_delete.remove(model)
+                    print(f"Ainda faltam {len(models_to_delete)} para serem excluidos")
 
-            except Exception as error:
-                print(
-                    f"Falha ao excluir {model}\nFK error? :{error}\n{'#' * 30}"
-                    )
-                pass
+                except Exception as error:
+                    print(
+                        f"Falha ao excluir {model}\nFK error? :{error}\n{'#' * 30}"
+                        )
+                    pass
 
     def create_instance(self, model, item):
         payload = {}
