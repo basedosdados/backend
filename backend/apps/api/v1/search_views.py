@@ -153,7 +153,7 @@ class DatasetSearchView(FacetedSearchView):
             }
         )
 
-    def get_facets(self, sqs: SearchQuerySet, facet_size=50):
+    def get_facets(self, sqs: SearchQuerySet, facet_size=22):
         sqs = sqs.facet("theme_slug", size=facet_size)
         sqs = sqs.facet("organization_slug", size=facet_size)
         sqs = sqs.facet("spatial_coverage", size=facet_size)
