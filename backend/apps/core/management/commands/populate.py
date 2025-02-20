@@ -292,9 +292,7 @@ class Command(BaseCommand):
                 try:
                     field.set(related_data)
                 except Exception as e:
-                    print(e)
-                    print(field_name)
-                    print(related_data)
+                    print(f'M2M_PAYLOAD error: {field_name} - {e}')
                     pass
 
         if retry:
@@ -356,7 +354,6 @@ class Command(BaseCommand):
         reversed_models = all_models.copy()[::-1]
         self.stdout.write(self.style.WARNING("Cleaning database"))
         self.clean_database(reversed_models)
-        print(f'REVERSED MODELS: {reversed_models}')
         self.stdout.write(self.style.SUCCESS("Database cleaned"))
 
         self.references = References()
@@ -365,12 +362,15 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Populating models"))
 
         for model in all_models:
-            table_name = model._meta.db_table
-            data = self.load_table_data(table_name)
-            self.stdout.write(self.style.SUCCESS(f"Populating {table_name}"))
+            try:
+                table_name = model._meta.db_table
+                data = self.load_table_data(table_name)
+                self.stdout.write(self.style.SUCCESS(f"Populating {table_name}"))
 
-            for item in tqdm(data, desc=f"Populating {table_name}"):
-                self.create_instance(model, item)
+                for item in tqdm(data, desc=f"Populating {table_name}"):
+                    self.create_instance(model, item)
+            except Exception as error:
+                print(f' ARQUIVO CORROMPIDO - CARACTERE INVÁLIDO?:\n {error}')
 
         self.stdout.write(self.style.SUCCESS("Populating instances with missing references"))
 
