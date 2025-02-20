@@ -204,12 +204,10 @@ class Command(BaseCommand):
                 field_names = [field.name for field in foreign_keys]
                 model.objects.update(**{field_name: None for field_name in field_names})
 
-        models_to_delete = tqdm(_models, desc="Cleaning database")
+        models_to_delete = [model for model in tqdm(_models, desc="Cleaning database")]
         
         while models_to_delete:
-            
             try:
-
                 with transaction.atomic():
                     model.objects.all().delete()
                 
