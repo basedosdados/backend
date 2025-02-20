@@ -208,6 +208,7 @@ class Command(BaseCommand):
 
         while models_to_delete:
             for model in models_to_delete:
+                print(f"{model} para ser excluidos\n{'#' * 15}")
                 try:
                     with transaction.atomic():
                         model.objects.all().delete()
@@ -294,7 +295,7 @@ class Command(BaseCommand):
                     print(e)
                     print(field_name)
                     print(related_data)
-                    raise e
+                    pass
 
         if retry:
             retry["instance"] = instance
