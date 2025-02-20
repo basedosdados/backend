@@ -53,11 +53,8 @@ class Command(BaseCommand):
         headers = self.get_headers(token)
 
         response = requests.get(BASE_URL + "/api/database", headers=headers)
-        print('RESPONSE LINHA 59: ', response)
-        print('RESPONSE.status_code LINHA 59: ', response.status_code)
 
         if response.status_code != 200:
-            print('RESPONSE.TEXT: ', response.history)
             raise Exception(response.text + f" for {METABASE_USER}")
 
         return response.json()["data"]
@@ -101,38 +98,37 @@ class Command(BaseCommand):
         return response_json["data"]["rows"]
 
     def get_table_data(self, token: str, database_id: int, table: Table):
-        print(f'ENTROU no get_table_data -- {table}')
+        
         headers = self.get_headers(token)
         fields = [f'"{field}"' for field in table.fields]
         formated_field = ", ".join(fields)
         query = f'SELECT {formated_field} FROM "{table.name}"'
 
-        raw_rows = []
         page = 0
+         
         while True:
+
             data = self.def_get_data_paginated(headers, database_id, query, page)
+            
             if len(data) == 0:
                 break
 
-            raw_rows += data
             page += 1
-        self.stdout.write(self.style.SUCCESS(f"Fetched {len(raw_rows)} rows from {str(table)}"))
 
-        rows = []         
-        for row in raw_rows:
-            instance = {}
-            for i, field in enumerate(table.fields):
-                instance[field] = row[i]
+            self.stdout.write(self.style.SUCCESS(f"Paginated {len(data)} rows from {str(table)}"))
 
-            rows.append(instance)
+            rows = []
+            for row in data:
+                instance = {}
+                for i, field in enumerate(table.fields):
+                    instance[field] = row[i]
 
-        if str(table) == "column":
-            print(f' tamanho de rows em column: {len(rows)} -- {rows}')
-        
-        if len(rows) > 0:
-            self.save_data(table.name, json.dumps(rows, ensure_ascii=False, indent=4))
-        else:
-            self.stdout.write(self.style.WARNING(f"No data found for {str(table)}"))
+                rows.append(instance)
+
+            if len(rows) > 0:
+                self.save_data(table.name, json.dumps(rows, ensure_ascii=False, indent=4))
+            else:
+                self.stdout.write(self.style.WARNING(f"No page from data found for {str(table)}"))
 
     def clean_data(self):
         directory = os.path.join(os.getcwd(), "metabase_data")
@@ -150,7 +146,7 @@ class Command(BaseCommand):
 
         file_path = os.path.join(directory, f"{table_name}.json")
 
-        with open(file_path, "w", encoding="utf-8") as file:
+        with open(file_path, "a", encoding="utf-8") as file:
             file.write(data)
 
     def handle(self, *args, **kwargs):
@@ -169,7 +165,5 @@ class Command(BaseCommand):
         for table in tqdm(tables, desc="Fetching tables"):
             self.stdout.write(f"Fetching data from {str(table)}")
             self.get_table_data(token, database["id"], table)
-            print(f'FALTAM {(len(tables)-1 )}')
-        print('SAIU DO FOR LINHA 172')
 
         self.stdout.write(self.style.SUCCESS("Data fetched successfully."))
