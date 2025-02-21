@@ -810,6 +810,10 @@ class Dataset(BaseModel):
         ]  # fmt: skip
         return max(updates) if updates else None
 
+    @property
+    def contains_data_api_endpoint_tables(self):
+        return self.tables.filter(is_data_api_endpoint=True).exists()
+
 
 class Update(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
@@ -988,6 +992,9 @@ class Table(BaseModel, OrderedModel):
         null=True,
     )
     is_directory = models.BooleanField(default=False, blank=True, null=True)
+    is_data_api_endpoint = models.BooleanField(
+        default=False, help_text="Table is served as an endpoint in our Data API."
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     published_by = models.ManyToManyField(

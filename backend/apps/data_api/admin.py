@@ -45,7 +45,8 @@ class EndpointParameterInline(admin.TabularInline):
         "name",
         "description",
         "type",
-        "required",
+        "is_required",
+        "column",
         "created_at",
         "updated_at",
         "parameter_actions",
@@ -157,16 +158,16 @@ class KeyAdmin(admin.ModelAdmin):
 
 
 class EndpointCategoryAdmin(admin.ModelAdmin):
-    list_display = ("slug", "name", "description")
-    list_filter = ("slug", "name", "description")
-    search_fields = ("slug", "name", "description")
+    list_display = ("slug", "name", "description", "dataset")
+    list_filter = ("slug", "name", "description", "dataset")
+    search_fields = ("slug", "name", "description", "dataset__name")
     readonly_fields = ("id", "created_at", "updated_at")
 
 
 class EndpointParameterAdmin(admin.ModelAdmin):
-    list_display = ("name", "description", "endpoint")
-    list_filter = ("name", "description", "endpoint")
-    search_fields = ("name", "description", "endpoint__name")
+    list_display = ("name", "description", "endpoint", "column")
+    list_filter = ("name", "endpoint", "is_required")
+    search_fields = ("name", "description", "endpoint__name", "column__name")
     readonly_fields = ("id", "created_at", "updated_at")
 
 
@@ -178,9 +179,17 @@ class EndpointPricingTierAdmin(admin.ModelAdmin):
 
 
 class EndpointAdmin(admin.ModelAdmin):
-    list_display = ("slug", "name", "description", "category")
-    list_filter = ("slug", "name", "description", "category")
-    search_fields = ("slug", "name", "description", "category__name")
+    list_display = (
+        "slug",
+        "name",
+        "description",
+        "category",
+        "table",
+        "is_active",
+        "is_deprecated",
+    )
+    list_filter = ("slug", "name", "category", "is_active", "is_deprecated")
+    search_fields = ("slug", "name", "description", "category__name", "table__name")
     readonly_fields = ("id", "created_at", "updated_at", "full_slug", "full_name")
     inlines = [EndpointParameterInline, EndpointPricingTierInline]
 

@@ -11,6 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 
 from backend.apps.api.v1.models import MeasurementUnit
 
+from .decorators import cloud_function_only, stripe_webhook_only
 from .models import Credit, Endpoint, Key, Request
 
 
@@ -148,7 +149,7 @@ class DataAPICreditAddView(View):
         except MeasurementUnit.DoesNotExist:
             return JsonResponse({"error": "Currency not found", "success": False}, status=404)
 
-    # @stripe_webhook_only # TODO: Uncomment this when in production
+    @stripe_webhook_only
     def post(self, request):
         event = request.stripe_event
 
@@ -240,7 +241,7 @@ class DataAPICreditDeductView(View):
         except MeasurementUnit.DoesNotExist:
             return JsonResponse({"error": "Currency not found", "success": False}, status=404)
 
-    # @cloud_function_only # TODO: Uncomment this when in production
+    @cloud_function_only
     def post(self, request):
         event = request.stripe_event
 
@@ -359,7 +360,7 @@ class DataAPIRequestRegisterView(View):
             endpoint = Endpoint.objects.get(category__slug=category_slug, slug=endpoint_slug)
 
             # Get required parameters for this endpoint
-            required_params = endpoint.parameters.filter(required=True).values_list(
+            required_params = endpoint.parameters.filter(is_required=True).values_list(
                 "name", flat=True
             )
 
@@ -406,7 +407,7 @@ class DataAPIRequestRegisterView(View):
         except Endpoint.DoesNotExist:
             return JsonResponse({"error": "Endpoint not found", "success": False}, status=404)
 
-    # @cloud_function_only # TODO: Uncomment this when in production
+    @cloud_function_only
     def post(self, request):
         key = request.POST.get("key")
         category_slug = request.POST.get("category")
@@ -435,7 +436,7 @@ class DataAPIRequestRegisterView(View):
             endpoint = Endpoint.objects.get(category__slug=category_slug, slug=endpoint_slug)
 
             # Get required parameters for this endpoint
-            required_params = endpoint.parameters.filter(required=True).values_list(
+            required_params = endpoint.parameters.filter(is_required=True).values_list(
                 "name", flat=True
             )
 

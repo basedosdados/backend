@@ -6,7 +6,7 @@ from django.core.validators import MinValueValidator
 from django.db import models
 
 from backend.apps.account.models import Account
-from backend.apps.api.v1.models import BigQueryType, MeasurementUnit
+from backend.apps.api.v1.models import BigQueryType, Column, Dataset, MeasurementUnit, Table
 from backend.custom.model import BaseModel
 
 
@@ -60,6 +60,13 @@ class EndpointCategory(BaseModel):
     slug = models.SlugField(max_length=100)
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
+    dataset = models.ForeignKey(
+        Dataset,
+        on_delete=models.DO_NOTHING,
+        related_name="endpoint_categories",
+        null=True,
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -72,10 +79,25 @@ class EndpointCategory(BaseModel):
         return self.name
 
 
+def limit_table_choices(*args):
+    if models.OuterRef("dataset") is not None:
+        return {"dataset": models.OuterRef("dataset")}
+    return {"id": None}
+
+
 class Endpoint(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(max_length=100)
     name = models.CharField(max_length=100)
+    description = models.TextField(blank=True)
+    table = models.ForeignKey(
+        Table,
+        on_delete=models.DO_NOTHING,
+        related_name="endpoints",
+        null=True,
+        blank=True,
+        limit_choices_to=limit_table_choices,  # only show tables in the endpoint category's dataset
+    )
     category = models.ForeignKey(
         EndpointCategory,
         on_delete=models.DO_NOTHING,
@@ -83,7 +105,6 @@ class Endpoint(BaseModel):
         null=True,
         blank=True,
     )
-    description = models.TextField(blank=True)
     is_active = models.BooleanField(default=True)
     is_deprecated = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -138,13 +159,27 @@ class Endpoint(BaseModel):
         ).first()
 
 
+def limit_column_choices(*args):
+    if models.OuterRef("table") is not None:
+        return {"table": models.OuterRef("table")}
+    return {"id": None}
+
+
 class EndpointParameter(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
-    endpoint = models.ForeignKey(Endpoint, on_delete=models.DO_NOTHING, related_name="parameters")
     name = models.CharField(max_length=100)
     description = models.TextField(blank=True)
     type = models.ForeignKey(BigQueryType, on_delete=models.DO_NOTHING, related_name="parameters")
-    required = models.BooleanField(default=False)
+    is_required = models.BooleanField(default=False)
+    endpoint = models.ForeignKey(Endpoint, on_delete=models.DO_NOTHING, related_name="parameters")
+    column = models.ForeignKey(
+        Column,
+        on_delete=models.DO_NOTHING,
+        related_name="parameters",
+        null=True,
+        blank=True,
+        limit_choices_to=limit_column_choices,  # only show columns in the endpoint's table
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

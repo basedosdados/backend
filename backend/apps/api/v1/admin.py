@@ -615,6 +615,7 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "contains_raw_data_sources",
         "contains_information_requests",
         "contains_closed_data",
+        "contains_data_api_endpoint_tables",
         "page_views",
         "created_at",
         "updated_at",
@@ -718,6 +719,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "dataset",
         "get_publishers",
         "get_data_cleaners",
+        "is_data_api_endpoint",
         "created_at",
         "updated_at",
     ]
