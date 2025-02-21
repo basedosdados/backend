@@ -418,6 +418,41 @@ class StripeSubscriptionCustomerDeleteMutation(Mutation):
             return cls(errors=[str(e)])
 
 
+class StripeSubscriptionCustomerAllMembersDeleteMutation(Mutation):
+    """Remove all members from subscription"""
+
+    ok = Boolean()
+    errors = List(String)
+
+    class Arguments:
+        subscription_id = ID(required=True)
+
+    @classmethod
+    @login_required
+    def mutate(cls, root, info, subscription_id):
+        try:
+            admin = info.context.user
+            subscription = Subscription.objects.get(id=subscription_id)
+            assert admin.id == subscription.admin.id
+
+            errors = []
+            for account in subscription.subscribers.all():
+                try:
+                    remove_user(account.gcp_email or account.email)
+                except Exception as e:
+                    errors.append(f"Erro ao remover {account.email}: {str(e)}")
+                    logger.error(f"Falha ao remover usuário {account.email}: {e}")
+
+            subscription.subscribers.clear()
+
+            if errors:
+                return cls(ok=False, errors=errors)
+            return cls(ok=True)
+        except Exception as e:
+            logger.error(e)
+            return cls(errors=[str(e)])
+
+
 class ChangeUserGCPEmail(Mutation):
     """Change user GCP email"""
 
@@ -520,6 +555,7 @@ class Mutation(ObjectType):
     delete_stripe_subscription = StripeSubscriptionDeleteMutation.Field()
     create_stripe_customer_subscription = StripeSubscriptionCustomerCreateMutation.Field()
     update_stripe_customer_subscription = StripeSubscriptionCustomerDeleteMutation.Field()
+    delete_stripe_customer_all_members = StripeSubscriptionCustomerAllMembersDeleteMutation.Field()
     validate_stripe_coupon = StripeCouponValidationMutation.Field()
     change_user_gcp_email = ChangeUserGCPEmail.Field()
 
