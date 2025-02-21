@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin, messages
+from django.urls import reverse
+from django.utils.html import format_html
 
 from .models import (
     Credit,
@@ -50,13 +52,26 @@ class EndpointParameterInline(admin.TabularInline):
     )
     fields = readonly_fields
     can_delete = False
-    show_change_link = True
 
     def has_add_permission(self, request, obj=None):
         return False
 
     def has_change_permission(self, request, obj=None):
         return False
+
+    def parameter_actions(self, obj):
+        if not obj.pk:
+            return "-"
+        edit_url = reverse(
+            "admin:data_api_endpointparameter_change",
+            args=[obj.pk],
+        )
+        return format_html(
+            '<a class="button" href="{}">Edit</a>',
+            edit_url,
+        )
+
+    parameter_actions.short_description = "Actions"
 
 
 class EndpointPricingTierInline(admin.TabularInline):
@@ -74,13 +89,26 @@ class EndpointPricingTierInline(admin.TabularInline):
     )
     fields = readonly_fields
     can_delete = False
-    show_change_link = True
 
     def has_add_permission(self, request, obj=None):
         return False
 
     def has_change_permission(self, request, obj=None):
         return False
+
+    def pricing_actions(self, obj):
+        if not obj.pk:
+            return "-"
+        edit_url = reverse(
+            "admin:data_api_endpointpricingtier_change",
+            args=[obj.pk],
+        )
+        return format_html(
+            '<a class="button" href="{}">Edit</a>',
+            edit_url,
+        )
+
+    pricing_actions.short_description = "Actions"
 
 
 class KeyAdmin(admin.ModelAdmin):
