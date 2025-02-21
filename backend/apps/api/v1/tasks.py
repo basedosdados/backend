@@ -82,16 +82,16 @@ def update_table_metadata_task(table_pks: list[str] = None):
     if not table_pks:
         tables = (
             Table.objects
-            .exclude(status__slug__in=["under_review"])
-            .exclude(dataset__status__slug__in=["under_review"])
+            .exclude(status__slug__in=["under_review", "excluded"])
+            .exclude(dataset__status__slug__in=["under_review", "excluded"])
             .order_by("updated_at")
             .all()
         )  # fmt: skip
     else:
         tables = (
             Table.objects.filter(pk__in=table_pks)
-            .exclude(status__slug__in=["under_review"])
-            .exclude(dataset__status__slug__in=["under_review"])
+            .exclude(status__slug__in=["under_review", "excluded"])
+            .exclude(dataset__status__slug__in=["under_review", "excluded"])
             .order_by("updated_at")
             .all()
         )
