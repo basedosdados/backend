@@ -38,13 +38,49 @@ class KeyInline(admin.TabularInline):
 class EndpointParameterInline(admin.TabularInline):
     model = EndpointParameter
     extra = 0
-    readonly_fields = ("id", "created_at", "updated_at")
+    readonly_fields = (
+        "id",
+        "name",
+        "description",
+        "type",
+        "required",
+        "created_at",
+        "updated_at",
+        "parameter_actions",
+    )
+    fields = readonly_fields
+    can_delete = False
+    show_change_link = True
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
 
 
 class EndpointPricingTierInline(admin.TabularInline):
     model = EndpointPricingTier
     extra = 0
-    readonly_fields = ("id", "created_at", "updated_at")
+    readonly_fields = (
+        "id",
+        "min_requests",
+        "max_requests",
+        "price_per_request",
+        "currency",
+        "created_at",
+        "updated_at",
+        "pricing_actions",
+    )
+    fields = readonly_fields
+    can_delete = False
+    show_change_link = True
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
 
 
 class KeyAdmin(admin.ModelAdmin):
