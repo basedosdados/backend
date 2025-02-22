@@ -717,8 +717,6 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     list_display = [
         "name",
         "dataset",
-        "get_publishers",
-        "get_data_cleaners",
         "created_at",
         "updated_at",
     ]
