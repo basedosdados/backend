@@ -306,6 +306,17 @@ class DataAPIEndpointValidateView(View):
                 ct = endpoint.table.cloud_tables.first()
                 cloud_table = f"{ct.gcp_project_id}.{ct.gcp_dataset_id}.{ct.gcp_table_id}"
 
+            # Get parameters information
+            parameters = []
+            for param in endpoint.parameters.all():
+                parameters.append(
+                    {
+                        "name": param.name,
+                        "type": param.type.name if param.type else None,
+                        "isRequired": param.is_required,
+                    }
+                )
+
             return JsonResponse(
                 {
                     "success": True,
@@ -314,6 +325,7 @@ class DataAPIEndpointValidateView(View):
                         "isDeprecated": endpoint.is_deprecated,
                         "createdAt": endpoint.created_at,
                         "cloudTable": cloud_table,
+                        "parameters": parameters,
                     },
                 }
             )
