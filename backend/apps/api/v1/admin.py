@@ -719,7 +719,6 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "dataset",
         "get_publishers",
         "get_data_cleaners",
-        "is_data_api_endpoint",
         "created_at",
         "updated_at",
     ]
