@@ -300,6 +300,12 @@ class DataAPIEndpointValidateView(View):
         try:
             endpoint = Endpoint.objects.get(category__slug=category_slug, slug=endpoint_slug)
 
+            # Get cloud table information if available
+            cloud_table = None
+            if endpoint.table and endpoint.table.cloud_tables.first():
+                ct = endpoint.table.cloud_tables.first()
+                cloud_table = f"{ct.gcp_project_id}.{ct.gcp_dataset_id}.{ct.gcp_table_id}"
+
             return JsonResponse(
                 {
                     "success": True,
@@ -307,6 +313,7 @@ class DataAPIEndpointValidateView(View):
                         "isActive": endpoint.is_active and not endpoint.is_deprecated,
                         "isDeprecated": endpoint.is_deprecated,
                         "createdAt": endpoint.created_at,
+                        "cloudTable": cloud_table,
                     },
                 }
             )
