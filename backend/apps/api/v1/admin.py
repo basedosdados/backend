@@ -741,7 +741,6 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     list_display = [
         "name",
         "dataset",
-        "is_data_api_endpoint",
         "created_at",
         "updated_at",
     ]
