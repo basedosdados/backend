@@ -829,11 +829,17 @@ class ColumnAdmin(TabbedTranslationAdmin):
         "spatial_coverage",
         "temporal_coverage",
     ]
-    search_fields = ["name", "table__name"]
+    search_fields = ["name", "table__name", "table__dataset__name"]
     inlines = [
         CoverageInline,
         ColumnOriginalNameInline,
     ]
+
+    def get_search_results(self, request, queryset, search_term):
+        """Optimize the query by selecting related fields"""
+        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+        queryset = queryset.select_related("table", "table__dataset")
+        return queryset, use_distinct
 
 
 class ColumnOriginalNameAdmin(TabbedTranslationAdmin):
