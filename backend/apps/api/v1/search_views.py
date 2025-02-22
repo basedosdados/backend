@@ -32,6 +32,9 @@ class DatasetSearchForm(FacetedSearchForm):
         # Start with all results
         sqs = self.searchqueryset.all()
 
+        # Filter out datasets that contain data API endpoints
+        sqs = sqs.exclude(contains_data_api_endpoint_tables=True)
+
         # Text search if provided
         if q := self.cleaned_data.get("q"):
             sqs = (
