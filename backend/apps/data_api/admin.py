@@ -167,7 +167,15 @@ class EndpointCategoryAdmin(admin.ModelAdmin):
 class EndpointParameterAdmin(admin.ModelAdmin):
     list_display = ("name", "description", "endpoint", "column")
     list_filter = ("name", "endpoint", "is_required")
-    search_fields = ("name", "description", "endpoint__name", "column__name")
+    search_fields = (
+        "name",
+        "description",
+        "endpoint__name",
+        "column__name",
+        "column__table__name",
+        "column__table__dataset__slug",
+        "column__table__slug",
+    )
     readonly_fields = ("id", "created_at", "updated_at")
     autocomplete_fields = ["column"]
 
