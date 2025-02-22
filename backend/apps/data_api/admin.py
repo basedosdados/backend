@@ -169,6 +169,7 @@ class EndpointParameterAdmin(admin.ModelAdmin):
     list_filter = ("name", "endpoint", "is_required")
     search_fields = ("name", "description", "endpoint__name", "column__name")
     readonly_fields = ("id", "created_at", "updated_at")
+    autocomplete_fields = ["column"]
 
 
 class EndpointPricingTierAdmin(admin.ModelAdmin):
