@@ -79,12 +79,6 @@ class EndpointCategory(BaseModel):
         return self.name
 
 
-def limit_table_choices(*args):
-    if models.OuterRef("dataset") is not None:
-        return {"dataset": models.OuterRef("dataset")}
-    return {"id": None}
-
-
 class Endpoint(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(max_length=100)
@@ -96,7 +90,6 @@ class Endpoint(BaseModel):
         related_name="endpoints",
         null=True,
         blank=True,
-        limit_choices_to=limit_table_choices,  # only show tables in the endpoint category's dataset
     )
     category = models.ForeignKey(
         EndpointCategory,
@@ -159,12 +152,6 @@ class Endpoint(BaseModel):
         ).first()
 
 
-def limit_column_choices(*args):
-    if models.OuterRef("table") is not None:
-        return {"table": models.OuterRef("table")}
-    return {"id": None}
-
-
 class EndpointParameter(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     name = models.CharField(max_length=100)
@@ -190,7 +177,6 @@ class EndpointParameter(BaseModel):
         related_name="parameters",
         null=True,
         blank=True,
-        limit_choices_to=limit_column_choices,  # only show columns in the endpoint's table
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
