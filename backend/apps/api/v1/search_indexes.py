@@ -255,6 +255,11 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         indexed=False,
     )
 
+    contains_data_api_endpoint_tables = indexes.BooleanField(
+        model_attr="contains_data_api_endpoint_tables",
+        indexed=False,
+    )
+
     n_tables = indexes.IntegerField(
         model_attr="n_tables",
         indexed=False,

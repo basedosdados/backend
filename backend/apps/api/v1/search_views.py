@@ -30,6 +30,9 @@ class DatasetSearchForm(FacetedSearchForm):
         # Start with all results
         sqs = self.searchqueryset.all()
 
+        # Filter out datasets that contain data API endpoint tables
+        sqs = sqs.exclude(contains_data_api_endpoint_tables="true")
+
         # Debug print to see all form data
         print(
             "DEBUG: Form data:",
@@ -296,9 +299,7 @@ def as_search_result(result: SearchResult, locale="pt"):
         )
 
     entities = []
-    for slug, name in zip(
-        result.entity_slug or [], getattr(result, f"entity_name_{locale}") or []
-    ):
+    for slug, name in zip(result.entity_slug or [], getattr(result, f"entity_name_{locale}") or []):
         entities.append(
             {
                 "slug": slug,

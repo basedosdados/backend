@@ -131,8 +131,8 @@ class Coverage(BaseModel):
         on_delete=models.CASCADE,
         related_name="coverages",
     )
-    key = models.ForeignKey(
-        "Key",
+    dictionary_key = models.ForeignKey(
+        "DictionaryKey",
         blank=True,
         null=True,
         on_delete=models.CASCADE,
@@ -175,8 +175,8 @@ class Coverage(BaseModel):
             return f"Raw data source: {self.raw_data_source} - {self.area}"
         if self.coverage_type() == "information_request":
             return f"Information request: {self.information_request} - {self.area}"
-        if self.coverage_type() == "key":
-            return f"Key: {self.key} - {self.area}"
+        if self.coverage_type() == "dictionary_key":
+            return f"Dictionary key: {self.dictionary_key} - {self.area}"
         if self.coverage_type() == "analysis":
             return f"Analysis: {self.analysis} - {self.area}"
         return str(self.id)
@@ -196,8 +196,8 @@ class Coverage(BaseModel):
             return "raw_data_source"
         if self.information_request:
             return "information_request"
-        if self.key:
-            return "key"
+        if self.dictionary_key:
+            return "dictionary_key"
         if self.analysis:
             return "analysis"
         return ""
@@ -225,7 +225,7 @@ class Coverage(BaseModel):
     def clean(self) -> None:
         """
         Assert that only one of "table", "raw_data_source",
-        "information_request", "column" or "key" is set
+        "information_request", "column" or "dictionary_key" is set
         """
         count = 0
         if self.table:
@@ -238,14 +238,14 @@ class Coverage(BaseModel):
             count += 1
         if self.information_request:
             count += 1
-        if self.key:
+        if self.dictionary_key:
             count += 1
         if self.analysis:
             count += 1
         if count != 1:
             raise ValidationError(
                 "One and only one of 'table', 'raw_data_source', "
-                "'information_request', 'column', 'key', 'analysis' must be set."
+                "'information_request', 'column', 'dictionary_key', 'analysis' must be set."
             )
 
 
@@ -271,9 +271,9 @@ class License(BaseModel):
         ordering = ["slug"]
 
 
-class Key(BaseModel):
+class DictionaryKey(BaseModel):
     """
-    Key model
+    DictionaryKey model
     Sets a name and a value of a dictionary key
     """
 
@@ -288,11 +288,11 @@ class Key(BaseModel):
         return str(self.name)
 
     class Meta:
-        """Meta definition for Key."""
+        """Meta definition for DictionaryKey."""
 
-        db_table = "keys"
-        verbose_name = "Key"
-        verbose_name_plural = "Keys"
+        db_table = "dictionary_key"
+        verbose_name = "Dictionary Key"
+        verbose_name_plural = "Dictionary Keys"
         ordering = ["name"]
 
 
@@ -670,7 +670,8 @@ class Dataset(BaseModel):
 
     @property
     def contains_closed_data(self):
-        """Returns true if there are tables or columns with closed coverages, or if the uncompressed file size is above 1 GB"""
+        """Returns true if there are tables or columns with closed coverages,
+        or if the uncompressed file size is above 1 GB"""
         for table in (
             self.tables.exclude(status__slug__in=["under_review", "excluded"])
             .exclude(slug__in=["dicionario", "dictionary"])
@@ -787,7 +788,12 @@ class Dataset(BaseModel):
     @property
     def table_last_updated_at(self):
         updates = [
-            u.last_updated_at for u in self.tables.exclude(status__slug__in=["under_review", "excluded"]).exclude(slug__in=["dicionario", "dictionary"]).all()
+            u.last_updated_at
+            for u in (
+                self.tables.exclude(status__slug__in=["under_review", "excluded"])
+                .exclude(slug__in=["dicionario", "dictionary"])
+                .all()
+            )
             if u.last_updated_at
         ]  # fmt: skip
         return max(updates) if updates else None
@@ -795,7 +801,12 @@ class Dataset(BaseModel):
     @property
     def raw_data_source_last_polled_at(self):
         polls = [
-            u.last_polled_at for u in self.raw_data_sources.exclude(status__slug__in=["under_review", "excluded"]).all()
+            u.last_polled_at
+            for u in (
+                self.raw_data_sources
+                .exclude(status__slug__in=["under_review", "excluded"])
+                .all()
+            )
             if u.last_polled_at
         ]  # fmt: skip
         return max(polls) if polls else None
@@ -803,10 +814,19 @@ class Dataset(BaseModel):
     @property
     def raw_data_source_last_updated_at(self):
         updates = [
-            u.last_updated_at for u in self.raw_data_sources.exclude(status__slug__in=["under_review", "excluded"]).all()
+            u.last_updated_at
+            for u in (
+                self.raw_data_sources
+                .exclude(status__slug__in["under_review", "excluded"])
+                .all()
+            )
             if u.last_updated_at
         ]  # fmt: skip
         return max(updates) if updates else None
+
+    @property
+    def contains_data_api_endpoint_tables(self):
+        return self.tables.filter(is_data_api_endpoint=True).exists()
 
 
 class Update(BaseModel):
@@ -959,7 +979,10 @@ class Table(BaseModel, OrderedModel):
     )
     is_deprecated = models.BooleanField(
         default=False,
-        help_text="We stopped maintaining this table for some reason. Examples: raw data deprecated, new version elsewhere, etc.",
+        help_text=(
+            "We stopped maintaining this table for some reason. "
+            "Examples: raw data deprecated, new version elsewhere, etc."
+        ),
     )
     license = models.ForeignKey(
         "License",
@@ -983,6 +1006,9 @@ class Table(BaseModel, OrderedModel):
         null=True,
     )
     is_directory = models.BooleanField(default=False, blank=True, null=True)
+    is_data_api_endpoint = models.BooleanField(
+        default=False, help_text="Table is served as an endpoint in the Data API app."
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     published_by = models.ManyToManyField(
@@ -2105,8 +2131,8 @@ class QualityCheck(BaseModel):
         on_delete=models.CASCADE,
         related_name="quality_checks",
     )
-    key = models.ForeignKey(
-        "Key",
+    dictionary_key = models.ForeignKey(
+        "DictionaryKey",
         blank=True,
         null=True,
         on_delete=models.CASCADE,
@@ -2151,7 +2177,7 @@ class QualityCheck(BaseModel):
             count += 1
         if self.column:
             count += 1
-        if self.key:
+        if self.dictionary_key:
             count += 1
         if self.raw_data_source:
             count += 1
@@ -2160,7 +2186,7 @@ class QualityCheck(BaseModel):
         if count != 1:
             raise ValidationError(
                 "One and only one of 'analysis', 'dataset, 'table', "
-                "'column', 'key, 'raw_data_source', 'information_request' must be set."
+                "'column', 'dictionary_key', 'raw_data_source', 'information_request' must be set."
             )
         return super().clean()
 
@@ -2238,7 +2264,8 @@ def get_full_temporal_coverage(resources: list) -> dict:
 
 
 def get_spatial_coverage(resources: list) -> list:
-    """Get spatial coverage of resources by returning unique area slugs, keeping only the highest level in each branch
+    """Get spatial coverage of resources by returning unique area slugs,
+    keeping only the highest level in each branch
 
     For example:
     - If areas = [br_mg_3100104, br_mg_3100104] -> returns [br_mg_3100104]
