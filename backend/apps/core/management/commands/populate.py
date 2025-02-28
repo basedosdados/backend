@@ -90,7 +90,8 @@ class Command(BaseCommand):
 
     def load_table_data(self, table_name):
         directory = os.path.join(os.getcwd(), "metabase_data")
-        with open(f"{directory}/{table_name}.json") as f:
+        with open(f"{directory}/{table_name}.json", encoding="utf-8") as f:
+            self.stdout.write(self.style.WARNING(f"TABLE TO BE LOADED: {table_name}"))
             data = json.load(f)
 
         return data
@@ -163,9 +164,7 @@ class Command(BaseCommand):
                 for field in model._meta.get_fields():
                     has_all_dependencies = True
 
-                    print(
-                        f"Campo: {field}\nModelos a testar: {len(models_to_populate)}\n{'#' *30}"
-                    )
+                    self.stdout.write(self.style.WARNING(f"MODEL: {field}\n{'#' * 30}"))
 
                     if isinstance(field, models.ForeignKey) or isinstance(
                         field, models.ManyToManyField
@@ -181,10 +180,6 @@ class Command(BaseCommand):
                 if has_all_dependencies:
                     sorted_models.append(model)
                     models_to_populate.remove(model)
-
-        sorted_models = sorted_models + models_to_populate
-        print(f"SORTED MODELS: {sorted_models}\n\n")
-        print(f"MODELS TO POPULATE: {models_to_populate}\n\n")
 
         return sorted_models
 
@@ -208,19 +203,10 @@ class Command(BaseCommand):
 
         while models_to_delete:
             for model in models_to_delete:
-                print(f"{model} para ser excluidos\n{'#' * 15}")
-                try:
-                    with transaction.atomic():
-                        model.objects.all().delete()
-
+                self.stdout.write(self.style.WARNING(f"{model} para ser excluidos\n{'#' * 15}"))
+                with transaction.atomic():
+                    model.objects.all().delete()
                     models_to_delete.remove(model)
-                    print(f"Ainda faltam {len(models_to_delete)} para serem excluidos")
-
-                except Exception as error:
-                    print(
-                        f"Falha ao excluir {model}\nFK error? :{error}\n{'#' * 30}"
-                        )
-                    pass
 
     def create_instance(self, model, item):
         payload = {}
@@ -278,7 +264,8 @@ class Command(BaseCommand):
                         continue
 
                     payload[field.name] = current_value
-            except:
+            except Exception as error:
+                print(f"ERROR IN CREATING INSTANCE: {error}")
                 pass
 
         instance = model(**payload)
@@ -292,7 +279,9 @@ class Command(BaseCommand):
                 try:
                     field.set(related_data)
                 except Exception as e:
-                    print(f'M2M_PAYLOAD error: {field_name} - {e}')
+                    self.stdout.write(self.style.WARNING(
+                        f"ERROR IN M2M DATA: {field_name}-{related_data}\n\n Error: {e}"
+                    ))
                     pass
 
         if retry:
@@ -300,6 +289,17 @@ class Command(BaseCommand):
             self.retry_instances.append(retry)
 
         self.references.add(table_name, item["id"], instance.id)
+
+    def save_data(self, table_name, data):
+        directory = os.path.join(os.getcwd(), "populate_retry_instances")
+
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        file_path = os.path.join(directory, f"{table_name}.json")
+        
+        with open(file_path, "a", encoding="utf-8") as file:
+            file.write(data)
 
     def handle(self, *args, **kwargs):
         app_name = "v1"
@@ -362,32 +362,41 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Populating models"))
 
         for model in all_models:
-            try:
-                table_name = model._meta.db_table
-                data = self.load_table_data(table_name)
-                self.stdout.write(self.style.SUCCESS(f"Populating {table_name}"))
+            table_name = model._meta.db_table
+            data = self.load_table_data(table_name)
+            self.stdout.write(self.style.SUCCESS(f"Populating {table_name}"))
 
-                for item in tqdm(data, desc=f"Populating {table_name}"):
-                    self.create_instance(model, item)
-            except Exception as error:
-                print(f' ARQUIVO CORROMPIDO - CARACTERE INVÁLIDO?:\n {error}')
+            for item in tqdm(data, desc=f"Populating {table_name}"):
+                self.create_instance(model, item)
 
         self.stdout.write(self.style.SUCCESS("Populating instances with missing references"))
 
+        # inicia a classe BulkUpdate
         bulk = BulkUpdate()
 
         for retry in tqdm(self.retry_instances, desc="Retrying instances"):
+            to_save = []
             item = retry["item"]
             instance = retry["instance"]
             field_name = retry["field_name"]
             related_table_name = retry["table_name"]
             current_value = item.get(field_name)
-
+            
             reference = self.references.get(related_table_name, current_value)
+            
+            fields_to_save = {
+                "related_table_name": related_table_name,
+                "field_name": field_name,
+                "item": item,
+                "current_value": current_value,
+                "instance_id": instance.id,
+                "reference": reference if reference else '',
+            }
 
-            if reference:
-                setattr(instance, field_name, reference)
-                bulk.add(instance, field_name)
+            to_save.append(fields_to_save)
+            self.save_data(
+                related_table_name, json.dumps(to_save, ensure_ascii=False, indent=4)
+            )
 
         bulk.bulk_update()
 
