@@ -29,9 +29,9 @@ class BulkUpdate:
             model = instances[0].__class__
             field_name = namespace.split(".")[1]
 
-            # Bulk update in chunks of 2000 instances
-            for i in range(0, len(instances), 2000):
-                chunk = instances[i : i + 2000]
+            # Bulk update in chunks of 1000 instances
+            for i in range(0, len(instances), 1000):
+                chunk = instances[i : i + 1000]
                 model.objects.bulk_update(chunk, [field_name])
 
 
