@@ -29,9 +29,9 @@ class BulkUpdate:
             model = instances[0].__class__
             field_name = namespace.split(".")[1]
 
-            # Bulk update in chunks of 1000 instances
-            for i in range(0, len(instances), 1000):
-                chunk = instances[i : i + 1000]
+            # Bulk update in chunks of 500 instances
+            for i in range(0, len(instances), 500):
+                chunk = instances[i : i + 500]
                 model.objects.bulk_update(chunk, [field_name])
 
 
@@ -352,16 +352,16 @@ class Command(BaseCommand):
             self.style.SUCCESS(f"{'#' * 40}\n\n\nALL MODELS: {all_models}\n\n{'#' * 40}")
         )
         for model in all_models:
-            table_name = model._meta.db_table
-            data = self.load_table_data(table_name)
             self.stdout.write(
                 self.style.WARNING(
-                    f"{'#' * 30}\n\n{len(all_models)} MODEL:{model}--TABLE:{table_name}\n\n{'#' * 30}"
+                    f"{'#' * 30}\n\n{len(all_models)} MODEL:{model}\n\n{'#' * 30}"
                 )
             )
+            table_name = model._meta.db_table
+            data = self.load_table_data(table_name)
             self.stdout.write(self.style.SUCCESS(f"Populating {table_name}"))
 
-            for item in tqdm(data, desc=f"Populating {table_name}"):
+            for item in tqdm(data, desc=f"Creating instace of {table_name}"):
                 self.create_instance(model, item)
 
         self.stdout.write(self.style.SUCCESS("Populating instances with missing references"))
