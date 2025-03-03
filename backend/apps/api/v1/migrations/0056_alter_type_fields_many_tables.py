@@ -494,7 +494,7 @@ def alter_columns_of_update(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('v1', '0053_rename_required_requires'),
+        ('v1', '0055_alter_organization_area.py'),
     ]
 
     operations = [
