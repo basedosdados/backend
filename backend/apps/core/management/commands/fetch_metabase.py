@@ -62,9 +62,7 @@ class Command(BaseCommand):
     def get_tables(self, token: str, database_id: int):
         headers = self.get_headers(token)
 
-        response = requests.get(
-            BASE_URL + f"/api/database/{database_id}/metadata", headers=headers
-        )
+        response = requests.get(BASE_URL + f"/api/database/{database_id}/metadata", headers=headers)
 
         json_data = response.json()
         tables = []
@@ -104,27 +102,29 @@ class Command(BaseCommand):
         fields = [f'"{field}"' for field in table.fields]
         formated_field = ", ".join(fields)
         query = f'SELECT {formated_field} FROM "{table.name}"'
-        all_rows = []  # Lista para armazenar todas as linhas da tabela
-        page = 0
 
+        raw_rows = []
+        page = 0
         while True:
             data = self.get_data_paginated(headers, database_id, query, page)
             if len(data) == 0:
                 break
 
-            # Adiciona as linhas da página atual à lista completa
-            for row in data:
-                instance = {}
-                for i, field in enumerate(table.fields):
-                    instance[field] = row[i]
-                all_rows.append(instance)
-
+            raw_rows += data
             page += 1
-            self.stdout.write(self.style.SUCCESS(f"Paginated {len(data)} rows from {str(table)}"))
 
-        # Salva todos os dados de uma vez
-        if len(all_rows) > 0:
-            self.save_data(table.name, all_rows)
+        self.stdout.write(self.style.SUCCESS(f"Fetched {len(raw_rows)} rows from {str(table)}"))
+
+        rows = []
+        for row in raw_rows:
+            instance = {}
+            for i, field in enumerate(table.fields):
+                instance[field] = row[i]
+
+            rows.append(instance)
+
+        if len(rows) > 0:
+            self.save_data(table.name, json.dumps(rows, ensure_ascii=False, indent=4))
         else:
             self.stdout.write(self.style.WARNING(f"No data found for {str(table)}"))
 
@@ -144,23 +144,8 @@ class Command(BaseCommand):
 
         file_path = os.path.join(directory, f"{table_name}.json")
 
-        if os.path.exists(file_path):
-            with open(file_path, "r", encoding="utf-8") as file:
-                try:
-                    existing_data = json.load(file)  # Carrega a lista existente
-                except json.JSONDecodeError:
-                    # Se o arquivo estiver corrompido ou vazio, começa uma nova lista
-                    existing_data = []
-        else:
-            existing_data = []
-
-        # Adiciona os novos dados à lista existente
-        existing_data.extend(data)
-
-        # Salva a lista atualizada no arquivo
         with open(file_path, "w", encoding="utf-8") as file:
-            json.dump(existing_data, file, ensure_ascii=False, indent=4)
-
+            file.write(data)
 
     def handle(self, *args, **kwargs):
         token = self.authenticate()

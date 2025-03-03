@@ -91,7 +91,6 @@ class Command(BaseCommand):
     def load_table_data(self, table_name):
         directory = os.path.join(os.getcwd(), "metabase_data")
         with open(f"{directory}/{table_name}.json", encoding="utf-8") as f:
-            self.stdout.write(self.style.WARNING(f"TABLE TO BE LOADED: {table_name}"))
             data = json.load(f)
 
         return data
@@ -160,12 +159,7 @@ class Command(BaseCommand):
             for model in models_to_populate:
                 has_all_dependencies = True
 
-            for model in models_to_populate:
                 for field in model._meta.get_fields():
-                    has_all_dependencies = True
-
-                    self.stdout.write(self.style.WARNING(f"MODEL: {field}\n{'#' * 30}"))
-
                     if isinstance(field, models.ForeignKey) or isinstance(
                         field, models.ManyToManyField
                     ):
@@ -176,6 +170,7 @@ class Command(BaseCommand):
                             and field.null is False
                         ):
                             has_all_dependencies = False
+                            break
 
                 if has_all_dependencies:
                     sorted_models.append(model)
@@ -187,7 +182,6 @@ class Command(BaseCommand):
         """
         Clean database
         """
-
         for model in tqdm(_models, desc="Set foreign keys to null"):
             foreign_keys = [
                 field
@@ -199,14 +193,9 @@ class Command(BaseCommand):
                 field_names = [field.name for field in foreign_keys]
                 model.objects.update(**{field_name: None for field_name in field_names})
 
-        models_to_delete = [model for model in tqdm(_models, desc="Cleaning database")]
-
-        while models_to_delete:
-            for model in models_to_delete:
-                self.stdout.write(self.style.WARNING(f"{model} para ser excluidos\n{'#' * 15}"))
-                with transaction.atomic():
-                    model.objects.all().delete()
-                    models_to_delete.remove(model)
+        for model in tqdm(_models, desc="Cleaning database"):
+            with transaction.atomic():
+                model.objects.all().delete()
 
     def create_instance(self, model, item):
         payload = {}
@@ -265,7 +254,9 @@ class Command(BaseCommand):
 
                     payload[field.name] = current_value
             except Exception as error:
-                print(f"ERROR IN CREATING INSTANCE: {error}")
+                self.stdout.write(
+                    self.style.ERROR(f"Campo: {field}\n Error: {error}\n {'#' * 30}")
+                )
                 pass
 
         instance = model(**payload)
@@ -279,27 +270,18 @@ class Command(BaseCommand):
                 try:
                     field.set(related_data)
                 except Exception as e:
-                    self.stdout.write(self.style.WARNING(
-                        f"ERROR IN M2M DATA: {field_name}-{related_data}\n\n Error: {e}"
-                    ))
-                    pass
+                    self.stdout.write(
+                        self.style.ERROR(
+                            f"M2M DATA: {field_name}-{related_data}\n\n Error: {e} {'#' * 30}"
+                        )
+                    )
+                pass
 
         if retry:
             retry["instance"] = instance
             self.retry_instances.append(retry)
 
         self.references.add(table_name, item["id"], instance.id)
-
-    def save_data(self, table_name, data):
-        directory = os.path.join(os.getcwd(), "populate_retry_instances")
-
-        if not os.path.exists(directory):
-            os.makedirs(directory)
-
-        file_path = os.path.join(directory, f"{table_name}.json")
-        
-        with open(file_path, "a", encoding="utf-8") as file:
-            file.write(data)
 
     def handle(self, *args, **kwargs):
         app_name = "v1"
@@ -347,7 +329,12 @@ class Command(BaseCommand):
         models_to_populate = list(set(models_to_populate) - set(sorted_layer.models))
 
         # Populate models
-        all_models = leaf_layer.models + leaf_dependent_layer.models + sorted_layer.models
+        all_models = (
+            leaf_layer.models
+            + leaf_dependent_layer.models
+            + sorted_layer.models
+            + models_to_populate
+        )
 
         # Clean database
         # make a copy, dont modify the original array
@@ -361,9 +348,17 @@ class Command(BaseCommand):
         self.retry_instances = []
         self.stdout.write(self.style.SUCCESS("Populating models"))
 
+        self.stdout.write(
+            self.style.SUCCESS(f"{'#' * 40}\n\n\nALL MODELS: {all_models}\n\n{'#' * 40}")
+        )
         for model in all_models:
             table_name = model._meta.db_table
             data = self.load_table_data(table_name)
+            self.stdout.write(
+                self.style.WARNING(
+                    f"{'#' * 30}\n\n{len(all_models)} MODEL:{model}--TABLE:{table_name}\n\n{'#' * 30}"
+                )
+            )
             self.stdout.write(self.style.SUCCESS(f"Populating {table_name}"))
 
             for item in tqdm(data, desc=f"Populating {table_name}"):
@@ -371,32 +366,20 @@ class Command(BaseCommand):
 
         self.stdout.write(self.style.SUCCESS("Populating instances with missing references"))
 
-        # inicia a classe BulkUpdate
         bulk = BulkUpdate()
 
         for retry in tqdm(self.retry_instances, desc="Retrying instances"):
-            to_save = []
             item = retry["item"]
             instance = retry["instance"]
             field_name = retry["field_name"]
             related_table_name = retry["table_name"]
             current_value = item.get(field_name)
-            
-            reference = self.references.get(related_table_name, current_value)
-            
-            fields_to_save = {
-                "related_table_name": related_table_name,
-                "field_name": field_name,
-                "item": item,
-                "current_value": current_value,
-                "instance_id": instance.id,
-                "reference": reference if reference else '',
-            }
 
-            to_save.append(fields_to_save)
-            self.save_data(
-                related_table_name, json.dumps(to_save, ensure_ascii=False, indent=4)
-            )
+            reference = self.references.get(related_table_name, current_value)
+
+            if reference:
+                setattr(instance, field_name, reference)
+                bulk.add(instance, field_name)
 
         bulk.bulk_update()
 
