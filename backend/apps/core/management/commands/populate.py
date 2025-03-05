@@ -29,9 +29,9 @@ class BulkUpdate:
             model = instances[0].__class__
             field_name = namespace.split(".")[1]
 
-            # Bulk update in chunks of 500 instances
-            for i in range(0, len(instances), 500):
-                chunk = instances[i : i + 500]
+            # Bulk update in chunks of 1000 instances
+            for i in range(0, len(instances), 1000):
+                chunk = instances[i : i + 1000]
                 model.objects.bulk_update(chunk, [field_name])
 
 
@@ -255,7 +255,7 @@ class Command(BaseCommand):
                     payload[field.name] = current_value
             except Exception as error:
                 self.stdout.write(
-                    self.style.ERROR(f"Campo: {field}\n Error: {error}\n {'#' * 30}")
+                    self.style.ERROR(f"Campo: {model} -- {field}\n\n Error: {error}\n {'#' * 30}")
                 )
                 pass
 
@@ -269,10 +269,10 @@ class Command(BaseCommand):
 
                 try:
                     field.set(related_data)
-                except Exception as e:
+                except Exception as error:
                     self.stdout.write(
                         self.style.ERROR(
-                            f"M2M DATA: {field_name}-{related_data}\n\n Error: {e} {'#' * 30}"
+                            f"M2M DATA: {model}-{field_name}\n\n Error: {error} {'#' * 30}"
                         )
                     )
                 pass
@@ -348,20 +348,18 @@ class Command(BaseCommand):
         self.retry_instances = []
         self.stdout.write(self.style.SUCCESS("Populating models"))
 
-        self.stdout.write(
-            self.style.SUCCESS(f"{'#' * 40}\n\n\nALL MODELS: {all_models}\n\n{'#' * 40}")
-        )
         for model in all_models:
-            self.stdout.write(
-                self.style.WARNING(
-                    f"{'#' * 30}\n\n{len(all_models)} MODEL:{model}\n\n{'#' * 30}"
-                )
-            )
             table_name = model._meta.db_table
             data = self.load_table_data(table_name)
             self.stdout.write(self.style.SUCCESS(f"Populating {table_name}"))
 
             for item in tqdm(data, desc=f"Creating instace of {table_name}"):
+                self.stdout.write(
+                    self.style.WARNING(
+                        f"Creating instance for model:{model}--{table_name}\n\n{'#' * 30}"
+                    )
+                )
+
                 self.create_instance(model, item)
 
         self.stdout.write(self.style.SUCCESS("Populating instances with missing references"))
@@ -378,6 +376,9 @@ class Command(BaseCommand):
             reference = self.references.get(related_table_name, current_value)
 
             if reference:
+                self.stdout.write(
+                    self.style.SUCCESS(f"Retrying instance of {model}-{field_name}\n\n{'#' * 30}")
+                )
                 setattr(instance, field_name, reference)
                 bulk.add(instance, field_name)
 

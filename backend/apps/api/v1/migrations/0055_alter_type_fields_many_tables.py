@@ -22,10 +22,10 @@ def alter_columns_of_availability(apps, schema_editor):
         cursor.execute(
             "ALTER TABLE availability "
             "ALTER COLUMN id TYPE UUID USING id::uuid, "
-            "ALTER COLUMN name TYPE varchar(255), "
-            "ALTER COLUMN name_pt TYPE varchar(255), "
-            "ALTER COLUMN name_en TYPE varchar(255), "
-            "ALTER COLUMN name_es TYPE varchar(255);"
+            "ALTER COLUMN name TYPE varchar(100), "
+            "ALTER COLUMN name_pt TYPE varchar(100), "
+            "ALTER COLUMN name_en TYPE varchar(100), "
+            "ALTER COLUMN name_es TYPE varchar(100);"
         )
 
 def alter_columns_of_bigquery_type(apps, schema_editor):
@@ -33,14 +33,13 @@ def alter_columns_of_bigquery_type(apps, schema_editor):
         cursor.execute(
             "ALTER TABLE bigquery_type "
             "ALTER COLUMN id TYPE UUID USING id::uuid, "
-            "ALTER COLUMN name TYPE varchar(255);"
+            "ALTER COLUMN name TYPE varchar(50);"
         )
 
 def alter_columns_of_cloud_table_columns(apps, schema_editor):
     with schema_editor.connection.cursor() as cursor:
         cursor.execute(
             "ALTER TABLE cloud_table_columns "
-            "ALTER COLUMN id TYPE int4, "
             "ALTER COLUMN cloudtable_id TYPE UUID USING cloudtable_id::uuid, "
             "ALTER COLUMN column_id TYPE UUID USING column_id::uuid;"
         )
@@ -53,9 +52,7 @@ def alter_columns_of_cloud_table(apps, schema_editor):
             "ALTER COLUMN gcp_project_id TYPE varchar(100), "
             "ALTER COLUMN gcp_dataset_id TYPE varchar(100), "
             "ALTER COLUMN gcp_table_id TYPE varchar(100), "
-            "ALTER COLUMN table_id TYPE UUID USING table_id::uuid, "
-            "ALTER COLUMN cloudtable_id TYPE UUID USING cloudtable_id::uuid, "
-            "ALTER COLUMN column_id TYPE UUID USING column_id::uuid;"
+            "ALTER COLUMN table_id TYPE UUID USING table_id::uuid;"
         )
 
 def alter_columns_of_column(apps, schema_editor):
@@ -71,7 +68,7 @@ def alter_columns_of_column(apps, schema_editor):
             "ALTER COLUMN name_staging_en TYPE varchar(255), "
             "ALTER COLUMN name_staging_es TYPE varchar(255), "
             "ALTER COLUMN name_staging_pt TYPE varchar(255), "
-            "ALTER COLUMN measurement_unit TYPE varchar(255), "
+            "ALTER COLUMN measurement_unit TYPE varchar(100), "
             "ALTER COLUMN description TYPE text, "
             "ALTER COLUMN description_pt TYPE text, "
             "ALTER COLUMN description_en TYPE text, "
@@ -106,7 +103,6 @@ def alter_columns_of_dataset_organizations(apps, schema_editor):
     with schema_editor.connection.cursor() as cursor:
         cursor.execute(
             "ALTER TABLE dataset_organizations "
-            "ALTER COLUMN id TYPE UUID USING id::uuid, "
             "ALTER COLUMN dataset_id TYPE UUID USING dataset_id::uuid, "
             "ALTER COLUMN organization_id TYPE UUID USING organization_id::uuid;"
         )
@@ -115,7 +111,6 @@ def alter_columns_of_dataset_tags(apps, schema_editor):
     with schema_editor.connection.cursor() as cursor:
         cursor.execute(
             "ALTER TABLE dataset_tags "
-            "ALTER COLUMN id TYPE UUID USING id::uuid, "
             "ALTER COLUMN dataset_id TYPE UUID USING dataset_id::uuid, "
             "ALTER COLUMN tag_id TYPE UUID USING tag_id::uuid;"
         )
@@ -124,7 +119,6 @@ def alter_columns_of_dataset_themes(apps, schema_editor):
     with schema_editor.connection.cursor() as cursor:
         cursor.execute(
             "ALTER TABLE dataset_themes "
-            "ALTER COLUMN id TYPE UUID USING id::uuid, "
             "ALTER COLUMN dataset_id TYPE UUID USING dataset_id::uuid, "
             "ALTER COLUMN theme_id TYPE UUID USING theme_id::uuid;"
         )
@@ -143,8 +137,6 @@ def alter_columns_of_dataset(apps, schema_editor):
             "ALTER COLUMN description_pt TYPE text, "
             "ALTER COLUMN description_en TYPE text, "
             "ALTER COLUMN description_es TYPE text, "
-            "ALTER COLUMN created_at TYPE varchar(50), "
-            "ALTER COLUMN updated_at TYPE varchar(50), "
             "ALTER COLUMN status_id TYPE UUID USING status_id::uuid, "
             "ALTER COLUMN usage_guide TYPE varchar(255);"
         )
@@ -153,7 +145,6 @@ def alter_columns_of_datetime_range_units(apps, schema_editor):
     with schema_editor.connection.cursor() as cursor:
         cursor.execute(
             "ALTER TABLE datetime_range_units "
-            "ALTER COLUMN id TYPE UUID USING id::uuid, "
             "ALTER COLUMN datetimerange_id TYPE UUID USING datetimerange_id::uuid, "
             "ALTER COLUMN column_id TYPE UUID USING column_id::uuid;"
         )
@@ -173,10 +164,10 @@ def alter_columns_of_entity_category(apps, schema_editor):
             "ALTER TABLE entity_category "
             "ALTER COLUMN id TYPE UUID USING id::uuid, "
             "ALTER COLUMN slug TYPE varchar(100), "
-            "ALTER COLUMN name TYPE varchar(255), "
-            "ALTER COLUMN name_pt TYPE varchar(255), "
-            "ALTER COLUMN name_en TYPE varchar(255), "
-            "ALTER COLUMN name_es TYPE varchar(255);"
+            "ALTER COLUMN name TYPE varchar(100), "
+            "ALTER COLUMN name_pt TYPE varchar(100), "
+            "ALTER COLUMN name_en TYPE varchar(100), "
+            "ALTER COLUMN name_es TYPE varchar(100);"
         )
 
 def alter_columns_of_entity(apps, schema_editor):
@@ -206,9 +197,8 @@ def alter_columns_of_information_request(apps, schema_editor):
             "ALTER COLUMN observations_en TYPE text, "
             "ALTER COLUMN observations_es TYPE text, "
             "ALTER COLUMN dataset_id TYPE UUID USING dataset_id::uuid, "
-            "ALTER COLUMN started_by_id TYPE varchar(100), "
-            "ALTER COLUMN status_id TYPE UUID USING status_id::uuid, "
-            "ALTER COLUMN version TYPE int4 USING version::integer; "
+            "ALTER COLUMN started_by_id TYPE int4 USING started_by_id::integer , "
+            "ALTER COLUMN status_id TYPE UUID USING status_id::uuid;"
         )
 
 def alter_columns_of_language(apps, schema_editor):
@@ -216,11 +206,11 @@ def alter_columns_of_language(apps, schema_editor):
         cursor.execute(
             "ALTER TABLE language "
             "ALTER COLUMN id TYPE UUID USING id::uuid, "
-            "ALTER COLUMN slug TYPE varchar(100), "
-            "ALTER COLUMN name TYPE varchar(255), "
-            "ALTER COLUMN name_pt TYPE varchar(255), "
-            "ALTER COLUMN name_en TYPE varchar(255), "
-            "ALTER COLUMN name_es TYPE varchar(255);"
+            "ALTER COLUMN slug TYPE varchar(50), "
+            "ALTER COLUMN name TYPE varchar(100), "
+            "ALTER COLUMN name_pt TYPE varchar(100), "
+            "ALTER COLUMN name_en TYPE varchar(100), "
+            "ALTER COLUMN name_es TYPE varchar(100);"
         )
 
 def alter_columns_of_license(apps, schema_editor):
@@ -232,8 +222,7 @@ def alter_columns_of_license(apps, schema_editor):
             "ALTER COLUMN name TYPE varchar(255), "
             "ALTER COLUMN name_pt TYPE varchar(255), "
             "ALTER COLUMN name_en TYPE varchar(255), "
-            "ALTER COLUMN name_es TYPE varchar(255), "
-            "ALTER COLUMN url TYPE text;"
+            "ALTER COLUMN name_es TYPE varchar(255);"
         )
 
 def alter_columns_of_measurement_unit_category(apps, schema_editor):
@@ -241,11 +230,11 @@ def alter_columns_of_measurement_unit_category(apps, schema_editor):
         cursor.execute(
             "ALTER TABLE measurement_unit_category "
             "ALTER COLUMN id TYPE UUID USING id::uuid, "
-            "ALTER COLUMN slug TYPE varchar(100), "
-            "ALTER COLUMN name TYPE varchar(255), "
-            "ALTER COLUMN name_pt TYPE varchar(255), "
-            "ALTER COLUMN name_en TYPE varchar(255), "
-            "ALTER COLUMN name_es TYPE varchar(255);"
+            "ALTER COLUMN slug TYPE varchar(50), "
+            "ALTER COLUMN name TYPE varchar(50), "
+            "ALTER COLUMN name_pt TYPE varchar(50), "
+            "ALTER COLUMN name_en TYPE varchar(50), "
+            "ALTER COLUMN name_es TYPE varchar(50);"
         )
 
 def alter_columns_of_measurement_unit(apps, schema_editor):
@@ -253,11 +242,11 @@ def alter_columns_of_measurement_unit(apps, schema_editor):
         cursor.execute(
             "ALTER TABLE measurement_unit "
             "ALTER COLUMN id TYPE UUID USING id::uuid, "
-            "ALTER COLUMN slug TYPE varchar(100), "
-            "ALTER COLUMN name TYPE varchar(100), "
-            "ALTER COLUMN name_pt TYPE varchar(100), "
-            "ALTER COLUMN name_en TYPE varchar(100), "
-            "ALTER COLUMN name_es TYPE varchar(100), "
+            "ALTER COLUMN slug TYPE varchar(50), "
+            "ALTER COLUMN name TYPE varchar(50), "
+            "ALTER COLUMN name_pt TYPE varchar(50), "
+            "ALTER COLUMN name_en TYPE varchar(50), "
+            "ALTER COLUMN name_es TYPE varchar(50), "
             "ALTER COLUMN tex TYPE varchar(50), "
             "ALTER COLUMN category_id TYPE UUID USING category_id::uuid;"
         )
@@ -270,8 +259,7 @@ def alter_columns_of_observation_level(apps, schema_editor):
             "ALTER COLUMN entity_id TYPE UUID USING entity_id::uuid, "
             "ALTER COLUMN information_request_id TYPE UUID USING information_request_id::uuid, "
             "ALTER COLUMN raw_data_source_id TYPE UUID USING raw_data_source_id::uuid, "
-            "ALTER COLUMN table_id TYPE UUID USING table_id::uuid, "
-            "ALTER COLUMN analysis_id TYPE UUID USING analysis_id::uuid;"
+            "ALTER COLUMN table_id TYPE UUID USING table_id::uuid;"
         )
 
 def alter_columns_of_organization(apps, schema_editor):
@@ -312,8 +300,7 @@ def alter_columns_of_poll(apps, schema_editor):
             "ALTER COLUMN id TYPE UUID USING id::uuid, "
             "ALTER COLUMN entity_id TYPE UUID USING entity_id::uuid, "
             "ALTER COLUMN information_request_id TYPE UUID USING information_request_id::uuid, "
-            "ALTER COLUMN raw_data_source_id TYPE UUID USING raw_data_source_id::uuid, "
-            "ALTER COLUMN pipeline_id TYPE UUID USING pipeline_id::uuid;"
+            "ALTER COLUMN raw_data_source_id TYPE UUID USING raw_data_source_id::uuid;"
         )
 
 def alter_columns_of_quality_check(apps, schema_editor):
@@ -329,13 +316,6 @@ def alter_columns_of_quality_check(apps, schema_editor):
             "ALTER COLUMN description_pt TYPE text, "
             "ALTER COLUMN description_en TYPE text, "
             "ALTER COLUMN description_es TYPE text, "
-            "ALTER COLUMN analysis_id TYPE UUID USING analysis_id::uuid, "
-            "ALTER COLUMN column_id TYPE UUID USING column_id::uuid, "
-            "ALTER COLUMN dataset_id TYPE UUID USING dataset_id::uuid, "
-            "ALTER COLUMN information_request_id TYPE UUID USING information_request_id::uuid, "
-            "ALTER COLUMN key_id TYPE UUID USING key_id::uuid, "
-            "ALTER COLUMN pipeline_id TYPE UUID USING pipeline_id::uuid, "
-            "ALTER COLUMN raw_data_source_id TYPE UUID USING raw_data_source_id::uuid, "
             "ALTER COLUMN table_id TYPE UUID USING table_id::uuid;"
         )
 
@@ -343,7 +323,6 @@ def alter_columns_of_raw_data_source_area_ip_address_required(apps, schema_edito
     with schema_editor.connection.cursor() as cursor:
         cursor.execute(
             "ALTER TABLE raw_data_source_area_ip_address_required "
-            "ALTER COLUMN id TYPE UUID USING id::uuid, "
             "ALTER COLUMN rawdatasource_id TYPE UUID USING rawdatasource_id::uuid, "
             "ALTER COLUMN area_id TYPE UUID USING area_id::uuid;"
         )
@@ -352,7 +331,6 @@ def alter_columns_of_raw_data_source_languages(apps, schema_editor):
     with schema_editor.connection.cursor() as cursor:
         cursor.execute(
             "ALTER TABLE raw_data_source_languages "
-            "ALTER COLUMN id TYPE UUID USING id::uuid, "
             "ALTER COLUMN rawdatasource_id TYPE UUID USING rawdatasource_id::uuid, "
             "ALTER COLUMN language_id TYPE UUID USING language_id::uuid;"
         )
@@ -370,7 +348,6 @@ def alter_columns_of_raw_data_source(apps, schema_editor):
             "ALTER COLUMN description_pt TYPE text, "
             "ALTER COLUMN description_en TYPE text, "
             "ALTER COLUMN description_es TYPE text, "
-            "ALTER COLUMN url TYPE text, "
             "ALTER COLUMN availability_id TYPE UUID USING availability_id::uuid, "
             "ALTER COLUMN dataset_id TYPE UUID USING dataset_id::uuid, "
             "ALTER COLUMN license_id TYPE UUID USING license_id::uuid, "
@@ -393,16 +370,15 @@ def alter_columns_of_table_data_cleaned_by(apps, schema_editor):
     with schema_editor.connection.cursor() as cursor:
         cursor.execute(
             "ALTER TABLE table_data_cleaned_by "
-            "ALTER COLUMN id TYPE UUID USING id::uuid, "
             "ALTER COLUMN table_id TYPE UUID USING table_id::uuid, "
-            "ALTER COLUMN account_id TYPE bigint;"
+            "ALTER COLUMN account_id TYPE bigint USING account_id::bigint;"
         )
 
 def alter_columns_of_table_neighbor(apps, schema_editor):
     with schema_editor.connection.cursor() as cursor:
         cursor.execute(
             "ALTER TABLE table_neighbor "
-            "ALTER COLUMN id TYPE int4, "
+            "ALTER COLUMN id TYPE int4 USING id::integer, "
             "ALTER COLUMN table_a_id TYPE UUID USING table_a_id::uuid, "
             "ALTER COLUMN table_b_id TYPE UUID USING table_b_id::uuid;"
         )
@@ -411,16 +387,14 @@ def alter_columns_of_table_published_by(apps, schema_editor):
     with schema_editor.connection.cursor() as cursor:
         cursor.execute(
             "ALTER TABLE table_published_by "
-            "ALTER COLUMN id TYPE UUID USING id::uuid, "
             "ALTER COLUMN table_id TYPE UUID USING  table_id::uuid, "
-            "ALTER COLUMN account_id TYPE bigint;"
+            "ALTER COLUMN account_id TYPE bigint USING account_id::bigint;"
         )
 
 def alter_columns_of_table_raw_data_source(apps, schema_editor):
     with schema_editor.connection.cursor() as cursor:
         cursor.execute(
             "ALTER TABLE table_raw_data_source "
-            "ALTER COLUMN id TYPE UUID USING id::uuid, "
             "ALTER COLUMN table_id TYPE UUID USING table_id::uuid, "
             "ALTER COLUMN rawdatasource_id TYPE UUID USING rawdatasource_id::uuid;"
         )
@@ -440,20 +414,16 @@ def alter_columns_of_table(apps, schema_editor):
             "ALTER COLUMN description_en TYPE text, "
             "ALTER COLUMN description_es TYPE text, "
             "ALTER COLUMN data_cleaning_description TYPE text, "
-            "ALTER COLUMN data_cleaning_code_url TYPE text, "
-            "ALTER COLUMN auxiliary_files_url TYPE text, "
-            "ALTER COLUMN architecture_url TYPE text, "
             "ALTER COLUMN source_bucket_name TYPE varchar(255), "
-            "ALTER COLUMN uncompressed_file_size TYPE bigint USING uncompressed_file_size::bigint,"
-            " ALTER COLUMN compressed_file_size TYPE bigint USING compressed_file_size::bigint, "
-            " ALTER COLUMN number_rows TYPE bigint USING number_rows::bigint, "
-            " ALTER COLUMN number_columns TYPE bigint USING number_columns::bigint, "
+            "ALTER COLUMN uncompressed_file_size TYPE bigint USING uncompressed_file_size::bigint, "
+            "ALTER COLUMN compressed_file_size TYPE bigint USING compressed_file_size::bigint, "
+            "ALTER COLUMN number_rows TYPE bigint USING number_rows::bigint, "
+            "ALTER COLUMN number_columns TYPE int4 USING number_columns::int4, "
             "ALTER COLUMN dataset_id TYPE UUID USING dataset_id::uuid, "
             "ALTER COLUMN license_id TYPE UUID USING license_id::uuid, "
             "ALTER COLUMN partner_organization_id TYPE UUID USING partner_organization_id::uuid, "
             "ALTER COLUMN pipeline_id TYPE UUID USING pipeline_id::uuid, "
-            "ALTER COLUMN status_id TYPE UUID USING status_id::uuid, "
-            "ALTER COLUMN usage_guide TYPE varchar(255);"
+            "ALTER COLUMN status_id TYPE UUID USING status_id::uuid;"     
         )
 
 def alter_columns_of_tag(apps, schema_editor):
@@ -494,7 +464,7 @@ def alter_columns_of_update(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('v1', '0053_rename_required_requires.py'),
+        ('v1', '0054_alter_organization_area'),
     ]
 
     operations = [
