@@ -114,9 +114,27 @@ class Command(BaseCommand):
         return getattr(self, cache_context).get(id, [])
 
     def model_has_data(self, model_name):
-        if f"{model_name}.json" in self.files:
-            return True
-        return False
+        try:
+            # Abre o arquivo JSON
+            with open(f"metabase_data/{model_name}.json", "r", encoding="utf-8") as arquivo:
+                # Carrega o conteúdo do arquivo JSON
+                conteudo = json.load(arquivo)
+
+                # Verifica se o conteúdo é uma lista
+                if isinstance(conteudo, list):
+                    return True
+                else:
+                    print("Erro: O arquivo JSON não contém uma lista de objetos.")
+                    return False
+        except FileNotFoundError:
+            print(f"Erro: O arquivo '{model_name}.json' não foi encontrado.")
+            return False
+        except json.JSONDecodeError:
+            print(f"Erro: O arquivo '{model_name}.json' não é um JSON válido.")
+            return False
+        except Exception as e:
+            print(f"Erro inesperado ao processar o arquivo: {e}")
+            return False
 
     def get_models_without_foreign_keys(self, models_to_populate):
         models_without_foreign_keys = []
@@ -182,6 +200,7 @@ class Command(BaseCommand):
         """
         Clean database
         """
+
         for model in tqdm(_models, desc="Set foreign keys to null"):
             foreign_keys = [
                 field
@@ -193,13 +212,38 @@ class Command(BaseCommand):
                 field_names = [field.name for field in foreign_keys]
                 model.objects.update(**{field_name: None for field_name in field_names})
 
-        for model in tqdm(_models, desc="Cleaning database"):
-            with transaction.atomic():
-                model.objects.all().delete()
+        models_to_delete = [model for model in tqdm(_models, desc="Cleaning database")]
+
+        for model in models_to_delete:
+            self.stdout.write(
+                self.style.WARNING(f"{len(models_to_delete)} para ser excluidos\n{'#' * 15}")
+            )
+            try:
+                with transaction.atomic():
+                    model.objects.all().delete()
+            except Exception as error:
+                self.stdout.write(self.style.ERROR(f"Erro ao excluir {model}: {error}"))
+                pass
+
+    def organize_models(self, models):
+        small_model = []
+        medium_model = []
+        large_model = []
+        for model in tqdm(models, desc="Organize models to populate"):
+            model_fields = [field.name for field in model._meta.fields]
+            if len(model_fields) <= 5:
+                small_model.append(model)
+            elif 6 <= len(model_fields) <= 9:
+                medium_model.append(model)
+            else:
+                large_model.append(model)
+
+        organizedModels = small_model + medium_model + large_model
+        return organizedModels
 
     def create_instance(self, model, item):
         payload = {}
-        retry = None
+        retry_fields = {}  # Dicionário para armazenar campos que precisam ser retentados
         table_name = model._meta.db_table
         m2m_payload = {}
 
@@ -210,6 +254,12 @@ class Command(BaseCommand):
                     current_value = item.get(field_name)
 
                     if current_value is None:
+                        # Se o campo for obrigatório e não tiver valor, adiciona para retry
+                        if field.null is False:
+                            retry_fields[field_name] = {
+                                "table_name": field.related_model._meta.db_table,
+                                "current_value": current_value,
+                            }
                         continue
 
                     reference = self.references.get(
@@ -219,14 +269,10 @@ class Command(BaseCommand):
                     if reference:
                         payload[field_name] = reference
                     else:
-                        # If the field is required and the reference is missing, we need to skip
-                        if field.null is False:
-                            return
-
-                        retry = {
-                            "item": item,
+                        # Se a referência não existir, adiciona para retry
+                        retry_fields[field_name] = {
                             "table_name": field.related_model._meta.db_table,
-                            "field_name": field_name,
+                            "current_value": current_value,
                         }
                 elif isinstance(field, models.ManyToManyField):
                     field_name = field.name
@@ -250,6 +296,12 @@ class Command(BaseCommand):
                     current_value = item.get(field.name)
 
                     if current_value is None:
+                        # Se o campo for obrigatório e não tiver valor, adiciona para retry
+                        if field.null is False:
+                            retry_fields[field.name] = {
+                                "table_name": None,  # Não é um ForeignKey
+                                "current_value": current_value,
+                            }
                         continue
 
                     payload[field.name] = current_value
@@ -259,29 +311,45 @@ class Command(BaseCommand):
                 )
                 pass
 
-        instance = model(**payload)
-        instance.save()
+        # Cria a instância apenas se houver dados suficientes
+        if payload:
+            instance = model(**payload)
+            instance.save()
 
-        # Set many to many relationships
-        if m2m_payload:
-            for field_name, related_data in m2m_payload.items():
-                field = getattr(instance, field_name)
+            # Define relacionamentos many-to-many
+            if m2m_payload:
+                for field_name, related_data in m2m_payload.items():
+                    field = getattr(instance, field_name)
 
-                try:
-                    field.set(related_data)
-                except Exception as error:
-                    self.stdout.write(
-                        self.style.ERROR(
-                            f"M2M DATA: {model}-{field_name}\n\n Error: {error} {'#' * 30}"
+                    try:
+                        field.set(related_data)
+                    except Exception as error:
+                        self.stdout.write(
+                            self.style.ERROR(
+                                f"M2M DATA: {model}-{field_name}\n\n Error: {error} {'#' * 30}"
+                            )
                         )
+                        pass
+
+            # Adiciona campos que precisam ser retentados
+            if retry_fields:
+                for field_name, retry_data in retry_fields.items():
+                    self.retry_instances.append(
+                        {
+                            "instance": instance,
+                            "field_name": field_name,
+                            "table_name": retry_data["table_name"],
+                            "current_value": retry_data["current_value"],
+                            "item": item,
+                        }
                     )
-                pass
 
-        if retry:
-            retry["instance"] = instance
-            self.retry_instances.append(retry)
-
-        self.references.add(table_name, item["id"], instance.id)
+            # Adiciona a referência ao dicionário de referências
+            self.references.add(table_name, item["id"], instance.id)
+        else:
+            self.stdout.write(
+                self.style.WARNING(f"Nenhum dado válido para criar instância de {model.__name__}")
+            )
 
     def handle(self, *args, **kwargs):
         app_name = "v1"
@@ -331,8 +399,8 @@ class Command(BaseCommand):
         # Populate models
         all_models = (
             leaf_layer.models
-            + leaf_dependent_layer.models
             + sorted_layer.models
+            + leaf_dependent_layer.models
             + models_to_populate
         )
 
@@ -348,19 +416,21 @@ class Command(BaseCommand):
         self.retry_instances = []
         self.stdout.write(self.style.SUCCESS("Populating models"))
 
-        for model in all_models:
+        organized_models = self.organize_models(reversed_models)
+
+        for model in organized_models:
             table_name = model._meta.db_table
             data = self.load_table_data(table_name)
             self.stdout.write(self.style.SUCCESS(f"Populating {table_name}"))
 
-            for item in tqdm(data, desc=f"Creating instace of {table_name}"):
-                self.stdout.write(
-                    self.style.WARNING(
-                        f"Creating instance for model:{model}--{table_name}\n\n{'#' * 30}"
+            for item in tqdm(data, desc=f"Creating instance of {table_name}"):
+                try:
+                    self.create_instance(model, item)
+                except Exception as error:
+                    self.stdout.write(
+                        self.style.ERROR(f"Erro ao criar instância de {model.__name__}: {error}")
                     )
-                )
-
-                self.create_instance(model, item)
+                    continue  # Continua para o próximo item, mesmo em caso de erro
 
         self.stdout.write(self.style.SUCCESS("Populating instances with missing references"))
 
