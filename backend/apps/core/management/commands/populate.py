@@ -171,9 +171,10 @@ class Command(BaseCommand):
 
     def sort_models_by_depedencies(self, models_to_populate, other_models):
         sorted_models = []
+        models_to_populate = models_to_populate + other_models
 
-        # while len(models_to_populate) > 0:
-        for vezes in range(len(models_to_populate)):
+        # while range(len(models_to_populate)) > 0:
+        for _ in range(len(models_to_populate)):
             for model in models_to_populate:
                 has_all_dependencies = True
 
@@ -194,13 +195,14 @@ class Command(BaseCommand):
                     sorted_models.append(model)
                     models_to_populate.remove(model)
 
+        sorted_models = sorted_models + models_to_populate
+
         return sorted_models
 
     def clean_database(self, _models):
         """
         Clean database
         """
-
         for model in tqdm(_models, desc="Set foreign keys to null"):
             foreign_keys = [
                 field
@@ -223,23 +225,7 @@ class Command(BaseCommand):
                     model.objects.all().delete()
             except Exception as error:
                 self.stdout.write(self.style.ERROR(f"Erro ao excluir {model}: {error}"))
-                pass
-
-    def organize_models(self, models):
-        small_model = []
-        medium_model = []
-        large_model = []
-        for model in tqdm(models, desc="Organize models to populate"):
-            model_fields = [field.name for field in model._meta.fields]
-            if len(model_fields) <= 5:
-                small_model.append(model)
-            elif 6 <= len(model_fields) <= 9:
-                medium_model.append(model)
-            else:
-                large_model.append(model)
-
-        organizedModels = small_model + medium_model + large_model
-        return organizedModels
+                continue
 
     def create_instance(self, model, item):
         payload = {}
@@ -311,7 +297,7 @@ class Command(BaseCommand):
                 )
                 pass
 
-        # Cria a instância apenas se houver dados suficientes
+        # Verifica se todos os campos obrigatórios estão presentes
         if payload:
             instance = model(**payload)
             instance.save()
@@ -334,15 +320,13 @@ class Command(BaseCommand):
             # Adiciona campos que precisam ser retentados
             if retry_fields:
                 for field_name, retry_data in retry_fields.items():
-                    self.retry_instances.append(
-                        {
-                            "instance": instance,
-                            "field_name": field_name,
-                            "table_name": retry_data["table_name"],
-                            "current_value": retry_data["current_value"],
-                            "item": item,
-                        }
-                    )
+                    self.retry_instances.append({
+                        "instance": instance,
+                        "field_name": field_name,
+                        "table_name": retry_data["table_name"],
+                        "current_value": retry_data["current_value"],
+                        "item": item
+                    })
 
             # Adiciona a referência ao dicionário de referências
             self.references.add(table_name, item["id"], instance.id)
@@ -392,17 +376,11 @@ class Command(BaseCommand):
         sorted_layer.models = self.sort_models_by_depedencies(
             models_to_populate, leaf_layer.models + leaf_dependent_layer.models
         )
-
         sorted_layer.print(self)
         models_to_populate = list(set(models_to_populate) - set(sorted_layer.models))
 
         # Populate models
-        all_models = (
-            leaf_layer.models
-            + sorted_layer.models
-            + leaf_dependent_layer.models
-            + models_to_populate
-        )
+        all_models = (sorted_layer.models + models_to_populate)
 
         # Clean database
         # make a copy, dont modify the original array
@@ -416,9 +394,7 @@ class Command(BaseCommand):
         self.retry_instances = []
         self.stdout.write(self.style.SUCCESS("Populating models"))
 
-        organized_models = self.organize_models(reversed_models)
-
-        for model in organized_models:
+        for model in all_models:
             table_name = model._meta.db_table
             data = self.load_table_data(table_name)
             self.stdout.write(self.style.SUCCESS(f"Populating {table_name}"))
@@ -430,7 +406,7 @@ class Command(BaseCommand):
                     self.stdout.write(
                         self.style.ERROR(f"Erro ao criar instância de {model.__name__}: {error}")
                     )
-                    continue  # Continua para o próximo item, mesmo em caso de erro
+                    continue
 
         self.stdout.write(self.style.SUCCESS("Populating instances with missing references"))
 
@@ -447,7 +423,7 @@ class Command(BaseCommand):
 
             if reference:
                 self.stdout.write(
-                    self.style.SUCCESS(f"Retrying instance of {model}-{field_name}\n\n{'#' * 30}")
+                    self.style.WARNING(f"Retrying instance of {model}-{field_name}\n\n{'#' * 30}")
                 )
                 setattr(instance, field_name, reference)
                 bulk.add(instance, field_name)
