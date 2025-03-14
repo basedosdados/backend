@@ -109,6 +109,8 @@ class DatasetSearchView(FacetedSearchView):
         "contains_tables",
         "contains_raw_data_sources",
         "contains_information_requests",
+        "contains_direct_download_free",
+        "contains_direct_download_paid",
     ]
 
     @property
@@ -296,9 +298,7 @@ def as_search_result(result: SearchResult, locale="pt"):
         )
 
     entities = []
-    for slug, name in zip(
-        result.entity_slug or [], getattr(result, f"entity_name_{locale}") or []
-    ):
+    for slug, name in zip(result.entity_slug or [], getattr(result, f"entity_name_{locale}") or []):
         entities.append(
             {
                 "slug": slug,
@@ -338,6 +338,8 @@ def as_search_result(result: SearchResult, locale="pt"):
         "contains_open_data": result.contains_open_data,
         "contains_closed_data": result.contains_closed_data,
         "contains_tables": result.contains_tables,
+        "contains_direct_download_free": result.contains_direct_download_free,
+        "contains_direct_download_paid": result.contains_direct_download_paid,
         "contains_raw_data_sources": result.contains_raw_data_sources,
         "contains_information_requests": result.contains_information_requests,
         "n_tables": result.n_tables,

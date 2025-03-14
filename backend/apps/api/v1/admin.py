@@ -615,6 +615,8 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "contains_raw_data_sources",
         "contains_information_requests",
         "contains_closed_data",
+        "contains_direct_download_free",
+        "contains_direct_download_paid",
         "page_views",
         "created_at",
         "updated_at",
@@ -697,6 +699,8 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "uncompressed_file_size",
         "compressed_file_size",
         "contains_open_data",
+        "contains_direct_download_free",
+        "contains_direct_download_paid",
         "contains_closed_data",
         "page_views",
     ]
