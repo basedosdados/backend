@@ -154,8 +154,7 @@ def alter_columns_of_datetime_range(apps, schema_editor):
         cursor.execute(
             "ALTER TABLE datetime_range "
             "ALTER COLUMN id TYPE UUID USING id::uuid, "
-            "ALTER COLUMN coverage_id TYPE UUID USING coverage_id::uuid, "
-            "ALTER COLUMN unit_id TYPE UUID USING unit_id::uuid;"
+            "ALTER COLUMN coverage_id TYPE UUID USING coverage_id::uuid;"
         )
 
 def alter_columns_of_entity_category(apps, schema_editor):
