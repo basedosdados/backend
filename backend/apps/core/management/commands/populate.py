@@ -453,9 +453,12 @@ class Command(BaseCommand):
                         continue
   
             bulk.bulk_update()
+            self.enable_constraints(all_models)
+
 
         bulk = BulkUpdate()
         # Popula as tabelas sem modelos correspondentes
+        self.disable_constraints(tables_without_models)
         if tables_without_models:
             self.stdout.write(self.style.WARNING("Populating tables without models..."))
             for table_name in tables_without_models:
@@ -477,6 +480,6 @@ class Command(BaseCommand):
                         continue
 
         bulk.bulk_update()
-        self.enable_constraints(all_models)
+        self.disable_constraints(tables_without_models)
 
         self.stdout.write(self.style.SUCCESS("Data populated"))
