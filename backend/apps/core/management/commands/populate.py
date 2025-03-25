@@ -183,19 +183,54 @@ class Command(BaseCommand):
                     )
                 )
 
-    def disable_constraints(self, all_models):
-        for model in all_models:
-            table_name = model._meta.db_table
-            for field in model._meta.get_fields():
-                if isinstance(field, models.Field) and field.null is False:
-                    self.disable_not_null_if_exists(table_name, field.column)
+    def disable_constraints(self, items):
+        """
+        Desabilita constraints NOT NULL para uma lista de modelos ou nomes de tabelas
+        """
+        for item in items:
+            if isinstance(item, str):  # É um nome de tabela (sem modelo)
+                # Para tabelas sem modelo, precisamos obter as colunas NOT NULL do banco de dados
+                with connection.cursor() as cursor:
+                    cursor.execute("""
+                        SELECT column_name 
+                        FROM information_schema.columns 
+                        WHERE table_name = %s 
+                        AND is_nullable = 'NO'
+                        AND column_name != 'id'
+                    """, [item])
+                    not_null_columns = [row[0] for row in cursor.fetchall()]
+                    
+                    for column in not_null_columns:
+                        self.disable_not_null_if_exists(item, column)
+            else:  # É um modelo Django
+                table_name = item._meta.db_table
+                for field in item._meta.get_fields():
+                    if isinstance(field, models.Field) and field.null is False:
+                        self.disable_not_null_if_exists(table_name, field.column)
 
-    def enable_constraints(self, all_models):
-        for model in all_models:
-            table_name = model._meta.db_table
-            for field in model._meta.get_fields():
-                if isinstance(field, models.Field) and field.null is False:
-                    self.enable_not_null_if_exists(table_name, field.column)
+
+    def enable_constraints(self, items):
+        """
+        Habilita constraints NOT NULL para uma lista de modelos ou nomes de tabelas
+        """
+        for item in items:
+            if isinstance(item, str):  # É um nome de tabela (sem modelo)
+                with connection.cursor() as cursor:
+                    cursor.execute("""
+                        SELECT column_name 
+                        FROM information_schema.columns 
+                        WHERE table_name = %s 
+                        AND is_nullable = 'YES'
+                    """, [item])
+                    nullable_columns = [row[0] for row in cursor.fetchall()]
+
+                    for column in nullable_columns:
+                        self.enable_not_null_if_exists(item, column)
+            else:  # É um modelo Django
+                table_name = item._meta.db_table
+                for field in item._meta.get_fields():
+                    if isinstance(field, models.Field) and field.null is False:
+                        self.enable_not_null_if_exists(table_name, field.column)
 
     def get_all_files(self):
         directory = os.path.join(os.getcwd(), "metabase_data")
@@ -368,7 +403,7 @@ class Command(BaseCommand):
         app_name = "v1"
 
         app = apps.get_app_config(app_name)
-        self.get_all_files()  # Carrega todos os arquivos JSON
+        self.get_all_files()
         get_models = app.get_models()
 
         # Lista de tabelas a partir dos nomes dos arquivos JSON
@@ -391,22 +426,18 @@ class Command(BaseCommand):
             leaf_layer = Layer()
             leaf_layer.models = self.get_models_without_foreign_keys(models_to_populate)
 
-            # Remove leaf layer models from models_to_populate
             models_to_populate = list(set(models_to_populate) - set(leaf_layer.models))
             leaf_layer.print(self)
 
-            # Create a layer with models that only depend on the leaf layer
             leaf_dependent_layer = Layer()
             leaf_dependent_layer.depth = 2
             leaf_dependent_layer.models = self.get_models_that_depends_on(
                 models_to_populate, leaf_layer.models
             )
 
-            # Remove leaf dependent layer models from models_to_populate
             models_to_populate = list(set(models_to_populate) - set(leaf_dependent_layer.models))
             leaf_dependent_layer.print(self)
 
-            # Sort populated models by dependencies
             sorted_layer = Layer()
             sorted_layer.depth = 3
             sorted_layer.models = self.sort_models_by_depedencies(
@@ -415,7 +446,6 @@ class Command(BaseCommand):
             sorted_layer.print(self)
             models_to_populate = list(set(models_to_populate) - set(sorted_layer.models))
 
-            # Populate models
             all_models = (
                 leaf_layer.models
                 + leaf_dependent_layer.models
@@ -423,16 +453,18 @@ class Command(BaseCommand):
                 + models_to_populate
             )
 
-            # make a copy, dont modify the original array and Clean database
+            # Limpa o banco de dados
             reversed_models = all_models.copy()[::-1]
             self.stdout.write(self.style.WARNING("Cleaning database"))
             self.clean_database(reversed_models)
             self.stdout.write(self.style.SUCCESS("Database cleaned"))
 
             self.references = References()
-
             bulk = BulkUpdate()
+
+            # Desabilita constraints para todos os modelos ANTES de inserir dados
             self.disable_constraints(all_models)
+
             for model in all_models:
                 table_name = model._meta.db_table
                 data = self.load_table_data(table_name)
@@ -445,21 +477,22 @@ class Command(BaseCommand):
                 for item in tqdm(data, desc=f"Creating instance of {table_name}"):
                     try:
                         self.create_instance(model, item, bulk)
-                        self.stdout.write(self.style.SUCCESS(f"Populating {table_name}"))
                     except Exception as error:
                         self.stdout.write(
                             self.style.ERROR(f"Erro ao criar instância de {table_name}: {error}")
                         )
                         continue
-  
+
             bulk.bulk_update()
             self.enable_constraints(all_models)
 
-
-        bulk = BulkUpdate()
         # Popula as tabelas sem modelos correspondentes
-        self.disable_constraints(tables_without_models)
         if tables_without_models:
+            bulk = BulkUpdate()
+
+            # Desabilita constraints para tabelas sem modelos
+            self.disable_constraints(tables_without_models)
+
             self.stdout.write(self.style.WARNING("Populating tables without models..."))
             for table_name in tables_without_models:
                 data = self.load_table_data(table_name)
@@ -472,14 +505,13 @@ class Command(BaseCommand):
                 for item in tqdm(data, desc=f"Creating instance of {table_name}"):
                     try:
                         self.create_instance(None, item, bulk, table_name=table_name)
-                        self.stdout.write(self.style.SUCCESS(f"Populating {table_name}"))
                     except Exception as error:
                         self.stdout.write(
                             self.style.ERROR(f"Erro ao criar instância de {table_name}: {error}")
                         )
                         continue
 
-        bulk.bulk_update()
-        self.disable_constraints(tables_without_models)
+            bulk.bulk_update()
+            self.enable_constraints(tables_without_models)
 
         self.stdout.write(self.style.SUCCESS("Data populated"))
