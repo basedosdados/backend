@@ -10,8 +10,9 @@ from django.http import HttpRequest
 from django.utils.translation import gettext_lazy
 from faker import Faker
 
-from backend.apps.account.models import Account, BDGroup, BDRole, Team, Role, Career, Subscription
+from backend.apps.account.models import Account, BDGroup, BDRole, Team, Role, Career, Subscription, DataAPIKey
 from backend.apps.account.tasks import sync_subscription_task
+from backend.apps.data_api.admin import KeyInline
 
 
 def sync_subscription(modeladmin: ModelAdmin, request: HttpRequest, queryset: QuerySet):
@@ -192,6 +193,30 @@ class SubscriptionStatusListFilter(admin.SimpleListFilter):
             return queryset.filter(subscription__status=self.value())
 
 
+class DataAPIKeyInline(admin.TabularInline):
+    model = DataAPIKey
+    extra = 0
+    readonly_fields = (
+        "id",
+        "name",
+        "prefix",
+        "is_active",
+        "expires_at",
+        "last_used_at",
+        "created_at",
+        "updated_at"
+    )
+    fields = readonly_fields
+    can_delete = False
+    show_change_link = True
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+
 class AccountAdmin(BaseAccountAdmin):
     form = AccountChangeForm
     add_form = AccountCreationForm
@@ -291,7 +316,7 @@ class AccountAdmin(BaseAccountAdmin):
     )
     search_fields = ("email", "full_name")
     ordering = ["-created_at"]
-    inlines = (CareerInline, SubscriptionInline)
+    inlines = (CareerInline, SubscriptionInline, DataAPIKeyInline)
     filter_horizontal = ()
 
     def is_subscriber(self, instance):
@@ -378,10 +403,57 @@ class SubscriptionAdmin(admin.ModelAdmin):
         return False
 
 
+class DataAPIKeyAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "account",
+        "prefix",
+        "is_active",
+        "expires_at",
+        "last_used_at",
+        "created_at"
+    )
+    list_filter = ("is_active",)
+    search_fields = ("name", "prefix", "account__email", "account__full_name")
+    readonly_fields = (
+        "id",
+        "prefix",
+        "hashed_key",
+        "last_used_at",
+        "created_at",
+        "updated_at"
+    )
+    fieldsets = (
+        (None, {
+            "fields": (
+                "id",
+                "account",
+                "name",
+                "prefix",
+                "hashed_key",
+                "is_active",
+            )
+        }),
+        ("Timing", {
+            "fields": (
+                "expires_at",
+                "last_used_at",
+                "created_at",
+                "updated_at"
+            )
+        }),
+    )
+    ordering = ["-created_at"]
+
+    def has_add_permission(self, request):
+        return False  # API keys should be created through the API, not admin
+
+
 admin.site.register(Account, AccountAdmin)
-admin.site.register(Team, TeamAdmin)
-admin.site.register(Role, RoleAdmin)
 admin.site.register(Career, CareerAdmin)
+admin.site.register(Role, RoleAdmin)
 admin.site.register(Subscription, SubscriptionAdmin)
+admin.site.register(Team, TeamAdmin)
+admin.site.register(DataAPIKey, DataAPIKeyAdmin)
 admin.site.register(BDGroup)
 admin.site.register(BDRole)
