@@ -252,6 +252,16 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         indexed=False,
     )
 
+    contains_temporalcoverage_free = indexes.BooleanField(
+        model_attr="contains_temporalcoverage_free",
+        indexed=False,
+    )
+
+    contains_temporalcoverage_paid = indexes.BooleanField(
+        model_attr="contains_temporalcoverage_paid",
+        indexed=False,
+    )
+
     contains_tables = indexes.BooleanField(
         model_attr="contains_tables",
         indexed=False,

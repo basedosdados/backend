@@ -705,6 +705,30 @@ class Dataset(BaseModel):
         )
 
     @property
+    def contains_temporalcoverage_free(self):
+        return len(
+            [
+                table
+                for table in self.tables.exclude(status__slug__in=["under_review", "excluded"])
+                .exclude(slug__in=["dicionario", "dictionary"])
+                .all()
+                if table.contains_temporalcoverage_free
+            ]
+        )
+
+    @property
+    def contains_temporalcoverage_paid(self):
+        return len(
+            [
+                table
+                for table in self.tables.exclude(status__slug__in=["under_review", "excluded"])
+                .exclude(slug__in=["dicionario", "dictionary"])
+                .all()
+                if table.contains_temporalcoverage_paid
+            ]
+        )
+
+    @property
     def contains_tables(self):
         """Returns true if there are tables in the dataset"""
         return (
@@ -1133,6 +1157,16 @@ class Table(BaseModel, OrderedModel):
         if self.uncompressed_file_size is None:
             return False
         return self.uncompressed_file_size > 100 * 1024 * 1024
+
+    @property
+    def contains_temporalcoverage_free(self) -> bool:
+        coverage = get_full_temporal_coverage([self]) or []
+        return all(entry["type"] == "open" for entry in coverage)
+
+    @property
+    def contains_temporalcoverage_paid(self) -> bool:
+        coverage = get_full_temporal_coverage([self]) or []
+        return any(entry["type"] == "closed" for entry in coverage)
 
     @property
     def temporal_coverage(self) -> dict:

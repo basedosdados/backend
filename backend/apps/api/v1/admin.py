@@ -617,6 +617,8 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "contains_closed_data",
         "contains_direct_download_free",
         "contains_direct_download_paid",
+        "contains_temporalcoverage_free",
+        "contains_temporalcoverage_paid",
         "page_views",
         "created_at",
         "updated_at",
@@ -701,6 +703,8 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "contains_open_data",
         "contains_direct_download_free",
         "contains_direct_download_paid",
+        "contains_temporalcoverage_free",
+        "contains_temporalcoverage_paid",
         "contains_closed_data",
         "page_views",
     ]

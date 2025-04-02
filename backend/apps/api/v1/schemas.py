@@ -83,6 +83,8 @@ class Dataset(BaseModel):
     #
     contains_direct_download_free: bool
     contains_direct_download_paid: bool
+    contains_temporalcoverage_free: bool
+    contains_temporalcoverage_paid: bool
     #
     themes: List[Theme]
     organization: List[Organization]

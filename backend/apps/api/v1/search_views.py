@@ -111,6 +111,8 @@ class DatasetSearchView(FacetedSearchView):
         "contains_information_requests",
         "contains_direct_download_free",
         "contains_direct_download_paid",
+        "contains_temporalcoverage_free",
+        "contains_temporalcoverage_paid",
     ]
 
     @property
@@ -340,6 +342,8 @@ def as_search_result(result: SearchResult, locale="pt"):
         "contains_tables": result.contains_tables,
         "contains_direct_download_free": result.contains_direct_download_free,
         "contains_direct_download_paid": result.contains_direct_download_paid,
+        "contains_temporalcoverage_free": result.contains_temporalcoverage_free,
+        "contains_temporalcoverage_paid": result.contains_temporalcoverage_paid,
         "contains_raw_data_sources": result.contains_raw_data_sources,
         "contains_information_requests": result.contains_information_requests,
         "n_tables": result.n_tables,
