@@ -289,29 +289,42 @@ class Command(BaseCommand):
 
         return sorted_models
 
-    def clean_database(self, _models):
+    def clean_database(self, items):
         """
-        Clean database
+        Clean database for both Django models and raw tables without models
         """
-        for model in tqdm(_models, desc="Set foreign keys to null"):
-            foreign_keys = [
-                field
-                for field in model._meta.get_fields()
-                if isinstance(field, models.ForeignKey) and field.null is True
-            ]
+        # First pass: Set nullable foreign keys to null
+        for item in tqdm(items, desc="Setting nullable FKs to null"):
+            if not isinstance(item, str):  # It's a Django model
+                foreign_keys = [
+                    field
+                    for field in item._meta.get_fields()
+                    if isinstance(field, models.ForeignKey) and field.null is True
+                ]
 
-            if foreign_keys:
-                field_names = [field.name for field in foreign_keys]
-                model.objects.update(**{field_name: None for field_name in field_names})
+                if foreign_keys:
+                    field_names = [field.name for field in foreign_keys]
+                    item.objects.update(**{field_name: None for field_name in field_names})
 
-        models_to_delete = [model for model in tqdm(_models, desc="Cleaning database")]
-
-        for model in models_to_delete:
+        # Second pass: Delete all data
+        for item in tqdm(items, desc="Cleaning database"):
             try:
                 with transaction.atomic():
-                    model.objects.all().delete()
+                    if isinstance(item, str):  # It's a raw table name
+                        with connection.cursor() as cursor:
+                            # Try TRUNCATE first (faster)
+                            try:
+                                cursor.execute(f'TRUNCATE TABLE "{item}" CASCADE;')
+                                self.stdout.write(self.style.SUCCESS(f"Truncated table {item}"))
+                            except Exception:
+                                # Fallback to DELETE if TRUNCATE fails
+                                cursor.execute(f'DELETE FROM "{item}";')
+                                self.stdout.write(self.style.SUCCESS(f"Cleared table {item} (using DELETE)"))
+                    else:  # It's a Django model
+                        item.objects.all().delete()
+                        self.stdout.write(self.style.SUCCESS(f"Cleared model {item.__name__}"))
             except Exception as error:
-                self.stdout.write(self.style.ERROR(f"Erro ao excluir {model}: {error}"))
+                self.stdout.write(self.style.ERROR(f"Error cleaning {item}: {error}"))
                 continue
 
     def create_instance(self, model, item, bulk, table_name=None):
@@ -437,7 +450,7 @@ class Command(BaseCommand):
             # Limpa o banco de dados
             reversed_models = all_models.copy()[::-1]
             self.stdout.write(self.style.WARNING("Cleaning database"))
-            self.clean_database(reversed_models)
+            self.clean_database(reversed_models + tables_without_models)
             self.stdout.write(self.style.SUCCESS("Database cleaned"))
 
             bulk = BulkUpdate()
@@ -464,14 +477,12 @@ class Command(BaseCommand):
                         continue
 
             bulk.bulk_update()
-            self.enable_constraints(all_models)
 
         # Popula as tabelas sem modelos correspondentes
         if tables_without_models:
-            bulk = BulkUpdate()
-
             # Desabilita constraints para tabelas sem modelos
             self.disable_constraints(tables_without_models)
+            bulk = BulkUpdate()
 
             self.stdout.write(self.style.WARNING("Populating tables without models..."))
             for table_name in tables_without_models:
@@ -493,5 +504,6 @@ class Command(BaseCommand):
 
             bulk.bulk_update()
             self.enable_constraints(tables_without_models)
+            self.enable_constraints(all_models)
 
         self.stdout.write(self.style.SUCCESS("Data populated"))
