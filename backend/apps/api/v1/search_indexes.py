@@ -298,13 +298,13 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         return Dataset
 
     def read_queryset(self, using=None):
-        return self.get_model().objects.exclude(status__slug="under_review")
+        return self.get_model().objects.exclude(status__slug__in=["under_review", "excluded"])
 
     def index_queryset(self, using=None):
-        return self.get_model().objects.exclude(status__slug="under_review")
+        return self.get_model().objects.exclude(status__slug__in=["under_review", "excluded"])
 
     def load_all_queryset(self, using=None):
-        return self.get_model().objects.exclude(status__slug="under_review")
+        return self.get_model().objects.exclude(status__slug__in=["under_review", "excluded"])
 
     def prepare_organization_picture(self, obj):
         """
