@@ -71,7 +71,6 @@ class Command(BaseCommand):
         """
         with connection.cursor() as cursor:
             cursor.execute("SET session_replication_role = 'origin';")
-            cursor.execute(f"""ALTER TABLE "{table_name}" ENABLE TRIGGER ALL;""")
 
             # Verifica se a coluna deve ter a restrição NOT NULL
             cursor.execute(
