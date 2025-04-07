@@ -33,12 +33,14 @@ class AccountActivateView(View):
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = user_model.objects.get(id=uid)
+            logger.info(f'Send Activation Email - User: {user}')
         except (TypeError, ValueError, OverflowError, user_model.DoesNotExist) as e:
-            logger.error(e)
+            logger.error(f'Send Activation Email - Error: {e}')
             user = None
 
         if user:
             send_activation_email(user)
+            logger.info('Send Activation Email - Sended email for activation')
             return JsonResponse({}, status=200)
         else:
             return JsonResponse({}, status=422)
@@ -84,11 +86,13 @@ class PasswordResetView(SuccessMessageMixin, PasswordResetView):
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = user_model.objects.get(id=uid)
+            logger.info(f"ResetPassword user: {user}")
         except (TypeError, ValueError, OverflowError, user_model.DoesNotExist) as e:
-            logger.error(e)
+            logger.error(f"ResetPassword - Error PasswordResetView\n Error:{e}")
             user = None
 
         if user:
+            logger.info(f"ResetPassword - Entered in IF user condition to send email to: {user}")
             to_email = user.email
             from_email = settings.EMAIL_HOST_USER
             subject = "Base dos Dados: Redefinição de Senha"
@@ -110,8 +114,12 @@ class PasswordResetView(SuccessMessageMixin, PasswordResetView):
             msg.attach_alternative(content, "text/html")
             msg.send()
 
+            logger.info(f"Successfully send reset password email to: {to_email}")
             return JsonResponse({}, status=200)
         else:
+            logger.error(
+                f"PasswordResetView - account/views.py: Error in send reset email to: {to_email}"
+            )
             return JsonResponse({}, status=422)
 
 
