@@ -2,37 +2,31 @@
 from django.urls import path
 
 from .views import (
-    ChatbotAskView,
-    ChatInteractionSaveView,
-    ClearAssistantMemoryView,
-    FeedbackSaveView,
-    FeedbackUpdateView,
+    ChatbotThreadListView,
+    ThreadDetailView,
+    MessageView,
+    FeedbackView,
 )
 
 urlpatterns = [
     path(
-        "chatbot/ask",
-        ChatbotAskView.as_view(),
-        name="chatbot_ask",
+        "chatbot/threads/",
+        ChatbotThreadListView.as_view(),
+        name="chatbot_threads",
     ),
     path(
-        "chatbot/interactions/save",
-        ChatInteractionSaveView.as_view(),
-        name="save_chat_interaction",
+        "chatbot/threads/<uuid:thread_id>/",
+        ThreadDetailView.as_view(),
+        name="chatbot_thread",
     ),
     path(
-        "chatbot/feedback/save",
-        FeedbackSaveView.as_view(),
-        name="save_feedback",
+        "chatbot/threads/<uuid:thread_id>/message",
+        MessageView.as_view(),
+        name="chatbot_thread",
     ),
     path(
-        "chatbot/feedback/update",
-        FeedbackUpdateView.as_view(),
-        name="update_feedback",
-    ),
-    path(
-        "chatbot/memory/clear",
-        ClearAssistantMemoryView.as_view(),
-        name="clear_assistant_memory",
-    ),
+        "chatbot/message-pairs/<uuid:message_pair_id>/feedback",
+        FeedbackView.as_view(),
+        name="chatbot_message_pair_feedback",
+    )
 ]
