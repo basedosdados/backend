@@ -61,6 +61,7 @@ INSTALLED_APPS = [
     "django_extensions",
     "huey.contrib.djhuey",
     #
+    "backend.apps.chatbot",
     "backend.apps.account",
     "backend.apps.account_auth",
     "backend.apps.account_payment.apps.PaymentConfig",
