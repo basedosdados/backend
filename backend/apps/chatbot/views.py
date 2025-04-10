@@ -1,32 +1,40 @@
 # -*- coding: utf-8 -*-
-from rest_framework.views import APIView
+from django.http import JsonResponse
+from django.views import View
+from backend.apps.chatbot.models import Feedback, MessagePair, Thread
 
 
-class ChatbotAskView(APIView):
+class ChatbotThreadListView(View):
+    def get(self, request):
+        threads = Thread.objects.filter(user=request.user)
+        return JsonResponse(threads)
+    
     def post(self, request):
-        # Implementation for handling questions
-        pass
+        thread = Thread.objects.create(user=request.user)
+        return JsonResponse(thread)
 
 
-class ChatInteractionSaveView(APIView):
-    def post(self, request):
-        # Implementation for saving chat interactions
-        pass
+class ThreadDetailView(View):
+    def get(self, request, thread_id):
+        thread = Thread.objects.get(id=thread_id)
+        thread.messages.all()
+        return JsonResponse(thread)
+
+class MessageView(View):
+    def post(self, request, thread_id):
+        thread = Thread.objects.get(id=thread_id)
+        question = request.POST.get("message")
+        answer = "Resposta do chatbot" # TODO: call chatbot
+        # TODO: stream results
+        message_pair = MessagePair.objects.create(thread=thread, question=question, answer=answer)
+        return JsonResponse(message_pair)
 
 
-class FeedbackSaveView(APIView):
-    def post(self, request):
-        # Implementation for saving feedback
-        pass
-
-
-class FeedbackUpdateView(APIView):
-    def put(self, request):
-        # Implementation for updating feedback
-        pass
-
-
-class ClearAssistantMemoryView(APIView):
-    def post(self, request):
-        # Implementation for clearing chat history
-        pass
+class FeedbackView(View):
+    def put(self, request, message_pair_id):
+        feedback = Feedback.objects.update_or_create(
+            message_pair=message_pair_id,
+            rating=request.POST.get("rating"),
+            comment=request.POST.get("comment"),
+        )
+        return JsonResponse(feedback)
