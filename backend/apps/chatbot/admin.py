@@ -1,12 +1,20 @@
 # -*- coding: utf-8 -*-
 from django.contrib import admin
 
-from .models import ChatInteraction, Feedback
+from .models import Feedback, MessagePair, Thread
 
 
-class ChatInteractionAdmin(admin.ModelAdmin):
+class ThreadAdmin(admin.ModelAdmin):
     list_display = [
+        "id",
+        "created_at",
+    ]
+
+class MessagePairAdmin(admin.ModelAdmin):
+    list_display = [
+        "id",
         "question",
+        "answer",
         "created_at",
     ]
     search_fields = [
@@ -21,14 +29,12 @@ class ChatInteractionAdmin(admin.ModelAdmin):
 
 class FeedbackAdmin(admin.ModelAdmin):
     list_display = [
-        "chat_interaction",
+        "message_pair_id",
         "rating",
         "created_at",
         "updated_at",
     ]
     search_fields = [
-        "comment",
-        "chat_interaction__question",
     ]
     readonly_fields = [
         "created_at",
@@ -37,5 +43,6 @@ class FeedbackAdmin(admin.ModelAdmin):
     ordering = ["-created_at"]
 
 
-admin.site.register(ChatInteraction, ChatInteractionAdmin)
+admin.site.register(Thread, ThreadAdmin)
+admin.site.register(MessagePair, MessagePairAdmin)
 admin.site.register(Feedback, FeedbackAdmin)

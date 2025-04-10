@@ -1,8 +1,6 @@
----
-version: '3'
 services:
   index:
-    image: docker.elastic.co/elasticsearch/elasticsearch:7.17.3
+    image: elasticsearch:8.17.2 # TODO : upgrade prod to elasticsearch:8.17.2
     container_name: index
     environment:
       - cluster.name=docker-cluster
@@ -51,7 +49,11 @@ services:
       dockerfile: Dockerfile
     container_name: api
     env_file: [.env.docker]
-    ports: [8080:80]
+    volumes:
+    - .:/app
+    ports:
+      - "8000:8000"  # Porta da api
+      - "5678:5678"  # Porta de debug
     depends_on:
       index:
         condition: service_healthy
