@@ -23,7 +23,7 @@ class MessagePair(models.Model):
 
 class Feedback(models.Model):
     message_pair = models.OneToOneField(MessagePair, on_delete=models.CASCADE, primary_key=True)
-    rating = models.SmallIntegerField(choices=[(-1, "Bad"), (1, "Good")])
+    rating = models.SmallIntegerField(choices=[(0, "Bad"), (1, "Good")])
     comment = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
