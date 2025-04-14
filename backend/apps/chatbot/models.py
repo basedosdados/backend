@@ -14,15 +14,16 @@ class Thread(models.Model):
 class MessagePair(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     thread = models.ForeignKey(Thread, on_delete=models.CASCADE)
-    question = models.TextField()
-    answer = models.TextField()
-    generated_queries = models.JSONField(null=True, blank=True)
-    generated_visual_elements = models.JSONField(null=True, blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
     model_uri = models.TextField()
+    user_message = models.TextField()
+    assistant_message = models.TextField()
+    generated_queries = models.JSONField(null=True, blank=True)
+    generated_chart = models.JSONField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
 
 class Feedback(models.Model):
-    message_pair = models.OneToOneField(MessagePair, on_delete=models.CASCADE, primary_key=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    message_pair = models.OneToOneField(MessagePair, on_delete=models.CASCADE, primary_key=False)
     rating = models.SmallIntegerField(choices=[(0, "Bad"), (1, "Good")])
     comment = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
