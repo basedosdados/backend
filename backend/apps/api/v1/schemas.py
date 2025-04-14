@@ -81,6 +81,11 @@ class Dataset(BaseModel):
     contains_open_data: bool
     contains_closed_data: bool
     #
+    contains_direct_download_free: bool
+    contains_direct_download_paid: bool
+    contains_temporalcoverage_free: bool
+    contains_temporalcoverage_paid: bool
+    #
     themes: List[Theme]
     organization: List[Organization]
     temporal_coverage: List[str]
