@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 """
 AI Database Translation Script
 
@@ -21,32 +23,26 @@ Usage:
 The script processes multiple tables and fields, translating content and updating the database.
 """
 
+import csv as _csv
+import json
+import os
+import time
+from functools import wraps
+from io import StringIO
 from pprint import pprint
 from random import random
 
-import dotenv
-
-dotenv.load_dotenv()
-
-import json
-
 import better_exceptions
-
-better_exceptions.hook()
-import csv as _csv
-import os
-import time
-from collections import deque
-from functools import wraps
-from io import StringIO
-
+import dotenv
 import google.generativeai as genai
 import psycopg2
 from tqdm import tqdm
 
+better_exceptions.hook()
+dotenv.load_dotenv()
+
 genai.configure(api_key=os.getenv("API_KEY"))
 model = genai.GenerativeModel("gemini-1.5-flash-latest")
-# model = genai.GenerativeModel('gemini-1.0-pro-latest')
 
 
 def main():
@@ -55,7 +51,8 @@ def main():
     """
     for table, fields in FIELDS_TO_TRANSLATE:
         print(
-            f"{table:<20}: {str(fields):<30} - Entries to process: {get_data(table, fields, count_only=True)}"
+            f"{table:<20}: {str(fields):<30} - Entries to process: "
+            f"{get_data(table, fields, count_only=True)}"
         )
     print("Press Enter to continue...")
     input()
@@ -111,7 +108,7 @@ Would you please translate the following json, filling up the missing keys: {new
 ```
 
 
-"""
+"""  # noqa: E501
             )
             print(response.text)
             res = json.loads(response.text.strip("\n`json"))
@@ -281,7 +278,8 @@ def get_data(table, fields, count_only=False):
     """
     pt_fields = ", ".join(f + "_pt" for f in fields)
     if len(fields) == 1:
-        # skip single fields if they are null at the source. Doing this properly for multi fields is hard so we don't do it
+        # Skip single fields if they are null at the source.
+        # Doing this properly for multi fields is hard so we don't do it
         restriction = " AND ".join(
             f"{f}_en IS NULL AND {f}_es IS NULL AND {f}_pt IS NOT NULL" for f in fields
         )
@@ -290,36 +288,6 @@ def get_data(table, fields, count_only=False):
     predicate = "count(*)" if count_only else f"id, {pt_fields}"
     out = sql(f'SELECT {predicate} FROM "{table}" WHERE {restriction}')
     return out[0][0] if count_only else out
-
-
-# def get_data():
-# out = sql('SELECT id, name_pt, description_pt FROM dataset WHERE id NOT IN (SELECT id FROM translated_dataset)')
-# return out
-
-
-def rate_limiter(max_calls_per_minute):
-    interval = 60.0 / max_calls_per_minute
-    call_times = deque()
-
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            nonlocal call_times
-            now = time.time()
-            while call_times and call_times[0] <= now - 60:
-                call_times.popleft()
-            if len(call_times) < max_calls_per_minute:
-                call_times.append(now)
-                return func(*args, **kwargs)
-            else:
-                sleep_time = interval - (now - call_times[0])
-                if sleep_time > 0:
-                    time.sleep(sleep_time)
-                return wrapper(*args, **kwargs)
-
-        return wrapper
-
-    return decorator
 
 
 def rate_limiter(max_calls_per_minute):
@@ -369,7 +337,7 @@ EXAMPLE_DATA = [
     2 | Pesquisa Nacional de Saúde (PNS) | A Pesquisa Nacional de Saúde (PNS) é um inquérito de base domiciliar e âmbito nacional, realizada pelo Ministério da Saúde (MS) em parceria com o Instituto Brasileiro de Geografia e Estatística (IBGE), nos anos de 2013 e 2019.                                                                                                                                                                                                                                         +
         |                                  | A população pesquisada corresponde aos moradores de domicílios particulares permanentes do Brasil, exceto os localizados nos setores censitários especiais (compostos por aglomerados subnormais; quartéis, bases militares etc.; alojamento, acampamentos etc.; embarcações, barcos, navios etc.; aldeia indígena; penitenciárias, colônias penais, presídios, cadeias etc.; asilos, orfanatos, conventos, hospitais etc.; e assentamentos rurais).                       +
         |                                  |
-"""
+"""  # noqa: E501
 ]
 
 FIELDS_TO_TRANSLATE = [

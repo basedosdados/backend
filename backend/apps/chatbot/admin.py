@@ -5,40 +5,33 @@ from .models import Feedback, MessagePair, Thread
 
 
 class ThreadAdmin(admin.ModelAdmin):
-    list_display = [
+    list_display = [field.name for field in Thread._meta.fields]
+    readonly_fields = list_display
+    search_fields = [
         "id",
-        "created_at",
+        "account__email",
     ]
+    ordering = ["-created_at"]
+
 
 class MessagePairAdmin(admin.ModelAdmin):
-    list_display = [
-        "id",
-        "question",
-        "answer",
-        "created_at",
-    ]
+    list_display = [field.name for field in MessagePair._meta.fields]
+    readonly_fields = list_display
     search_fields = [
-        "question",
-        "answer",
-    ]
-    readonly_fields = [
-        "created_at",
+        "id",
+        "thread__id",
+        "user_message",
+        "assistant_message",
     ]
     ordering = ["-created_at"]
 
 
 class FeedbackAdmin(admin.ModelAdmin):
-    list_display = [
-        "message_pair_id",
-        "rating",
-        "created_at",
-        "updated_at",
-    ]
+    list_display = [field.name for field in Feedback._meta.fields]
+    readonly_fields = list_display
     search_fields = [
-    ]
-    readonly_fields = [
-        "created_at",
-        "updated_at",
+        "id",
+        "message_pair__id",
     ]
     ordering = ["-created_at"]
 

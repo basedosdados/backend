@@ -90,3 +90,5 @@ spec:
             items:
               - key: GCP_SA
                 path: gcp-sa.json
+              - key: CHATBOT_SA
+                path: chatbot-sa.json

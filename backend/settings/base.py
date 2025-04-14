@@ -63,13 +63,28 @@ INSTALLED_APPS = [
     "django_extensions",
     "huey.contrib.djhuey",
     #
-    "backend.apps.chatbot",
+    "rest_framework",
+    "rest_framework_simplejwt",
+    #
     "backend.apps.account",
     "backend.apps.account_auth",
     "backend.apps.account_payment.apps.PaymentConfig",
     "backend.apps.api.v1",
     "backend.apps.core",
+    "backend.apps.chatbot",
 ]
+
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": (
+        "rest_framework_simplejwt.authentication.JWTAuthentication",
+    ),
+}
+
+SIMPLE_JWT = {
+    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
+    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
+    "USER_AUTHENTICATION_RULE": "backend.apps.chatbot.authentication.authentication_rule",
+}
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
@@ -102,7 +117,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "backend.wsgi.application"
-
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators
