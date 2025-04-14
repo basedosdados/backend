@@ -13,13 +13,13 @@ class ThreadAdmin(admin.ModelAdmin):
 class MessagePairAdmin(admin.ModelAdmin):
     list_display = [
         "id",
-        "question",
-        "answer",
+        "user_message",
+        "assistant_message",
         "created_at",
     ]
     search_fields = [
-        "question",
-        "answer",
+        "user_message",
+        "assistant_message",
     ]
     readonly_fields = [
         "created_at",
