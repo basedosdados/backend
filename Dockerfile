@@ -18,7 +18,7 @@ COPY nginx.conf /etc/nginx/nginx.conf
 WORKDIR /app
 COPY . .
 RUN /env/bin/pip install --no-cache-dir . && rm nginx.conf
-RUN /env/bin/pip install --no-cache-dir ./chatbot/chatbot
+RUN /env/bin/pip install --no-cache-dir ./chatbot
 
 # Prevents Python from writing .pyc files to disc
 # https://docs.python.org/3/using/cmdline.html#envvar-PYTHONDONTWRITEBYTECODE
