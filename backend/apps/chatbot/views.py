@@ -1,65 +1,73 @@
 # -*- coding: utf-8 -*-
-import json
+from django.http import HttpResponse, JsonResponse
+from rest_framework import exceptions
+from rest_framework.parsers import JSONParser
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.request import Request
+from rest_framework.views import APIView
 
-from django.http import HttpRequest, HttpResponse, JsonResponse
-from django.views import View
+from chatbot.assistants import SQLAssistant, SQLAssistantMessage, UserMessage
+from chatbot.databases import BigQueryDatabase
+
+from .models import *
+from .serializers import *
 
 # TODO: add authentication (using this login_required decorator + checking user id)
 # TODO: add error handling (404 wrong thread if, etc...)
 # TODO: To test this, create a test user in a migration
 
-from django.contrib.auth.decorators import login_required
-from django.utils.decorators import method_decorator
-from django.views.decorators.csrf import csrf_exempt
-
-from backend.apps.chatbot.models import Feedback, MessagePair, Thread
-from chatbot.assistants import SQLAssistant, SQLAssistantMessage, UserMessage
-from chatbot.databases import BigQueryDatabase
-
-
 database = BigQueryDatabase()
 
 assistant = SQLAssistant(database=database)
 
+def get_thread_by_id(thread_id: str) -> Thread:
+    try:
+        return Thread.objects.get(id=thread_id)
+    except Thread.DoesNotExist:
+        raise exceptions.NotFound
 
-class ThreadListView(View):
-    def get(self, request: HttpRequest, *args, **kwargs):
-        threads = Thread.objects.filter(account=request.user)
-        return JsonResponse({"threads": [thread.to_dict() for thread in threads]})
+def get_message_pair_by_id(message_pair_id: str) -> MessagePair:
+    try:
+        return MessagePair.objects.get(id=message_pair_id)
+    except MessagePair.DoesNotExist:
+        raise exceptions.NotFound
 
-    def post(self, request: HttpRequest, *args, **kwargs):
+class ThreadListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request: Request):
+        threads = Thread.objects.filter(account=request.user.id)
+        serializer = ThreadSerializer(threads, many=True)
+        return JsonResponse(serializer.data, safe=False)
+
+    def post(self, request: Request):
         thread = Thread.objects.create(account=request.user)
-        return JsonResponse(thread.to_dict())
+        serializer = ThreadSerializer(thread)
+        return JsonResponse(serializer.data)
 
-class ThreadDetailView(View):
-    def get(self, request: HttpRequest, thread_id: str, *args, **kwargs):
-        try:
-            thread = Thread.objects.get(id=thread_id)
-        except Thread.DoesNotExist:
-            return HttpResponse(404)
+class ThreadDetailView(APIView):
+    permission_classes = [IsAuthenticated]
 
-        if thread.account.uuid != request.user.id:
-            return JsonResponse(
-                data={"error": "You are not authorized to access this thread"},
-                status=403
-            )
-
+    def get(self, request: Request, thread_id: str):
+        thread = get_thread_by_id(thread_id)
         messages = MessagePair.objects.filter(thread=thread)
+        serializer = MessagePairSerializer(messages, many=True)
+        return JsonResponse(serializer.data, safe=False)
 
-        return JsonResponse({"messages": [message.to_dict() for message in messages]})
+class MessageView(APIView):
+    permission_classes = [IsAuthenticated]
 
-class MessageView(View):
-    def post(self, request: HttpRequest, thread_id: str, *args, **kwargs):
-        thread = Thread.objects.get(id=thread_id)
+    def post(self, request: Request, thread_id: str):
+        data = JSONParser().parse(request)
 
-        if thread.account.uuid != request.user.id:
-            return JsonResponse(
-                data={"error": "You are not authorized to access this thread"},
-                status=403
-            )
+        serializer = UserMessageSerializer(data=data)
 
-        user_message = json.loads(request.body.decode("utf-8"))
-        user_message = UserMessage(**user_message)
+        if not serializer.is_valid():
+            return JsonResponse(serializer.errors, status=400)
+
+        user_message = UserMessage(**serializer.data)
+
+        thread = get_thread_by_id(thread_id)
 
         assistant_response: SQLAssistantMessage = assistant.invoke(
             message=user_message,
@@ -69,45 +77,45 @@ class MessageView(View):
         # TODO (nice to have): stream results
         message_pair = MessagePair.objects.create(
             id=assistant_response.id,
-            thread=thread_id,
+            thread=thread,
             model_uri=assistant_response.model_uri,
             user_message=user_message.content,
             assistant_message=assistant_response.content,
             generated_queries=assistant_response.sql_queries,
         )
 
-        return JsonResponse(message_pair)
+        serializer = MessagePairSerializer(message_pair)
 
-class FeedbackView(View):
-    def put(self, request: HttpRequest, message_pair_id: str, *args, **kwargs):
-        message_pair = MessagePair.objects.get(id=message_pair_id)
+        return JsonResponse(serializer.data, status=201)
 
-        if message_pair.thread.account.uuid != request.user.id:
-            return JsonResponse(
-                data={"error": "You are not authorized to access this thread"},
-                status=403
-            )
+class FeedbackView(APIView):
+    permission_classes = [IsAuthenticated]
 
-        feedback: dict = json.loads(request.body.decode("utf-8"))
+    def put(self, request: Request, message_pair_id: str):
+        data = JSONParser().parse(request)
 
-        feedback = Feedback.objects.update_or_create(
-            message_pair=message_pair_id,
-            rating=feedback["rating"],
-            comment=feedback["comment"],
+        serializer = FeedbackCreateSerializer(data=data)
+
+        if not serializer.is_valid():
+            return JsonResponse(serializer.errors, status=400)
+
+        message_pair = get_message_pair_by_id(message_pair_id)
+
+        feedback, created = Feedback.objects.update_or_create(
+            message_pair=message_pair,
+            defaults=serializer.data
         )
 
-        return JsonResponse(feedback)
+        serializer = FeedbackSerializer(feedback)
 
-class CheckpointView(View):
-    def delete(self, request: HttpRequest, thread_id: str, *args, **kwargs):
-        thread = Thread.objects.get(id=thread_id)
+        status = 201 if created else 200
 
-        if thread.account.uuid != request.user.id:
-            return JsonResponse(
-                data={"error": "You are not authorized to access this thread"},
-                status=403
-            )
+        return JsonResponse(serializer.data, status=status)
 
-        assistant.clear_thread(thread_id)
-
-        return HttpResponse(200)
+class CheckpointView(APIView):
+    def delete(self, request: Request, thread_id: str):
+        try:
+            assistant.clear_thread(thread_id)
+            return HttpResponse("Checkpoint cleared successfully", status=200)
+        except Exception:
+            return HttpResponse("Error clearing checkpoint", status=500)
