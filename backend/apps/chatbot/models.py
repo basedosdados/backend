@@ -25,6 +25,6 @@ class Feedback(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     message_pair = models.OneToOneField(MessagePair, on_delete=models.CASCADE, primary_key=False)
     rating = models.SmallIntegerField(choices=[(0, "Bad"), (1, "Good")])
-    comment = models.TextField(blank=True)
+    comment = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
