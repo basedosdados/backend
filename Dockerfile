@@ -8,7 +8,7 @@ ENV PATH /env/bin:$PATH
 
 # Install make, nginx and copy configuration
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl libpq-dev make nginx \
+    && apt-get install -y --no-install-recommends build-essential curl g++ libpq-dev make nginx \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && rm /etc/nginx/sites-enabled/default
