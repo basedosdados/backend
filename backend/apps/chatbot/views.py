@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+import uuid
+
 from django.http import HttpResponse, JsonResponse
 from rest_framework import exceptions
 from rest_framework.parsers import JSONParser
@@ -6,27 +8,23 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.views import APIView
 
-from chatbot.assistants import SQLAssistant, SQLAssistantMessage, UserMessage
+from chatbot.assistants import (SQLAssistantMessage, UserMessage,
+                                get_sync_sql_assistant)
 from chatbot.databases import BigQueryDatabase
 
 from .models import *
 from .serializers import *
 
-# TODO: add authentication (using this login_required decorator + checking user id)
-# TODO: add error handling (404 wrong thread if, etc...)
-# TODO: To test this, create a test user in a migration
-
 database = BigQueryDatabase()
+assistant, pool = get_sync_sql_assistant(database)
 
-assistant = SQLAssistant(database=database)
-
-def get_thread_by_id(thread_id: str) -> Thread:
+def get_thread_by_id(thread_id: uuid.UUID) -> Thread:
     try:
         return Thread.objects.get(id=thread_id)
     except Thread.DoesNotExist:
         raise exceptions.NotFound
 
-def get_message_pair_by_id(message_pair_id: str) -> MessagePair:
+def get_message_pair_by_id(message_pair_id: uuid.UUID) -> MessagePair:
     try:
         return MessagePair.objects.get(id=message_pair_id)
     except MessagePair.DoesNotExist:
@@ -48,7 +46,7 @@ class ThreadListView(APIView):
 class ThreadDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request: Request, thread_id: str):
+    def get(self, request: Request, thread_id: uuid.UUID):
         thread = get_thread_by_id(thread_id)
         messages = MessagePair.objects.filter(thread=thread)
         serializer = MessagePairSerializer(messages, many=True)
@@ -57,7 +55,9 @@ class ThreadDetailView(APIView):
 class MessageView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request: Request, thread_id: str):
+    def post(self, request: Request, thread_id: uuid.UUID):
+        thread_id = str(thread_id)
+
         data = JSONParser().parse(request)
 
         serializer = UserMessageSerializer(data=data)
@@ -91,7 +91,7 @@ class MessageView(APIView):
 class FeedbackView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def put(self, request: Request, message_pair_id: str):
+    def put(self, request: Request, message_pair_id: uuid.UUID):
         data = JSONParser().parse(request)
 
         serializer = FeedbackCreateSerializer(data=data)
@@ -113,8 +113,9 @@ class FeedbackView(APIView):
         return JsonResponse(serializer.data, status=status)
 
 class CheckpointView(APIView):
-    def delete(self, request: Request, thread_id: str):
+    def delete(self, request: Request, thread_id: uuid.UUID):
         try:
+            thread_id = str(thread_id)
             assistant.clear_thread(thread_id)
             return HttpResponse("Checkpoint cleared successfully", status=200)
         except Exception:
