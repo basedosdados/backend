@@ -296,9 +296,7 @@ def as_search_result(result: SearchResult, locale="pt"):
         )
 
     entities = []
-    for slug, name in zip(
-        result.entity_slug or [], getattr(result, f"entity_name_{locale}") or []
-    ):
+    for slug, name in zip(result.entity_slug or [], getattr(result, f"entity_name_{locale}") or []):
         entities.append(
             {
                 "slug": slug,
