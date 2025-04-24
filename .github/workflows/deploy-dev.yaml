@@ -19,6 +19,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           ref: dev
+          submodules: recursive
       - name: Import secrets from Vault
         id: import_secrets
         uses: hashicorp/vault-action@v2.8.0
