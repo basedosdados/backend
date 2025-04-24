@@ -8,15 +8,15 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.views import APIView
 
-from chatbot.assistants import (SQLAssistantMessage, UserMessage,
-                                get_sync_sql_assistant)
+from chatbot.assistants import SQLAssistant, SQLAssistantMessage, UserMessage
 from chatbot.databases import BigQueryDatabase
 
 from .models import *
 from .serializers import *
 
 database = BigQueryDatabase()
-assistant, pool = get_sync_sql_assistant(database)
+assistant = SQLAssistant(database)
+assistant.setup()
 
 class ThreadListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -53,7 +53,7 @@ class MessageListView(APIView):
         if not serializer.is_valid():
             return JsonResponse(serializer.errors, status=400)
 
-        user_message = UserMessage(**serializer.data)
+        user_message = UserMessage(**serializer.validated_data)
 
         thread = _get_thread_by_id(thread_id)
 
