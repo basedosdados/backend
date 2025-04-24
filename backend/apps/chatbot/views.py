@@ -18,18 +18,6 @@ from .serializers import *
 database = BigQueryDatabase()
 assistant, pool = get_sync_sql_assistant(database)
 
-def get_thread_by_id(thread_id: uuid.UUID) -> Thread:
-    try:
-        return Thread.objects.get(id=thread_id)
-    except Thread.DoesNotExist:
-        raise exceptions.NotFound
-
-def get_message_pair_by_id(message_pair_id: uuid.UUID) -> MessagePair:
-    try:
-        return MessagePair.objects.get(id=message_pair_id)
-    except MessagePair.DoesNotExist:
-        raise exceptions.NotFound
-
 class ThreadListView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -47,12 +35,12 @@ class ThreadDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request: Request, thread_id: uuid.UUID):
-        thread = get_thread_by_id(thread_id)
+        thread = _get_thread_by_id(thread_id)
         messages = MessagePair.objects.filter(thread=thread)
         serializer = MessagePairSerializer(messages, many=True)
         return JsonResponse(serializer.data, safe=False)
 
-class MessageView(APIView):
+class MessageListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request: Request, thread_id: uuid.UUID):
@@ -67,7 +55,7 @@ class MessageView(APIView):
 
         user_message = UserMessage(**serializer.data)
 
-        thread = get_thread_by_id(thread_id)
+        thread = _get_thread_by_id(thread_id)
 
         assistant_response: SQLAssistantMessage = assistant.invoke(
             message=user_message,
@@ -99,7 +87,7 @@ class FeedbackView(APIView):
         if not serializer.is_valid():
             return JsonResponse(serializer.errors, status=400)
 
-        message_pair = get_message_pair_by_id(message_pair_id)
+        message_pair = _get_message_pair_by_id(message_pair_id)
 
         feedback, created = Feedback.objects.update_or_create(
             message_pair=message_pair,
@@ -120,3 +108,15 @@ class CheckpointView(APIView):
             return HttpResponse("Checkpoint cleared successfully", status=200)
         except Exception:
             return HttpResponse("Error clearing checkpoint", status=500)
+
+def _get_thread_by_id(thread_id: uuid.UUID) -> Thread:
+    try:
+        return Thread.objects.get(id=thread_id)
+    except Thread.DoesNotExist:
+        raise exceptions.NotFound
+
+def _get_message_pair_by_id(message_pair_id: uuid.UUID) -> MessagePair:
+    try:
+        return MessagePair.objects.get(id=message_pair_id)
+    except MessagePair.DoesNotExist:
+        raise exceptions.NotFound
