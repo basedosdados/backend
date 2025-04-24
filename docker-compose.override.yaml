@@ -51,8 +51,8 @@ services:
     env_file: [.env.docker]
     command: ["/app/start-dev.sh"]
     volumes:
-    - .:/app
-    - $HOME/.config/pydata:$HOME/.config/pydata
+      - .:/app
+      - $HOME/.config/pydata:$HOME/.config/pydata
     ports:
       - "8000:8000"  # Porta da api
       - "5678:5678"  # Porta de debug
