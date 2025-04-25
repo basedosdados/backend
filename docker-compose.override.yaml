@@ -43,6 +43,15 @@ services:
       retries: 5
       start_period: 1m
     restart: unless-stopped
+  vector-database:
+    image: chromadb/chroma:0.6.3 # chromadb version that gets installed with langchain-chroma==0.2.2
+    ports:
+      - 8001:8000
+    volumes:
+      - chroma_data:/data
+    healthcheck:
+      test: curl -f http://localhost:8000/api/v2/heartbeat || exit 1
+    restart: unless-stopped
   api:
     build:
       context: .
@@ -63,19 +72,14 @@ services:
         condition: service_healthy
       database:
         condition: service_healthy
+      vector-database:
+        condition: service_healthy
     healthcheck:
       test: [CMD, curl, -f, http://localhost/healthcheck/]
       interval: 1m
       timeout: 30s
       retries: 5
       start_period: 30s
-    restart: unless-stopped
-  chromadb:
-    image: chromadb/chroma:0.6.3 # chromadb version that gets installed with langchain-chroma==0.2.2
-    ports:
-      - "8001:8000"
-    volumes:
-      - chroma_data:/data
     restart: unless-stopped
 
 volumes:
