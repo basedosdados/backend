@@ -53,7 +53,7 @@ class MessageListView(APIView):
         if not serializer.is_valid():
             return JsonResponse(serializer.errors, status=400)
 
-        user_message = UserMessage(**serializer.validated_data)
+        user_message = UserMessage(**serializer.data)
 
         thread = _get_thread_by_id(thread_id)
 
