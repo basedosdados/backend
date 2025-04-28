@@ -73,7 +73,7 @@ class MessageListView(APIView):
 
         return JsonResponse(serializer.data, status=201)
 
-class FeedbackView(APIView):
+class FeedbackListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def put(self, request: Request, message_pair_id: uuid.UUID):
@@ -97,7 +97,7 @@ class FeedbackView(APIView):
 
         return JsonResponse(serializer.data, status=status)
 
-class CheckpointView(APIView):
+class CheckpointListView(APIView):
     def delete(self, request: Request, thread_id: uuid.UUID):
         try:
             thread_id = str(thread_id)
