@@ -1,5 +1,3 @@
-import uuid
-
 from rest_framework import serializers
 
 from .models import Feedback, MessagePair, Thread
@@ -23,7 +21,3 @@ class ThreadSerializer(serializers.ModelSerializer):
     class Meta:
         model = Thread
         fields = [field.name for field in Thread._meta.fields]
-
-class UserMessageSerializer(serializers.Serializer):
-    id = serializers.UUIDField(default=uuid.uuid4)
-    content = serializers.CharField()
