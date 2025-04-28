@@ -98,6 +98,8 @@ class FeedbackListView(APIView):
         return JsonResponse(serializer.data, status=status)
 
 class CheckpointListView(APIView):
+    permission_classes = [IsAuthenticated]
+
     def delete(self, request: Request, thread_id: uuid.UUID):
         try:
             thread_id = str(thread_id)
