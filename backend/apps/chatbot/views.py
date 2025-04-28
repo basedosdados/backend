@@ -25,12 +25,28 @@ assistant.setup()
 class ThreadListView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request: Request):
+    def get(self, request: Request) -> JsonResponse:
+        """Retrieve all threads associated with the authenticated user.
+
+        Args:
+            request (Request): A Django REST framework `Request` object containing the authenticated user.
+
+        Returns:
+            JsonResponse: A JSON response containing a list of serialized threads.
+        """
         threads = Thread.objects.filter(account=request.user.id)
         serializer = ThreadSerializer(threads, many=True)
         return JsonResponse(serializer.data, safe=False)
 
-    def post(self, request: Request):
+    def post(self, request: Request) -> JsonResponse:
+        """Create a new thread for the authenticated user.
+
+        Args:
+            request (Request): A Django REST framework `Request` object containing the authenticated user.
+
+        Returns:
+            JsonResponse: A JSON response containing the serialized newly created thread.
+        """
         thread = Thread.objects.create(account=request.user)
         serializer = ThreadSerializer(thread)
         return JsonResponse(serializer.data)
@@ -38,7 +54,16 @@ class ThreadListView(APIView):
 class ThreadDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def get(self, request: Request, thread_id: uuid.UUID):
+    def get(self, request: Request, thread_id: uuid.UUID) -> JsonResponse:
+        """Retrieve all message pairs associated with a specific thread.
+
+        Args:
+            request (Request): A Django REST framework `Request` object.
+            thread_id (uuid.UUID): The unique identifier of the thread.
+
+        Returns:
+            JsonResponse: A JSON response containing the serialized message pairs.
+        """
         thread = _get_thread_by_id(thread_id)
         messages = MessagePair.objects.filter(thread=thread)
         serializer = MessagePairSerializer(messages, many=True)
@@ -47,7 +72,16 @@ class ThreadDetailView(APIView):
 class MessageListView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def post(self, request: Request, thread_id: uuid.UUID):
+    def post(self, request: Request, thread_id: uuid.UUID) -> JsonResponse:
+        """Create a message pair for a given thread.
+
+        Args:
+            request (Request): A Django REST framework `Request` object containing a user message.
+            thread_id (uuid.UUID): The unique identifier for the thread.
+
+        Returns:
+            JsonResponse: A JSON response with the serialized message pair object.
+        """
         thread_id = str(thread_id)
 
         user_message = _validate(request, UserMessage)
@@ -76,7 +110,17 @@ class MessageListView(APIView):
 class FeedbackListView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def put(self, request: Request, message_pair_id: uuid.UUID):
+    def put(self, request: Request, message_pair_id: uuid.UUID) -> JsonResponse:
+        """Create or update a feedback for a given message pair.
+
+        Args:
+            request (Request): A Django REST framework `Request` object containing feedback data.
+            message_pair_id (uuid.UUID): The unique identifier of the message pair.
+
+        Returns:
+            JsonResponse: A JSON response with the serialized feedback object and an appropriate
+            HTTP status code (201 for creation, 200 for update).
+        """
         data = JSONParser().parse(request)
 
         serializer = FeedbackCreateSerializer(data=data)
@@ -100,7 +144,16 @@ class FeedbackListView(APIView):
 class CheckpointListView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def delete(self, request: Request, thread_id: uuid.UUID):
+    def delete(self, request: Request, thread_id: uuid.UUID) -> HttpResponse:
+        """Delete all checkpoints associated with a given thread ID.
+
+        Args:
+            request (Request): A Django REST framework `Request` object.
+            thread_id (uuid.UUID): The unique identifier of the thread.
+
+        Returns:
+            HttpResponse: An HTTP response indicating success (200) or failure (500).
+        """
         try:
             thread_id = str(thread_id)
             assistant.clear_thread(thread_id)
@@ -109,18 +162,53 @@ class CheckpointListView(APIView):
             return HttpResponse("Error clearing checkpoint", status=500)
 
 def _get_thread_by_id(thread_id: uuid.UUID) -> Thread:
+    """Retrieve a `Thread` object by its ID.
+
+    Args:
+        message_pair_id (uuid.UUID): The unique identifier of the `Thread`.
+
+    Raises:
+        NotFound: If no `Thread` exists with the given ID.
+
+    Returns:
+        Thread: The retrieved `Thread` object.
+    """
     try:
         return Thread.objects.get(id=thread_id)
     except Thread.DoesNotExist:
         raise exceptions.NotFound
 
 def _get_message_pair_by_id(message_pair_id: uuid.UUID) -> MessagePair:
+    """Retrieve a `MessagePair` object by its ID.
+
+    Args:
+        message_pair_id (uuid.UUID): The unique identifier of the `MessagePair`.
+
+    Raises:
+        NotFound: If no `MessagePair` exists with the given ID.
+
+    Returns:
+        MessagePair: The retrieved `MessagePair` object.
+    """
     try:
         return MessagePair.objects.get(id=message_pair_id)
     except MessagePair.DoesNotExist:
         raise exceptions.NotFound
 
 def _validate(request: Request, model: Type[PydanticModel]) -> PydanticModel:
+    """Parse and validate a request's JSON payload against a Pydantic model.
+
+    Args:
+        request (Request): A Django REST framework `Request` object containing JSON data.
+        model (Type[PydanticModel]): A Pydantic model class to validate against.
+
+    Raises:
+        exceptions.ValidationError: Raised if the request data fails Pydantic validation.
+        (Re-raised as a Django REST framework `ValidationError`).
+
+    Returns:
+        PydanticModel: An instance of the provided Pydantic model populated with validated data.
+    """
     data = JSONParser().parse(request)
 
     try:
