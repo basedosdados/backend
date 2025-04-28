@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 import uuid
+from typing import Type, TypeVar
 
+import pydantic
 from django.http import HttpResponse, JsonResponse
 from rest_framework import exceptions
 from rest_framework.parsers import JSONParser
@@ -13,6 +15,8 @@ from chatbot.databases import BigQueryDatabase
 
 from .models import *
 from .serializers import *
+
+PydanticModel = TypeVar("PydanticModel", bound=pydantic.BaseModel)
 
 database = BigQueryDatabase()
 assistant = SQLAssistant(database)
@@ -46,14 +50,7 @@ class MessageListView(APIView):
     def post(self, request: Request, thread_id: uuid.UUID):
         thread_id = str(thread_id)
 
-        data = JSONParser().parse(request)
-
-        serializer = UserMessageSerializer(data=data)
-
-        if not serializer.is_valid():
-            return JsonResponse(serializer.errors, status=400)
-
-        user_message = UserMessage(**serializer.data)
+        user_message = _validate(request, UserMessage)
 
         thread = _get_thread_by_id(thread_id)
 
@@ -120,3 +117,11 @@ def _get_message_pair_by_id(message_pair_id: uuid.UUID) -> MessagePair:
         return MessagePair.objects.get(id=message_pair_id)
     except MessagePair.DoesNotExist:
         raise exceptions.NotFound
+
+def _validate(request: Request, model: Type[PydanticModel]) -> PydanticModel:
+    data = JSONParser().parse(request)
+
+    try:
+        return model(**data)
+    except pydantic.ValidationError as e:
+        raise exceptions.ValidationError(e.errors())
