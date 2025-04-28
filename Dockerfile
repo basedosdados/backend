@@ -17,6 +17,7 @@ RUN apt-get update \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && rm /etc/nginx/sites-enabled/default
+RUN apt-get update && apt-get install -y postgresql postgresql-contrib
 COPY nginx.conf /etc/nginx/nginx.conf
 
 # Prevents Python from writing .pyc files to disc
