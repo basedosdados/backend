@@ -256,3 +256,6 @@ fixtures*
 
 # Version manager
 .tool-versions
+
+# fetch_metabase script
+metabase_data
