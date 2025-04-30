@@ -1,9 +1,16 @@
 # -*- coding: utf-8 -*-
+import os
 import uuid
+from functools import cache
 from typing import Type, TypeVar
 
+import chromadb
 import pydantic
 from django.http import HttpResponse, JsonResponse
+from langchain_chroma import Chroma
+from langchain_openai import OpenAIEmbeddings
+from langgraph.checkpoint.postgres import PostgresSaver
+from psycopg_pool import ConnectionPool
 from rest_framework import exceptions
 from rest_framework.parsers import JSONParser
 from rest_framework.permissions import IsAuthenticated
@@ -18,9 +25,64 @@ from .serializers import *
 
 PydanticModel = TypeVar("PydanticModel", bound=pydantic.BaseModel)
 
-database = BigQueryDatabase()
-assistant = SQLAssistant(database)
-assistant.setup()
+# TODO: put all this inside a _get_sql_assistant() function
+db_url = os.environ["DB_URL"]
+
+bq_billing_project = os.environ["BILLING_PROJECT_ID"]
+bq_query_project = os.environ["QUERY_PROJECT_ID"]
+
+chroma_host = os.getenv("CHROMA_HOST")
+chroma_port = os.getenv("CHROMA_PORT")
+chroma_collection = os.getenv("SQL_CHROMA_COLLECTION")
+
+# TODO: Change this database for a database
+# that gets the metadata from the PostgreSQL database
+database = BigQueryDatabase(
+    billing_project=bq_billing_project,
+    query_project=bq_query_project,
+)
+
+if chroma_host and chroma_port and chroma_collection:
+    chroma_client = chromadb.HttpClient(
+        host=chroma_host,
+        port=chroma_port,
+    )
+
+    vector_store = Chroma(
+        client=chroma_client,
+        collection_name=chroma_collection,
+        collection_metadata={"hnsw:space": "cosine"},
+        embedding_function=OpenAIEmbeddings(
+            model="text-embedding-3-small"
+        ),
+    )
+else:
+    vector_store = None
+
+# Connection kwargs defined according to:
+# https://github.com/langchain-ai/langgraph/issues/2887
+# https://langchain-ai.github.io/langgraph/how-tos/persistence_postgres
+conn_kwargs = {
+    "autocommit": True,
+    "prepare_threshold": 0
+}
+
+pool = ConnectionPool(
+    conninfo=db_url,
+    kwargs=conn_kwargs,
+    max_size=8,
+    open=False,
+)
+pool.open()
+
+checkpointer = PostgresSaver(pool)
+checkpointer.setup()
+
+assistant = SQLAssistant(
+    database=database,
+    checkpointer=checkpointer,
+    vector_store=vector_store
+)
 
 class ThreadListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -87,6 +149,8 @@ class MessageListView(APIView):
         user_message = _validate(request, UserMessage)
 
         thread = _get_thread_by_id(thread_id)
+
+        # assistant = _get_sql_assistant()
 
         assistant_response: SQLAssistantMessage = assistant.invoke(
             message=user_message,
@@ -156,6 +220,7 @@ class CheckpointListView(APIView):
         """
         try:
             thread_id = str(thread_id)
+            # assistant = _get_sql_assistant()
             assistant.clear_thread(thread_id)
             return HttpResponse("Checkpoint cleared successfully", status=200)
         except Exception:
