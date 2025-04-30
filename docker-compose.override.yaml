@@ -48,7 +48,7 @@ services:
     ports:
       - 8001:8000
     volumes:
-      - chroma_data:/data
+      - chroma_data:/chroma/chroma
     healthcheck:
       test: curl -f http://localhost:8000/api/v2/heartbeat || exit 1
     restart: unless-stopped
