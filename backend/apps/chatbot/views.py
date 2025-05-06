@@ -15,6 +15,7 @@ from rest_framework import exceptions
 from rest_framework.parsers import JSONParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
+from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 
 from chatbot.assistants import SQLAssistant, SQLAssistantMessage, UserMessage
@@ -25,64 +26,69 @@ from .serializers import *
 
 PydanticModel = TypeVar("PydanticModel", bound=pydantic.BaseModel)
 
-# TODO: put all this inside a _get_sql_assistant() function
-db_url = os.environ["DB_URL"]
+ModelSerializer = TypeVar("ModelSerializer", bound=Serializer)
 
-bq_billing_project = os.environ["BILLING_PROJECT_ID"]
-bq_query_project = os.environ["QUERY_PROJECT_ID"]
+@cache
+def _get_sql_assistant():
+    db_url = os.environ["DB_URL"]
 
-chroma_host = os.getenv("CHROMA_HOST")
-chroma_port = os.getenv("CHROMA_PORT")
-chroma_collection = os.getenv("SQL_CHROMA_COLLECTION")
+    bq_billing_project = os.environ["BILLING_PROJECT_ID"]
+    bq_query_project = os.environ["QUERY_PROJECT_ID"]
 
-# TODO: Change this database for a database
-# that gets the metadata from the PostgreSQL database
-database = BigQueryDatabase(
-    billing_project=bq_billing_project,
-    query_project=bq_query_project,
-)
+    chroma_host = os.getenv("CHROMA_HOST")
+    chroma_port = os.getenv("CHROMA_PORT")
+    chroma_collection = os.getenv("SQL_CHROMA_COLLECTION")
 
-if chroma_host and chroma_port and chroma_collection:
-    chroma_client = chromadb.HttpClient(
-        host=chroma_host,
-        port=chroma_port,
+    # TODO: Change this database for a database
+    # that gets the metadata from the PostgreSQL database
+    database = BigQueryDatabase(
+        billing_project=bq_billing_project,
+        query_project=bq_query_project,
     )
 
-    vector_store = Chroma(
-        client=chroma_client,
-        collection_name=chroma_collection,
-        collection_metadata={"hnsw:space": "cosine"},
-        embedding_function=OpenAIEmbeddings(
-            model="text-embedding-3-small"
-        ),
+    if chroma_host and chroma_port and chroma_collection:
+        chroma_client = chromadb.HttpClient(
+            host=chroma_host,
+            port=chroma_port,
+        )
+
+        vector_store = Chroma(
+            client=chroma_client,
+            collection_name=chroma_collection,
+            collection_metadata={"hnsw:space": "cosine"},
+            embedding_function=OpenAIEmbeddings(
+                model="text-embedding-3-small"
+            ),
+        )
+    else:
+        vector_store = None
+
+    # Connection kwargs defined according to:
+    # https://github.com/langchain-ai/langgraph/issues/2887
+    # https://langchain-ai.github.io/langgraph/how-tos/persistence_postgres
+    conn_kwargs = {
+        "autocommit": True,
+        "prepare_threshold": 0
+    }
+
+    pool = ConnectionPool(
+        conninfo=db_url,
+        kwargs=conn_kwargs,
+        max_size=8,
+        open=False,
     )
-else:
-    vector_store = None
+    pool.open()
 
-# Connection kwargs defined according to:
-# https://github.com/langchain-ai/langgraph/issues/2887
-# https://langchain-ai.github.io/langgraph/how-tos/persistence_postgres
-conn_kwargs = {
-    "autocommit": True,
-    "prepare_threshold": 0
-}
+    checkpointer = PostgresSaver(pool)
+    checkpointer.setup()
 
-pool = ConnectionPool(
-    conninfo=db_url,
-    kwargs=conn_kwargs,
-    max_size=8,
-    open=False,
-)
-pool.open()
+    assistant = SQLAssistant(
+        database=database,
+        checkpointer=checkpointer,
+        vector_store=vector_store
+    )
 
-checkpointer = PostgresSaver(pool)
-checkpointer.setup()
-
-assistant = SQLAssistant(
-    database=database,
-    checkpointer=checkpointer,
-    vector_store=vector_store
-)
+    return assistant
 
 class ThreadListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -146,11 +152,13 @@ class MessageListView(APIView):
         """
         thread_id = str(thread_id)
 
-        user_message = _validate(request, UserMessage)
+        serializer = _validate(request, UserMessageSerializer)
+
+        user_message = UserMessage(**serializer.validated_data)
 
         thread = _get_thread_by_id(thread_id)
 
-        # assistant = _get_sql_assistant()
+        assistant = _get_sql_assistant()
 
         assistant_response: SQLAssistantMessage = assistant.invoke(
             message=user_message,
@@ -185,12 +193,7 @@ class FeedbackListView(APIView):
             JsonResponse: A JSON response with the serialized feedback object and an appropriate
             HTTP status code (201 for creation, 200 for update).
         """
-        data = JSONParser().parse(request)
-
-        serializer = FeedbackCreateSerializer(data=data)
-
-        if not serializer.is_valid():
-            return JsonResponse(serializer.errors, status=400)
+        serializer = _validate(request, FeedbackCreateSerializer)
 
         message_pair = _get_message_pair_by_id(message_pair_id)
 
@@ -220,7 +223,7 @@ class CheckpointListView(APIView):
         """
         try:
             thread_id = str(thread_id)
-            # assistant = _get_sql_assistant()
+            assistant = _get_sql_assistant()
             assistant.clear_thread(thread_id)
             return HttpResponse("Checkpoint cleared successfully", status=200)
         except Exception:
@@ -260,23 +263,26 @@ def _get_message_pair_by_id(message_pair_id: uuid.UUID) -> MessagePair:
     except MessagePair.DoesNotExist:
         raise exceptions.NotFound
 
-def _validate(request: Request, model: Type[PydanticModel]) -> PydanticModel:
-    """Parse and validate a request's JSON payload against a Pydantic model.
+def _validate(request: Request, model_serializer: Type[ModelSerializer]) -> ModelSerializer:
+    """
+    Parse and validate the JSON payload from a request using a Django REST framework serializer.
 
     Args:
         request (Request): A Django REST framework `Request` object containing JSON data.
-        model (Type[PydanticModel]): A Pydantic model class to validate against.
+        model_serializer (Type[ModelSerializer]): A serializer class used to validate the data.
 
     Raises:
-        exceptions.ValidationError: Raised if the request data fails Pydantic validation.
-        (Re-raised as a Django REST framework `ValidationError`).
+        exceptions.ValidationError: If the request data fails serializer validation.
 
     Returns:
-        PydanticModel: An instance of the provided Pydantic model populated with validated data.
+        ModelSerializer: An instance of the serializer populated with validated data.
     """
+
     data = JSONParser().parse(request)
 
-    try:
-        return model(**data)
-    except pydantic.ValidationError as e:
-        raise exceptions.ValidationError(e.errors())
+    serializer = model_serializer(data=data)
+
+    if not serializer.is_valid():
+        raise exceptions.ValidationError(serializer.errors)
+
+    return serializer
