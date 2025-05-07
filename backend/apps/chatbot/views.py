@@ -19,8 +19,7 @@ from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 
 from chatbot.assistants import SQLAssistant, SQLAssistantMessage, UserMessage
-from chatbot.databases import BigQueryDatabase
-
+from .database import ChatbotDatabase
 from .models import *
 from .serializers import *
 
@@ -41,7 +40,7 @@ def _get_sql_assistant():
 
     # TODO: Change this database for a database
     # that gets the metadata from the PostgreSQL database
-    database = BigQueryDatabase(
+    database = ChatbotDatabase(
         billing_project=bq_billing_project,
         query_project=bq_query_project,
     )
