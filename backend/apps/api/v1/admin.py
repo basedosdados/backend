@@ -12,13 +12,13 @@ from django.http import HttpRequest
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
 from ordered_model.admin import OrderedInlineModelAdminMixin, OrderedStackedInline
 
 from backend.apps.api.v1.filters import (
     AreaAdministrativeLevelFilter,
     AreaParentFilter,
-    DatasetOrganizationListFilter,
     OrganizationImageListFilter,
     TableCoverageListFilter,
     TableDirectoryListFilter,
@@ -611,18 +611,9 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "full_slug",
         "spatial_coverage",
         "temporal_coverage",
-        "contains_tables",
-        "contains_raw_data_sources",
-        "contains_information_requests",
-        "contains_closed_data",
-        "contains_direct_download_free",
-        "contains_direct_download_paid",
-        "contains_temporalcoverage_free",
-        "contains_temporalcoverage_paid",
         "page_views",
         "created_at",
         "updated_at",
-        "related_objects",
     ]
     search_fields = ["name", "slug", "organizations__name"]
     filter_horizontal = [
@@ -630,16 +621,12 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "themes",
         "organizations",
     ]
-    list_filter = [
-        DatasetOrganizationListFilter,
-    ]
     list_display = [
         "name",
         "get_organizations",
-        "spatial_coverage",
         "temporal_coverage",
-        "related_objects",
-        "created_at",
+        "related_tables",
+        "related_raw_data_sources",
         "updated_at",
     ]
     ordering = ["-updated_at"]
@@ -650,7 +637,7 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
 
     get_organizations.short_description = "Organizations"
 
-    def related_objects(self, obj):
+    def related_tables(self, obj):
         return format_html(
             "<a class='related-widget-wrapper-link add-related' "
             "href='/admin/v1/table/add/?dataset={0}&_to_field=id&_popup=1'>{1} {2}</a>",
@@ -659,7 +646,18 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
             "tables" if obj.tables.count() > 1 else "table",
         )
 
-    related_objects.short_description = "Tables"
+    related_tables.short_description = "Tables"
+
+    def related_raw_data_sources(self, obj):
+        return format_html(
+            "<a class='related-widget-wrapper-link add-related' "
+            "href='/admin/v1/table/add/?dataset={0}&_to_field=id&_popup=1'>{1} {2}</a>",
+            obj.id,
+            obj.raw_data_sources.count(),
+            "sources" if obj.raw_data_sources.count() > 1 else "sources",
+        )
+
+    related_raw_data_sources.short_description = "Sources"
 
 
 class CustomUserAdmin(UserAdmin):
@@ -673,6 +671,31 @@ admin.site.register(User, CustomUserAdmin)
 
 class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     form = TableForm
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "dataset",
+                    "get_table_url",
+                    "status",
+                    "name",
+                    "slug",
+                    "description",
+                    "get_datetime_ranges_display",
+                    "number_columns",
+                    "number_rows",
+                    "get_update_display",
+                    "raw_data_source",
+                    "published_by",
+                    "data_cleaned_by",
+                    "auxiliary_files_url",
+                    "created_at",
+                    "updated_at",
+                )
+            },
+        ),
+    )
     actions = [
         reorder_columns,
         reset_column_order,
@@ -689,7 +712,8 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         UpdateInline,
     ]
     readonly_fields = [
-        "id",
+        "get_table_url",
+        "get_datetime_ranges_display",
         "partitions",
         "created_at",
         "updated_at",
@@ -700,13 +724,8 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "number_columns",
         "uncompressed_file_size",
         "compressed_file_size",
-        "contains_open_data",
-        "contains_direct_download_free",
-        "contains_direct_download_paid",
-        "contains_temporalcoverage_free",
-        "contains_temporalcoverage_paid",
-        "contains_closed_data",
         "page_views",
+        "get_update_display",
     ]
     search_fields = [
         "name",
@@ -714,7 +733,6 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     ]
     autocomplete_fields = [
         "dataset",
-        "partner_organization",
         "published_by",
         "data_cleaned_by",
     ]
@@ -756,6 +774,188 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         return ", ".join(f"{cleaner.first_name} {cleaner.last_name}" for cleaner in cleaners)
 
     get_data_cleaners.short_description = "Data Cleaners"
+
+    def get_table_url(self, obj):
+        """Get the clickable URL for the table"""
+        website_url = f"https://basedosdados.org/dataset/{obj.dataset.id}?table={obj.id}"
+        website_html = format_html(
+            '<a href="{}" target="_blank">🖥️ Ver tabela no site</a>', website_url
+        )
+
+        cloud_tables = obj.cloud_tables.all()
+
+        if len(cloud_tables) == 0:
+            add_cloud_table_url = reverse("admin:v1_cloudtable_add") + f"?table={obj.id}"
+            gcp_html = format_html(
+                'No cloud table found. <a href="{}">Create here</a>', add_cloud_table_url
+            )
+
+        elif len(cloud_tables) > 1:
+            cloud_table_tab = reverse("admin:v1_table_change") + "/#cloud-tables-tab"
+            gcp_html = format_html(
+                'More than 1 cloud table found. <a href="{}">Fix it here</a>', cloud_table_tab
+            )
+
+        else:
+            cloud_table = cloud_tables[0]
+            gcp_dev_url = f"https://console.cloud.google.com/bigquery?p=basedosdados-dev&d={cloud_table.gcp_dataset_id}&t={cloud_table.gcp_table_id}&page=table"
+            gcp_prod_url = f"https://console.cloud.google.com/bigquery?p=basedosdados&d={cloud_table.gcp_dataset_id}&t={cloud_table.gcp_table_id}&page=table"
+
+            # Gerando o HTML
+            gcp_html = format_html(
+                '<a href="{}" target="_blank">🧩 Ver tabela em BigQuery-dev</a><br>'
+                '<a href="{}" target="_blank">🧊 Ver tabela em BigQuery-prod</a>',
+                gcp_dev_url,
+                gcp_prod_url,
+            )
+
+        return format_html("{}<br>{}", website_html, gcp_html)
+
+    get_table_url.short_description = "Table URLs"
+
+    def get_datetime_ranges_display(self, obj):
+        """Display datetime ranges with links to their admin pages"""
+        coverages = list(obj.coverages.all())
+        links = []
+
+        if len(coverages) == 0:
+            add_coverage_url = reverse("admin:v1_coverage_add") + f"?table={obj.id}"
+            return format_html("No coverages found. <a href='{}'>Create here</a>", add_coverage_url)
+
+        for cov in coverages:
+            url_coverage = reverse("admin:v1_coverage_change", args=[cov.id])
+            add_date_time_range_url = reverse("admin:v1_datetimerange_add") + f"?coverage={cov.id}"
+            status = "Closed" if cov.is_closed else "Open"
+
+            if cov.datetime_ranges.count() == 0:
+                links.append(
+                    format_html(
+                        "⚠️ <a href='{}'>{} coverage</a> found, but no Datetime Range. <a href='{}'>Create here</a>",
+                        add_date_time_range_url,
+                        status,
+                        add_date_time_range_url,
+                    )
+                )
+
+            ranges = sorted(cov.datetime_ranges.all(), key=lambda dt: str(dt))
+            for dt_range in ranges:
+                url_dt_range = reverse("admin:v1_datetimerange_change", args=[dt_range.id])
+                links.append(
+                    format_html(
+                        '<a href="{}">{}</a> -  <a href="{}">{} coverage</a>',
+                        url_dt_range,
+                        str(dt_range),
+                        url_coverage,
+                        status,
+                    )
+                )
+
+        return format_html("<br>".join(links))
+
+    get_datetime_ranges_display.short_description = "DateTime Ranges"
+
+    def get_update_display(self, obj):
+        """Display update info"""
+
+        def check_if_there_is_only_one_object_connected(
+            object_label, attr_label, tab_label, connection_obj
+        ):
+            print(f"\t\t\t{object_label = }")
+            print(f"\t\t\t{attr_label = }")
+            print(f"\t\t\t{tab_label = }")
+            print(f"\t\t\t{connection_obj = }")
+
+            campos = [f.name for f in connection_obj._meta.get_fields()]
+            print(f"\t\t\t{campos = }")
+
+            if attr_label not in campos:
+                print(f"\t\t\t{attr_label} not in {campos}")
+                return None, format_html(
+                    "No {0} found. <a href='{1}'>Create one</a>",
+                    object_label,
+                    connection_obj.admin_url,
+                )
+
+            obj_list = getattr(connection_obj, attr_label).all()
+
+            print(f"\t\t\t{list(obj_list) = }")
+
+            connection_label = connection_obj._meta.model_name
+
+            print(f"\t\t\t{connection_label = }")
+
+            change_url = connection_obj.admin_url + ("#" + tab_label if tab_label else "")
+
+            print(f"\t\t\t{change_url = }")
+
+            # Se não houver objetos
+            if len(obj_list) == 0:
+                return None, format_html(
+                    "No {0} found. <a href='{1}'>Create one</a>", object_label, change_url
+                )
+
+            # Se houver mais de 1 objeto
+            elif len(obj_list) > 1:
+                return None, format_html(
+                    "More than 1 {0} found. <a href='{1}'>Fix it</a>", object_label, change_url
+                )
+
+            # Se houver exatamente 1 objeto
+            else:
+                selected_obj = obj_list[0]
+                html = format_html(
+                    "<a href='{}'>{}</a> {} found in <a href='{}'>{}</a> ",
+                    selected_obj.admin_url,
+                    str(selected_obj),
+                    object_label,
+                    change_url,
+                    connection_label,
+                )
+                return obj_list[0], html
+
+        def check_if_there_is_only_one_raw_data_source_connected(table_object):
+            obj_list = getattr(table_object, "raw_data_source").all()
+            if len(obj_list) == 0:
+                return None, format_html("No Raw Data Source found. Add one in the box bellow")
+
+            # Se houver mais de 1 objeto
+            elif len(obj_list) > 1:
+                return None, format_html(
+                    "More than 1 Raw Data Source found. Fix one in the box bellow"
+                )
+
+            # Se houver exatamente 1 objeto
+            else:
+                selected_obj = obj_list[0]
+                html = format_html(
+                    "<a href='{}'>Raw Data Source</a> found",
+                    selected_obj.admin_url,
+                    str(selected_obj),
+                )
+                return obj_list[0], html
+
+        _, update_html = check_if_there_is_only_one_object_connected(
+            "update", "updates", "updates-tab", obj
+        )
+        (
+            raw_data_source_obj,
+            raw_data_source_html,
+        ) = check_if_there_is_only_one_raw_data_source_connected(obj)
+        print(f"{raw_data_source_obj.admin_url = }")
+        if raw_data_source_obj:
+            _, raw_data_source_update_html = check_if_there_is_only_one_object_connected(
+                "update", "updates", "updates-tab", raw_data_source_obj
+            )
+            print(f"{raw_data_source_update_html = }")
+            _, poll_raw_data_source_html = check_if_there_is_only_one_object_connected(
+                "poll", "polls", "polls-tab", raw_data_source_obj
+            )
+
+        raw_data_source_html = format_html(
+            raw_data_source_update_html + "<br>" + poll_raw_data_source_html
+        )
+
+        return format_html(update_html + "<br>" + raw_data_source_html)
 
 
 class TableNeighborAdmin(admin.ModelAdmin):
@@ -1054,9 +1254,9 @@ class CoverageAdmin(admin.ModelAdmin):
 
         # Add link to add new datetime range
         add_url = reverse("admin:v1_datetimerange_add") + f"?coverage={obj.id}"
-        links.append(format_html('<a class="addlink" href="{}">Add DateTime Range</a>', add_url))
+        links.append(mark_safe(f'<a class="addlink" href="{add_url}">Add DateTime Range</a>'))
 
-        return format_html("<br>".join(links))
+        return mark_safe("<br>".join(links))
 
     datetime_ranges_display.short_description = "DateTime Ranges"
 
