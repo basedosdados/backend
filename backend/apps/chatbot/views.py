@@ -38,8 +38,6 @@ def _get_sql_assistant():
     chroma_port = os.getenv("CHROMA_PORT")
     chroma_collection = os.getenv("SQL_CHROMA_COLLECTION")
 
-    # TODO: Change this database for a database
-    # that gets the metadata from the PostgreSQL database
     database = ChatbotDatabase(
         billing_project=bq_billing_project,
         query_project=bq_query_project,
@@ -76,7 +74,7 @@ def _get_sql_assistant():
         max_size=8,
         open=False,
     )
-    pool.open()
+    pool.open() # TODO: where to close the pool?
 
     checkpointer = PostgresSaver(pool)
     checkpointer.setup()
@@ -101,7 +99,7 @@ class ThreadListView(APIView):
         Returns:
             JsonResponse: A JSON response containing a list of serialized threads.
         """
-        threads = Thread.objects.filter(account=request.user.id)
+        threads = Thread.objects.filter(account=request.user)
         serializer = ThreadSerializer(threads, many=True)
         return JsonResponse(serializer.data, safe=False)
 
