@@ -84,7 +84,7 @@ REST_FRAMEWORK = {
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-    # "USER_AUTHENTICATION_RULE": "backend.apps.chatbot.authentication.user_authentication_rule", <- for custom authentication rules  # noqa: E501
+    "USER_AUTHENTICATION_RULE": "backend.apps.chatbot.authentication.authentication_rule",
 }
 
 MIDDLEWARE = [
@@ -118,7 +118,6 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "backend.wsgi.application"
-
 
 # Password validation
 # https://docs.djangoproject.com/en/4.1/ref/settings/#auth-password-validators

@@ -19,6 +19,7 @@ from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 
 from chatbot.assistants import SQLAssistant, SQLAssistantMessage, UserMessage
+
 from .database import ChatbotDatabase
 from .models import *
 from .serializers import *
@@ -26,6 +27,7 @@ from .serializers import *
 PydanticModel = TypeVar("PydanticModel", bound=pydantic.BaseModel)
 
 ModelSerializer = TypeVar("ModelSerializer", bound=Serializer)
+
 
 @cache
 def _get_sql_assistant():
@@ -38,8 +40,6 @@ def _get_sql_assistant():
     chroma_port = os.getenv("CHROMA_PORT")
     chroma_collection = os.getenv("SQL_CHROMA_COLLECTION")
 
-    # TODO: Change this database for a database
-    # that gets the metadata from the PostgreSQL database
     database = ChatbotDatabase(
         billing_project=bq_billing_project,
         query_project=bq_query_project,
@@ -55,9 +55,7 @@ def _get_sql_assistant():
             client=chroma_client,
             collection_name=chroma_collection,
             collection_metadata={"hnsw:space": "cosine"},
-            embedding_function=OpenAIEmbeddings(
-                model="text-embedding-3-small"
-            ),
+            embedding_function=OpenAIEmbeddings(model="text-embedding-3-small"),
         )
     else:
         vector_store = None
@@ -65,10 +63,7 @@ def _get_sql_assistant():
     # Connection kwargs defined according to:
     # https://github.com/langchain-ai/langgraph/issues/2887
     # https://langchain-ai.github.io/langgraph/how-tos/persistence_postgres
-    conn_kwargs = {
-        "autocommit": True,
-        "prepare_threshold": 0
-    }
+    conn_kwargs = {"autocommit": True, "prepare_threshold": 0}
 
     pool = ConnectionPool(
         conninfo=db_url,
@@ -76,18 +71,17 @@ def _get_sql_assistant():
         max_size=8,
         open=False,
     )
-    pool.open()
+    pool.open()  # TODO: where to close the pool?
 
     checkpointer = PostgresSaver(pool)
     checkpointer.setup()
 
     assistant = SQLAssistant(
-        database=database,
-        checkpointer=checkpointer,
-        vector_store=vector_store
+        database=database, checkpointer=checkpointer, vector_store=vector_store
     )
 
     return assistant
+
 
 class ThreadListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -101,7 +95,7 @@ class ThreadListView(APIView):
         Returns:
             JsonResponse: A JSON response containing a list of serialized threads.
         """
-        threads = Thread.objects.filter(account=request.user.id)
+        threads = Thread.objects.filter(account=request.user)
         serializer = ThreadSerializer(threads, many=True)
         return JsonResponse(serializer.data, safe=False)
 
@@ -117,6 +111,7 @@ class ThreadListView(APIView):
         thread = Thread.objects.create(account=request.user)
         serializer = ThreadSerializer(thread)
         return JsonResponse(serializer.data)
+
 
 class ThreadDetailView(APIView):
     permission_classes = [IsAuthenticated]
@@ -135,6 +130,7 @@ class ThreadDetailView(APIView):
         messages = MessagePair.objects.filter(thread=thread)
         serializer = MessagePairSerializer(messages, many=True)
         return JsonResponse(serializer.data, safe=False)
+
 
 class MessageListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -160,8 +156,7 @@ class MessageListView(APIView):
         assistant = _get_sql_assistant()
 
         assistant_response: SQLAssistantMessage = assistant.invoke(
-            message=user_message,
-            thread_id=thread_id
+            message=user_message, thread_id=thread_id
         )
 
         # TODO (nice to have): stream results
@@ -177,6 +172,7 @@ class MessageListView(APIView):
         serializer = MessagePairSerializer(message_pair)
 
         return JsonResponse(serializer.data, status=201)
+
 
 class FeedbackListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -197,8 +193,7 @@ class FeedbackListView(APIView):
         message_pair = _get_message_pair_by_id(message_pair_id)
 
         feedback, created = Feedback.objects.update_or_create(
-            message_pair=message_pair,
-            defaults=serializer.data
+            message_pair=message_pair, defaults=serializer.data
         )
 
         serializer = FeedbackSerializer(feedback)
@@ -206,6 +201,7 @@ class FeedbackListView(APIView):
         status = 201 if created else 200
 
         return JsonResponse(serializer.data, status=status)
+
 
 class CheckpointListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -228,6 +224,7 @@ class CheckpointListView(APIView):
         except Exception:
             return HttpResponse("Error clearing checkpoint", status=500)
 
+
 def _get_thread_by_id(thread_id: uuid.UUID) -> Thread:
     """Retrieve a `Thread` object by its ID.
 
@@ -245,6 +242,7 @@ def _get_thread_by_id(thread_id: uuid.UUID) -> Thread:
     except Thread.DoesNotExist:
         raise exceptions.NotFound
 
+
 def _get_message_pair_by_id(message_pair_id: uuid.UUID) -> MessagePair:
     """Retrieve a `MessagePair` object by its ID.
 
@@ -261,6 +259,7 @@ def _get_message_pair_by_id(message_pair_id: uuid.UUID) -> MessagePair:
         return MessagePair.objects.get(id=message_pair_id)
     except MessagePair.DoesNotExist:
         raise exceptions.NotFound
+
 
 def _validate(request: Request, model_serializer: Type[ModelSerializer]) -> ModelSerializer:
     """

@@ -212,7 +212,9 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
 
     email = models.EmailField("Email", unique=True)
     gcp_email = models.EmailField("GCP email", null=True, blank=True)  # Google Cloud Platform email
-    google_sub = models.CharField("Google Sub", max_length=255, null=True, blank=True, unique=True)  # Google OAuth subject identifier
+    google_sub = models.CharField(
+        "Google Sub", max_length=255, null=True, blank=True, unique=True
+    )  # Google OAuth subject identifier
     username = models.CharField("Username", max_length=40, blank=True, null=True, unique=True)
 
     first_name = models.CharField("Nome", max_length=40, blank=True)
@@ -251,6 +253,11 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
     )
     is_email_visible = models.BooleanField(
         "Email é visível", default=False, help_text="Indica se o email do usuário é público"
+    )
+    has_chatbot_access = models.BooleanField(
+        "Tem acesso ao chatbot",
+        default=False,
+        help_text="Indica se o usuário tem acesso ao chatbot",
     )
 
     profile = models.IntegerField(
@@ -610,12 +617,23 @@ class Subscription(BaseModel):
             return self.subscription.current_period_end.isoformat()
         return None
 
+
 class DataAPIKey(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     account = models.ForeignKey(Account, on_delete=models.DO_NOTHING, related_name="data_api_keys")
-    name = models.CharField(max_length=100, null=True, blank=True, help_text="A friendly name to identify this API key")
-    hashed_key = models.CharField(max_length=64, unique=True, null=True, blank=True, help_text="The hashed API key")
-    prefix = models.CharField(max_length=8, unique=True, null=True, blank=True, help_text="First 8 characters of the API key")
+    name = models.CharField(
+        max_length=100, null=True, blank=True, help_text="A friendly name to identify this API key"
+    )
+    hashed_key = models.CharField(
+        max_length=64, unique=True, null=True, blank=True, help_text="The hashed API key"
+    )
+    prefix = models.CharField(
+        max_length=8,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text="First 8 characters of the API key",
+    )
     is_active = models.BooleanField(default=True)
     expires_at = models.DateTimeField(null=True, blank=True, help_text="Optional expiration date")
     last_used_at = models.DateTimeField(null=True, blank=True)
