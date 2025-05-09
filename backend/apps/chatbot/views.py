@@ -116,7 +116,7 @@ class ThreadListView(APIView):
         """
         thread = Thread.objects.create(account=request.user)
         serializer = ThreadSerializer(thread)
-        return JsonResponse(serializer.data)
+        return JsonResponse(serializer.data, status=201)
 
 
 class ThreadDetailView(APIView):
@@ -231,10 +231,11 @@ class CheckpointListView(APIView):
         Returns:
             HttpResponse: An HTTP response indicating success (200) or failure (500).
         """
+        thread = _get_thread_by_id(thread_id)
+
         try:
-            thread_id = str(thread_id)
             assistant = _get_sql_assistant()
-            assistant.clear_thread(thread_id)
+            assistant.clear_thread(str(thread.id))
             return HttpResponse("Checkpoint cleared successfully", status=200)
         except Exception:
             return HttpResponse("Error clearing checkpoint", status=500)
@@ -290,7 +291,6 @@ def _validate(request: Request, model_serializer: Type[ModelSerializer]) -> Mode
     Returns:
         ModelSerializer: An instance of the serializer populated with validated data.
     """
-
     data = JSONParser().parse(request)
 
     serializer = model_serializer(data=data)
