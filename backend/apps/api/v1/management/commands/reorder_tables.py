@@ -10,9 +10,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument("dataset_id", type=str, help="ID of the dataset")
-        parser.add_argument(
-            "ordered_slugs", type=str, nargs="+", help="Ordered tables JSON string"
-        )
+        parser.add_argument("ordered_slugs", type=str, nargs="+", help="Ordered tables JSON string")
 
     def handle(self, dataset_id, *args, **options):
         ordered_slugs = options["ordered_slugs"]
