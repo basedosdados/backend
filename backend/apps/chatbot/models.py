@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
 import uuid
+from typing import Any
 
 from django.db import models
+from django.utils import timezone
 
 from backend.apps.account.models import Account
 
@@ -27,4 +29,20 @@ class Feedback(models.Model):
     rating = models.SmallIntegerField(choices=[(0, "Bad"), (1, "Good")])
     comment = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField(null=True, blank=True)
+    sync_status = models.TextField(
+        choices=[
+            ("pending", "Pending"),
+            ("success", "Success"),
+            ("failed", "Failed")
+        ],
+        default="pending"
+    )
+    synced_at = models.DateTimeField(null=True, blank=True)
+
+    def user_update(self, data: dict[str, int|str]):
+        for attr, value in data.items():
+            setattr(self, attr, value)
+        self.updated_at = timezone.now()
+        self.sync_status = "pending"
+        self.save()

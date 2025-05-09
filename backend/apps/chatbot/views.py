@@ -20,6 +20,7 @@ from rest_framework.views import APIView
 
 from chatbot.assistants import SQLAssistant, SQLAssistantMessage, UserMessage
 from .database import ChatbotDatabase
+from .feedback_sender import LangSmithFeedbackSender
 from .models import *
 from .serializers import *
 
@@ -28,7 +29,11 @@ PydanticModel = TypeVar("PydanticModel", bound=pydantic.BaseModel)
 ModelSerializer = TypeVar("ModelSerializer", bound=Serializer)
 
 @cache
-def _get_sql_assistant():
+def _get_feedback_sender() -> LangSmithFeedbackSender:
+    return LangSmithFeedbackSender()
+
+@cache
+def _get_sql_assistant() -> SQLAssistant:
     db_url = os.environ["DB_URL"]
 
     bq_billing_project = os.environ["BILLING_PROJECT_ID"]
@@ -194,10 +199,18 @@ class FeedbackListView(APIView):
 
         message_pair = _get_message_pair_by_id(message_pair_id)
 
-        feedback, created = Feedback.objects.update_or_create(
-            message_pair=message_pair,
-            defaults=serializer.data
-        )
+        try:
+            feedback = Feedback.objects.get(message_pair=message_pair)
+            feedback.user_update(serializer.validated_data)
+            created = False
+        except Feedback.DoesNotExist:
+            feedback = Feedback.objects.create(
+                message_pair=message_pair, **serializer.validated_data
+            )
+            created = True
+
+        feedback_sender = _get_feedback_sender()
+        feedback_sender.send_feedback(feedback, created)
 
         serializer = FeedbackSerializer(feedback)
 
