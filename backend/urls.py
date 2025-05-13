@@ -26,5 +26,6 @@ urlpatterns = [
     path("", include("backend.apps.account.urls")),
     path("", include("backend.apps.account_auth.urls")),
     path("", include("backend.apps.account_payment.urls")),
+    path("", include("backend.apps.chatbot.urls")),
 ]
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
