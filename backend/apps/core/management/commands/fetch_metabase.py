@@ -62,9 +62,7 @@ class Command(BaseCommand):
     def get_tables(self, token: str, database_id: int):
         headers = self.get_headers(token)
 
-        response = requests.get(
-            BASE_URL + f"/api/database/{database_id}/metadata", headers=headers
-        )
+        response = requests.get(BASE_URL + f"/api/database/{database_id}/metadata", headers=headers)
 
         json_data = response.json()
         tables = []
@@ -78,7 +76,7 @@ class Command(BaseCommand):
 
         return tables
 
-    def def_get_data_paginated(self, headers, database_id, query, page=0):
+    def get_data_paginated(self, headers, database_id, query, page=0):
         limit = 2000
         new_query = query + f" LIMIT {limit} OFFSET {page * limit}"
 
@@ -104,29 +102,26 @@ class Command(BaseCommand):
         fields = [f'"{field}"' for field in table.fields]
         formated_field = ", ".join(fields)
         query = f'SELECT {formated_field} FROM "{table.name}"'
-
-        raw_rows = []
+        all_rows = []
         page = 0
+
         while True:
-            data = self.def_get_data_paginated(headers, database_id, query, page)
+            data = self.get_data_paginated(headers, database_id, query, page)
             if len(data) == 0:
                 break
 
-            raw_rows += data
+            for row in data:
+                instance = {}
+                for i, field in enumerate(table.fields):
+                    instance[field] = row[i]
+                all_rows.append(instance)
+
             page += 1
+            self.stdout.write(self.style.SUCCESS(f"Paginated {len(data)} rows from {str(table)}"))
 
-        self.stdout.write(self.style.SUCCESS(f"Fetched {len(raw_rows)} rows from {str(table)}"))
-
-        rows = []
-        for row in raw_rows:
-            instance = {}
-            for i, field in enumerate(table.fields):
-                instance[field] = row[i]
-
-            rows.append(instance)
-
-        if len(rows) > 0:
-            self.save_data(table.name, json.dumps(rows, ensure_ascii=False, indent=4))
+        # Salva todos os dados de uma vez
+        if len(all_rows) > 0:
+            self.save_data(table.name, all_rows)
         else:
             self.stdout.write(self.style.WARNING(f"No data found for {str(table)}"))
 
@@ -146,8 +141,19 @@ class Command(BaseCommand):
 
         file_path = os.path.join(directory, f"{table_name}.json")
 
+        if os.path.exists(file_path):
+            with open(file_path, "r", encoding="utf-8") as file:
+                try:
+                    existing_data = json.load(file)
+                except json.JSONDecodeError:
+                    existing_data = []
+        else:
+            existing_data = []
+
+        existing_data.extend(data)
+
         with open(file_path, "w", encoding="utf-8") as file:
-            file.write(data)
+            json.dump(existing_data, file, ensure_ascii=False, indent=4)
 
     def handle(self, *args, **kwargs):
         token = self.authenticate()
