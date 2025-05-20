@@ -20,10 +20,6 @@ from backend.apps.api.v1.filters import (
     AreaAdministrativeLevelFilter,
     AreaParentFilter,
     OrganizationImageListFilter,
-    TableCoverageListFilter,
-    TableDirectoryListFilter,
-    TableObservationListFilter,
-    TableOrganizationListFilter,
 )
 from backend.apps.api.v1.forms import (
     ColumnInlineForm,
@@ -742,16 +738,8 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     list_display = [
         "name",
         "dataset",
-        "get_publishers",
-        "get_data_cleaners",
         "created_at",
         "updated_at",
-    ]
-    list_filter = [
-        TableOrganizationListFilter,
-        TableCoverageListFilter,
-        TableObservationListFilter,
-        TableDirectoryListFilter,
     ]
     ordering = ["-updated_at"]
 
@@ -823,14 +811,15 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
             return format_html("No coverages found. <a href='{}'>Create here</a>", add_coverage_url)
 
         for cov in coverages:
-            url_coverage = reverse("admin:v1_coverage_change", args=[cov.id])
+            url_coverage = cov.admin_url
             add_date_time_range_url = reverse("admin:v1_datetimerange_add") + f"?coverage={cov.id}"
             status = "Closed" if cov.is_closed else "Open"
 
             if cov.datetime_ranges.count() == 0:
                 links.append(
                     format_html(
-                        "⚠️ <a href='{}'>{} coverage</a> found, but no Datetime Range. <a href='{}'>Create here</a>",
+                        "⚠️ <a href='{}'>{} coverage</a> found, but no Datetime Range."
+                        "<a href='{}'>Create here</a>",
                         add_date_time_range_url,
                         status,
                         add_date_time_range_url,
@@ -854,50 +843,38 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
 
     get_datetime_ranges_display.short_description = "DateTime Ranges"
 
-    def get_update_display(self, obj):
+    def get_update_display(self, table_obj):
         """Display update info"""
 
-        def check_if_there_is_only_one_object_connected(
-            object_label, attr_label, tab_label, connection_obj
-        ):
-            print(f"\t\t\t{object_label = }")
-            print(f"\t\t\t{attr_label = }")
-            print(f"\t\t\t{tab_label = }")
-            print(f"\t\t\t{connection_obj = }")
-
+        def check_if_there_is_only_one_object_connected(attr_label, connection_obj):
             campos = [f.name for f in connection_obj._meta.get_fields()]
-            print(f"\t\t\t{campos = }")
 
             if attr_label not in campos:
-                print(f"\t\t\t{attr_label} not in {campos}")
-                return None, format_html(
-                    "No {0} found. <a href='{1}'>Create one</a>",
-                    object_label,
-                    connection_obj.admin_url,
+                return format_html(
+                    "The {} label was not found in {} model",
+                    attr_label,
+                    connection_obj._meta.verbose_name,
                 )
 
             obj_list = getattr(connection_obj, attr_label).all()
-
-            print(f"\t\t\t{list(obj_list) = }")
-
-            connection_label = connection_obj._meta.model_name
-
-            print(f"\t\t\t{connection_label = }")
-
-            change_url = connection_obj.admin_url + ("#" + tab_label if tab_label else "")
-
-            print(f"\t\t\t{change_url = }")
+            change_url = connection_obj.admin_url + "#" + attr_label + "-tab"
 
             # Se não houver objetos
             if len(obj_list) == 0:
-                return None, format_html(
-                    "No {0} found. <a href='{1}'>Create one</a>", object_label, change_url
+                return format_html(
+                    "No {} found in {}. <a href='{}'>Create one</a>",
+                    attr_label,
+                    connection_obj._meta.verbose_name,
+                    change_url,
                 )
 
             # Se houver mais de 1 objeto
             elif len(obj_list) > 1:
-                return None, format_html(
-                    "More than 1 {0} found. <a href='{1}'>Fix it</a>", object_label, change_url
+                return format_html(
+                    "More than 1 {} found in {}. <a href='{}'>Fix it</a>",
+                    obj_list[0]._meta.verbose_name,
+                    connection_obj._meta.verbose_name,
+                    change_url,
                 )
 
             # Se houver exatamente 1 objeto
@@ -907,55 +884,54 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
                     "<a href='{}'>{}</a> {} found in <a href='{}'>{}</a> ",
                     selected_obj.admin_url,
                     str(selected_obj),
-                    object_label,
+                    selected_obj._meta.verbose_name,
                     change_url,
-                    connection_label,
+                    connection_obj._meta.verbose_name,
                 )
-                return obj_list[0], html
+                return html
 
         def check_if_there_is_only_one_raw_data_source_connected(table_object):
-            obj_list = getattr(table_object, "raw_data_source").all()
-            if len(obj_list) == 0:
+            """Specific function to check Raw Data Source
+            the instructions and conditionals are different from updates and polls"""
+            raw_data_source_obj_list = getattr(table_object, "raw_data_source").all()
+            if len(raw_data_source_obj_list) == 0:
                 return None, format_html("No Raw Data Source found. Add one in the box bellow")
 
-            # Se houver mais de 1 objeto
-            elif len(obj_list) > 1:
-                return None, format_html(
-                    "More than 1 Raw Data Source found. Fix one in the box bellow"
-                )
+            elif len(raw_data_source_obj_list) > 1:
+                return None, format_html("More than 1 Raw Data Source found. Fix in the box bellow")
 
-            # Se houver exatamente 1 objeto
             else:
-                selected_obj = obj_list[0]
+                selected_obj = raw_data_source_obj_list[0]
                 html = format_html(
                     "<a href='{}'>Raw Data Source</a> found",
                     selected_obj.admin_url,
                     str(selected_obj),
                 )
-                return obj_list[0], html
+                return raw_data_source_obj_list[0], html
 
-        _, update_html = check_if_there_is_only_one_object_connected(
-            "update", "updates", "updates-tab", obj
-        )
+        update_html = check_if_there_is_only_one_object_connected("updates", table_obj)
+
         (
             raw_data_source_obj,
             raw_data_source_html,
-        ) = check_if_there_is_only_one_raw_data_source_connected(obj)
-        print(f"{raw_data_source_obj.admin_url = }")
+        ) = check_if_there_is_only_one_raw_data_source_connected(table_obj)
+
         if raw_data_source_obj:
-            _, raw_data_source_update_html = check_if_there_is_only_one_object_connected(
-                "update", "updates", "updates-tab", raw_data_source_obj
+            raw_data_source_update_html = check_if_there_is_only_one_object_connected(
+                "updates", raw_data_source_obj
             )
             print(f"{raw_data_source_update_html = }")
-            _, poll_raw_data_source_html = check_if_there_is_only_one_object_connected(
-                "poll", "polls", "polls-tab", raw_data_source_obj
+            poll_raw_data_source_html = check_if_there_is_only_one_object_connected(
+                "polls", raw_data_source_obj
             )
 
-        raw_data_source_html = format_html(
-            raw_data_source_update_html + "<br>" + poll_raw_data_source_html
-        )
+            raw_data_source_html = format_html(
+                raw_data_source_update_html + "<br>" + poll_raw_data_source_html
+            )
 
         return format_html(update_html + "<br>" + raw_data_source_html)
+
+    get_update_display.short_description = "Update and Poll Info"
 
 
 class TableNeighborAdmin(admin.ModelAdmin):
