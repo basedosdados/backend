@@ -6,19 +6,19 @@ FROM python:${PYTHON_VERSION}
 RUN pip install --no-cache-dir -U virtualenv>=20.13.1 && virtualenv /env --python=python3.11
 ENV PATH /env/bin:$PATH
 
-# Install pip requirements
-WORKDIR /app
-COPY . .
-RUN /env/bin/pip install --no-cache-dir . && rm nginx.conf
-
 # Install make, nginx and copy configuration
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl make nginx \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential curl g++ libpq-dev make nginx postgresql postgresql-contrib \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && rm /etc/nginx/sites-enabled/default
-RUN apt-get update && apt-get install -y postgresql postgresql-contrib
 COPY nginx.conf /etc/nginx/nginx.conf
+
+# Install pip requirements
+WORKDIR /app
+COPY . .
+RUN test -d ./chatbot || (echo "ERROR: Git submodule 'chatbot' not found. Please run 'git submodule update --init --recursive'. See backend/README.md for more information." && exit 1)
+RUN /env/bin/pip install --no-cache-dir . && rm nginx.conf
 
 # Prevents Python from writing .pyc files to disc
 # https://docs.python.org/3/using/cmdline.html#envvar-PYTHONDONTWRITEBYTECODE

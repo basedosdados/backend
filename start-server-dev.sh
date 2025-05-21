@@ -1,10 +1,13 @@
 #!/usr/bin/env bash
-# start-server.sh
+# start-server-dev.sh
 echo "> Making migrations"
 (cd /app; python manage.py makemigrations)
 
 echo "> Migrating"
 (cd /app; python manage.py migrate)
+
+echo "> Installing debugpy"
+pip install debugpy
 
 echo "> Creating superuser"
 if [ -n "$DJANGO_SUPERUSER_USERNAME" ] && [ -n "$DJANGO_SUPERUSER_PASSWORD" ] ; then
@@ -14,5 +17,6 @@ fi
 echo "> Running Huey"
 (cd /app; python manage.py run_huey &)
 
-echo "> Running Gunicorn"
-(cd /app; gunicorn backend.wsgi --user www-data --bind 0.0.0.0:8000 --workers 3 --timeout 180) & nginx -g "daemon off;"
+# Start server in development mode with django
+echo "> Running server in development mode"
+(cd /app; python -m debugpy --listen 0.0.0.0:5678 manage.py runserver 0.0.0.0:8000)
