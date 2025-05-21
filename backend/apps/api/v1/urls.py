@@ -4,7 +4,7 @@ from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
 from graphene_file_upload.django import FileUploadGraphQLView
 
-from backend.apps.api.v1.search_views import DatasetSearchView
+from backend.apps.api.v1.search_views import DatasetFacetValuesView, DatasetSearchView
 from backend.apps.api.v1.views import DatasetRedirectView, upload_columns
 
 
@@ -22,6 +22,7 @@ urlpatterns = [
     path("api/v1/graphql", graphql_view()),
     path("graphql", graphql_view()),
     path("search/", DatasetSearchView.as_view()),
+    path("facet_values/", DatasetFacetValuesView.as_view()),
     path("dataset/", DatasetRedirectView.as_view()),
     path("dataset_redirect/", DatasetRedirectView.as_view()),
     path("upload_columns/", upload_columns),
