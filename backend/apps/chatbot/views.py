@@ -25,8 +25,6 @@ from .feedback_sender import LangSmithFeedbackSender
 from .models import *
 from .serializers import *
 
-PydanticModel = TypeVar("PydanticModel", bound=pydantic.BaseModel)
-
 ModelSerializer = TypeVar("ModelSerializer", bound=Serializer)
 
 
