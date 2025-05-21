@@ -1,0 +1,48 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+{% block extra_actions %}
+{% if opts.model_name == 'table' %}
+
+<button type="button" onclick="abrirModal()" class="btn btn-block {{ jazzmin_ui.button_classes.secondary }} btn-sm">
+    Ferramentas
+</button>
+
+{% endif %}
+{% endblock %}
+{% block content %}
+{{ block.super }}
+{% if opts.model_name == 'table' %}
+<div id="dadosModal" class="modal" style="display: none;">
+<div class="modal-content">
+    <div class="modal-header">
+        <h2>Subida De Colunas</h2>
+        <span class="close-button">&times;</span>
+    </div>
+    <div class="modal-body">
+        <form id="dadosForm">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="table_id">Table ID:</label>
+                <input type="text" id="table_id" name="table_id" required value="{{ original.pk }}" readonly>
+            </div>
+            <div class="form-group">
+                <label for="dataset_id">Dataset ID:</label>
+                <input type="text" id="dataset_id" name="dataset_id" required value="{{ original.dataset_id }}" readonly>
+            </div>
+            <div class="form-group">
+                <label for="link_arquitetura">Link Arquitetura:</label>
+                <input type="text" id="link_arquitetura" name="link_arquitetura" required>
+            </div>
+            <button type="button" class="btn btn-block {{ jazzmin_ui.button_classes.secondary }} btn-sm" onclick="processar()" class="btn">Processar</button>
+        </form>
+        <div class="loading-overlay" id="loadingOverlay">
+            <div class="loading-spinner"></div>
+        </div>
+    </div>
+</div>
+</div>
+</div>
+<script src="{% static 'core/js/ferramentas.js' %}"></script>
+{% endif %}
+
+{% endblock %}
