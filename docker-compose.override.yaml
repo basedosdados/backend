@@ -58,7 +58,7 @@ services:
       dockerfile: Dockerfile
     container_name: api
     env_file: [.env.docker]
-    command: ["/app/start-dev.sh"]
+    command: ["/app/start-server-dev.sh"]
     volumes:
       - .:/app
       - $HOME/.config/pydata:$HOME/.config/pydata
