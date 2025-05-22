@@ -228,6 +228,7 @@ class AccountAdmin(BaseAccountAdmin):
         "created_at",
         "is_admin",
         "is_subscriber",
+        "has_chatbot_access",
     )
     list_filter = (
         SuperUserListFilter,
@@ -288,6 +289,7 @@ class AccountAdmin(BaseAccountAdmin):
                     "is_active",
                     "is_admin",
                     "is_superuser",
+                    "has_chatbot_access",
                     "staff_groups",
                 )
             },
