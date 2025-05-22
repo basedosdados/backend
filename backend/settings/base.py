@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     "jazzmin",
     "modeltranslation",
     #
+    "django_admin_inline_paginator_plus",
+    #
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
