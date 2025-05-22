@@ -87,15 +87,12 @@ class ColumnInlineForm(UUIDHiddenIdForm):
         fields = [
             "id",
             "name",
-            "name_staging",
-            "description",
             "bigquery_type",
-            "is_closed",
-            "status",
-            "is_primary_key",
-            "table",
+            "description",
+            "covered_by_dictionary",
             "observation_level",
             "directory_primary_key",
+            "is_primary_key",
         ]
         readonly_fields = [
             "order",
