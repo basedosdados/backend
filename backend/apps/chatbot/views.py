@@ -5,7 +5,6 @@ from functools import cache
 from typing import Type, TypeVar
 
 import chromadb
-import pydantic
 from django.http import HttpResponse, JsonResponse
 from langchain_chroma import Chroma
 from langchain_openai import OpenAIEmbeddings
