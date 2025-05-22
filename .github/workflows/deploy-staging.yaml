@@ -8,9 +8,7 @@ on:
 jobs:
   deploy-staging:
     runs-on: ubuntu-latest
-    if: |
-      ${{ github.event_name == 'workflow_dispatch' }}
-      || ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' }} || ${{ github.event.workflow_run.conclusion == 'success' }}
     environment:
       name: staging
       url: https://staging.backend.basedosdados.org
