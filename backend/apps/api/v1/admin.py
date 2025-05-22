@@ -743,19 +743,6 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     ]
     ordering = ["-updated_at"]
 
-    # def get_formset_kwargs(self, request, obj, inline, prefix) -> dict:
-    #     formset_kwargs = super().get_formset_kwargs(request, obj, inline, prefix)
-    #     # Only apply the queryset limiting to the BookInline
-    #     if isinstance(inline, ColumnInline):
-    #         queryset = formset_kwargs['queryset']
-    #         # At this point, `queryset` is equivalent to `Book.objects.all()`.
-    #         # Filter by the current author and retrieve the first 10 object IDs
-    #         ids = queryset.all()[:10]
-    #         # Create a new queryset which is effectively limited
-    #         # to the first 10 related objects.
-    #         formset_kwargs['queryset'] = queryset.filter(id__in=ids)
-    #     return formset_kwargs
-
     def get_queryset(self, request):
         """Optimize queryset by prefetching related objects"""
         return super().get_queryset(request).prefetch_related("published_by", "data_cleaned_by")
