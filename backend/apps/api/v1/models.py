@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.functional import cached_property
 from ordered_model.models import OrderedModel
 
 from backend.apps.account.models import Account
@@ -567,6 +568,24 @@ class Dataset(BaseModel):
         verbose_name_plural = "Datasets"
         ordering = ["slug"]
 
+    @cached_property
+    def get_tables(self):
+        return self.tables.all()
+
+    @cached_property
+    def get_raw_data_sources(self):
+        return self.raw_data_sources.all()
+
+    @cached_property
+    def generate_resources(self):
+        resources = [
+            *self.get_tables,
+            *self.get_raw_data_sources,
+            *self.information_requests.all(),
+        ]
+
+        return resources
+
     @property
     def full_slug(self):
         if self.organizations.first().area.slug != "unknown":
@@ -584,11 +603,7 @@ class Dataset(BaseModel):
     @property
     def temporal_coverage(self) -> dict:
         """Temporal coverage of all related entities"""
-        resources = [
-            *self.tables.all(),
-            *self.raw_data_sources.all(),
-            *self.information_requests.all(),
-        ]
+        resources = self.generate_resources
         temporal_coverage = get_temporal_coverage(resources)
         if temporal_coverage["start"] and temporal_coverage["end"]:
             return f"{temporal_coverage['start']} - {temporal_coverage['end']}"
@@ -601,52 +616,32 @@ class Dataset(BaseModel):
     @property
     def spatial_coverage(self) -> list[str]:
         """Union spatial coverage of all related resources"""
-        resources = [
-            *self.tables.all(),
-            *self.raw_data_sources.all(),
-            *self.information_requests.all(),
-        ]
+        resources = self.generate_resources
         return sorted(list(get_spatial_coverage(resources)))
 
     @property
     def spatial_coverage_name_pt(self) -> list[str]:
         """Union spatial coverage of all related resources"""
-        resources = [
-            *self.tables.all(),
-            *self.raw_data_sources.all(),
-            *self.information_requests.all(),
-        ]
+        resources = self.generate_resources
         return sorted(list(get_spatial_coverage_name(resources, locale="pt")))
 
     @property
     def spatial_coverage_name_en(self) -> list[str]:
         """Union spatial coverage of all related resources"""
-        resources = [
-            *self.tables.all(),
-            *self.raw_data_sources.all(),
-            *self.information_requests.all(),
-        ]
+        resources = self.generate_resources
         return sorted(list(get_spatial_coverage_name(resources, locale="en")))
 
     @property
     def spatial_coverage_name_es(self) -> list[str]:
         """Union spatial coverage of all related resources"""
-        resources = [
-            *self.tables.all(),
-            *self.raw_data_sources.all(),
-            *self.information_requests.all(),
-        ]
+        resources = self.generate_resources
         return sorted(list(get_spatial_coverage_name(resources, locale="es")))
 
     @property
     def entities(self) -> list[dict]:
         """Entity of all related resources"""
         entities = []
-        resources = [
-            *self.tables.all(),
-            *self.raw_data_sources.all(),
-            *self.information_requests.all(),
-        ]
+        resources = self.generate_resources
         for resource in resources:
             for observation in resource.observation_levels.all():
                 entities.append(observation.entity.as_search_result)
@@ -655,9 +650,13 @@ class Dataset(BaseModel):
     @property
     def contains_open_data(self):
         """Returns true if there are tables or columns with open coverages"""
+
+        cached_tables = self.get_tables
+
         open_data = False
+
         tables = (
-            self.tables.exclude(status__slug__in=["under_review", "excluded"])
+            cached_tables.exclude(status__slug__in=["under_review", "excluded"])
             .exclude(slug__in=["dicionario", "dictionary"])
             .all()
         )
@@ -670,9 +669,13 @@ class Dataset(BaseModel):
 
     @property
     def contains_closed_data(self):
-        """Returns true if there are tables or columns with closed coverages, or if the uncompressed file size is above 1 GB"""
+        """Returns true if there are tables or columns with closed coverages,
+        or if the uncompressed file size is above 1 GB"""
+
+        cached_tables = self.get_tables
+
         for table in (
-            self.tables.exclude(status__slug__in=["under_review", "excluded"])
+            cached_tables.exclude(status__slug__in=["under_review", "excluded"])
             .exclude(slug__in=["dicionario", "dictionary"])
             .all()
         ):
@@ -682,10 +685,12 @@ class Dataset(BaseModel):
 
     @property
     def contains_direct_download_free(self):
+        cached_tables = self.get_tables
+
         return len(
             [
                 table
-                for table in self.tables.exclude(status__slug__in=["under_review", "excluded"])
+                for table in cached_tables.exclude(status__slug__in=["under_review", "excluded"])
                 .exclude(slug__in=["dicionario", "dictionary"])
                 .all()
                 if table.contains_direct_download_free
@@ -694,10 +699,12 @@ class Dataset(BaseModel):
 
     @property
     def contains_direct_download_paid(self):
+        cached_tables = self.get_tables
+
         return len(
             [
                 table
-                for table in self.tables.exclude(status__slug__in=["under_review", "excluded"])
+                for table in cached_tables.exclude(status__slug__in=["under_review", "excluded"])
                 .exclude(slug__in=["dicionario", "dictionary"])
                 .all()
                 if table.contains_direct_download_paid
@@ -706,10 +713,12 @@ class Dataset(BaseModel):
 
     @property
     def contains_temporalcoverage_free(self):
+        cached_tables = self.get_tables
+
         return len(
             [
                 table
-                for table in self.tables.exclude(status__slug__in=["under_review", "excluded"])
+                for table in cached_tables.exclude(status__slug__in=["under_review", "excluded"])
                 .exclude(slug__in=["dicionario", "dictionary"])
                 .all()
                 if table.contains_temporalcoverage_free
@@ -718,10 +727,12 @@ class Dataset(BaseModel):
 
     @property
     def contains_temporalcoverage_paid(self):
+        cached_tables = self.get_tables
+
         return len(
             [
                 table
-                for table in self.tables.exclude(status__slug__in=["under_review", "excluded"])
+                for table in cached_tables.exclude(status__slug__in=["under_review", "excluded"])
                 .exclude(slug__in=["dicionario", "dictionary"])
                 .all()
                 if table.contains_temporalcoverage_paid
@@ -731,9 +742,12 @@ class Dataset(BaseModel):
     @property
     def contains_tables(self):
         """Returns true if there are tables in the dataset"""
+
+        cached_tables = self.get_tables
+
         return (
             len(
-                self.tables.exclude(status__slug__in=["under_review", "excluded"])
+                cached_tables.exclude(status__slug__in=["under_review", "excluded"])
                 .exclude(slug__in=["dicionario", "dictionary"])
                 .all()
             )
@@ -743,8 +757,15 @@ class Dataset(BaseModel):
     @property
     def contains_raw_data_sources(self):
         """Returns true if there are raw data sources in the dataset"""
+
+        cached_get_raw_data_sources = self.get_raw_data_sources
+
         return (
-            len(self.raw_data_sources.exclude(status__slug__in=["under_review", "excluded"]).all())
+            len(
+                cached_get_raw_data_sources.exclude(
+                    status__slug__in=["under_review", "excluded"]
+                ).all()
+            )
             > 0
         )
 
@@ -762,16 +783,20 @@ class Dataset(BaseModel):
 
     @property
     def n_tables(self):
+        cached_tables = self.get_tables
+
         return len(
-            self.tables.exclude(status__slug__in=["under_review", "excluded"])
+            cached_tables.exclude(status__slug__in=["under_review", "excluded"])
             .exclude(slug__in=["dicionario", "dictionary"])
             .all()
         )
 
     @property
     def n_raw_data_sources(self):
+        cached_get_raw_data_sources = self.get_raw_data_sources
+
         return len(
-            self.raw_data_sources.exclude(status__slug__in=["under_review", "excluded"]).all()
+            cached_get_raw_data_sources.exclude(status__slug__in=["under_review", "excluded"]).all()
         )
 
     @property
@@ -782,8 +807,10 @@ class Dataset(BaseModel):
 
     @property
     def first_table_id(self):
+        cached_tables = self.get_tables
+
         if (
-            resource := self.tables.exclude(status__slug__in=["under_review", "excluded"])
+            resource := cached_tables.exclude(status__slug__in=["under_review", "excluded"])
             .exclude(slug__in=["dicionario", "dictionary"])
             .order_by("order")
             .first()
@@ -792,8 +819,10 @@ class Dataset(BaseModel):
 
     @property
     def first_open_table_id(self):
+        cached_tables = self.get_tables
+
         for resource in (
-            self.tables.exclude(status__slug__in=["under_review", "excluded"])
+            cached_tables.exclude(status__slug__in=["under_review", "excluded"])
             .exclude(slug__in=["dicionario", "dictionary"])
             .order_by("order")
             .all()
@@ -803,8 +832,10 @@ class Dataset(BaseModel):
 
     @property
     def first_closed_table_id(self):
+        cached_tables = self.get_tables
+
         for resource in (
-            self.tables.exclude(status__slug__in=["under_review", "excluded"])
+            cached_tables.exclude(status__slug__in=["under_review", "excluded"])
             .exclude(slug__in=["dicionario", "dictionary"])
             .order_by("order")
             .all()
@@ -814,8 +845,10 @@ class Dataset(BaseModel):
 
     @property
     def first_raw_data_source_id(self):
+        cached_get_raw_data_sources = self.get_raw_data_sources
+
         resource = (
-            self.raw_data_sources
+            cached_get_raw_data_sources
             .exclude(status__slug__in=["under_review", "excluded"])
             .order_by("order")
             .first()
@@ -834,24 +867,37 @@ class Dataset(BaseModel):
 
     @property
     def table_last_updated_at(self):
+        cached_tables = self.get_tables
+
         updates = [
-            u.last_updated_at for u in self.tables.exclude(status__slug__in=["under_review", "excluded"]).exclude(slug__in=["dicionario", "dictionary"]).all()
+            u.last_updated_at
+            for u in cached_tables.exclude(
+                status__slug__in=["under_review", "excluded"]).exclude(
+                    slug__in=["dicionario", "dictionary"]).all()
             if u.last_updated_at
         ]  # fmt: skip
         return max(updates) if updates else None
 
     @property
     def raw_data_source_last_polled_at(self):
+        cached_get_raw_data_sources = self.get_raw_data_sources
+
         polls = [
-            u.last_polled_at for u in self.raw_data_sources.exclude(status__slug__in=["under_review", "excluded"]).all()
-            if u.last_polled_at
+            u.get("last_polled_at")
+            for u in cached_get_raw_data_sources.exclude(
+                status__slug__in=["under_review", "excluded"]).all().values("last_polled_at")
+            if u.get("last_polled_at")
         ]  # fmt: skip
         return max(polls) if polls else None
 
     @property
     def raw_data_source_last_updated_at(self):
+        cached_get_raw_data_sources = self.get_raw_data_sources
+
         updates = [
-            u.last_updated_at for u in self.raw_data_sources.exclude(status__slug__in=["under_review", "excluded"]).all()
+            u.last_updated_at
+            for u in cached_get_raw_data_sources.exclude(
+                status__slug__in=["under_review", "excluded"]).all()
             if u.last_updated_at
         ]  # fmt: skip
         return max(updates) if updates else None
@@ -1011,7 +1057,8 @@ class Table(BaseModel, OrderedModel):
     )
     is_deprecated = models.BooleanField(
         default=False,
-        help_text="We stopped maintaining this table for some reason. Examples: raw data deprecated, new version elsewhere, etc.",
+        help_text="We stopped maintaining this table for some reason. "
+        "Examples: raw data deprecated, new version elsewhere, etc.",
     )
     license = models.ForeignKey(
         "License",
@@ -1123,7 +1170,9 @@ class Table(BaseModel, OrderedModel):
     @property
     def partitions(self):
         """Returns a list of columns used to partition the table"""
-        partitions_list = [p.name for p in self.columns.all().filter(is_partition=True)]
+        partitions_list = [
+            p.get("name") for p in self.columns.all().filter(is_partition=True).values("name")
+        ]
         return ", ".join(partitions_list)
 
     @property
@@ -1211,7 +1260,7 @@ class Table(BaseModel, OrderedModel):
 
     @property
     def last_updated_at(self):
-        updates = [u.latest for u in self.updates.all() if u.latest]
+        updates = [u.get("latest") for u in self.updates.all().values("latest") if u.get("latest")]
         return max(updates) if updates else None
 
     @property
@@ -2312,7 +2361,8 @@ def get_full_temporal_coverage(resources: list) -> dict:
 
 
 def get_spatial_coverage(resources: list) -> list:
-    """Get spatial coverage of resources by returning unique area slugs, keeping only the highest level in each branch
+    """Get spatial coverage of resources by returning unique area slugs,
+    keeping only the highest level in each branch
 
     For example:
     - If areas = [br_mg_3100104, br_mg_3100104] -> returns [br_mg_3100104]

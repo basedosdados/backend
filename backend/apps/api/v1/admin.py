@@ -12,7 +12,9 @@ from django.http import HttpRequest
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils.html import format_html
+from django_admin_inline_paginator_plus.admin import StackedInlinePaginated
 from django.utils.safestring import mark_safe
+
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
 from ordered_model.admin import OrderedInlineModelAdminMixin, OrderedStackedInline
 
@@ -94,16 +96,20 @@ class MeasurementUnitInline(OrderedTranslatedInline):
     show_change_link = True
 
 
-class ColumnInline(OrderedTranslatedInline):
+class ColumnInline(OrderedStackedInline, StackedInlinePaginated):
     model = Column
     form = ColumnInlineForm
     extra = 0
     show_change_link = True
     show_full_result_count = True
+
+    per_page = 20
+
     fields = ColumnInlineForm.Meta.fields + [
         "order",
         "move_up_down_links",
     ]
+
     readonly_fields = [
         "order",
         "move_up_down_links",
@@ -194,10 +200,11 @@ class ObservationLevelInline(OrderedStackedInline):
         return False
 
 
-class TableInline(OrderedTranslatedInline):
+class TableInline(OrderedStackedInline, StackedInlinePaginated):
     model = Table
     form = TableInlineForm
     extra = 0
+    per_page = 5
     show_change_link = True
     fields = [
         "order",
