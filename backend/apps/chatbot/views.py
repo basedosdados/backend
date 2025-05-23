@@ -34,7 +34,13 @@ def _get_feedback_sender() -> LangSmithFeedbackSender:
 
 @cache
 def _get_sql_assistant() -> SQLAssistant:
-    db_url = os.environ["DB_URL"]
+    db_host = os.environ["DB_HOST"]
+    db_port = os.environ["DB_PORT"]
+    db_name = os.environ["DB_NAME"]
+    db_user = os.environ["DB_USER"]
+    db_password = os.environ["DB_PASSWORD"]
+
+    db_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 
     bq_billing_project = os.environ["BILLING_PROJECT_ID"]
     bq_query_project = os.environ["QUERY_PROJECT_ID"]
