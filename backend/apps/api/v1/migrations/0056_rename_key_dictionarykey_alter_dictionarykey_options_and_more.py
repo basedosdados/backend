@@ -6,7 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("v1", "0054_alter_organization_area"),
+        ("v1", "0055_alter_type_fields_many_tables"),
     ]
 
     operations = [
