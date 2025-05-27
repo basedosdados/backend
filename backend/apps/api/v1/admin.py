@@ -12,9 +12,8 @@ from django.http import HttpRequest
 from django.shortcuts import render
 from django.urls import reverse
 from django.utils.html import format_html
-from django_admin_inline_paginator_plus.admin import StackedInlinePaginated
 from django.utils.safestring import mark_safe
-
+from django_admin_inline_paginator_plus.admin import StackedInlinePaginated
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
 from ordered_model.admin import OrderedInlineModelAdminMixin, OrderedStackedInline
 
@@ -698,6 +697,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
                     "published_by",
                     "data_cleaned_by",
                     "auxiliary_files_url",
+                    "is_data_api_endpoint",
                     "created_at",
                     "updated_at",
                 )
