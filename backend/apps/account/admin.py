@@ -10,7 +10,7 @@ from django.http import HttpRequest
 from django.utils.translation import gettext_lazy
 from faker import Faker
 
-from backend.apps.account.models import Account, BDGroup, BDRole, Team, Role, Career, Subscription
+from backend.apps.account.models import Account, BDGroup, BDRole, Career, Role, Subscription, Team
 from backend.apps.account.tasks import sync_subscription_task
 
 
