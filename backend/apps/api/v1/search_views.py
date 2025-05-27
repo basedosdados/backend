@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 # ruff: noqa: E501
-# -*- coding: utf-8 -*-
 
 from django.core.files.storage import default_storage as storage
 from django.http import JsonResponse

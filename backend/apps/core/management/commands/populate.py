@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # ruff: noqa: E501
-# -*- coding: utf-8 -*-
+
 import json
 import os
 
