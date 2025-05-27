@@ -242,6 +242,26 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         indexed=False,
     )
 
+    contains_direct_download_free = indexes.BooleanField(
+        model_attr="contains_direct_download_free",
+        indexed=False,
+    )
+
+    contains_direct_download_paid = indexes.BooleanField(
+        model_attr="contains_direct_download_paid",
+        indexed=False,
+    )
+
+    contains_temporalcoverage_free = indexes.BooleanField(
+        model_attr="contains_temporalcoverage_free",
+        indexed=False,
+    )
+
+    contains_temporalcoverage_paid = indexes.BooleanField(
+        model_attr="contains_temporalcoverage_paid",
+        indexed=False,
+    )
+
     contains_tables = indexes.BooleanField(
         model_attr="contains_tables",
         indexed=False,

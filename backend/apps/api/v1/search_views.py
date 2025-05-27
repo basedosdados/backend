@@ -2,6 +2,7 @@
 
 from django.core.files.storage import default_storage as storage
 from django.http import JsonResponse
+from django.views import View
 from haystack.forms import FacetedSearchForm
 from haystack.generic_views import FacetedSearchView
 from haystack.models import SearchResult
@@ -32,17 +33,6 @@ class DatasetSearchForm(FacetedSearchForm):
 
         # Filter out datasets that contain data API endpoint tables
         sqs = sqs.exclude(contains_data_api_endpoint_tables="true")
-
-        # Debug print to see all form data
-        print(
-            "DEBUG: Form data:",
-            {
-                "spatial_coverage": self.spatial_coverage,
-                "theme": self.theme,
-                "organization": self.organization,
-                "tag": self.tag,
-            },
-        )
 
         # Text search if provided
         if q := self.cleaned_data.get("q"):
@@ -112,6 +102,10 @@ class DatasetSearchView(FacetedSearchView):
         "contains_tables",
         "contains_raw_data_sources",
         "contains_information_requests",
+        "contains_direct_download_free",
+        "contains_direct_download_paid",
+        "contains_temporalcoverage_free",
+        "contains_temporalcoverage_paid",
     ]
 
     @property
@@ -156,10 +150,10 @@ class DatasetSearchView(FacetedSearchView):
             }
         )
 
-    def get_facets(self, sqs: SearchQuerySet, facet_size=200):
+    def get_facets(self, sqs: SearchQuerySet, facet_size=6):
         sqs = sqs.facet("theme_slug", size=facet_size)
         sqs = sqs.facet("organization_slug", size=facet_size)
-        sqs = sqs.facet("spatial_coverage", size=facet_size)
+        # sqs = sqs.facet("spatial_coverage", size=facet_size)
         sqs = sqs.facet("tag_slug", size=facet_size)
         sqs = sqs.facet("entity_slug", size=facet_size)
 
@@ -339,6 +333,10 @@ def as_search_result(result: SearchResult, locale="pt"):
         "contains_open_data": result.contains_open_data,
         "contains_closed_data": result.contains_closed_data,
         "contains_tables": result.contains_tables,
+        "contains_direct_download_free": result.contains_direct_download_free,
+        "contains_direct_download_paid": result.contains_direct_download_paid,
+        "contains_temporalcoverage_free": result.contains_temporalcoverage_free,
+        "contains_temporalcoverage_paid": result.contains_temporalcoverage_paid,
         "contains_raw_data_sources": result.contains_raw_data_sources,
         "contains_information_requests": result.contains_information_requests,
         "n_tables": result.n_tables,
@@ -350,3 +348,104 @@ def as_search_result(result: SearchResult, locale="pt"):
         "first_raw_data_source_id": result.first_raw_data_source_id,
         "first_information_request_id": result.first_information_request_id,
     }
+
+
+class DatasetFacetValuesView(View):
+    """
+    View para retornar os valores de uma faceta específica baseada nos parâmetros de filtro atuais.
+    """
+
+    facet_fields = [
+        "tag_slug",
+        "theme_slug",
+        "entity_slug",
+        "organization_slug",
+        "spatial_coverage",
+    ]
+
+    @property
+    def locale(self):
+        return self.request.GET.get("locale", "pt")
+
+    @property
+    def facet_name(self):
+        return self.request.GET.get("facet", "").lower()
+
+    def get_form_kwargs(self):
+        kwargs = {
+            "contains": self.request.GET.getlist("contains"),
+            "theme": self.request.GET.getlist("theme"),
+            "organization": self.request.GET.getlist("organization"),
+            "spatial_coverage": self.request.GET.getlist("spatial_coverage"),
+            "tag": self.request.GET.getlist("tag"),
+            "observation_level": self.request.GET.getlist("observation_level"),
+            "locale": self.locale,
+        }
+
+        if "q" in self.request.GET:
+            kwargs["data"] = {"q": self.request.GET["q"]}
+
+        return kwargs
+
+    def get(self, request, *args, **kwargs):
+        if self.facet_name not in self.facet_fields:
+            return JsonResponse(
+                {
+                    "error": f"Facet '{self.facet_name}' not available. Choose from: {self.facet_fields}"
+                },
+                status=400,
+            )
+
+        form = DatasetSearchForm(**self.get_form_kwargs())
+        sqs = form.search()
+
+        sqs = sqs.facet(self.facet_name, size=1000)  # Tamanho grande para pegar todos os valores
+
+        facet_counts = sqs.facet_counts()
+        facet_values = facet_counts.get("fields", {}).get(self.facet_name, [])
+
+        values = [{"key": value[0], "count": value[1]} for value in facet_values if value[0]]
+
+        if self.facet_name == "theme_slug":
+            model = Theme
+            name_field = f"name_{self.locale}"
+        elif self.facet_name == "organization_slug":
+            model = Organization
+            name_field = f"name_{self.locale}"
+        elif self.facet_name == "tag_slug":
+            model = Tag
+            name_field = f"name_{self.locale}"
+        elif self.facet_name == "entity_slug":
+            model = Entity
+            name_field = f"name_{self.locale}"
+        elif self.facet_name == "spatial_coverage":
+            model = Area
+            name_field = f"name_{self.locale}"
+        else:
+            model = None
+
+        if model:
+            slugs = [v["key"] for v in values]
+            translated_names = model.objects.filter(slug__in=slugs).values(
+                "slug", name_field, "name"
+            )
+            name_map = {
+                item["slug"]: {
+                    "name": item.get(name_field) or item.get("name") or item["slug"],
+                    "fallback": name_field not in item or item[name_field] is None,
+                }
+                for item in translated_names
+            }
+
+            for value in values:
+                translated = name_map.get(value["key"], {"name": value["key"], "fallback": True})
+                value.update(translated)
+
+        return JsonResponse(
+            {
+                "facet": self.facet_name,
+                "values": values,
+                "count": len(values),
+                "locale": self.locale,
+            }
+        )
