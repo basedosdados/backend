@@ -50,10 +50,10 @@ from backend.apps.api.v1.models import (
     Dataset,
     DateTimeRange,
     Dictionary,
+    DictionaryKey,
     Entity,
     EntityCategory,
     InformationRequest,
-    Key,
     Language,
     License,
     MeasurementUnit,
@@ -614,6 +614,11 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "full_slug",
         "spatial_coverage",
         "temporal_coverage",
+        "contains_tables",
+        "contains_raw_data_sources",
+        "contains_information_requests",
+        "contains_closed_data",
+        "contains_data_api_endpoint_tables",
         "page_views",
         "created_at",
         "updated_at",
@@ -1021,11 +1026,17 @@ class ColumnAdmin(TabbedTranslationAdmin):
         "spatial_coverage",
         "temporal_coverage",
     ]
-    search_fields = ["name", "table__name"]
+    search_fields = ["name", "table__name", "table__dataset__name"]
     inlines = [
         CoverageInline,
         ColumnOriginalNameInline,
     ]
+
+    def get_search_results(self, request, queryset, search_term):
+        """Optimize the query by selecting related fields"""
+        queryset, use_distinct = super().get_search_results(request, queryset, search_term)
+        queryset = queryset.select_related("table", "table__dataset")
+        return queryset, use_distinct
 
 
 class ColumnOriginalNameAdmin(TabbedTranslationAdmin):
@@ -1152,7 +1163,7 @@ class CoverageTypeAdminFilter(admin.SimpleListFilter):
             ("column", "Column"),
             ("raw_data_source", "Raw Data Source"),
             ("information_request", "Information Request"),
-            ("key", "Key"),
+            ("dictionary_key", "Dictionary Key"),
         )
 
     def queryset(self, request, queryset):
@@ -1164,8 +1175,8 @@ class CoverageTypeAdminFilter(admin.SimpleListFilter):
             return queryset.filter(raw_data_source__isnull=False)
         if self.value() == "information_request":
             return queryset.filter(information_request__isnull=False)
-        if self.value() == "key":
-            return queryset.filter(key__isnull=False)
+        if self.value() == "dictionary_key":
+            return queryset.filter(dictionary_key__isnull=False)
 
 
 class UnitsInline(admin.TabularInline):
@@ -1424,7 +1435,7 @@ class AnalysisAdmin(TabbedTranslationAdmin):
     filter_horizontal = ["datasets", "themes", "tags"]
 
 
-class KeyAdmin(admin.ModelAdmin):
+class DictionaryKeyAdmin(admin.ModelAdmin):
     readonly_fields = [
         "id",
     ]
@@ -1458,7 +1469,7 @@ class QualityCheckAdmin(TabbedTranslationAdmin):
         "dataset",
         "table",
         "column",
-        "key",
+        "dictionary_key",
         "raw_data_source",
         "information_request",
     ]
@@ -1515,10 +1526,10 @@ admin.site.register(Coverage, CoverageAdmin)
 admin.site.register(Dataset, DatasetAdmin)
 admin.site.register(DateTimeRange, DateTimeRangeAdmin)
 admin.site.register(Dictionary)
+admin.site.register(DictionaryKey, DictionaryKeyAdmin)
 admin.site.register(Entity, EntityAdmin)
 admin.site.register(EntityCategory, EntityCategoryAdmin)
 admin.site.register(InformationRequest, InformationRequestAdmin)
-admin.site.register(Key, KeyAdmin)
 admin.site.register(Language, LanguageAdmin)
 admin.site.register(License, LicenseAdmin)
 admin.site.register(MeasurementUnit, MeasurementUnitAdmin)
