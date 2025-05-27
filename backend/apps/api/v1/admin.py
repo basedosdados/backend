@@ -689,6 +689,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
                     "published_by",
                     "data_cleaned_by",
                     "auxiliary_files_url",
+                    "is_data_api_endpoint",
                     "created_at",
                     "updated_at",
                 )
