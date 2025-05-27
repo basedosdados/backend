@@ -33,14 +33,14 @@ class AccountActivateView(View):
         try:
             uid = force_str(urlsafe_base64_decode(uidb64))
             user = user_model.objects.get(id=uid)
-            logger.info(f'Send Activation Email - User: {user}')
+            logger.info(f"Send Activation Email - User: {user}")
         except (TypeError, ValueError, OverflowError, user_model.DoesNotExist) as e:
-            logger.error(f'Send Activation Email - Error: {e}')
+            logger.error(f"Send Activation Email - Error: {e}")
             user = None
 
         if user:
             send_activation_email(user)
-            logger.info('Send Activation Email - Sended email for activation')
+            logger.info("Send Activation Email - Sended email for activation")
             return JsonResponse({}, status=200)
         else:
             return JsonResponse({}, status=422)

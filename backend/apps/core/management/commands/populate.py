@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*-
+# ruff: noqa: E501
+# -*- coding: utf-8 -*-
 import json
 import os
 
@@ -172,9 +174,9 @@ class Command(BaseCommand):
                 with connection.cursor() as cursor:
                     cursor.execute(
                         """
-                        SELECT column_name 
-                        FROM information_schema.columns 
-                        WHERE table_name = %s 
+                        SELECT column_name
+                        FROM information_schema.columns
+                        WHERE table_name = %s
                         AND is_nullable = 'NO'
                         AND column_name != 'id'
                     """,
@@ -199,9 +201,9 @@ class Command(BaseCommand):
                 with connection.cursor() as cursor:
                     cursor.execute(
                         """
-                        SELECT column_name 
-                        FROM information_schema.columns 
-                        WHERE table_name = %s 
+                        SELECT column_name
+                        FROM information_schema.columns
+                        WHERE table_name = %s
                         AND is_nullable = 'YES'
                     """,
                         [item],

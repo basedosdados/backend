@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# ruff: noqa: E501
 #!/usr/bin/env python3
 """
 Area Slug Update Script
@@ -92,7 +94,7 @@ def main():
     print("Setting parent reference for Brazilian states...")
     cursor.execute(
         """
-        UPDATE area 
+        UPDATE area
         SET parent_id = %s,
             entity_id = %s
         WHERE slug LIKE 'br_%%'
@@ -106,9 +108,9 @@ def main():
     # First, let's check what we're working with
     cursor.execute(
         """
-        SELECT slug 
-        FROM area 
-        WHERE slug LIKE 'br\_%%\_%%' 
+        SELECT slug
+        FROM area
+        WHERE slug LIKE 'br\_%%\_%%'
         LIMIT 5;
     """
     )
@@ -116,9 +118,9 @@ def main():
 
     cursor.execute(
         """
-        SELECT slug 
-        FROM area 
-        WHERE slug LIKE 'br\_%%' 
+        SELECT slug
+        FROM area
+        WHERE slug LIKE 'br\_%%'
         AND slug NOT LIKE 'br\_%%\_%%'
         LIMIT 5;
     """
