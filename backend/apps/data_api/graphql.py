@@ -63,8 +63,8 @@ class EndpointParameterNode(DjangoObjectType):
         filter_fields = {
             "id": ["exact"],
             "name": ["exact", "icontains"],
-            "required": ["exact"],
-            "type": ["exact"],
+            "is_required": ["exact"],
+            "type__name": ["exact"],
         }
         interfaces = (PlainTextNode,)
         connection_class = CountableConnection

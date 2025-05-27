@@ -8,8 +8,6 @@ import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
 
-import backend.apps.data_api.models
-
 
 class Migration(migrations.Migration):
     initial = True
@@ -215,7 +213,6 @@ class Migration(migrations.Migration):
                     "column",
                     models.ForeignKey(
                         blank=True,
-                        limit_choices_to=backend.apps.data_api.models.limit_column_choices,
                         null=True,
                         on_delete=django.db.models.deletion.SET_NULL,
                         related_name="parameters",
@@ -296,7 +293,6 @@ class Migration(migrations.Migration):
             name="table",
             field=models.ForeignKey(
                 blank=True,
-                limit_choices_to=backend.apps.data_api.models.limit_table_choices,
                 null=True,
                 on_delete=django.db.models.deletion.SET_NULL,
                 related_name="endpoints",
