@@ -20,6 +20,7 @@ class KeyInline(admin.TabularInline):
     readonly_fields = (
         "id",
         "name",
+        "hash",
         "prefix",
         "is_active",
         "expires_at",
@@ -115,6 +116,7 @@ class EndpointPricingTierInline(admin.TabularInline):
 class KeyAdmin(admin.ModelAdmin):
     list_display = (
         "name",
+        "hash",
         "account",
         "prefix",
         "balance",
@@ -124,13 +126,14 @@ class KeyAdmin(admin.ModelAdmin):
     )
     list_filter = ("is_active",)
     search_fields = ("name", "prefix", "account__email", "account__full_name")
-    readonly_fields = ("id", "prefix", "hash", "balance", "created_at", "updated_at")
+    readonly_fields = ("id", "hash", "prefix", "balance", "created_at", "updated_at")
     fieldsets = (
         (
             None,
             {
                 "fields": (
                     "name",
+                    "hash",
                     "account",
                     "prefix",
                     "balance",
