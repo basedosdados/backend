@@ -105,13 +105,30 @@ class DataAPICurrentTierView(View):
 
 @method_decorator(csrf_exempt, name="dispatch")
 class DataAPICreditAddView(View):
-    # TODO: remove GET method when in production
+    def _get_hashed_key(self, key=None, hashed_key=None):
+        if not key and not hashed_key:
+            return None, "Either key or hashed_key must be provided"
+
+        if key and hashed_key:
+            # If both are provided, validate they match
+            computed_hash = sha256(key.encode()).hexdigest()
+            if computed_hash != hashed_key:
+                return None, "Provided key and hashed_key do not match"
+            return hashed_key, None
+
+        if hashed_key:
+            return hashed_key, None
+
+        # If only key is provided, hash it
+        return sha256(key.encode()).hexdigest(), None
+
     def get(self, request):
         key = request.GET.get("key")
+        hashed_key = request.GET.get("hashed_key")
         amount = request.GET.get("amount")
         currency = request.GET.get("currency")
 
-        if not all([key, amount, currency]):
+        if not all([amount, currency]):
             return JsonResponse(
                 {"error": "Missing required parameters", "success": False}, status=400
             )
@@ -127,8 +144,10 @@ class DataAPICreditAddView(View):
         except ValueError:
             return JsonResponse({"error": "Invalid amount format", "success": False}, status=400)
 
-        # Hash the API key
-        hashed_key = sha256(key.encode()).hexdigest()
+        # Get and validate hashed key
+        hashed_key, error = self._get_hashed_key(key, hashed_key)
+        if error:
+            return JsonResponse({"error": error, "success": False}, status=400)
 
         try:
             amount = Decimal(str(amount))
@@ -162,14 +181,17 @@ class DataAPICreditAddView(View):
             metadata = payment_intent.metadata
 
             key = metadata.get("key")
+            hashed_key = metadata.get("hashed_key")
             amount = float(payment_intent.amount) / 100  # Convert from cents to BRL
             currency = payment_intent.currency.upper()
 
-            if not key:
-                raise ValueError("API key not found in payment metadata")
+            if not key and not hashed_key:
+                raise ValueError("Neither key nor hashed_key found in payment metadata")
 
-            # Hash the API key
-            hashed_key = sha256(key.encode()).hexdigest()
+            # Get and validate hashed key
+            hashed_key, error = self._get_hashed_key(key, hashed_key)
+            if error:
+                raise ValueError(error)
 
             try:
                 amount = Decimal(str(amount))
@@ -196,13 +218,30 @@ class DataAPICreditAddView(View):
 
 @method_decorator(csrf_exempt, name="dispatch")
 class DataAPICreditDeductView(View):
-    # TODO: remove GET method when in production
+    def _get_hashed_key(self, key=None, hashed_key=None):
+        if not key and not hashed_key:
+            return None, "Either key or hashed_key must be provided"
+
+        if key and hashed_key:
+            # If both are provided, validate they match
+            computed_hash = sha256(key.encode()).hexdigest()
+            if computed_hash != hashed_key:
+                return None, "Provided key and hashed_key do not match"
+            return hashed_key, None
+
+        if hashed_key:
+            return hashed_key, None
+
+        # If only key is provided, hash it
+        return sha256(key.encode()).hexdigest(), None
+
     def get(self, request):
         key = request.GET.get("key")
+        hashed_key = request.GET.get("hashed_key")
         amount = request.GET.get("amount")
         currency = request.GET.get("currency")
 
-        if not all([key, amount, currency]):
+        if not all([amount, currency]):
             return JsonResponse(
                 {"error": "Missing required parameters", "success": False}, status=400
             )
@@ -218,8 +257,10 @@ class DataAPICreditDeductView(View):
         except ValueError:
             return JsonResponse({"error": "Invalid amount format", "success": False}, status=400)
 
-        # Hash the API key
-        hashed_key = sha256(key.encode()).hexdigest()
+        # Get and validate hashed key
+        hashed_key, error = self._get_hashed_key(key, hashed_key)
+        if error:
+            return JsonResponse({"error": error, "success": False}, status=400)
 
         try:
             amount = Decimal(str(amount))
@@ -254,14 +295,17 @@ class DataAPICreditDeductView(View):
             metadata = payment_intent.metadata
 
             key = metadata.get("key")
+            hashed_key = metadata.get("hashed_key")
             amount = float(payment_intent.amount) / 100  # Convert from cents to currency units
             currency = payment_intent.currency.upper()
 
-            if not key:
-                raise ValueError("API key not found in payment metadata")
+            if not key and not hashed_key:
+                raise ValueError("Neither key nor hashed_key found in payment metadata")
 
-            # Hash the API key
-            hashed_key = sha256(key.encode()).hexdigest()
+            # Get and validate hashed key
+            hashed_key, error = self._get_hashed_key(key, hashed_key)
+            if error:
+                raise ValueError(error)
 
             try:
                 amount = Decimal(str(amount))
