@@ -168,8 +168,8 @@ class EndpointCategoryAdmin(admin.ModelAdmin):
 
 
 class EndpointParameterAdmin(admin.ModelAdmin):
-    list_display = ("name", "description", "endpoint", "column")
-    list_filter = ("name", "endpoint", "is_required")
+    list_display = ("name", "description", "endpoint", "get_category", "column")
+    list_filter = ("name", "endpoint", "endpoint__category", "is_required")
     search_fields = (
         "name",
         "description",
@@ -182,12 +182,28 @@ class EndpointParameterAdmin(admin.ModelAdmin):
     readonly_fields = ("id", "created_at", "updated_at")
     autocomplete_fields = ["column"]
 
+    def get_category(self, obj):
+        return obj.endpoint.category.name if obj.endpoint and obj.endpoint.category else "-"
+
+    get_category.short_description = "Category"
+
 
 class EndpointPricingTierAdmin(admin.ModelAdmin):
-    list_display = ("endpoint", "min_requests", "max_requests", "price_per_request")
-    list_filter = ("endpoint", "min_requests", "max_requests", "price_per_request")
+    list_display = ("endpoint", "get_category", "min_requests", "max_requests", "price_per_request")
+    list_filter = (
+        "endpoint",
+        "endpoint__category",
+        "min_requests",
+        "max_requests",
+        "price_per_request",
+    )
     search_fields = ("endpoint__name", "min_requests", "max_requests", "price_per_request")
     readonly_fields = ("id", "created_at", "updated_at")
+
+    def get_category(self, obj):
+        return obj.endpoint.category.name if obj.endpoint and obj.endpoint.category else "-"
+
+    get_category.short_description = "Category"
 
 
 class EndpointAdmin(admin.ModelAdmin):
