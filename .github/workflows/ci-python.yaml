@@ -16,8 +16,15 @@ jobs:
     name: Test python
     runs-on: ubuntu-latest
     steps:
+      # this step is needed because the chatbot submodule is private
+      - name: Set up deploy keys for submodules
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.CHATBOT_SUBMODULE_DEPLOY_KEY }}
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: recursive
       - name: Set up poetry
         run: pipx install poetry
       - name: Set up python

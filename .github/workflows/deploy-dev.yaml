@@ -8,9 +8,7 @@ on:
 jobs:
   deploy-dev:
     runs-on: ubuntu-latest
-    if: |
-      ${{ github.event_name == 'workflow_dispatch' }}
-      || ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' }} || ${{ github.event.workflow_run.conclusion == 'success' }}
     environment:
       name: development
       url: https://api.development.basedosdados.org
@@ -63,6 +61,11 @@ jobs:
             envFrom:
               - secretRef:
                   name: api-development-secrets
+            chatbot:
+              billing_project_id: basedosdados-dev
+              query_project_id: basedosdados-dev
+              model_uri: google/gemini-2.0-flash
+              langchain_tracing_v2: true
             settingsModule: "backend.settings.remote"
           database:
             host: "cloud-sql-proxy"

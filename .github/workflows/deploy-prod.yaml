@@ -8,9 +8,7 @@ on:
 jobs:
   deploy-prod:
     runs-on: ubuntu-latest
-    if: |
-      ${{ github.event_name == 'workflow_dispatch' }}
-      || ${{ github.event.workflow_run.conclusion == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' }} || ${{ github.event.workflow_run.conclusion == 'success' }}
     environment:
       name: production
       url: https://backend.basedosdados.org
@@ -63,6 +61,11 @@ jobs:
             envFrom:
               - secretRef:
                   name: api-prod-secrets
+            chatbot:
+              billing_project_id: basedosdados
+              query_project_id: basedosdados
+              model_uri: google/gemini-2.0-flash
+              langchain_tracing_v2: true
             settingsModule: "backend.settings.remote"
           database:
             host: "cloud-sql-proxy"

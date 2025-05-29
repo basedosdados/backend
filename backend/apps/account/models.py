@@ -251,6 +251,11 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
     is_email_visible = models.BooleanField(
         "Email é visível", default=False, help_text="Indica se o email do usuário é público"
     )
+    has_chatbot_access = models.BooleanField(
+        "Tem acesso ao chatbot",
+        default=False,
+        help_text="Indica se o usuário tem acesso ao chatbot",
+    )
 
     profile = models.IntegerField(
         choices=PROFILE_CHOICES,
