@@ -44,6 +44,8 @@ INSTALLED_APPS = [
     "jazzmin",
     "modeltranslation",
     #
+    "django_admin_inline_paginator_plus",
+    #
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -68,6 +70,7 @@ INSTALLED_APPS = [
     "backend.apps.account_auth",
     "backend.apps.account_payment.apps.PaymentConfig",
     "backend.apps.api.v1",
+    "backend.apps.data_api",
     "backend.apps.core",
     "backend.apps.chatbot",
 ]

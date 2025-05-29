@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from modeltranslation.translator import TranslationOptions, translator
 
-from .models import Account, Team, Role
+from .models import Account, Role, Team
 
 
 class TeamTranslationOptions(TranslationOptions):

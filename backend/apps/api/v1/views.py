@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from typing import Dict, List
 from urllib.parse import urlparse
 
-from django.http import HttpResponseRedirect
+import pandas as pd
+from django.http import HttpRequest, HttpResponseRedirect, JsonResponse
 from django.views import View
 
-from backend.apps.api.v1.models import CloudTable, Dataset
+from backend.apps.api.v1.models import BigQueryType, CloudTable, Column, Dataset, Table
 
 URL_MAPPING = {
     "localhost:8080": "http://localhost:3000",
@@ -34,3 +36,84 @@ class DatasetRedirectView(View):
                 return HttpResponseRedirect(f"{domain}/dataset/{resource.id}")
 
         return HttpResponseRedirect(f"{domain}/404")
+
+
+def upload_columns(request: HttpRequest):
+    # Aqui vai sua função
+
+    token, table_id, dataset_id, link = request.POST.values()
+
+    selected_table = Table.objects.get(id=table_id)
+
+    selected_table.columns.all().delete()
+
+    architecture = read_architecture_table(link)
+
+    tables_dict: Dict[str, Table] = {table.gbq_slug: table for table in Table.objects.all()}
+
+    columns: List[Column] = [
+        create_columns(selected_table=selected_table, tables_dict=tables_dict, row=row)
+        for _, row in architecture.iterrows()
+    ]
+
+    selected_table.columns.set(columns)
+
+    resultado = "Colunas Salvas com sucesso!"
+
+    print(token, table_id, dataset_id, link)
+
+    return JsonResponse({"status": "sucesso", "mensagem": resultado})
+
+
+def read_architecture_table(url: str) -> pd.DataFrame:
+    id_spreadsheets = url.split("/")[-2]
+
+    spreadsheets_raw_url = (
+        f"https://docs.google.com/spreadsheets/d/{id_spreadsheets}/gviz/tq?tqx=out:csv"
+    )
+
+    df_architecture = pd.read_csv(spreadsheets_raw_url, dtype=str)
+
+    df_architecture = df_architecture.loc[df_architecture["name"] != "(excluido)"]
+
+    df_architecture.fillna("", inplace=True)
+
+    return df_architecture
+
+
+def create_columns(selected_table: Table, tables_dict: Dict[str, Table], row: pd.Series) -> Column:
+    # Pegar ID do BigQueryType Model
+
+    row_bqtype = row["bigquery_type"].strip().upper()
+    bqtype = BigQueryType.objects.get(name=row_bqtype)
+
+    # Pegar ID da coluna Diretorio
+
+    directory_column = None
+
+    if row["directory_column"]:
+        full_slug_models = "basedosdados.{table_full_slug}"
+
+        table_full_slug = row["directory_column"].split(":")[0]
+        table_full_slug = full_slug_models.format(table_full_slug=table_full_slug)
+
+        directory_column_name = row["directory_column"].split(":")[1]
+
+        table_directory = tables_dict[table_full_slug]
+
+        directory_column = table_directory.columns.get(name=directory_column_name)
+
+    # Definir Coluna
+
+    column = selected_table.columns.create(
+        name=row["name"],
+        description=row["description"],
+        covered_by_dictionary=row["covered_by_dictionary"] == "yes",
+        measurement_unit=row["measurement_unit"],
+        contains_sensitive_data=row["has_sensitive_data"] == "yes",
+        observations=row["observations"],
+        bigquery_type=bqtype,
+        directory_primary_key=directory_column,
+    )
+
+    return column

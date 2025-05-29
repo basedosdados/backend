@@ -1,3 +1,5 @@
+# -*- coding: utf-8 -*-
+# ruff: noqa
 #!/usr/bin/env python3
 """
 AI Database Translation Script

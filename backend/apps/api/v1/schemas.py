@@ -86,6 +86,8 @@ class Dataset(BaseModel):
     contains_temporalcoverage_free: bool
     contains_temporalcoverage_paid: bool
     #
+    contains_data_api_endpoint_tables: bool
+    #
     themes: List[Theme]
     organization: List[Organization]
     temporal_coverage: List[str]

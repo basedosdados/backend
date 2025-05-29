@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# ruff: noqa: E501
 
 from django.core.files.storage import default_storage as storage
 from django.http import JsonResponse
@@ -30,6 +31,9 @@ class DatasetSearchForm(FacetedSearchForm):
 
         # Start with all results
         sqs = self.searchqueryset.all()
+
+        # Filter out datasets that contain data API endpoint tables
+        sqs = sqs.exclude(contains_data_api_endpoint_tables="true")
 
         # Text search if provided
         if q := self.cleaned_data.get("q"):
