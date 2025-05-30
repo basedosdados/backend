@@ -52,14 +52,6 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.database.passwordSecret | quote }}
                   key: password
-            - name: BILLING_PROJECT_ID
-              value: {{ .Values.api.chatbot.billing_project_id | quote }}
-            - name: QUERY_PROJECT_ID
-              value: {{ .Values.api.chatbot.query_project_id | quote }}
-            - name: MODEL_URI
-              value: {{ .Values.api.chatbot.model_uri | quote }}
-            - name: LANGCHAIN_TRACING_V2
-              value: {{ .Values.api.chatbot.langchain_tracing_v2 | quote }}
             - name: DJANGO_SETTINGS_MODULE
               value: {{ .Values.api.settingsModule | quote }}
             {{- with .Values.api.env }}
