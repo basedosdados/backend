@@ -17,12 +17,17 @@ from rest_framework.request import Request
 from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 
+from backend.apps.chatbot.database import ChatbotDatabase
+from backend.apps.chatbot.feedback_sender import LangSmithFeedbackSender
+from backend.apps.chatbot.models import Feedback, MessagePair, Thread
+from backend.apps.chatbot.serializers import (
+    FeedbackCreateSerializer,
+    FeedbackSerializer,
+    MessagePairSerializer,
+    ThreadSerializer,
+    UserMessageSerializer,
+)
 from chatbot.assistants import SQLAssistant, SQLAssistantMessage, UserMessage
-
-from .database import ChatbotDatabase
-from .feedback_sender import LangSmithFeedbackSender
-from .models import *
-from .serializers import *
 
 ModelSerializer = TypeVar("ModelSerializer", bound=Serializer)
 
@@ -99,7 +104,8 @@ class ThreadListView(APIView):
         """Retrieve all threads associated with the authenticated user.
 
         Args:
-            request (Request): A Django REST framework `Request` object containing the authenticated user.
+            request (Request): A Django REST framework `Request` object
+            containing the authenticated user.
 
         Returns:
             JsonResponse: A JSON response containing a list of serialized threads.
@@ -112,7 +118,8 @@ class ThreadListView(APIView):
         """Create a new thread for the authenticated user.
 
         Args:
-            request (Request): A Django REST framework `Request` object containing the authenticated user.
+            request (Request): A Django REST framework `Request` object
+            containing the authenticated user.
 
         Returns:
             JsonResponse: A JSON response containing the serialized newly created thread.
