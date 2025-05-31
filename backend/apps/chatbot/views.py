@@ -17,17 +17,25 @@ from rest_framework.request import Request
 from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 
+from backend.apps.chatbot.database import ChatbotDatabase
+from backend.apps.chatbot.feedback_sender import LangSmithFeedbackSender
+from backend.apps.chatbot.models import Feedback, MessagePair, Thread
+from backend.apps.chatbot.serializers import (
+    FeedbackCreateSerializer,
+    FeedbackSerializer,
+    MessagePairSerializer,
+    ThreadSerializer,
+    UserMessageSerializer,
+)
 from chatbot.assistants import SQLAssistant, SQLAssistantMessage, UserMessage
-from .database import ChatbotDatabase
-from .feedback_sender import LangSmithFeedbackSender
-from .models import *
-from .serializers import *
 
 ModelSerializer = TypeVar("ModelSerializer", bound=Serializer)
+
 
 @cache
 def _get_feedback_sender() -> LangSmithFeedbackSender:
     return LangSmithFeedbackSender()
+
 
 @cache
 def _get_sql_assistant() -> SQLAssistant:
@@ -61,9 +69,7 @@ def _get_sql_assistant() -> SQLAssistant:
             client=chroma_client,
             collection_name=chroma_collection,
             collection_metadata={"hnsw:space": "cosine"},
-            embedding_function=OpenAIEmbeddings(
-                model="text-embedding-3-small"
-            ),
+            embedding_function=OpenAIEmbeddings(model="text-embedding-3-small"),
         )
     else:
         vector_store = None
@@ -71,10 +77,7 @@ def _get_sql_assistant() -> SQLAssistant:
     # Connection kwargs defined according to:
     # https://github.com/langchain-ai/langgraph/issues/2887
     # https://langchain-ai.github.io/langgraph/how-tos/persistence_postgres
-    conn_kwargs = {
-        "autocommit": True,
-        "prepare_threshold": 0
-    }
+    conn_kwargs = {"autocommit": True, "prepare_threshold": 0}
 
     pool = ConnectionPool(
         conninfo=db_url,
@@ -82,18 +85,17 @@ def _get_sql_assistant() -> SQLAssistant:
         max_size=8,
         open=False,
     )
-    pool.open() # TODO: where to close the pool?
+    pool.open()  # TODO: where to close the pool?
 
     checkpointer = PostgresSaver(pool)
     checkpointer.setup()
 
     assistant = SQLAssistant(
-        database=database,
-        checkpointer=checkpointer,
-        vector_store=vector_store
+        database=database, checkpointer=checkpointer, vector_store=vector_store
     )
 
     return assistant
+
 
 class ThreadListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -102,7 +104,8 @@ class ThreadListView(APIView):
         """Retrieve all threads associated with the authenticated user.
 
         Args:
-            request (Request): A Django REST framework `Request` object containing the authenticated user.
+            request (Request): A Django REST framework `Request` object
+            containing the authenticated user.
 
         Returns:
             JsonResponse: A JSON response containing a list of serialized threads.
@@ -115,7 +118,8 @@ class ThreadListView(APIView):
         """Create a new thread for the authenticated user.
 
         Args:
-            request (Request): A Django REST framework `Request` object containing the authenticated user.
+            request (Request): A Django REST framework `Request` object
+            containing the authenticated user.
 
         Returns:
             JsonResponse: A JSON response containing the serialized newly created thread.
@@ -123,6 +127,7 @@ class ThreadListView(APIView):
         thread = Thread.objects.create(account=request.user)
         serializer = ThreadSerializer(thread)
         return JsonResponse(serializer.data, status=201)
+
 
 class ThreadDetailView(APIView):
     permission_classes = [IsAuthenticated]
@@ -141,6 +146,7 @@ class ThreadDetailView(APIView):
         messages = MessagePair.objects.filter(thread=thread)
         serializer = MessagePairSerializer(messages, many=True)
         return JsonResponse(serializer.data, safe=False)
+
 
 class MessageListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -166,8 +172,7 @@ class MessageListView(APIView):
         assistant = _get_sql_assistant()
 
         assistant_response: SQLAssistantMessage = assistant.invoke(
-            message=user_message,
-            thread_id=thread_id
+            message=user_message, thread_id=thread_id
         )
 
         # TODO (nice to have): stream results
@@ -183,6 +188,7 @@ class MessageListView(APIView):
         serializer = MessagePairSerializer(message_pair)
 
         return JsonResponse(serializer.data, status=201)
+
 
 class FeedbackListView(APIView):
     permission_classes = [IsAuthenticated]
@@ -221,6 +227,7 @@ class FeedbackListView(APIView):
 
         return JsonResponse(serializer.data, status=status)
 
+
 class CheckpointListView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -243,6 +250,7 @@ class CheckpointListView(APIView):
         except Exception:
             return HttpResponse("Error clearing checkpoint", status=500)
 
+
 def _get_thread_by_id(thread_id: uuid.UUID) -> Thread:
     """Retrieve a `Thread` object by its ID.
 
@@ -260,6 +268,7 @@ def _get_thread_by_id(thread_id: uuid.UUID) -> Thread:
     except Thread.DoesNotExist:
         raise exceptions.NotFound
 
+
 def _get_message_pair_by_id(message_pair_id: uuid.UUID) -> MessagePair:
     """Retrieve a `MessagePair` object by its ID.
 
@@ -276,6 +285,7 @@ def _get_message_pair_by_id(message_pair_id: uuid.UUID) -> MessagePair:
         return MessagePair.objects.get(id=message_pair_id)
     except MessagePair.DoesNotExist:
         raise exceptions.NotFound
+
 
 def _validate(request: Request, model_serializer: Type[ModelSerializer]) -> ModelSerializer:
     """

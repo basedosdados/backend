@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 import json
 import os
 
@@ -7,7 +8,13 @@ from loguru import logger
 
 from backend.apps.api.v1.models import Dataset
 
-from .metadata_formatter import *
+from .metadata_formatter import (
+    ColumnMetadata,
+    DatasetMetadata,
+    MarkdownMetadataFormatter,
+    MetadataFormatter,
+    TableMetadata,
+)
 
 
 class ChatbotDatabase:
@@ -21,9 +28,11 @@ class ChatbotDatabase:
 
     Args:
         billing_project (str | None):
-            GCP project ID for billing. Falls back to the `BILLING_PROJECT_ID` environment variable if not provided.
+            GCP project ID for billing. Falls back to the `BILLING_PROJECT_ID`
+            environment variable if not provided.
         query_project (str | None):
-            GCP project ID for executing queries. Falls back to the `QUERY_PROJECT_ID` environment variable if not provided.
+            GCP project ID for executing queries. Falls back to the `QUERY_PROJECT_ID`
+            environment variable if not provided.
         metadata_formatter (MetadataFormatter | None):
             Custom formatter for metadata. Defaults to `MarkdownMetadataFormatter`.
     """
@@ -34,8 +43,8 @@ class ChatbotDatabase:
         query_project: str | None = None,
         metadata_formatter: MetadataFormatter | None = None,
     ):
-        billing_project = billing_project or os.getenv('BILLING_PROJECT_ID')
-        query_project = query_project or os.getenv('QUERY_PROJECT_ID')
+        billing_project = billing_project or os.getenv("BILLING_PROJECT_ID")
+        query_project = query_project or os.getenv("QUERY_PROJECT_ID")
 
         self._client = bq.Client(billing_project)
         self._project = query_project
@@ -46,18 +55,17 @@ class ChatbotDatabase:
             self.formatter = MarkdownMetadataFormatter()
 
     @staticmethod
-    @cachetools.func.ttl_cache(ttl=60*60*24)
+    @cachetools.func.ttl_cache(ttl=60 * 60 * 24)
     def _get_metadata() -> list[DatasetMetadata]:
         """Fetch and return metadata for all datasets and their associated tables and columns.
         The metadata includes dataset and table IDs and descriptions, and column information
         such as name, type, and description. The result is cached for 24 hours.
 
         Returns:
-            list[DatasetMetadata]: A list of metadata objects, one for each dataset with at least one valid table.
+            list[DatasetMetadata]: A list of `DatasetMetadata` objects,
+            one for each dataset with at least one valid table.
         """
-        datasets = Dataset.objects.prefetch_related(
-            "tables__cloud_tables__columns__bigquery_type"
-        )
+        datasets = Dataset.objects.prefetch_related("tables__cloud_tables__columns__bigquery_type")
 
         datasets_metadata: list[DatasetMetadata] = []
 
@@ -84,7 +92,11 @@ class ChatbotDatabase:
                     for column in cloud_table.columns.all()
                 ]
 
-                full_table_id = f"{cloud_table.gcp_project_id}.{cloud_table.gcp_dataset_id}.{cloud_table.gcp_table_id}"
+                full_table_id = (
+                    f"{cloud_table.gcp_project_id}."
+                    f"{cloud_table.gcp_dataset_id}."
+                    f"{cloud_table.gcp_table_id}"
+                )
 
                 tables_metadata.append(
                     TableMetadata(
@@ -92,7 +104,7 @@ class ChatbotDatabase:
                         full_table_id=full_table_id,
                         name=table.name,
                         description=table.description,
-                        columns=columns_metadata
+                        columns=columns_metadata,
                     )
                 )
 
@@ -104,7 +116,7 @@ class ChatbotDatabase:
                         id=gcp_dataset_id,
                         name=dataset.name,
                         description=dataset.description,
-                        tables=tables_metadata
+                        tables=tables_metadata,
                     )
                 )
 
@@ -117,8 +129,7 @@ class ChatbotDatabase:
             str: A formatted string containing metadata for the datasets.
         """
         datasets_info = [
-            self.formatter.format_dataset_metadata(dataset)
-            for dataset in self._get_metadata()
+            self.formatter.format_dataset_metadata(dataset) for dataset in self._get_metadata()
         ]
 
         return "\n\n---\n\n".join(datasets_info)
@@ -134,15 +145,15 @@ class ChatbotDatabase:
         """
         dataset_ids = {id.strip() for id in dataset_names.split(",")}
 
-        datasets = [
-            dataset for dataset in self._get_metadata() if dataset.id in dataset_ids
-        ]
+        datasets = [dataset for dataset in self._get_metadata() if dataset.id in dataset_ids]
 
         tables_info = []
 
         for dataset in datasets:
             tables_info.append(
-                "\n\n".join([self.formatter.format_table_metadata(table) for table in dataset.tables])
+                "\n\n".join(
+                    [self.formatter.format_table_metadata(table) for table in dataset.tables]
+                )
             )
 
         return "\n\n---\n\n".join(tables_info)
@@ -157,7 +168,8 @@ class ChatbotDatabase:
             Exception: Propagates any exceptions raised during query execution.
 
         Returns:
-            str: A JSON-formatted string representing the query results. Returns an empty string if no results are found.
+            str: A JSON-formatted string representing the query results.
+            Returns an empty string if no results are found.
         """
         try:
             rows = self._client.query(query, project=self._project).result()

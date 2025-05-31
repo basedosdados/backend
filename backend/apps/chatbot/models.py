@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import uuid
-from typing import Any
 
 from django.db import models
 from django.utils import timezone
@@ -13,6 +12,7 @@ class Thread(models.Model):
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
 
+
 class MessagePair(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     thread = models.ForeignKey(Thread, on_delete=models.CASCADE)
@@ -23,6 +23,7 @@ class MessagePair(models.Model):
     generated_chart = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
+
 class Feedback(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     message_pair = models.OneToOneField(MessagePair, on_delete=models.CASCADE, primary_key=False)
@@ -31,16 +32,12 @@ class Feedback(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(null=True, blank=True)
     sync_status = models.TextField(
-        choices=[
-            ("pending", "Pending"),
-            ("success", "Success"),
-            ("failed", "Failed")
-        ],
-        default="pending"
+        choices=[("pending", "Pending"), ("success", "Success"), ("failed", "Failed")],
+        default="pending",
     )
     synced_at = models.DateTimeField(null=True, blank=True)
 
-    def user_update(self, data: dict[str, int|str]):
+    def user_update(self, data: dict[str, int | str]):
         for attr, value in data.items():
             setattr(self, attr, value)
         self.updated_at = timezone.now()

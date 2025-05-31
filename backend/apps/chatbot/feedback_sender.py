@@ -1,4 +1,5 @@
-from queue import Queue, Full
+# -*- coding: utf-8 -*-
+from queue import Full, Queue
 from threading import Thread
 
 import langsmith
@@ -12,10 +13,7 @@ class LangSmithFeedbackSender:
     """A feedback sender that sends feedback to LangSmith using a background worker."""
 
     def __init__(self, api_url: str | None = None, api_key: str | None = None):
-        self._langsmith_client = langsmith.Client(
-            api_url=api_url,
-            api_key=api_key
-        )
+        self._langsmith_client = langsmith.Client(api_url=api_url, api_key=api_key)
 
         self._queue: Queue[tuple[Feedback, bool]] = Queue(maxsize=1000)
 
@@ -37,15 +35,17 @@ class LangSmithFeedbackSender:
                 key="helpfulness",
                 feedback_id=feedback.id,
                 score=feedback.rating,
-                comment=feedback.comment
+                comment=feedback.comment,
             )
             logger.info(
-                f"Successfully created feedback {feedback.id} for run {feedback.message_pair.id} on LangSmith"
+                f"Successfully created feedback {feedback.id} "
+                f"for run {feedback.message_pair.id} on LangSmith"
             )
             return True
         except Exception:
             logger.exception(
-                f"Failed to create feedback {feedback.id} for run {feedback.message_pair.id} on LangSmith:"
+                f"Failed to create feedback {feedback.id} "
+                f"for run {feedback.message_pair.id} on LangSmith"
             )
             return False
 
@@ -60,17 +60,17 @@ class LangSmithFeedbackSender:
         """
         try:
             self._langsmith_client.update_feedback(
-                feedback_id=feedback.id,
-                score=feedback.rating,
-                comment=feedback.comment
+                feedback_id=feedback.id, score=feedback.rating, comment=feedback.comment
             )
             logger.info(
-                f"Successfully updated feedback {feedback.id} for run {feedback.message_pair.id} on LangSmith"
+                f"Successfully updated feedback {feedback.id} "
+                f"for run {feedback.message_pair.id} on LangSmith"
             )
             return True
         except Exception:
             logger.exception(
-                f"Failed to update feedback {feedback.id} for run {feedback.message_pair.id} on LangSmith:"
+                f"Failed to update feedback {feedback.id} "
+                f"for run {feedback.message_pair.id} on LangSmith"
             )
             return False
 
@@ -107,5 +107,6 @@ class LangSmithFeedbackSender:
         except Full:
             operation = "create" if created else "update"
             logger.warning(
-                f"LangSmith feedbacks queue is full - could not {operation} feedback {feedback.id} on LangSmith"
+                f"LangSmith feedbacks queue is full - could not {operation} "
+                f"feedback {feedback.id} on LangSmith"
             )
