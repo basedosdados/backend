@@ -2,8 +2,7 @@
 name: Release Image (Production)
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 jobs:
   release-docker:
     name: Release Image
