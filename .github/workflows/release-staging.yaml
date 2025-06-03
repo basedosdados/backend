@@ -2,8 +2,7 @@
 name: Release Image (Staging)
 on:
   push:
-    branches:
-      - staging
+    branches: [staging]
 jobs:
   release-docker:
     name: Release Image

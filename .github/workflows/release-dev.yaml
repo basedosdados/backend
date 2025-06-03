@@ -2,8 +2,7 @@
 name: Release Image (Development)
 on:
   push:
-    branches:
-      - dev
+    branches: [dev]
 jobs:
   release-docker:
     name: Release Image
@@ -36,6 +35,5 @@ jobs:
           labels: |
             org.opencontainers.image.source=${{ github.event.repository.html_url }}
             org.opencontainers.image.revision=${{ github.sha }}
-          build-args: |
+          build-args: |-
             BUILDKIT_INLINE_CACHE=1
-
