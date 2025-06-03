@@ -1,6 +1,7 @@
+---
 services:
   index:
-    image: elasticsearch:8.17.2 # TODO : upgrade prod to elasticsearch:8.17.2
+    image: elasticsearch:8.17.2  # TODO : upgrade prod to elasticsearch:8.17.2
     container_name: index
     environment:
       - cluster.name=docker-cluster
@@ -44,11 +45,9 @@ services:
       start_period: 1m
     restart: unless-stopped
   vector-database:
-    image: chromadb/chroma:0.6.3 # chromadb version that gets installed with langchain-chroma==0.2.2
-    ports:
-      - 8001:8000
-    volumes:
-      - chroma_data:/chroma/chroma
+    image: chromadb/chroma:0.6.3  # chromadb version that gets installed with langchain-chroma==0.2.2
+    ports: [8001:8000]
+    volumes: [chroma_data:/chroma/chroma]
     healthcheck:
       test: curl -f http://localhost:8000/api/v2/heartbeat || exit 1
     restart: unless-stopped
@@ -58,13 +57,11 @@ services:
       dockerfile: Dockerfile
     container_name: api
     env_file: [.env.docker]
-    command: ["/app/start-server-dev.sh"]
-    volumes:
-      - .:/app
-      - $HOME/.config/pydata:$HOME/.config/pydata
+    command: [/app/start-server-dev.sh]
+    volumes: [.:/app, $HOME/.config/pydata:$HOME/.config/pydata]
     ports:
-      - "8000:8000"  # Porta da api
-      - "5678:5678"  # Porta de debug
+      - 8000:8000  # Porta da api
+      - 5678:5678  # Porta de debug
     depends_on:
       index:
         condition: service_healthy
@@ -81,7 +78,6 @@ services:
       retries: 5
       start_period: 30s
     restart: unless-stopped
-
 volumes:
   esdata:
   pgdata:
