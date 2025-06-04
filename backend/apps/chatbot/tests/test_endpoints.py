@@ -15,7 +15,7 @@ class MockSQLAssistant:
         ...
 
     def invoke(self, *args, **kwargs):
-        return SQLAssistantMessage(model_uri="google/gemini-2.0-flash", content="mock response")
+        return SQLAssistantMessage(content="mock response")
 
     def clear_thread(self, *args, **kwargs):
         ...
@@ -210,7 +210,7 @@ def test_feedback_list_view_put_create(monkeypatch, auth_client: APIClient, auth
     message_pairs = [
         MessagePair.objects.create(
             thread=thread,
-            model_uri="google/gemini-2.0-flash",
+            model_uri="gemini-2.0-flash",
             user_message="mock message",
             assistant_message="mock response",
         )
@@ -242,7 +242,7 @@ def test_feedback_list_view_put_update(monkeypatch, auth_client: APIClient, auth
 
     message_pair = MessagePair.objects.create(
         thread=thread,
-        model_uri="google/gemini-2.0-flash",
+        model_uri="gemini-2.0-flash",
         user_message="mock message",
         assistant_message="mock response",
     )
@@ -264,7 +264,7 @@ def test_feedback_list_view_put_bad_request(auth_client: APIClient, auth_user: A
 
     message_pair = MessagePair.objects.create(
         thread=thread,
-        model_uri="google/gemini-2.0-flash",
+        model_uri="gemini-2.0-flash",
         user_message="mock message",
         assistant_message="mock response",
     )
