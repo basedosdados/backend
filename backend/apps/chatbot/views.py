@@ -4,10 +4,8 @@ import uuid
 from functools import cache
 from typing import Type, TypeVar
 
-import chromadb
 from django.http import HttpResponse, JsonResponse
-from langchain_chroma import Chroma
-from langchain_openai import OpenAIEmbeddings
+from langchain.chat_models import init_chat_model
 from langgraph.checkpoint.postgres import PostgresSaver
 from psycopg_pool import ConnectionPool
 from rest_framework import exceptions
@@ -31,6 +29,9 @@ from chatbot.assistants import SQLAssistant, SQLAssistantMessage, UserMessage
 
 ModelSerializer = TypeVar("ModelSerializer", bound=Serializer)
 
+# model name/URI. Refer to the LangChain docs for valid names/URIs
+MODEL_NAME = os.environ["MODEL_URI"]
+
 
 @cache
 def _get_feedback_sender() -> LangSmithFeedbackSender:
@@ -50,29 +51,10 @@ def _get_sql_assistant() -> SQLAssistant:
     bq_billing_project = os.environ["BILLING_PROJECT_ID"]
     bq_query_project = os.environ["QUERY_PROJECT_ID"]
 
-    chroma_host = os.getenv("CHROMA_HOST")
-    chroma_port = os.getenv("CHROMA_PORT")
-    chroma_collection = os.getenv("SQL_CHROMA_COLLECTION")
-
     database = ChatbotDatabase(
         billing_project=bq_billing_project,
         query_project=bq_query_project,
     )
-
-    if chroma_host and chroma_port and chroma_collection:
-        chroma_client = chromadb.HttpClient(
-            host=chroma_host,
-            port=chroma_port,
-        )
-
-        vector_store = Chroma(
-            client=chroma_client,
-            collection_name=chroma_collection,
-            collection_metadata={"hnsw:space": "cosine"},
-            embedding_function=OpenAIEmbeddings(model="text-embedding-3-small"),
-        )
-    else:
-        vector_store = None
 
     # Connection kwargs defined according to:
     # https://github.com/langchain-ai/langgraph/issues/2887
@@ -90,8 +72,17 @@ def _get_sql_assistant() -> SQLAssistant:
     checkpointer = PostgresSaver(pool)
     checkpointer.setup()
 
+    model = init_chat_model(
+        model=MODEL_NAME,
+        provider="google_vertexai",
+        temperature=0,
+    )
+
     assistant = SQLAssistant(
-        database=database, checkpointer=checkpointer, vector_store=vector_store
+        database=database,
+        model=model,
+        checkpointer=checkpointer,
+        vector_store=None,
     )
 
     return assistant
@@ -179,7 +170,7 @@ class MessageListView(APIView):
         message_pair = MessagePair.objects.create(
             id=assistant_response.id,
             thread=thread,
-            model_uri=assistant_response.model_uri,
+            model_uri=MODEL_NAME,
             user_message=user_message.content,
             assistant_message=assistant_response.content,
             generated_queries=assistant_response.sql_queries,
