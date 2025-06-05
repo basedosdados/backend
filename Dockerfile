@@ -7,11 +7,12 @@ RUN pip install --no-cache-dir -U virtualenv>=20.13.1 && virtualenv /env --pytho
 ENV PATH /env/bin:$PATH
 
 # Install make, nginx and copy configuration
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    curl make nginx postgresql postgresql-contrib \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl make nginx \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && rm /etc/nginx/sites-enabled/default
+RUN apt-get update && apt-get install -y postgresql postgresql-contrib
 COPY nginx.conf /etc/nginx/nginx.conf
 
 # Install pip requirements
