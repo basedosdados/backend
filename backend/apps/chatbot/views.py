@@ -30,7 +30,7 @@ from chatbot.assistants import SQLAssistant, SQLAssistantMessage, UserMessage
 ModelSerializer = TypeVar("ModelSerializer", bound=Serializer)
 
 # model name/URI. Refer to the LangChain docs for valid names/URIs
-MODEL_NAME = os.environ["MODEL_URI"]
+MODEL_NAME = "gemini-2.0-flash"
 
 
 @cache
