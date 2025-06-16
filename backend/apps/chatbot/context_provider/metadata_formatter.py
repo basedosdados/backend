@@ -53,11 +53,16 @@ class MarkdownMetadataFormatter:
             str: Formatted metadata for the given dataset.
         """
         # Dataset name and description
-        metadata = f"# {dataset.id}\n\n### Description:\n{dataset.description}\n\n### Tables:\n"
+        metadata = (
+            f"# {dataset.id.strip()}\n\n"
+            f"### Description:\n{dataset.description.strip()}\n\n"
+            f"### Tables:\n"
+        )
 
         # Dataset tables
         tables_metadata = [
-            f"- {table.full_table_id}: {table.description}" for table in dataset.tables
+            f"- {table.full_table_id.strip()}: {table.description.strip()}"
+            for table in dataset.tables
         ]
 
         metadata += "\n\n".join(tables_metadata)
@@ -75,21 +80,26 @@ class MarkdownMetadataFormatter:
             str: Formatted metadata for the given table.
         """
         # Table name
-        metadata = f"# {table.id}\n\n"
+        metadata = f"# {table.id.strip()}\n\n"
 
         # Table description
-        metadata += f"### Description:\n{table.description}\n\n"
+        metadata += f"### Description:\n{table.description.strip()}\n\n"
 
         # Table schema
         metadata += "### Schema:\n"
-        fields = "\n\t".join([f"{field.name} {field.type}" for field in table.columns])
-        metadata += f"CREATE TABLE {table.id} (\n\t{fields}\n)\n\n"
+        fields = "\n\t".join(
+            [f"{field.name.strip()} {field.type.strip()}" for field in table.columns]
+        )
+        metadata += f"CREATE TABLE {table.id.strip()} (\n\t{fields}\n)\n\n"
 
         # Table columns details
         metadata += "### Column Details:\n"
         header = "|column name|column type|column description|\n|---|---|---|"
         lines = "\n".join(
-            [f"|{field.name}|{field.type}|{field.description}|" for field in table.columns]
+            [
+                f"|{field.name.strip()}|{field.type.strip()}|{field.description.strip()}|"
+                for field in table.columns
+            ]
         )
 
         if lines:
