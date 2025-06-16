@@ -31,7 +31,7 @@ services:
       timeout: 5s
       retries: 3
   database:
-    image: postgres:14
+    image: pgvector/pgvector:pg14
     container_name: database
     environment: [POSTGRES_USER=postgres, POSTGRES_HOST_AUTH_METHOD=trust]
     env_file: [.env.docker]
@@ -43,13 +43,6 @@ services:
       timeout: 30s
       retries: 5
       start_period: 1m
-    restart: unless-stopped
-  vector-database:
-    image: chromadb/chroma:0.6.3  # chromadb version that gets installed with langchain-chroma==0.2.2
-    ports: [8001:8000]
-    volumes: [chroma_data:/chroma/chroma]
-    healthcheck:
-      test: curl -f http://localhost:8000/api/v2/heartbeat || exit 1
     restart: unless-stopped
   api:
     build:
@@ -69,8 +62,6 @@ services:
         condition: service_healthy
       database:
         condition: service_healthy
-      vector-database:
-        condition: service_healthy
     healthcheck:
       test: [CMD, curl, -f, http://localhost/healthcheck/]
       interval: 1m
@@ -81,4 +72,3 @@ services:
 volumes:
   esdata:
   pgdata:
-  chroma_data:
