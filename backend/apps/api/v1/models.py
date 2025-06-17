@@ -941,6 +941,8 @@ class Update(BaseModel):
     graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
+        if self.latest:
+            return f"{self.latest.strftime('%Y-%m-%d')}: {str(self.frequency)} {str(self.entity)}"
         return f"{str(self.frequency)} {str(self.entity)}"
 
     class Meta:
@@ -1010,6 +1012,8 @@ class Poll(BaseModel):
     graphql_nested_filter_fields_whitelist = ["id"]
 
     def __str__(self):
+        if self.latest:
+            return f"{self.latest.strftime('%Y-%m-%d')}: {str(self.frequency)} {str(self.entity)}"
         return f"{str(self.frequency)} {str(self.entity)}"
 
     class Meta:
