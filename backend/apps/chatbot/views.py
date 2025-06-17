@@ -60,14 +60,13 @@ def _get_context_provider(connection: str) -> PostgresContextProvider:
     else:
         vector_store = None
 
-    database = PostgresContextProvider(
-        connection=connection,
+    context_provider = PostgresContextProvider(
         billing_project=bq_billing_project,
         query_project=bq_query_project,
         metadata_vector_store=vector_store,
     )
 
-    return database
+    return context_provider
 
 
 @contextmanager

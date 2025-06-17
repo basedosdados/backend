@@ -41,7 +41,6 @@ class PostgresContextProvider(BaseContextProvider):
 
     def __init__(
         self,
-        connection: str,
         billing_project: str | None = None,
         query_project: str | None = None,
         metadata_formatter: MetadataFormatter | None = None,
@@ -135,12 +134,12 @@ class PostgresContextProvider(BaseContextProvider):
             str: A formatted string containing metadata for the datasets.
         """
         if self.metadata_vector_store is not None:
-            documents = self.vector_store.similarity_search(query)
-            datasets_info = [doc.page_content for doc in documents]
+            documents = self.metadata_vector_store.similarity_search(query)
+            datasets = [DatasetMetadata(**doc.metadata) for doc in documents]
         else:
-            datasets_info = [
-                self.formatter.format_dataset_metadata(dataset) for dataset in self._get_metadata()
-            ]
+            datasets = self._get_metadata()
+
+        datasets_info = [self.formatter.format_dataset_metadata(dataset) for dataset in datasets]
 
         return "\n\n---\n\n".join(datasets_info)
 
