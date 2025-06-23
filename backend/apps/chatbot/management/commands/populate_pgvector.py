@@ -25,6 +25,7 @@ def batched(iterable, batch_size: int):
 
 
 class Command(BaseCommand):
+    name = Path(__file__).stem
     help = "Populates the PGVector collection with embeddings"
 
     def add_arguments(self, parser):
@@ -35,7 +36,7 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         batch_size = options["batch_size"]
 
-        logger.info(f"Using batch size {batch_size}")
+        logger.info(f"[{self.name}]: Using batch size {batch_size}")
 
         db_host = os.environ["DB_HOST"]
         db_port = os.environ["DB_PORT"]
@@ -50,7 +51,7 @@ class Command(BaseCommand):
         pgvector_collection = os.getenv("PGVECTOR_COLLECTION")
 
         if embedding_model is None or pgvector_collection is None:
-            self.stdout.write(self.style.NOTICE(f"> Skipping {Path(__file__).stem}..."))
+            self.stdout.write(self.style.NOTICE(f"> Skipping {self.name}..."))
             return
 
         embeddings = VertexAIEmbeddings(embedding_model)
@@ -83,7 +84,7 @@ class Command(BaseCommand):
             datasets = [DatasetMetadata(**m) for m in metadata]
             datasets_ids = {dataset.id for dataset in datasets}
 
-        logger.info("Formatting metadata...")
+        logger.info(f"[{self.name}]: Formatting metadata...")
 
         texts = []
         texts_metadata = []
@@ -106,8 +107,15 @@ class Command(BaseCommand):
 
             texts_metadata.append(dataset_metadata.model_dump())
 
-        logger.info(f"Found {len(texts)} documents")
-        logger.info("Creating embeddings...")
+        n_documents = len(texts)
+
+        logger.info(f"[{self.name}]: Found {n_documents} new documents")
+
+        if n_documents == 0:
+            logger.info(f"[{self.name}]: All documents already embedded. Skipping...")
+            return
+
+        logger.info(f"[{self.name}]: Creating embeddings...")
 
         count = 0
 
@@ -120,6 +128,6 @@ class Command(BaseCommand):
             )
 
             count += len(text_batch)
-            logger.info(f"Embedded {count}/{len(texts)} documents")
+            logger.info(f"[{self.name}]: Embedded {count}/{len(texts)} documents")
 
-        logger.success("Embeddings created successfully")
+        logger.success(f"[{self.name}]: Embeddings created successfully")
