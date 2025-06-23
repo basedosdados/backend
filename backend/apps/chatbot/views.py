@@ -33,7 +33,8 @@ from chatbot.formatters import SQLPromptFormatter
 ModelSerializer = TypeVar("ModelSerializer", bound=Serializer)
 
 # model name/URI. Refer to the LangChain docs for valid names/URIs
-MODEL_NAME = "gemini-2.0-flash"
+# https://python.langchain.com/api_reference/langchain/chat_models/langchain.chat_models.base.init_chat_model.html
+MODEL_URI = os.environ["MODEL_URI"]
 
 
 @cache
@@ -46,11 +47,12 @@ def _get_context_provider(connection: str) -> PostgresContextProvider:
     bq_billing_project = os.environ["BILLING_PROJECT_ID"]
     bq_query_project = os.environ["QUERY_PROJECT_ID"]
 
-    embeddings = VertexAIEmbeddings("text-multilingual-embedding-002")
-
+    embedding_model = os.getenv("EMBEDDING_MODEL")
     pgvector_collection = os.getenv("PGVECTOR_COLLECTION")
 
-    if pgvector_collection is not None:
+    if embedding_model and pgvector_collection:
+        embeddings = VertexAIEmbeddings(embedding_model)
+
         vector_store = PGVector(
             embeddings=embeddings,
             connection=connection,
@@ -87,7 +89,7 @@ def _get_sql_assistant():
         checkpointer.setup()
 
         model = init_chat_model(
-            model=MODEL_NAME,
+            model=MODEL_URI,
             model_provider="google_vertexai",
             temperature=0,
         )
@@ -191,7 +193,7 @@ class MessageListView(APIView):
         message_pair = MessagePair.objects.create(
             id=assistant_response.id,
             thread=thread,
-            model_uri=MODEL_NAME,
+            model_uri=MODEL_URI,
             user_message=user_message_content,
             assistant_message=assistant_response.content,
             generated_queries=assistant_response.sql_queries,
