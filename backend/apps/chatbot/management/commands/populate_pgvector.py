@@ -73,7 +73,7 @@ class Command(BaseCommand):
             metadata_vector_store=None,
         )
 
-        # storing existing dataset ids for skipping them during embeddings creation
+        # storing IDs of already existing datasets to skip them during embeddings creation
         with django_connection.cursor() as cursor:
             cursor.execute(
                 "SELECT cmetadata FROM langchain_pg_embedding "
@@ -92,7 +92,7 @@ class Command(BaseCommand):
         texts_metadata = []
 
         for dataset_metadata in context_provider._get_metadata():
-            # skipping existing dataset ids
+            # skipping already existing datasets
             if dataset_metadata.id in datasets_ids:
                 continue
 
