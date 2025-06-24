@@ -66,6 +66,7 @@ def _get_context_provider(connection: str) -> PostgresContextProvider:
         billing_project=bq_billing_project,
         query_project=bq_query_project,
         metadata_vector_store=vector_store,
+        top_k=5,
     )
 
     return context_provider

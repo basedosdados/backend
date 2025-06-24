@@ -26,8 +26,6 @@ class PostgresContextProvider(BaseContextProvider):
       - Retrieve and format metadata about datasets, tables, and columns
       - Execute SQL queries on BigQuery
 
-    Optionally uses a custom metadata formatter; defaults to Markdown formatting.
-
     Args:
         billing_project (str | None):
             GCP project ID for billing. Falls back to the `BILLING_PROJECT_ID`
@@ -37,6 +35,11 @@ class PostgresContextProvider(BaseContextProvider):
             environment variable if not provided.
         metadata_formatter (MetadataFormatter | None):
             Custom formatter for metadata. Defaults to `MarkdownMetadataFormatter`.
+        metadata_vector_store (VectorStore | None):
+            LangChain `VectorStore` used for semantic search during datasets metadata retrieval.
+            If not provided, the metadata from all datasets will be returned. Defaults to `None`.
+        top_k (int, optional):
+            Number of similar examples to retrieve during semantic search. Defaults to `4`.
     """
 
     def __init__(
@@ -45,6 +48,7 @@ class PostgresContextProvider(BaseContextProvider):
         query_project: str | None = None,
         metadata_formatter: MetadataFormatter | None = None,
         metadata_vector_store: VectorStore | None = None,
+        top_k: int = 4,
     ):
         billing_project = billing_project or os.getenv("BILLING_PROJECT_ID")
         query_project = query_project or os.getenv("QUERY_PROJECT_ID")
@@ -58,6 +62,7 @@ class PostgresContextProvider(BaseContextProvider):
             self.formatter = MarkdownMetadataFormatter()
 
         self.metadata_vector_store = metadata_vector_store
+        self.top_k = top_k
 
     @staticmethod
     @cachetools.func.ttl_cache(ttl=60 * 60 * 24)
@@ -128,13 +133,15 @@ class PostgresContextProvider(BaseContextProvider):
         return datasets_metadata
 
     def get_datasets_info(self, query: str) -> str:
-        """Return formatted metadata for all datasets in a BigQuery project.
+        """Return formatted metadata for datasets in a BigQuery project. If a vector store
+        is provided, the k most relevant datasets are retrieved through semantic search.
+        If no vector store is provided, the metadata for all datasets are returned.
 
         Returns:
             str: A formatted string containing metadata for the datasets.
         """
         if self.metadata_vector_store is not None:
-            documents = self.metadata_vector_store.similarity_search(query)
+            documents = self.metadata_vector_store.similarity_search(query, self.top_k)
             datasets = [DatasetMetadata(**doc.metadata) for doc in documents]
         else:
             datasets = self._get_metadata()
