@@ -51,7 +51,9 @@ class Command(BaseCommand):
         pgvector_collection = os.getenv("PGVECTOR_COLLECTION")
 
         if embedding_model is None or pgvector_collection is None:
-            self.stdout.write(self.style.NOTICE(f"> Skipping {self.name}..."))
+            logger.info(
+                f"[{self.name}]: No embedding model or pgvector collection provided. Skipping..."
+            )
             return
 
         embeddings = VertexAIEmbeddings(embedding_model)
