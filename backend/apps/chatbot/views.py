@@ -184,7 +184,9 @@ class MessageListView(APIView):
 
         with _get_sql_assistant() as assistant:
             assistant_response: SQLAssistantMessage = assistant.invoke(
-                message=user_message_content, config=config
+                message=user_message_content,
+                config=config,
+                rewrite_query=True,
             )
 
         thread = _get_thread_by_id(thread_id)
