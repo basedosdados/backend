@@ -89,11 +89,7 @@ def _get_sql_assistant():
     with PostgresSaver.from_conn_string(conn) as checkpointer:
         checkpointer.setup()
 
-        model = init_chat_model(
-            model=MODEL_URI,
-            model_provider="google_vertexai",
-            temperature=0,
-        )
+        model = init_chat_model(MODEL_URI, temperature=0)
 
         assistant = SQLAssistant(
             model=model,
