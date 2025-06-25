@@ -1,13 +1,15 @@
 # -*- coding: utf-8 -*-
 import os
 import uuid
+from contextlib import contextmanager
 from functools import cache
 from typing import Type, TypeVar
 
 from django.http import HttpResponse, JsonResponse
 from langchain.chat_models import init_chat_model
+from langchain_google_vertexai import VertexAIEmbeddings
+from langchain_postgres import PGVector
 from langgraph.checkpoint.postgres import PostgresSaver
-from psycopg_pool import ConnectionPool
 from rest_framework import exceptions
 from rest_framework.parsers import JSONParser
 from rest_framework.permissions import IsAuthenticated
@@ -15,7 +17,7 @@ from rest_framework.request import Request
 from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 
-from backend.apps.chatbot.database import ChatbotDatabase
+from backend.apps.chatbot.context_provider import PostgresContextProvider
 from backend.apps.chatbot.feedback_sender import LangSmithFeedbackSender
 from backend.apps.chatbot.models import Feedback, MessagePair, Thread
 from backend.apps.chatbot.serializers import (
@@ -25,12 +27,14 @@ from backend.apps.chatbot.serializers import (
     ThreadSerializer,
     UserMessageSerializer,
 )
-from chatbot.assistants import SQLAssistant, SQLAssistantMessage, UserMessage
+from chatbot.assistants import SQLAssistant, SQLAssistantMessage
+from chatbot.formatters import SQLPromptFormatter
 
 ModelSerializer = TypeVar("ModelSerializer", bound=Serializer)
 
 # model name/URI. Refer to the LangChain docs for valid names/URIs
-MODEL_NAME = "gemini-2.0-flash"
+# https://python.langchain.com/api_reference/langchain/chat_models/langchain.chat_models.base.init_chat_model.html
+MODEL_URI = os.environ["MODEL_URI"]
 
 
 @cache
@@ -39,53 +43,66 @@ def _get_feedback_sender() -> LangSmithFeedbackSender:
 
 
 @cache
-def _get_sql_assistant() -> SQLAssistant:
+def _get_context_provider(connection: str) -> PostgresContextProvider:
+    bq_billing_project = os.environ["BILLING_PROJECT_ID"]
+    bq_query_project = os.environ["QUERY_PROJECT_ID"]
+
+    embedding_model = os.getenv("EMBEDDING_MODEL")
+    pgvector_collection = os.getenv("PGVECTOR_COLLECTION")
+
+    if embedding_model and pgvector_collection:
+        embeddings = VertexAIEmbeddings(embedding_model)
+
+        vector_store = PGVector(
+            embeddings=embeddings,
+            connection=connection,
+            collection_name=pgvector_collection,
+            use_jsonb=True,
+        )
+    else:
+        vector_store = None
+
+    context_provider = PostgresContextProvider(
+        billing_project=bq_billing_project,
+        query_project=bq_query_project,
+        metadata_vector_store=vector_store,
+        top_k=5,
+    )
+
+    return context_provider
+
+
+@contextmanager
+def _get_sql_assistant():
     db_host = os.environ["DB_HOST"]
     db_port = os.environ["DB_PORT"]
     db_name = os.environ["DB_NAME"]
     db_user = os.environ["DB_USER"]
     db_password = os.environ["DB_PASSWORD"]
 
-    db_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+    conn = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 
-    bq_billing_project = os.environ["BILLING_PROJECT_ID"]
-    bq_query_project = os.environ["QUERY_PROJECT_ID"]
+    context_provider = _get_context_provider(conn)
 
-    database = ChatbotDatabase(
-        billing_project=bq_billing_project,
-        query_project=bq_query_project,
-    )
+    prompt_formatter = SQLPromptFormatter(vector_store=None)
 
-    # Connection kwargs defined according to:
-    # https://github.com/langchain-ai/langgraph/issues/2887
-    # https://langchain-ai.github.io/langgraph/how-tos/persistence_postgres
-    conn_kwargs = {"autocommit": True, "prepare_threshold": 0}
+    with PostgresSaver.from_conn_string(conn) as checkpointer:
+        checkpointer.setup()
 
-    pool = ConnectionPool(
-        conninfo=db_url,
-        kwargs=conn_kwargs,
-        max_size=8,
-        open=False,
-    )
-    pool.open()  # TODO: where to close the pool?
+        model = init_chat_model(
+            model=MODEL_URI,
+            model_provider="google_vertexai",
+            temperature=0,
+        )
 
-    checkpointer = PostgresSaver(pool)
-    checkpointer.setup()
+        assistant = SQLAssistant(
+            model=model,
+            context_provider=context_provider,
+            prompt_formatter=prompt_formatter,
+            checkpointer=checkpointer,
+        )
 
-    model = init_chat_model(
-        model=MODEL_NAME,
-        provider="google_vertexai",
-        temperature=0,
-    )
-
-    assistant = SQLAssistant(
-        database=database,
-        model=model,
-        checkpointer=checkpointer,
-        vector_store=None,
-    )
-
-    return assistant
+        yield assistant
 
 
 class ThreadListView(APIView):
@@ -152,26 +169,35 @@ class MessageListView(APIView):
         Returns:
             JsonResponse: A JSON response with the serialized message pair object.
         """
-        thread_id = str(thread_id)
+        run_id = str(uuid.uuid4())
+
+        config = {
+            "run_id": run_id,
+            "recursion_limit": 32,
+            "configurable": {
+                "thread_id": str(thread_id),
+            },
+        }
 
         serializer = _validate(request, UserMessageSerializer)
 
-        user_message = UserMessage(**serializer.validated_data)
+        user_message_content = serializer.validated_data["content"]
+
+        with _get_sql_assistant() as assistant:
+            assistant_response: SQLAssistantMessage = assistant.invoke(
+                message=user_message_content,
+                config=config,
+                rewrite_query=True,
+            )
 
         thread = _get_thread_by_id(thread_id)
-
-        assistant = _get_sql_assistant()
-
-        assistant_response: SQLAssistantMessage = assistant.invoke(
-            message=user_message, thread_id=thread_id
-        )
 
         # TODO (nice to have): stream results
         message_pair = MessagePair.objects.create(
             id=assistant_response.id,
             thread=thread,
-            model_uri=MODEL_NAME,
-            user_message=user_message.content,
+            model_uri=MODEL_URI,
+            user_message=user_message_content,
             assistant_message=assistant_response.content,
             generated_queries=assistant_response.sql_queries,
         )
@@ -232,11 +258,9 @@ class CheckpointListView(APIView):
         Returns:
             HttpResponse: An HTTP response indicating success (200) or failure (500).
         """
-        thread = _get_thread_by_id(thread_id)
-
         try:
-            assistant = _get_sql_assistant()
-            assistant.clear_thread(str(thread.id))
+            with _get_sql_assistant() as assistant:
+                assistant.clear_thread(str(thread_id))
             return HttpResponse("Checkpoint cleared successfully", status=200)
         except Exception:
             return HttpResponse("Error clearing checkpoint", status=500)

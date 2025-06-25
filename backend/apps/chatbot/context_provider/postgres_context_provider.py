@@ -4,9 +4,11 @@ import os
 
 import cachetools.func
 from google.cloud import bigquery as bq
+from langchain_core.vectorstores import VectorStore
 from loguru import logger
 
 from backend.apps.api.v1.models import Dataset
+from chatbot.contexts import BaseContextProvider
 
 from .metadata_formatter import (
     ColumnMetadata,
@@ -17,14 +19,12 @@ from .metadata_formatter import (
 )
 
 
-class ChatbotDatabase:
-    """A BigQuery-backed database interface with local metadata support.
+class PostgresContextProvider(BaseContextProvider):
+    """A Postgres and BigQuery-backed context provider.
 
     This class provides methods to:
       - Retrieve and format metadata about datasets, tables, and columns
       - Execute SQL queries on BigQuery
-
-    Optionally uses a custom metadata formatter; defaults to Markdown formatting.
 
     Args:
         billing_project (str | None):
@@ -35,6 +35,11 @@ class ChatbotDatabase:
             environment variable if not provided.
         metadata_formatter (MetadataFormatter | None):
             Custom formatter for metadata. Defaults to `MarkdownMetadataFormatter`.
+        metadata_vector_store (VectorStore | None):
+            LangChain `VectorStore` used for semantic search during datasets metadata retrieval.
+            If not provided, the metadata from all datasets will be returned. Defaults to `None`.
+        top_k (int, optional):
+            Number of similar examples to retrieve during semantic search. Defaults to `4`.
     """
 
     def __init__(
@@ -42,6 +47,8 @@ class ChatbotDatabase:
         billing_project: str | None = None,
         query_project: str | None = None,
         metadata_formatter: MetadataFormatter | None = None,
+        metadata_vector_store: VectorStore | None = None,
+        top_k: int = 4,
     ):
         billing_project = billing_project or os.getenv("BILLING_PROJECT_ID")
         query_project = query_project or os.getenv("QUERY_PROJECT_ID")
@@ -53,6 +60,9 @@ class ChatbotDatabase:
             self.formatter = metadata_formatter
         else:
             self.formatter = MarkdownMetadataFormatter()
+
+        self.metadata_vector_store = metadata_vector_store
+        self.top_k = top_k
 
     @staticmethod
     @cachetools.func.ttl_cache(ttl=60 * 60 * 24)
@@ -122,15 +132,21 @@ class ChatbotDatabase:
 
         return datasets_metadata
 
-    def get_datasets_info(self) -> str:
-        """Return formatted metadata for all datasets in a BigQuery project.
+    def get_datasets_info(self, query: str) -> str:
+        """Return formatted metadata for datasets in a BigQuery project. If a vector store
+        is provided, the k most relevant datasets are retrieved through semantic search.
+        If no vector store is provided, the metadata for all datasets are returned.
 
         Returns:
             str: A formatted string containing metadata for the datasets.
         """
-        datasets_info = [
-            self.formatter.format_dataset_metadata(dataset) for dataset in self._get_metadata()
-        ]
+        if self.metadata_vector_store is not None:
+            documents = self.metadata_vector_store.similarity_search(query, self.top_k)
+            datasets = [DatasetMetadata(**doc.metadata) for doc in documents]
+        else:
+            datasets = self._get_metadata()
+
+        datasets_info = [self.formatter.format_dataset_metadata(dataset) for dataset in datasets]
 
         return "\n\n---\n\n".join(datasets_info)
 
@@ -158,21 +174,20 @@ class ChatbotDatabase:
 
         return "\n\n---\n\n".join(tables_info)
 
-    def query(self, query: str) -> str:
-        """Execute a SQL query using BigQuery and return the results as a JSON string.
+    def get_query_results(self, sql_query: str) -> str:
+        """Run a SQL query in BigQuery.
 
         Args:
-            query (str): The SQL query to execute.
+            query (sql_query): A valid GoogleSQL query statement.
 
         Raises:
-            Exception: Propagates any exceptions raised during query execution.
+            query_exception: If the query failed for any reason.
 
         Returns:
-            str: A JSON-formatted string representing the query results.
-            Returns an empty string if no results are found.
+            str: The execution results, formatted as a string.
         """
         try:
-            rows = self._client.query(query, project=self._project).result()
+            rows = self._client.query(sql_query, project=self._project).result()
 
             results = [dict(row) for row in rows]
 

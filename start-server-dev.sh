@@ -17,6 +17,9 @@ fi
 echo "> Running Huey"
 (cd /app; python manage.py run_huey &)
 
+echo "> Populating PGVector collection"
+(cd /app; python manage.py populate_pgvector)
+
 # Start server in development mode with django
 echo "> Running server in development mode"
 (cd /app; python -m debugpy --listen 0.0.0.0:5678 manage.py runserver 0.0.0.0:8000)

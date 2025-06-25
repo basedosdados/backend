@@ -53,9 +53,10 @@ class MarkdownMetadataFormatter:
             str: Formatted metadata for the given dataset.
         """
         # Dataset name and description
-        metadata = f"# {dataset.id}\n\n### Description:\n{dataset.description}\n\n### Tables:\n"
+        metadata = f"# {dataset.id}\n\n### Description:\n{dataset.description}\n\n"
 
         # Dataset tables
+        metadata += "### Tables:\n"
         tables_metadata = [
             f"- {table.full_table_id}: {table.description}" for table in dataset.tables
         ]
@@ -74,11 +75,8 @@ class MarkdownMetadataFormatter:
         Returns:
             str: Formatted metadata for the given table.
         """
-        # Table name
-        metadata = f"# {table.id}\n\n"
-
-        # Table description
-        metadata += f"### Description:\n{table.description}\n\n"
+        # Table name and description
+        metadata = f"# {table.id}\n\n### Description:\n{table.description}\n\n"
 
         # Table schema
         metadata += "### Schema:\n"
