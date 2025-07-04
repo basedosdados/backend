@@ -76,12 +76,13 @@ class MarkdownMetadataFormatter:
             str: Formatted metadata for the given table.
         """
         # Table name and description
-        metadata = f"# {table.id}\n\n### Description:\n{table.description}\n\n"
+        metadata = f"# {table.full_table_id}\n\n### Description:\n{table.description}\n\n"
 
         # Table schema
         metadata += "### Schema:\n"
-        fields = "\n\t".join([f"{field.name} {field.type}" for field in table.columns])
-        metadata += f"CREATE TABLE {table.id} (\n\t{fields}\n)\n\n"
+        fields = "\n    ".join([f"{field.name} {field.type}" for field in table.columns])
+        fields = "\n    " + fields + "\n" if fields else fields
+        metadata += f"CREATE TABLE {table.id} ({fields})\n\n"
 
         # Table columns details
         metadata += "### Column Details:\n"
