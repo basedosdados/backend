@@ -32,7 +32,7 @@ from chatbot.formatters import SQLPromptFormatter
 
 ModelSerializer = TypeVar("ModelSerializer", bound=Serializer)
 
-# model name/URI. Refer to the LangChain docs for valid names/URIs
+# Model name/URI. Refer to the LangChain docs for valid names/URIs
 # https://python.langchain.com/api_reference/langchain/chat_models/langchain.chat_models.base.init_chat_model.html
 MODEL_URI = os.environ["MODEL_URI"]
 
@@ -114,7 +114,7 @@ class ThreadListView(APIView):
         Returns:
             JsonResponse: A JSON response containing a list of serialized threads.
         """
-        threads = Thread.objects.filter(account=request.user)
+        threads = Thread.objects.filter(account=request.user).order_by("created_at")
         serializer = ThreadSerializer(threads, many=True)
         return JsonResponse(serializer.data, safe=False)
 
@@ -128,7 +128,8 @@ class ThreadListView(APIView):
         Returns:
             JsonResponse: A JSON response containing the serialized newly created thread.
         """
-        thread = Thread.objects.create(account=request.user)
+        title = request.data.get("title", None)
+        thread = Thread.objects.create(account=request.user, title=title)
         serializer = ThreadSerializer(thread)
         return JsonResponse(serializer.data, status=201)
 
@@ -146,9 +147,8 @@ class ThreadDetailView(APIView):
         Returns:
             JsonResponse: A JSON response containing the serialized message pairs.
         """
-        thread = _get_thread_by_id(thread_id)
-        messages = MessagePair.objects.filter(thread=thread)
-        serializer = MessagePairSerializer(messages, many=True)
+        message_pairs = MessagePair.objects.filter(thread=thread_id).order_by("created_at")
+        serializer = MessagePairSerializer(message_pairs, many=True)
         return JsonResponse(serializer.data, safe=False)
 
 
@@ -255,6 +255,9 @@ class CheckpointListView(APIView):
             HttpResponse: An HTTP response indicating success (200) or failure (500).
         """
         try:
+            thread = _get_thread_by_id(thread_id)
+            thread.deleted = True
+            thread.save()
             with _get_sql_assistant() as assistant:
                 assistant.clear_thread(str(thread_id))
             return HttpResponse("Checkpoint cleared successfully", status=200)
