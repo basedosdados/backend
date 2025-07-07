@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
+import time
 import uuid
 
 import pytest
+from django.utils.dateparse import parse_datetime
 from rest_framework.test import APIClient
 
 from backend.apps.account.models import Account
@@ -120,6 +122,50 @@ def test_thread_list_view_get(auth_client: APIClient):
 
 
 @pytest.mark.django_db
+def test_thread_list_view_get_order_asc(auth_client: APIClient, auth_user: Account):
+    for _ in range(2):
+        _ = Thread.objects.create(account=auth_user)
+        time.sleep(1)
+
+    response = auth_client.get("/chatbot/threads/?order_by=created_at")
+    assert response.status_code == 200
+
+    threads = response.json()
+
+    assert isinstance(threads, list)
+
+    thread_1_created_at = parse_datetime(threads[0]["created_at"])
+    thread_2_created_at = parse_datetime(threads[1]["created_at"])
+
+    assert thread_1_created_at < thread_2_created_at
+
+
+@pytest.mark.django_db
+def test_thread_list_view_get_order_desc(auth_client: APIClient, auth_user: Account):
+    for _ in range(2):
+        _ = Thread.objects.create(account=auth_user)
+        time.sleep(1)
+
+    response = auth_client.get("/chatbot/threads/?order_by=-created_at")
+    assert response.status_code == 200
+
+    threads = response.json()
+
+    assert isinstance(threads, list)
+
+    thread_1_created_at = parse_datetime(threads[0]["created_at"])
+    thread_2_created_at = parse_datetime(threads[1]["created_at"])
+
+    assert thread_1_created_at > thread_2_created_at
+
+
+@pytest.mark.django_db
+def test_thread_list_view_get_order_invalid(auth_client: APIClient):
+    response = auth_client.get("/chatbot/threads/?order_by=account")
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
 def test_thread_list_view_post(auth_client: APIClient):
     response = auth_client.post("/chatbot/threads/")
     assert response.status_code == 201
@@ -133,18 +179,77 @@ def test_thread_list_view_post(auth_client: APIClient):
 
 
 @pytest.mark.django_db
-def test_thread_detail_view_get(auth_client: APIClient, auth_user: Account):
+def test_message_list_view_get(auth_client: APIClient, auth_user: Account):
     thread = Thread.objects.create(account=auth_user)
 
-    response = auth_client.get(f"/chatbot/threads/{thread.id}/")
+    response = auth_client.get(f"/chatbot/threads/{thread.id}/messages/")
     assert response.status_code == 200
     assert isinstance(response.json(), list)
 
 
 @pytest.mark.django_db
-def test_thread_detail_view_get_not_found(auth_client: APIClient):
-    response = auth_client.get(f"/chatbot/threads/{uuid.uuid4()}/")
+def test_message_list_view_get_order_asc(auth_client: APIClient, auth_user: Account):
+    thread = Thread.objects.create(account=auth_user)
+
+    for _ in range(2):
+        _ = MessagePair.objects.create(
+            thread=thread,
+            model_uri="gemini-2.0-flash",
+            user_message="mock message",
+            assistant_message="mock response",
+        )
+        time.sleep(1)
+
+    response = auth_client.get(f"/chatbot/threads/{thread.id}/messages/?order_by=created_at")
+    assert response.status_code == 200
+
+    messages = response.json()
+
+    assert isinstance(messages, list)
+
+    message_1_created_at = parse_datetime(messages[0]["created_at"])
+    message_2_created_at = parse_datetime(messages[1]["created_at"])
+
+    assert message_1_created_at < message_2_created_at
+
+
+@pytest.mark.django_db
+def test_message_list_view_get_order_desc(auth_client: APIClient, auth_user: Account):
+    thread = Thread.objects.create(account=auth_user)
+
+    for _ in range(2):
+        _ = MessagePair.objects.create(
+            thread=thread,
+            model_uri="gemini-2.0-flash",
+            user_message="mock message",
+            assistant_message="mock response",
+        )
+        time.sleep(1)
+
+    response = auth_client.get(f"/chatbot/threads/{thread.id}/messages/?order_by=-created_at")
+    assert response.status_code == 200
+
+    messages = response.json()
+
+    assert isinstance(messages, list)
+
+    message_1_created_at = parse_datetime(messages[0]["created_at"])
+    message_2_created_at = parse_datetime(messages[1]["created_at"])
+
+    assert message_1_created_at > message_2_created_at
+
+
+@pytest.mark.django_db
+def test_message_list_view_get_not_found(auth_client: APIClient):
+    response = auth_client.get(f"/chatbot/threads/{uuid.uuid4()}/messages/")
     assert response.status_code == 404
+
+
+@pytest.mark.django_db
+def test_message_list_view_get_order_invalid(auth_client: APIClient, auth_user: Account):
+    thread = Thread.objects.create(account=auth_user)
+    response = auth_client.get(f"/chatbot/threads/{thread.id}/messages/?order_by=thread_id")
+    assert response.status_code == 400
 
 
 @pytest.mark.django_db
