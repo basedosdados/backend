@@ -103,6 +103,7 @@ def _get_sql_assistant():
 
 class ThreadListView(APIView):
     permission_classes = [IsAuthenticated]
+    ordering_fields = {"created_at", "-created_at"}
 
     def get(self, request: Request) -> JsonResponse:
         """Retrieve all threads associated with the authenticated user.
@@ -114,7 +115,15 @@ class ThreadListView(APIView):
         Returns:
             JsonResponse: A JSON response containing a list of serialized threads.
         """
-        threads = Thread.objects.filter(account=request.user).order_by("created_at")
+        threads = Thread.objects.filter(account=request.user)
+
+        field = request.query_params.get("order_by")
+
+        if field is not None:
+            if field not in self.ordering_fields:
+                return JsonResponse({"detail": f"Invalid order_by field: {field}"}, status=400)
+            threads = threads.order_by(field)
+
         serializer = ThreadSerializer(threads, many=True)
         return JsonResponse(serializer.data, safe=False)
 
@@ -134,8 +143,9 @@ class ThreadListView(APIView):
         return JsonResponse(serializer.data, status=201)
 
 
-class ThreadDetailView(APIView):
+class MessageListView(APIView):
     permission_classes = [IsAuthenticated]
+    ordering_fields = {"created_at", "-created_at"}
 
     def get(self, request: Request, thread_id: uuid.UUID) -> JsonResponse:
         """Retrieve all message pairs associated with a specific thread.
@@ -147,13 +157,19 @@ class ThreadDetailView(APIView):
         Returns:
             JsonResponse: A JSON response containing the serialized message pairs.
         """
-        message_pairs = MessagePair.objects.filter(thread=thread_id).order_by("created_at")
+        thread = _get_thread_by_id(thread_id)
+
+        message_pairs = MessagePair.objects.filter(thread=thread)
+
+        field = request.query_params.get("order_by")
+
+        if field is not None:
+            if field not in self.ordering_fields:
+                return JsonResponse({"detail": f"Invalid order_by field: {field}"}, status=400)
+            message_pairs = message_pairs.order_by(field)
+
         serializer = MessagePairSerializer(message_pairs, many=True)
         return JsonResponse(serializer.data, safe=False)
-
-
-class MessageListView(APIView):
-    permission_classes = [IsAuthenticated]
 
     def post(self, request: Request, thread_id: uuid.UUID) -> JsonResponse:
         """Create a message pair for a given thread.
@@ -254,8 +270,9 @@ class CheckpointListView(APIView):
         Returns:
             HttpResponse: An HTTP response indicating success (200) or failure (500).
         """
+        thread = _get_thread_by_id(thread_id)
+
         try:
-            thread = _get_thread_by_id(thread_id)
             thread.deleted = True
             thread.save()
             with _get_sql_assistant() as assistant:
