@@ -128,7 +128,7 @@ class ThreadListView(APIView):
         Returns:
             JsonResponse: A JSON response containing the serialized newly created thread.
         """
-        title = request.data.get("title", None)
+        title = request.data.get("title")
         thread = Thread.objects.create(account=request.user, title=title)
         serializer = ThreadSerializer(thread)
         return JsonResponse(serializer.data, status=201)
