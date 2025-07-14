@@ -115,7 +115,7 @@ class ThreadListView(APIView):
         Returns:
             JsonResponse: A JSON response containing a list of serialized threads.
         """
-        threads = Thread.objects.filter(account=request.user)
+        threads = Thread.objects.filter(account=request.user, deleted=False)
 
         field = request.query_params.get("order_by")
 
@@ -295,7 +295,7 @@ def _get_thread_by_id(thread_id: uuid.UUID) -> Thread:
         Thread: The retrieved `Thread` object.
     """
     try:
-        return Thread.objects.get(id=thread_id)
+        return Thread.objects.get(id=thread_id, deleted=False)
     except Thread.DoesNotExist:
         raise exceptions.NotFound
 
