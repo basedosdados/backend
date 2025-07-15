@@ -143,6 +143,31 @@ class ThreadListView(APIView):
         return JsonResponse(serializer.data, status=201)
 
 
+class ThreadDetailView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request: Request, thread_id: uuid.UUID) -> HttpResponse:
+        """Soft delete a thread and hard delete all its checkpoints.
+
+        Args:
+            request (Request): A Django REST framework `Request` object.
+            thread_id (uuid.UUID): The unique identifier of the thread.
+
+        Returns:
+            HttpResponse: An HTTP response indicating success (200) or failure (500).
+        """
+        thread = _get_thread_by_id(thread_id)
+
+        try:
+            thread.deleted = True
+            thread.save()
+            with _get_sql_assistant() as assistant:
+                assistant.clear_thread(str(thread_id))
+            return HttpResponse("Thread deleted successfully", status=200)
+        except Exception:
+            return HttpResponse("Error deleting thread", status=500)
+
+
 class MessageListView(APIView):
     permission_classes = [IsAuthenticated]
     ordering_fields = {"created_at", "-created_at"}
@@ -255,31 +280,6 @@ class FeedbackListView(APIView):
         status = 201 if created else 200
 
         return JsonResponse(serializer.data, status=status)
-
-
-class CheckpointListView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def delete(self, request: Request, thread_id: uuid.UUID) -> HttpResponse:
-        """Delete all checkpoints associated with a given thread ID.
-
-        Args:
-            request (Request): A Django REST framework `Request` object.
-            thread_id (uuid.UUID): The unique identifier of the thread.
-
-        Returns:
-            HttpResponse: An HTTP response indicating success (200) or failure (500).
-        """
-        thread = _get_thread_by_id(thread_id)
-
-        try:
-            thread.deleted = True
-            thread.save()
-            with _get_sql_assistant() as assistant:
-                assistant.clear_thread(str(thread_id))
-            return HttpResponse("Checkpoint cleared successfully", status=200)
-        except Exception:
-            return HttpResponse("Error clearing checkpoint", status=500)
 
 
 def _get_thread_by_id(thread_id: uuid.UUID) -> Thread:

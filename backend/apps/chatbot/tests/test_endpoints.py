@@ -179,6 +179,19 @@ def test_thread_list_view_post(auth_client: APIClient):
 
 
 @pytest.mark.django_db
+def test_thread_detail_view_delete(auth_client: APIClient, auth_user: Account):
+    thread = Thread.objects.create(account=auth_user)
+    response = auth_client.delete(f"/chatbot/threads/{thread.id}/")
+    assert response.status_code == 200
+
+
+@pytest.mark.django_db
+def test_thread_detail_view_delete_not_found(auth_client: APIClient):
+    response = auth_client.delete(f"/chatbot/threads/{uuid.uuid4()}/")
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
 def test_message_list_view_get(auth_client: APIClient, auth_user: Account):
     thread = Thread.objects.create(account=auth_user)
 
@@ -399,17 +412,4 @@ def test_feedback_list_view_put_not_found(auth_client: APIClient, auth_user: Acc
         format="json",
     )
 
-    assert response.status_code == 404
-
-
-@pytest.mark.django_db
-def test_checkpoint_list_view_delete(auth_client: APIClient, auth_user: Account):
-    thread = Thread.objects.create(account=auth_user)
-    response = auth_client.delete(f"/chatbot/checkpoints/{thread.id}/")
-    assert response.status_code == 200
-
-
-@pytest.mark.django_db
-def test_checkpoint_list_view_delete_not_found(auth_client: APIClient):
-    response = auth_client.delete(f"/chatbot/checkpoints/{uuid.uuid4()}/")
     assert response.status_code == 404
