@@ -10,7 +10,7 @@ from backend.apps.account.models import Account
 class Thread(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     account = models.ForeignKey(Account, on_delete=models.CASCADE)
-    title = models.TextField(null=True, blank=True)
+    title = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     deleted = models.BooleanField(default=False)
 

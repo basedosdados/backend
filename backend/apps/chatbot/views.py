@@ -24,6 +24,7 @@ from backend.apps.chatbot.serializers import (
     FeedbackCreateSerializer,
     FeedbackSerializer,
     MessagePairSerializer,
+    ThreadCreateSerializer,
     ThreadSerializer,
     UserMessageSerializer,
 )
@@ -137,7 +138,10 @@ class ThreadListView(APIView):
         Returns:
             JsonResponse: A JSON response containing the serialized newly created thread.
         """
-        title = request.data.get("title")
+        serializer = _validate(request, ThreadCreateSerializer)
+
+        title = serializer.validated_data["title"]
+
         thread = Thread.objects.create(account=request.user, title=title)
         serializer = ThreadSerializer(thread)
         return JsonResponse(serializer.data, status=201)
