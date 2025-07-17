@@ -167,7 +167,12 @@ def test_thread_list_view_get_order_invalid(auth_client: APIClient):
 
 @pytest.mark.django_db
 def test_thread_list_view_post(auth_client: APIClient):
-    response = auth_client.post("/chatbot/threads/")
+    response = auth_client.post(
+        path="/chatbot/threads/",
+        data={"title": "Mock title"},
+        format="json",
+    )
+
     assert response.status_code == 201
 
     thread_attrs = response.json()
