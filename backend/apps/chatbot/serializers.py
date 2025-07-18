@@ -6,9 +6,10 @@ from rest_framework import serializers
 from .models import Feedback, MessagePair, Thread
 
 
-class FeedbackCreateSerializer(serializers.Serializer):
-    rating = serializers.IntegerField()
-    comment = serializers.CharField(allow_null=True)
+class FeedbackCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Feedback
+        fields = ["rating", "comment"]
 
 
 class FeedbackSerializer(serializers.ModelSerializer):
@@ -21,6 +22,12 @@ class MessagePairSerializer(serializers.ModelSerializer):
     class Meta:
         model = MessagePair
         fields = "__all__"
+
+
+class ThreadCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Thread
+        fields = ["title"]
 
 
 class ThreadSerializer(serializers.ModelSerializer):

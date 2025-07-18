@@ -24,6 +24,7 @@ from backend.apps.chatbot.serializers import (
     FeedbackCreateSerializer,
     FeedbackSerializer,
     MessagePairSerializer,
+    ThreadCreateSerializer,
     ThreadSerializer,
     UserMessageSerializer,
 )
@@ -32,7 +33,7 @@ from chatbot.formatters import SQLPromptFormatter
 
 ModelSerializer = TypeVar("ModelSerializer", bound=Serializer)
 
-# model name/URI. Refer to the LangChain docs for valid names/URIs
+# Model name/URI. Refer to the LangChain docs for valid names/URIs
 # https://python.langchain.com/api_reference/langchain/chat_models/langchain.chat_models.base.init_chat_model.html
 MODEL_URI = os.environ["MODEL_URI"]
 
@@ -103,6 +104,7 @@ def _get_sql_assistant():
 
 class ThreadListView(APIView):
     permission_classes = [IsAuthenticated]
+    ordering_fields = {"created_at", "-created_at"}
 
     def get(self, request: Request) -> JsonResponse:
         """Retrieve all threads associated with the authenticated user.
@@ -114,7 +116,15 @@ class ThreadListView(APIView):
         Returns:
             JsonResponse: A JSON response containing a list of serialized threads.
         """
-        threads = Thread.objects.filter(account=request.user)
+        threads = Thread.objects.filter(account=request.user, deleted=False)
+
+        field = request.query_params.get("order_by")
+
+        if field is not None:
+            if field not in self.ordering_fields:
+                return JsonResponse({"detail": f"Invalid order_by field: {field}"}, status=400)
+            threads = threads.order_by(field)
+
         serializer = ThreadSerializer(threads, many=True)
         return JsonResponse(serializer.data, safe=False)
 
@@ -128,13 +138,43 @@ class ThreadListView(APIView):
         Returns:
             JsonResponse: A JSON response containing the serialized newly created thread.
         """
-        thread = Thread.objects.create(account=request.user)
+        serializer = _validate(request, ThreadCreateSerializer)
+
+        title = serializer.validated_data["title"]
+
+        thread = Thread.objects.create(account=request.user, title=title)
         serializer = ThreadSerializer(thread)
         return JsonResponse(serializer.data, status=201)
 
 
 class ThreadDetailView(APIView):
     permission_classes = [IsAuthenticated]
+
+    def delete(self, request: Request, thread_id: uuid.UUID) -> HttpResponse:
+        """Soft delete a thread and hard delete all its checkpoints.
+
+        Args:
+            request (Request): A Django REST framework `Request` object.
+            thread_id (uuid.UUID): The unique identifier of the thread.
+
+        Returns:
+            HttpResponse: An HTTP response indicating success (200) or failure (500).
+        """
+        thread = _get_thread_by_id(thread_id)
+
+        try:
+            thread.deleted = True
+            thread.save()
+            with _get_sql_assistant() as assistant:
+                assistant.clear_thread(str(thread_id))
+            return HttpResponse("Thread deleted successfully", status=200)
+        except Exception:
+            return HttpResponse("Error deleting thread", status=500)
+
+
+class MessageListView(APIView):
+    permission_classes = [IsAuthenticated]
+    ordering_fields = {"created_at", "-created_at"}
 
     def get(self, request: Request, thread_id: uuid.UUID) -> JsonResponse:
         """Retrieve all message pairs associated with a specific thread.
@@ -147,13 +187,18 @@ class ThreadDetailView(APIView):
             JsonResponse: A JSON response containing the serialized message pairs.
         """
         thread = _get_thread_by_id(thread_id)
-        messages = MessagePair.objects.filter(thread=thread)
-        serializer = MessagePairSerializer(messages, many=True)
+
+        message_pairs = MessagePair.objects.filter(thread=thread)
+
+        field = request.query_params.get("order_by")
+
+        if field is not None:
+            if field not in self.ordering_fields:
+                return JsonResponse({"detail": f"Invalid order_by field: {field}"}, status=400)
+            message_pairs = message_pairs.order_by(field)
+
+        serializer = MessagePairSerializer(message_pairs, many=True)
         return JsonResponse(serializer.data, safe=False)
-
-
-class MessageListView(APIView):
-    permission_classes = [IsAuthenticated]
 
     def post(self, request: Request, thread_id: uuid.UUID) -> JsonResponse:
         """Create a message pair for a given thread.
@@ -241,27 +286,6 @@ class FeedbackListView(APIView):
         return JsonResponse(serializer.data, status=status)
 
 
-class CheckpointListView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def delete(self, request: Request, thread_id: uuid.UUID) -> HttpResponse:
-        """Delete all checkpoints associated with a given thread ID.
-
-        Args:
-            request (Request): A Django REST framework `Request` object.
-            thread_id (uuid.UUID): The unique identifier of the thread.
-
-        Returns:
-            HttpResponse: An HTTP response indicating success (200) or failure (500).
-        """
-        try:
-            with _get_sql_assistant() as assistant:
-                assistant.clear_thread(str(thread_id))
-            return HttpResponse("Checkpoint cleared successfully", status=200)
-        except Exception:
-            return HttpResponse("Error clearing checkpoint", status=500)
-
-
 def _get_thread_by_id(thread_id: uuid.UUID) -> Thread:
     """Retrieve a `Thread` object by its ID.
 
@@ -275,7 +299,7 @@ def _get_thread_by_id(thread_id: uuid.UUID) -> Thread:
         Thread: The retrieved `Thread` object.
     """
     try:
-        return Thread.objects.get(id=thread_id)
+        return Thread.objects.get(id=thread_id, deleted=False)
     except Thread.DoesNotExist:
         raise exceptions.NotFound
 
