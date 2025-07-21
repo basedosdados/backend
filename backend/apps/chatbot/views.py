@@ -6,16 +6,17 @@ from contextlib import contextmanager
 from functools import cache
 from typing import Any, Iterator, Type, TypedDict, TypeVar
 
-from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
+from django.http import StreamingHttpResponse
 from langchain.chat_models import init_chat_model
 from langchain_google_vertexai import VertexAIEmbeddings
 from langchain_postgres import PGVector
 from langgraph.checkpoint.postgres import PostgresSaver
 from loguru import logger
-from rest_framework import exceptions
+from rest_framework import exceptions, status
 from rest_framework.parsers import JSONParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
+from rest_framework.response import Response
 from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 
@@ -52,7 +53,7 @@ class ThreadListView(APIView):
     permission_classes = [IsAuthenticated]
     ordering_fields = {"created_at", "-created_at"}
 
-    def get(self, request: Request) -> JsonResponse:
+    def get(self, request: Request) -> Response:
         """Retrieve all threads associated with the authenticated user.
 
         Args:
@@ -60,7 +61,7 @@ class ThreadListView(APIView):
             containing the authenticated user.
 
         Returns:
-            JsonResponse: A JSON response containing a list of serialized threads.
+            Response: A JSON response containing a list of serialized threads.
         """
         threads = Thread.objects.filter(account=request.user, deleted=False)
 
@@ -68,13 +69,16 @@ class ThreadListView(APIView):
 
         if field is not None:
             if field not in self.ordering_fields:
-                return JsonResponse({"detail": f"Invalid order_by field: {field}"}, status=400)
+                return Response(
+                    {"detail": f"Invalid order_by field: {field}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             threads = threads.order_by(field)
 
         serializer = ThreadSerializer(threads, many=True)
-        return JsonResponse(serializer.data, safe=False)
+        return Response(serializer.data)
 
-    def post(self, request: Request) -> JsonResponse:
+    def post(self, request: Request) -> Response:
         """Create a new thread for the authenticated user.
 
         Args:
@@ -82,7 +86,7 @@ class ThreadListView(APIView):
             containing the authenticated user.
 
         Returns:
-            JsonResponse: A JSON response containing the serialized newly created thread.
+            Response: A JSON response containing the serialized newly created thread.
         """
         serializer = _validate(request, ThreadCreateSerializer)
 
@@ -90,13 +94,13 @@ class ThreadListView(APIView):
 
         thread = Thread.objects.create(account=request.user, title=title)
         serializer = ThreadSerializer(thread)
-        return JsonResponse(serializer.data, status=201)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 class ThreadDetailView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def delete(self, request: Request, thread_id: uuid.UUID) -> HttpResponse:
+    def delete(self, request: Request, thread_id: uuid.UUID) -> Response:
         """Soft delete a thread and hard delete all its checkpoints.
 
         Args:
@@ -104,7 +108,7 @@ class ThreadDetailView(APIView):
             thread_id (uuid.UUID): The unique identifier of the thread.
 
         Returns:
-            HttpResponse: An HTTP response indicating success (200) or failure (500).
+            Response: A JSON response indicating success (200) or failure (500).
         """
         thread = _get_thread_by_id(thread_id)
 
@@ -113,16 +117,18 @@ class ThreadDetailView(APIView):
             thread.save()
             with _get_sql_assistant() as assistant:
                 assistant.clear_thread(str(thread_id))
-            return HttpResponse("Thread deleted successfully", status=200)
+            return Response({"detail": "Thread deleted successfully"})
         except Exception:
-            return HttpResponse("Error deleting thread", status=500)
+            return Response(
+                {"detail": "Error deleting thread"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 class MessageListView(APIView):
     permission_classes = [IsAuthenticated]
     ordering_fields = {"created_at", "-created_at"}
 
-    def get(self, request: Request, thread_id: uuid.UUID) -> JsonResponse:
+    def get(self, request: Request, thread_id: uuid.UUID) -> Response:
         """Retrieve all message pairs associated with a specific thread.
 
         Args:
@@ -130,7 +136,7 @@ class MessageListView(APIView):
             thread_id (uuid.UUID): The unique identifier of the thread.
 
         Returns:
-            JsonResponse: A JSON response containing the serialized message pairs.
+            Response: A JSON response containing the serialized message pairs.
         """
         thread = _get_thread_by_id(thread_id)
 
@@ -140,13 +146,16 @@ class MessageListView(APIView):
 
         if field is not None:
             if field not in self.ordering_fields:
-                return JsonResponse({"detail": f"Invalid order_by field: {field}"}, status=400)
+                return Response(
+                    {"detail": f"Invalid order_by field: {field}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             message_pairs = message_pairs.order_by(field)
 
         serializer = MessagePairSerializer(message_pairs, many=True)
-        return JsonResponse(serializer.data, safe=False)
+        return Response(serializer.data)
 
-    def post(self, request: Request, thread_id: uuid.UUID) -> JsonResponse:
+    def post(self, request: Request, thread_id: uuid.UUID) -> Response:
         """Create a message pair for a given thread.
 
         Args:
@@ -154,7 +163,7 @@ class MessageListView(APIView):
             thread_id (uuid.UUID): The unique identifier for the thread.
 
         Returns:
-            JsonResponse: A JSON response with the serialized message pair object.
+            Response: A JSON response with the serialized message pair object.
         """
         thread = _get_thread_by_id(thread_id)
 
@@ -178,6 +187,7 @@ class MessageListView(APIView):
                 config=config,
                 thread=thread,
             ),
+            status=status.HTTP_201_CREATED,
             headers={
                 "Cache-Control": "no-cache",
                 "X-Accel-Buffering": "no",
@@ -189,7 +199,7 @@ class MessageListView(APIView):
 class FeedbackListView(APIView):
     permission_classes = [IsAuthenticated]
 
-    def put(self, request: Request, message_pair_id: uuid.UUID) -> JsonResponse:
+    def put(self, request: Request, message_pair_id: uuid.UUID) -> Response:
         """Create or update a feedback for a given message pair.
 
         Args:
@@ -197,7 +207,7 @@ class FeedbackListView(APIView):
             message_pair_id (uuid.UUID): The unique identifier of the message pair.
 
         Returns:
-            JsonResponse: A JSON response with the serialized feedback object and an appropriate
+            Response: A JSON response with the serialized feedback object and an appropriate
             HTTP status code (201 for creation, 200 for update).
         """
         serializer = _validate(request, FeedbackCreateSerializer)
@@ -219,9 +229,9 @@ class FeedbackListView(APIView):
 
         serializer = FeedbackSerializer(feedback)
 
-        status = 201 if created else 200
+        status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
 
-        return JsonResponse(serializer.data, status=status)
+        return Response(serializer.data, status=status_code)
 
 
 @cache
