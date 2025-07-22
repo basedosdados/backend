@@ -23,8 +23,8 @@ def populate_thread_titles(apps, schema_editor):
 
 
 def noop_reverse(apps, schema_editor):
-    # The reverse migration will be done by removing
-    # the 'deleted' and 'title' fields, so no action needed here
+    # The reverse migration will be done by removing the
+    # 'deleted' and 'title' fields, so no action needed here.
     ...
 
 
