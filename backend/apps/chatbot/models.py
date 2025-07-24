@@ -2,6 +2,7 @@
 import uuid
 
 from django.db import models
+from django.db.models import CheckConstraint, Q
 from django.utils import timezone
 
 from backend.apps.account.models import Account
@@ -20,10 +21,20 @@ class MessagePair(models.Model):
     thread = models.ForeignKey(Thread, on_delete=models.CASCADE)
     model_uri = models.TextField()
     user_message = models.TextField()
-    assistant_message = models.TextField()
+    assistant_message = models.TextField(null=True)
+    error_message = models.TextField(null=True)
     generated_queries = models.JSONField(null=True, blank=True)
     generated_chart = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    steps = models.JSONField(null=True)
+
+    class Meta:
+        constraints = [
+            CheckConstraint(
+                check=Q(assistant_message__isnull=False) ^ Q(error_message__isnull=False),
+                name="check_exactly_one_response",
+            )
+        ]
 
 
 class Feedback(models.Model):

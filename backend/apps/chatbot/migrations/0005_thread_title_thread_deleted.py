@@ -22,9 +22,9 @@ def populate_thread_titles(apps, schema_editor):
         thread.save(update_fields=["title"])
 
 
-def reverse(apps, schema_editor):
-    # The reverse migration will be done by removing
-    # the 'deleted' and 'title' fields, so no action needed here.
+def noop_reverse(apps, schema_editor):
+    # The reverse migration will be done by removing the
+    # 'deleted' and 'title' fields, so no action needed here.
     ...
 
 
@@ -39,7 +39,10 @@ class Migration(migrations.Migration):
             name="title",
             field=models.TextField(null=True),
         ),
-        migrations.RunPython(populate_thread_titles, reverse),
+        migrations.RunPython(
+            code=populate_thread_titles,
+            reverse_code=noop_reverse,
+        ),
         migrations.AlterField(
             model_name="thread",
             name="title",
