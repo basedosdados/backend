@@ -130,25 +130,48 @@ def _handle_query_agent(chunk: dict) -> tuple[str, str] | None:
                 part = "##### Executando consulta:\n:red[**Erro na chamada da ferramenta**]"
             content_parts.append(part)
 
+    if len(content_parts) > 1:
+        label = "Consultando banco de dados..."
+
     content = "\n".join(content_parts) + "\n\n---\n"
 
     return label, content
 
 
 def _handle_sql_tools(chunk: dict) -> tuple[str, str] | None:
-    message: ToolMessage = chunk[SQL_TOOLS]["messages"][0]
+    updates = chunk[SQL_TOOLS]
 
-    if message.status == "success":
-        return None
+    # single tool call
+    if isinstance(updates, dict):
+        messages: list[ToolMessage] = updates["messages"]
+    # multiple parallel tool calls
+    elif isinstance(updates, list):
+        messages: list[ToolMessage] = [
+            update["messages"][0] for update in updates if "messages" in update
+        ]
 
-    if message.name == "sql_query_check":
-        label = "Verificando consulta..."
-        content = ":red[**Erro na verificação da consulta**]\n\n---\n"
-    elif message.name == "sql_query":
-        label = "Executando consulta..."
-        content = ":red[**Erro na execução da consulta**]\n\n---\n"
+    content_parts = []
 
-    return label, content
+    for message in messages:
+        if message.status == "success":
+            continue
+
+        if message.name == "sql_query_check":
+            label = "Verificando consulta..."
+            part = ":red[**Erro na verificação da consulta**]"
+        elif message.name == "sql_query":
+            label = "Executando consulta..."
+            part = ":red[**Erro na execução da consulta**]"
+
+        content_parts.append(part)
+
+    if content_parts:
+        if len(content_parts) > 1:
+            label = "Consultando banco de dados..."
+        content = "\n".join(content_parts) + "\n\n---\n"
+        return label, content
+
+    return None
 
 
 def _handle_get_answer(chunk: dict) -> tuple[str, str]:
