@@ -50,7 +50,7 @@ services:
       dockerfile: Dockerfile
     container_name: api
     env_file: [.env.docker]
-    command: [/app/start-server-dev.sh]
+    command: [poetry, run, /app/start-server-dev.sh]
     volumes: [.:/app, $HOME/.config/pydata:$HOME/.config/pydata]
     ports:
       - 8000:8000  # Porta da api
