@@ -2,15 +2,15 @@ ARG PYTHON_VERSION=3.11-slim
 
 FROM python:$PYTHON_VERSION
 
-# Defines where poetry virtual environments will be stored
+# Define where Poetry virtual environments will be stored
 ARG POETRY_VIRTUALENVS_PATH=/opt/pypoetry/virtualenvs
 
-# Ensures that the python output is sent straight to terminal (e.g. your container log)
+# Ensure that the python output is sent straight to terminal (e.g. your container log)
 # without being first buffered and that you can see the output of your application (e.g. django logs)
 # in real time. Equivalent to python -u: https://docs.python.org/3/using/cmdline.html#cmdoption-u
 ENV PYTHONUNBUFFERED=1
 
-# Prevents Python from writing .pyc files to disc
+# Prevent Python from writing .pyc files to disc
 # https://docs.python.org/3/using/cmdline.html#envvar-PYTHONDONTWRITEBYTECODE
 ENV PYTHONDONTWRITEBYTECODE=1
 
@@ -23,11 +23,12 @@ RUN apt-get update \
 RUN apt-get update && apt-get install -y postgresql postgresql-contrib
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# Install Poetry and add it to PATH
+# Install Poetry and add it to PATH so its commands can be executed
+# from anywhere, without specifying the full path to its executable.
 RUN curl -sSL https://install.python-poetry.org | python3 - --version 2.1.3
 ENV PATH="/root/.local/bin:$PATH"
 
-# Create the folder where poetry virtual environments will be stored and make it
+# Create the folder where Poetry virtual environments will be stored and make it
 # accessible to all users. This is needed by the 'www-data' user during server startup
 RUN mkdir -p $POETRY_VIRTUALENVS_PATH && chmod 755 $POETRY_VIRTUALENVS_PATH
 ENV POETRY_VIRTUALENVS_PATH=$POETRY_VIRTUALENVS_PATH
