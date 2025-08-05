@@ -688,6 +688,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
                     "status",
                     "name",
                     "slug",
+                    "version",
                     "description",
                     "get_datetime_ranges_display",
                     "number_columns",
@@ -750,6 +751,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     list_display = [
         "name",
         "dataset",
+        "version",
         "created_at",
         "updated_at",
     ]
