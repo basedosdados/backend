@@ -56,10 +56,10 @@ jobs:
             resources:
               limits:
                 cpu: 500m
-                memory: 1536Mi
+                memory: 4096Mi
               requests:
                 cpu: 250m
-                memory: 500Mi
+                memory: 1536Mi
             envFrom:
               - secretRef:
                   name: api-development-secrets
