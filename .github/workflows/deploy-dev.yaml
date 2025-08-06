@@ -8,7 +8,9 @@ on:
 jobs:
   deploy-dev:
     runs-on: ubuntu-latest
-    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    if: |
+      ${{ github.event_name == 'workflow_dispatch' }}
+      || ${{ github.event.workflow_run.conclusion == 'success' }}
     environment:
       name: development
       url: https://api.development.basedosdados.org
@@ -54,7 +56,7 @@ jobs:
             resources:
               limits:
                 cpu: 500m
-                memory: 1.5Gi
+                memory: 4096Mi
               requests:
                 cpu: 250m
                 memory: 1536Mi
@@ -85,7 +87,6 @@ jobs:
         run: |-
           helm upgrade \
             --wait \
-            --timeout 10m \
             --install \
             --namespace website \
             --values values.yaml \
