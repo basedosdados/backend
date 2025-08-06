@@ -57,7 +57,7 @@ jobs:
                 memory: 1.5Gi
               requests:
                 cpu: 250m
-                memory: 500Mi
+                memory: 1536Mi
             envFrom:
               - secretRef:
                   name: api-development-secrets
