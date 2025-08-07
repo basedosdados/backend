@@ -121,7 +121,7 @@ def _handle_query_agent(chunk: dict) -> tuple[str, str] | None:
                 part = "##### Verificando consulta:\n:red[**Erro na chamada da ferramenta**]"
             content_parts.append(part)
 
-        elif tool_name == "sql_query":
+        elif tool_name == "sql_query_exec":
             query = tool_call["args"].get("query")
             label = "Executando consulta..."
             if query:
@@ -159,7 +159,7 @@ def _handle_sql_tools(chunk: dict) -> tuple[str, str] | None:
         if message.name == "sql_query_check":
             label = "Verificando consulta..."
             part = ":red[**Erro na verificação da consulta**]"
-        elif message.name == "sql_query":
+        elif message.name == "sql_query_exec":
             label = "Executando consulta..."
             part = ":red[**Erro na execução da consulta**]"
 
