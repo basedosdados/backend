@@ -358,6 +358,28 @@ class StripeSubscriptionDeleteMutation(Mutation):
             return cls(errors=[str(e)])
 
 
+class StripeSubscriptionDeleteImmediatelyMutation(Mutation):
+    """Delete stripe subscription with immediate effect"""
+
+    subscription = Field(StripeSubscriptionNode)
+    errors = List(String)
+
+    class Arguments:
+        subscription_id = ID(required=True)
+
+    @classmethod
+    @login_required
+    def mutate(cls, root, info, subscription_id):
+        try:
+            subscription = Subscription.objects.get(id=subscription_id)
+            stripe_subscription = subscription.subscription
+            stripe_subscription.cancel(at_period_end=False)
+            return None
+        except Exception as e:
+            logger.error(e)
+            return cls(errors=[str(e)])
+
+
 class StripeSubscriptionCustomerCreateMutation(Mutation):
     """Add account to subscription"""
 
@@ -553,6 +575,7 @@ class Mutation(ObjectType):
     update_stripe_customer = StripeCustomerUpdateMutation.Field()
     create_stripe_subscription = StripeSubscriptionCreateMutation.Field()
     delete_stripe_subscription = StripeSubscriptionDeleteMutation.Field()
+    delete_stripe_subscription_immediately = StripeSubscriptionDeleteImmediatelyMutation.Field()
     create_stripe_customer_subscription = StripeSubscriptionCustomerCreateMutation.Field()
     update_stripe_customer_subscription = StripeSubscriptionCustomerDeleteMutation.Field()
     delete_stripe_customer_all_members = StripeSubscriptionCustomerAllMembersDeleteMutation.Field()
