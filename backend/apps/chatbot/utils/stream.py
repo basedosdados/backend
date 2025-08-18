@@ -182,14 +182,10 @@ def _handle_sql_tools(chunk: dict) -> Step | None:
 
         if message.name == "sql_query_check":
             label = "Verificando consulta..."
-            part = StepContent(
-                title="Verificando Consulta...", body=":red[**Erro na verificação da consulta**]"
-            )
+            part = StepContent(body=":red[**Erro na verificação da consulta**]")
         elif message.name == "sql_query_exec":
             label = "Executando consulta..."
-            part = StepContent(
-                title="Executando Consulta...", body=":red[**Erro na execução da consulta**]"
-            )
+            part = StepContent(body=":red[**Erro na execução da consulta**]")
 
         content_parts.append(part)
 
