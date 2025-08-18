@@ -96,7 +96,7 @@ def _handle_call_select_datasets(chunk: dict) -> Step:
     if not bolded_names:
         body = ""
 
-    body = "Conjuntos de dados selecionandos:\n" "- " + "\n- ".join(bolded_names)
+    body = "Conjuntos de dados selecionandos:\n- " + "\n- ".join(bolded_names)
 
     content = StepContent(title="Selecionando Conjuntos de Dados:", body=body)
 
