@@ -33,7 +33,7 @@ from backend.apps.chatbot.serializers import (
     ThreadSerializer,
     UserMessageSerializer,
 )
-from backend.apps.chatbot.utils.stream import Step, process_chunk
+from backend.apps.chatbot.utils.stream import process_chunk
 from chatbot.assistants import SQLAssistant, format_sql_agent_response
 from chatbot.formatters import SQLPromptFormatter
 
@@ -406,14 +406,11 @@ def _stream_sql_assistant_response(
                 if mode == "values":
                     continue
 
-                processed_results = process_chunk(chunk)
+                step = process_chunk(chunk)
 
-                if processed_results is None:
+                if step is None:
                     continue
 
-                label, content = processed_results
-
-                step = Step(label=label, content=content)
                 steps.append(step.model_dump())
 
                 yield json.dumps({"status": "running", "data": step.model_dump_json()}) + "\n\n"
