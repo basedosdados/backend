@@ -79,6 +79,11 @@ def add_user(email: str, group_key: str = None, role: str = "MEMBER"):
 
 def remove_user(email: str, group_key: str = None) -> None:
     """Remove user from google group"""
+    account = Account.objects.filter(email=email).first()
+    if account and account.is_admin:
+        logger.info(f"Não é possível remover o usuário {email} do google groups, pois é admin")
+        return
+
     if not group_key:
         group_key = settings.GOOGLE_DIRECTORY_GROUP_KEY
     if "+" in email and email.index("+") < email.index("@"):
