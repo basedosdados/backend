@@ -87,26 +87,37 @@ def _normalize_plus(email: str) -> str:
     return f"{local}@{domain}"
 
 def remove_user(email: str, group_key: str = None) -> None:
-    """Remove user from google group, exceto emails internos basedosdados.org"""
+    """Remove user from Google Group"""
     if not email or "@" not in email:
         logger.error(f"E-mail inválido fornecido: {email!r}")
         return
 
     raw_email = email.strip().lower()
+    base_email = _normalize_plus(raw_email)
 
-    if raw_email.endswith("@basedosdados.org"):
-        logger.warning(f"Bloqueado: {raw_email} é email interno. Não removido do Google Groups.")
+    try:
+        user = Account.objects.get(
+            Q(email__iexact=raw_email) |
+            Q(email__iexact=base_email) |
+            Q(gcp_email__iexact=raw_email) |
+            Q(gcp_email__iexact=base_email)
+        )
+    except ObjectDoesNotExist:
+        logger.warning(f"Usuário {raw_email} não encontrado no banco. Prosseguindo com remoção.")
         return
 
-    base_email = _normalize_plus(raw_email)
+    if user and user.is_admin:
+        logger.warning(f"Bloqueado: {raw_email} é admin. Não removido do Google Groups.")
+        return
+
     group_key = group_key or settings.GOOGLE_DIRECTORY_GROUP_KEY
 
     try:
         service = get_service()
-        # service.members().delete(
-        #     groupKey=group_key,
-        #     memberKey=base_email,
-        # ).execute()
+        service.members().delete(
+            groupKey=group_key,
+            memberKey=base_email,
+        ).execute()
     except HttpError as e:
         if e.resp.status == 404:
             logger.warning(f"{base_email} já foi removido do Google Groups")
