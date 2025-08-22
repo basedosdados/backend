@@ -103,10 +103,10 @@ def remove_user(email: str, group_key: str = None) -> None:
 
     try:
         service = get_service()
-        service.members().delete(
-            groupKey=group_key,
-            memberKey=base_email,
-        ).execute()
+        # service.members().delete(
+        #     groupKey=group_key,
+        #     memberKey=base_email,
+        # ).execute()
     except HttpError as e:
         if e.resp.status == 404:
             logger.warning(f"{base_email} já foi removido do Google Groups")
