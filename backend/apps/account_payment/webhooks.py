@@ -9,6 +9,7 @@ from googleapiclient.errors import HttpError
 from loguru import logger
 from stripe import Customer as StripeCustomer
 from stripe import Subscription as StripeSubscription
+from django.db.models import Q
 
 from backend.apps.account.models import Account, Subscription
 from backend.custom.client import send_discord_message as send
@@ -76,31 +77,52 @@ def add_user(email: str, group_key: str = None, role: str = "MEMBER"):
             logger.error(e)
             raise e
 
+def _normalize_plus(email: str) -> str:
+    """Normaliza: trim, lower e remove +alias antes do @."""
+    email = email.strip().lower()
+    local, _, domain = email.partition("@")
+    if "+" in local:
+        local = local.split("+", 1)[0]
+    return f"{local}@{domain}"
 
 def remove_user(email: str, group_key: str = None) -> None:
     """Remove user from google group"""
-    account = Account.objects.filter(email=email).first()
-    if account and account.is_admin:
-        logger.info(f"Não é possível remover o usuário {email} do google groups, pois é admin")
+    if not email or "@" not in email:
+        logger.error(f"E-mail inválido fornecido: {email!r}")
         return
 
-    if not group_key:
-        group_key = settings.GOOGLE_DIRECTORY_GROUP_KEY
-    if "+" in email and email.index("+") < email.index("@"):
-        email = email.split("+")[0] + "@" + email.split("@")[1]
+    raw_email = email.strip().lower()
+    base_email = _normalize_plus(raw_email)
+
+    account = Account.objects.filter(
+        Q(email__iexact=raw_email) | Q(email__iexact=base_email)
+    ).first()
+
+    if account and account.is_admin:
+        logger.warning(
+            f"Bloqueado: {raw_email} é admin (conta salva: {account.email}). "
+            "Não removido do Google Groups."
+        )
+        return
+
+    group_key = group_key or settings.GOOGLE_DIRECTORY_GROUP_KEY
+
     try:
         service = get_service()
         service.members().delete(
             groupKey=group_key,
-            memberKey=email.lower(),
+            memberKey=base_email,
         ).execute()
     except HttpError as e:
         if e.resp.status == 404:
-            logger.warning(f"{email} já foi removido do google groups")
+            logger.warning(f"{base_email} já foi removido do Google Groups")
         else:
-            send(f"Verifique o erro ao remover o usuário do google groups '{email}': {e}")
+            send(f"Verifique o erro ao remover '{base_email}' do Google Groups: {e}")
             logger.error(e)
-            raise e
+            raise
+    except Exception:
+        logger.exception(f"Erro inesperado ao remover {base_email} do Google Groups")
+        raise
 
 
 def list_user(group_key: str = None):
