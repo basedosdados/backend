@@ -94,15 +94,16 @@ def remove_user(email: str, group_key: str = None) -> None:
     raw_email = email.strip().lower()
     base_email = _normalize_plus(raw_email)
 
-    account = Account.objects.filter(
-        Q(email__iexact=raw_email) | Q(email__iexact=base_email)
-    ).first()
+    is_admin_user = Account.objects.filter(
+        Q(email__iexact=raw_email) |
+        Q(email__iexact=base_email) |
+        Q(gcp_email__iexact=raw_email) |
+        Q(gcp_email__iexact=base_email),
+        is_admin=True
+    ).exists()
 
-    if account and account.is_admin:
-        logger.warning(
-            f"Bloqueado: {raw_email} é admin (conta salva: {account.email}). "
-            "Não removido do Google Groups."
-        )
+    if is_admin_user:
+        logger.warning(f"Bloqueado: {raw_email} é admin. Não removido do Google Groups.")
         return
 
     group_key = group_key or settings.GOOGLE_DIRECTORY_GROUP_KEY
