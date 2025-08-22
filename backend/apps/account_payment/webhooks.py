@@ -87,29 +87,18 @@ def _normalize_plus(email: str) -> str:
     return f"{local}@{domain}"
 
 def remove_user(email: str, group_key: str = None) -> None:
-    """Remove user from google group"""
+    """Remove user from google group, exceto emails internos basedosdados.org"""
     if not email or "@" not in email:
         logger.error(f"E-mail inválido fornecido: {email!r}")
         return
 
     raw_email = email.strip().lower()
-    base_email = _normalize_plus(raw_email)
 
-    try:
-        user = Account.objects.get(
-            Q(email__iexact=raw_email) |
-            Q(email__iexact=base_email) |
-            Q(gcp_email__iexact=raw_email) |
-            Q(gcp_email__iexact=base_email)
-        )
-    except ObjectDoesNotExist:
-        logger.warning(f"Usuário {raw_email} não encontrado no banco. Prosseguindo com remoção.")
-        user = None
-
-    if user and user.is_admin:
-        logger.warning(f"Bloqueado: {raw_email} é admin. Não removido do Google Groups.")
+    if raw_email.endswith("@basedosdados.org"):
+        logger.warning(f"Bloqueado: {raw_email} é email interno. Não removido do Google Groups.")
         return
 
+    base_email = _normalize_plus(raw_email)
     group_key = group_key or settings.GOOGLE_DIRECTORY_GROUP_KEY
 
     try:
