@@ -391,13 +391,13 @@ def execute_sql_query(sql_query: str) -> str:
         job_config = bq.QueryJobConfig(dry_run=True, use_query_cache=False)
         query_job = client.query(sql_query, job_config=job_config)
 
-        limit_bytes = 20e9  # 10GB
+        limit_bytes = 10e9  # 10GB
 
         if query_job.total_bytes_processed > limit_bytes:
             return json.dumps(
                 {
                     "status": "error",
-                    "error_type": "query_limit_exceeded",
+                    "error_type": "query_too_large",
                     "total_processed_bytes": query_job.total_bytes_processed,
                     "limit_bytes": limit_bytes,
                     "message": (
@@ -418,3 +418,223 @@ def execute_sql_query(sql_query: str) -> str:
         return "[]"
     except Exception as e:
         return f"SQL query execution failed:\n{e}"
+
+
+@tool
+def inspect_column_values(table_gcp_id: str, column_name: str, limit: int = 100) -> str:
+    """Inspect the actual values present in a specific column to understand data patterns and encoding.
+
+    This tool helps you understand what values actually exist in a column before writing filters
+    or joins. Essential for avoiding "value not found" errors and discovering encoded values
+    that need dictionary lookups.
+
+    Args:
+        table_gcp_id (str): Full BigQuery table reference from get_table_details() (project.dataset.table)
+        column_name (str): Exact column name as shown in get_table_details()
+        limit (int, optional): Maximum number of distinct values to return (default: 100)
+            Use smaller limits (10-20) for initial exploration, larger for comprehensive views
+
+    Returns:
+        str: JSON array of distinct values found in the column, sorted by frequency.
+            - Shows actual data patterns (encoded IDs, abbreviations, etc.)
+            - Reveals if values are numeric codes that need dictionary decoding
+            - Helps identify filtering options and data quality issues
+
+    Use this tool when:
+        - Planning WHERE clauses to see available filter values
+        - Column values look like codes (1, 2, 3 or 'A', 'B', 'C') that might need decoding
+        - Getting "no results" from queries and need to verify correct values
+        - Understanding data patterns before analysis
+        - Checking for NULL values or data quality issues
+
+    Next steps after using this tool:
+        1. If values look like codes → Use search_dictionary_table() to find meanings
+        2. If values are clear → Use them directly in WHERE clauses
+        3. If unexpected values → Investigate data quality or documentation
+        4. Plan your main analysis query with correct filter values
+
+    Example workflow:
+        1. get_table_details("table-id") → see columns
+        2. inspect_column_values("project.dataset.table", "tipo_escola") → see actual values
+        3. If returns [1,2,3,4] → search dictionary for meanings
+        4. execute_sql_query with proper filters based on real values
+
+    Common patterns in Brazilian data:
+        - Estado codes: 11, 12, 13 (need IBGE state dictionary)
+        - Municipality codes: 3550308 (São Paulo city IBGE code)
+        - Category codes: 1,2,3,4 (often need dataset dictionary)
+        - Yes/No: 0/1 or S/N depending on dataset
+    """  # noqa: E501
+    sql_query = f"SELECT DISTINCT({column_name}) FROM `{table_gcp_id}` LIMIT {limit}"
+
+    try:
+        # Check query size first
+        job_config = bq.QueryJobConfig(dry_run=True, use_query_cache=False)
+        query_job = client.query(sql_query, job_config=job_config)
+
+        limit_bytes = 5e9  # 5GB limit for inspection queries
+        if query_job.total_bytes_processed and query_job.total_bytes_processed > limit_bytes:
+            bytes_processed_gb = query_job.total_bytes_processed / 1e9
+            return json.dumps(
+                {
+                    "status": "error",
+                    "error_type": "query_too_large",
+                    "total_processed_bytes": query_job.total_bytes_processed,
+                    "limit_bytes": limit_bytes,
+                    "message": (
+                        f"Column inspection would process {bytes_processed_gb:.1f} GB. "
+                        "Try a smaller limit or add WHERE filters to reduce data size."
+                    ),
+                },
+                indent=2,
+            )
+
+        rows = client.query(sql_query).result()
+        results = [dict(row) for row in rows]
+        if results:
+            return json.dumps(results, ensure_ascii=False, default=str)
+        return "[]"
+    except Exception as e:
+        return f"Failed to inspect colum values:\n{e}"
+
+
+@tool
+def search_dictionary_table(dataset_gcp_id: str, table_name: str, column_name: str) -> str:
+    """Look up the meaning of encoded values using the dataset's dictionary table.
+
+    Many Brazilian datasets use numeric codes or abbreviations for storage efficiency.
+    The 'dicionario' table provides mappings from encoded values (chave) to human-readable
+    meanings (valor). Use this after inspect_column_values() reveals coded values.
+
+    Args:
+        dataset_gcp_id (str): Dataset portion of BigQuery reference (project.dataset_name)
+            - Extract from table gcp_id: if table is "basedosdados.br_ibge_censo.municipio"
+            - Use dataset_gcp_id: "basedosdados.br_ibge_censo"
+        table_name (str): Just the table name (not full gcp_id)
+            - Extract from gcp_id: if "basedosdados.br_ibge_censo.municipio"
+            - Use table_name: "municipio"
+        column_name (str): Exact column name that contains encoded values
+
+    Returns:
+        str: JSON array of dictionary mappings with structure:
+            - chave: The encoded value found in your data (1, 2, 'A', 'B', etc.)
+            - valor: Human-readable meaning/description
+
+        If no mappings found, returns guidance on alternative approaches.
+
+    Next steps after using this tool:
+        1. Match the returned 'chave' values with codes in your data
+        2. Use JOIN with dictionary table for readable results:
+           ```sql
+           SELECT t.*, d.valor as decoded_column
+           FROM `project.dataset.table` t
+           LEFT JOIN `project.dataset.dicionario` d
+           ON t.encoded_column = d.chave
+           AND d.id_tabela = 'table_name'
+           AND d.nome_coluna = 'column_name'
+           ```
+        3. Or use the mappings to understand what codes mean for filtering
+
+    Example usage:
+        # After inspect_column_values shows tipo_escola has values [1,2,3,4]:
+        search_dictionary_table("basedosdados.br_inep_censo_escolar", "escola", "tipo_escola")
+
+        # Result might show: 1='Pública', 2='Privada', 3='Federal', 4='Municipal'
+
+        # Then use in queries:
+        SELECT tipo_escola, COUNT(*) FROM `basedosdados.br_inep_censo_escolar.escola`
+        WHERE tipo_escola IN (1, 2)  -- Now you know 1=Pública, 2=Privada
+        GROUP BY tipo_escola
+
+    Common encoded column types in Brazilian data:
+        - Geographic codes: estado, municipio (IBGE codes)
+        - Category codes: tipo_*, categoria_*, situacao_*
+        - Status codes: ativo, situacao, condicao
+        - Classification codes: nivel_*, grau_*, classe_*
+
+    If no dictionary found:
+        - Dataset might not have encoded values
+        - Values might be in separate reference tables
+        - Try common directory datasets like br_bd_diretorios_brasil
+    """
+    try:
+        # Build the specific query for this table/column combination
+        dict_table_id = f"{dataset_gcp_id}.dicionario"
+
+        search_query = f"""
+        SELECT chave, valor
+        FROM `{dict_table_id}`
+        WHERE id_tabela = '{table_name}'
+        AND nome_coluna = '{column_name}'
+        ORDER BY chave
+        """
+
+        # Check if query is reasonable size
+        job_config = bq.QueryJobConfig(dry_run=True, use_query_cache=False)
+        query_job = client.query(search_query, job_config=job_config)
+
+        # Dictionary queries should be small, but let's be safe
+        if query_job.total_bytes_processed > 1e9:  # 1GB limit
+            return json.dumps(
+                {
+                    "status": "error",
+                    "message": (
+                        "Dictionary table is unexpectedly large. "
+                        "This might not be the right approach."
+                    ),
+                    "suggestion": (
+                        "Check if this dataset actually uses "
+                        "encoded values or try a different table."
+                    ),
+                }
+            )
+
+        rows = client.query(search_query).result()
+        results = [dict(row) for row in rows]
+
+        if results:
+            return json.dumps(results, ensure_ascii=False, default=str)
+        else:
+            # Try to see if dictionary table exists and what it contains
+            fallback_query = f"""
+            SELECT DISTINCT id_tabela, nome_coluna
+            FROM `{dict_table_id}`
+            WHERE id_tabela LIKE '%{table_name}%' OR nome_coluna LIKE '%{column_name}%'
+            LIMIT 20
+            """
+
+            try:
+                fallback_rows = client.query(fallback_query).result()
+                similar_entries = [dict(row) for row in fallback_rows]
+
+                return json.dumps(
+                    {
+                        "status": "no_exact_match",
+                        "message": (
+                            f"No dictionary entries found for table='{table_name}', "
+                            f"column='{column_name}'"
+                        ),
+                        "similar_entries": similar_entries,
+                        "suggestion": (
+                            "Check if table_name or column_name needs "
+                            "adjustment based on similar entries above."
+                        ),
+                    },
+                    indent=2,
+                )
+
+            except Exception:
+                return json.dumps(
+                    {
+                        "status": "no_dictionary",
+                        "message": f"No dictionary table found in {dataset_gcp_id}",
+                        "suggestion": (
+                            "This dataset might not use encoded values, "
+                            "or dictionary might be in a different location."
+                        ),
+                    },
+                    indent=2,
+                )
+
+    except Exception as e:
+        return f"Failed to search dictionary table:\n{e}"
