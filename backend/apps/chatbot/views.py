@@ -9,9 +9,8 @@ from typing import Any, Iterator, Type, TypedDict, TypeVar
 from django.http import StreamingHttpResponse
 from graphql_jwt.shortcuts import get_user_by_token
 from langchain.chat_models import init_chat_model
-from langchain_google_vertexai import VertexAIEmbeddings
-from langchain_postgres import PGVector
 from langgraph.checkpoint.postgres import PostgresSaver
+from langgraph.prebuilt import create_react_agent
 from loguru import logger
 from rest_framework import exceptions, status
 from rest_framework.parsers import JSONParser
@@ -22,7 +21,6 @@ from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from backend.apps.chatbot.context_provider import PostgresContextProvider
 from backend.apps.chatbot.feedback_sender import LangSmithFeedbackSender
 from backend.apps.chatbot.models import Feedback, MessagePair, Thread
 from backend.apps.chatbot.serializers import (
@@ -33,9 +31,7 @@ from backend.apps.chatbot.serializers import (
     ThreadSerializer,
     UserMessageSerializer,
 )
-from backend.apps.chatbot.utils.stream import process_chunk
-from chatbot.assistants import SQLAssistant, format_sql_agent_response
-from chatbot.formatters import SQLPromptFormatter
+from backend.apps.chatbot.tools import execute_sql_query, get_dataset_details, search_datasets
 
 ModelSerializer = TypeVar("ModelSerializer", bound=Serializer)
 
@@ -302,42 +298,42 @@ def _get_feedback_sender() -> LangSmithFeedbackSender:
     return LangSmithFeedbackSender()
 
 
-@cache
-def _get_context_provider(connection: str) -> PostgresContextProvider:
-    """Provide a configured `PostgresContextProvider` context provider.
+# @cache
+# def _get_context_provider(connection: str) -> PostgresContextProvider:
+#     """Provide a configured `PostgresContextProvider` context provider.
 
-    Args:
-        connection (str): A vector database connection for providing few-shot examples.
+#     Args:
+#         connection (str): A vector database connection for providing few-shot examples.
 
-    Returns:
-        PostgresContextProvider: An instance of `PostgresContextProvider`.
-    """
-    bq_billing_project = os.environ["BILLING_PROJECT_ID"]
-    bq_query_project = os.environ["QUERY_PROJECT_ID"]
+#     Returns:
+#         PostgresContextProvider: An instance of `PostgresContextProvider`.
+#     """
+#     bq_billing_project = os.environ["BILLING_PROJECT_ID"]
+#     bq_query_project = os.environ["QUERY_PROJECT_ID"]
 
-    embedding_model = os.getenv("EMBEDDING_MODEL")
-    pgvector_collection = os.getenv("PGVECTOR_COLLECTION")
+#     embedding_model = os.getenv("EMBEDDING_MODEL")
+#     pgvector_collection = os.getenv("PGVECTOR_COLLECTION")
 
-    if embedding_model and pgvector_collection:
-        embeddings = VertexAIEmbeddings(embedding_model)
+#     if embedding_model and pgvector_collection:
+#         embeddings = VertexAIEmbeddings(embedding_model)
 
-        vector_store = PGVector(
-            embeddings=embeddings,
-            connection=connection,
-            collection_name=pgvector_collection,
-            use_jsonb=True,
-        )
-    else:
-        vector_store = None
+#         vector_store = PGVector(
+#             embeddings=embeddings,
+#             connection=connection,
+#             collection_name=pgvector_collection,
+#             use_jsonb=True,
+#         )
+#     else:
+#         vector_store = None
 
-    context_provider = PostgresContextProvider(
-        billing_project=bq_billing_project,
-        query_project=bq_query_project,
-        metadata_vector_store=vector_store,
-        top_k=5,
-    )
+#     context_provider = PostgresContextProvider(
+#         billing_project=bq_billing_project,
+#         query_project=bq_query_project,
+#         metadata_vector_store=vector_store,
+#         top_k=5,
+#     )
 
-    return context_provider
+#     return context_provider
 
 
 @contextmanager
@@ -355,23 +351,29 @@ def _get_sql_assistant():
 
     conn = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 
-    context_provider = _get_context_provider(conn)
+    # context_provider = _get_context_provider(conn)
 
-    prompt_formatter = SQLPromptFormatter(vector_store=None)
+    # prompt_formatter = SQLPromptFormatter(vector_store=None)
 
     with PostgresSaver.from_conn_string(conn) as checkpointer:
         checkpointer.setup()
 
         model = init_chat_model(MODEL_URI, temperature=0)
 
-        assistant = SQLAssistant(
-            model=model,
-            context_provider=context_provider,
-            prompt_formatter=prompt_formatter,
-            checkpointer=checkpointer,
-        )
+        tools = [search_datasets, get_dataset_details, execute_sql_query]
 
-        yield assistant
+        agent = create_react_agent(model=model, tools=tools, checkpointer=checkpointer)
+
+        # assistant = SQLAssistant(
+        #     model=model,
+        #     context_provider=context_provider,
+        #     prompt_formatter=prompt_formatter,
+        #     checkpointer=checkpointer,
+        # )
+
+        # yield assistant
+
+        yield agent
 
 
 def _stream_sql_assistant_response(
@@ -388,36 +390,40 @@ def _stream_sql_assistant_response(
         Iterator[str]: JSON string containing the streaming status and the current step data.
     """
     steps = []
-    last_chunk = None
+    # last_chunk = None
 
     try:
         logger.info("Calling SQLAssistant...")
         with _get_sql_assistant() as assistant:
-            for mode, chunk in assistant.stream(
-                message=message,
-                config=config,
-                stream_mode=["updates", "values"],
-                rewrite_query=True,
-            ):
-                last_chunk = chunk
+            agent_response = assistant.invoke(
+                input={"messages": [{"role": "user", "content": message}]}, config=config
+            )
+            # for mode, chunk in assistant.stream(
+            #     message=message,
+            #     config=config,
+            #     stream_mode=["updates", "values"],
+            #     rewrite_query=True,
+            # ):
+            #     last_chunk = chunk
 
-                # Skip "values" chunks during streaming. We only need the final one at the end,
-                # as it contains the SQL Agent's final state.
-                if mode == "values":
-                    continue
+            #     # Skip "values" chunks during streaming. We only need the final one at the end,
+            #     # as it contains the SQL Agent's final state.
+            #     if mode == "values":
+            #         continue
 
-                step = process_chunk(chunk)
+            #     step = process_chunk(chunk)
 
-                if step is None:
-                    continue
+            #     if step is None:
+            #         continue
 
-                steps.append(step.model_dump())
+            #     steps.append(step.model_dump())
 
-                yield json.dumps({"status": "running", "data": step.model_dump_json()}) + "\n\n"
+            #     yield json.dumps({"status": "running", "data": step.model_dump_json()}) + "\n\n"
 
         # The last chunk represents the SQLAgent's final state,
         # so we format it as the final response for the user.
-        response = format_sql_agent_response(last_chunk)
+        # response = format_sql_agent_response(last_chunk)
+        response = {}
         response["error_message"] = None
     except Exception:
         logger.exception(f"Error responding message {config['run_id']}:")
@@ -433,6 +439,9 @@ def _stream_sql_assistant_response(
     logger.success("SQLAssistant called successfully")
 
     response["id"] = config["run_id"]
+
+    response["content"] = agent_response["messages"][-1].content
+    response["sql_queries"] = None
 
     message_pair = MessagePair.objects.create(
         id=response["id"],
