@@ -10,6 +10,7 @@ from loguru import logger
 from stripe import Customer as StripeCustomer
 from stripe import Subscription as StripeSubscription
 from django.db.models import Q
+from django.core.exceptions import ObjectDoesNotExist
 
 from backend.apps.account.models import Account, Subscription
 from backend.custom.client import send_discord_message as send
@@ -94,15 +95,18 @@ def remove_user(email: str, group_key: str = None) -> None:
     raw_email = email.strip().lower()
     base_email = _normalize_plus(raw_email)
 
-    is_admin_user = Account.objects.filter(
-        Q(email__iexact=raw_email) |
-        Q(email__iexact=base_email) |
-        Q(gcp_email__iexact=raw_email) |
-        Q(gcp_email__iexact=base_email),
-        is_admin=True
-    ).exists()
+    try:
+        user = Account.objects.get(
+            Q(email__iexact=raw_email) |
+            Q(email__iexact=base_email) |
+            Q(gcp_email__iexact=raw_email) |
+            Q(gcp_email__iexact=base_email)
+        )
+    except ObjectDoesNotExist:
+        logger.warning(f"Usuário {raw_email} não encontrado no banco. Prosseguindo com remoção.")
+        user = None
 
-    if is_admin_user:
+    if user and user.is_admin:
         logger.warning(f"Bloqueado: {raw_email} é admin. Não removido do Google Groups.")
         return
 
