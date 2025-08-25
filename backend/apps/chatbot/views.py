@@ -32,7 +32,7 @@ from backend.apps.chatbot.serializers import (
     UserMessageSerializer,
 )
 from backend.apps.chatbot.tools import (
-    execute_sql_query,
+    execute_bigquery_sql,
     get_dataset_details,
     inspect_column_values,
     search_datasets,
@@ -369,7 +369,7 @@ def _get_sql_assistant():
         tools = [
             search_datasets,
             get_dataset_details,
-            execute_sql_query,
+            execute_bigquery_sql,
             inspect_column_values,
             search_dictionary_table,
         ]
