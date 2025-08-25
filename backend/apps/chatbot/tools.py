@@ -121,47 +121,20 @@ client = bq.Client(project=os.environ["QUERY_PROJECT_ID"])
 
 @tool
 def search_datasets(query: str) -> str:
-    """Search for datasets in the Base dos Dados (BD) database using KEYWORDS ONLY.
+    """Search for datasets in Base dos Dados using keywords.
 
-    IMPORTANT: This search uses Elasticsearch - use individual KEYWORDS, NOT full sentences.
-    Use this as the FIRST STEP when exploring data. If no relevant datasets are found,
-    try searching again with different or more specific keywords.
+    CRITICAL: Use individual KEYWORDS only, not full sentences. The search engine uses Elasticsearch.
 
     Args:
-        query (str): Individual keywords (2-3 words max). The search engine works best with single keywords. Use:
-            - Single topic words: "educação", "saúde", "economia", "emprego", "população", "criminalidade"
-            - Geographic keywords: "municipal", "estado", "brasil", "sao paulo", "rio"
-            - Dataset names: "censo", "pnad", "rais", "caged"
-            - Organization acronyms: "ibge", "inep", "anvisa", "tse"
-
-            AVOID full sentences like "Brazilian population data by municipality"
-            INSTEAD use: "censo" or "ibge" or "populacao" or "municipio"
+        query (str): 2-3 keywords maximum. Use Portuguese terms, organization acronyms, or dataset acronyms.
+            Good Examples: "censo", "educacao", "ibge", "inep", "rais", "saude"
+            Avoid: "Brazilian population data by municipality"
 
     Returns:
-        str: JSON array of dataset overviews. If empty array `[]` or irrelevant results:
-            - Try different keywords (synonyms, abbreviations)
-            - Use more specific terms or broader terms
-            - Try organization names or data source acronyms (caged, ibge, rais, censo, etc.)
+        str: JSON array of datasets. If empty/irrelevant results, try different keywords.
 
-    Search Strategy:
-        1. Use portuguese keywords: "educacao" instead of "education"
-        2. Use government agency acronyms: "ibge", "inep", "anvisa"
-        3. Use dataset-specific terms: "censo", "rais", "pnad", "caged"
-        4. Search by geographic level: "municipio", "estado", "regiao"
-
-    Next steps after using this tool:
-        1. If no results or irrelevant results: Try different keywords and search again
-        2. If good results: Review datasets to identify the most relevant ones
-        3. Use `get_dataset_details()` with the dataset `id` to explore structure
-        4. Look for datasets from reputable organizations (IBGE and other government agencies)
-
-    Example successful searches:
-        - "censo" → finds census datasets
-        - "educacao" → finds education data
-        - "emprego" → finds labour data
-        - "saude municipio" → finds municipal health data
-        - "ibge" → finds all IBGE datasets
-        - "eleicoes" → finds election datasets
+    Strategy: Start with broad terms like "censo", "ibge", "inep", "rais", then get specific if needed.
+    Next step: Use `get_dataset_details()` with returned dataset IDs.
     """  # noqa: E501
     try:
         with httpx.Client() as client:
@@ -202,39 +175,21 @@ def search_datasets(query: str) -> str:
 def get_dataset_details(dataset_id: str) -> str:
     """Get comprehensive details about a specific dataset including all tables and columns.
 
-    This tool provides the complete structure of a dataset, showing all available tables,
-    their columns, data types, and BigQuery identifiers. Use this AFTER `search_datasets()`
-    to understand what data is available before writing SQL queries.
+    Use AFTER `search_datasets()` to understand data structure before writing queries.
 
     Args:
-        dataset_id (str): The unique dataset ID obtained from `search_datasets()`.
+        dataset_id (str): Dataset ID obtained from `search_datasets()`.
             This is typically a UUID-like string, not the human-readable name.
 
     Returns:
-        str: JSON object with complete dataset information including:
+        str: JSON object with complete dataset information, including:
             - Basic metadata (name, description, tags, themes, organizations)
             - tables: Array of all tables in the dataset with:
                 - gcp_id: Full BigQuery table reference (`project.dataset.table`)
-                - columns: All column names, types (STRING, INTEGER, DATE, etc.), and descriptions
-                - Table descriptions explaining what each table contains
+                - columns: All column names, types, and descriptions
+                - table descriptions explaining what each table contains
 
-    Next steps after using this tool:
-        1. Identify which table(s) contain the data you need
-        2. Check column descriptions to understand what each field represents
-        3. Note the column names and types for SQL query construction
-        4. Use the `gcp_id` (BigQuery table reference) in your SQL queries
-        5. Plan your SQL query using `execute_sql_query()`
-
-    IMPORTANT:
-        - The `gcp_id` field is the full BigQuery table reference you'll use in FROM clauses
-        - Column types help you write correct SQL (STRING needs quotes, dates need DATE functions, etc.)
-        - Some tables may be very large - consider using LIMIT in your queries
-        - Look for key identifier columns (like municipality codes, dates, etc.) for filtering
-
-    Example workflow:
-        1. `search_datasets("IBGE")` → get dataset IDs
-        2. `get_dataset_details("abc-123-def")` → explore tables structure
-        3. `execute_sql_query("SELECT * FROM `basedosdados.br_ibge_censo.municipio` LIMIT 10")`
+    Next step: Use `execute_bigquery_sql()` to execute queries.
     """  # noqa: E501
     try:
         with httpx.Client() as client:
@@ -345,80 +300,39 @@ def get_dataset_details(dataset_id: str) -> str:
 def execute_bigquery_sql(sql_query: str) -> str:
     """Execute a SQL query against BigQuery tables from the Base dos Dados database.
 
-    This tool runs your SQL query and returns the results. It includes safety checks
-    to prevent expensive queries (>20GB processing limit). Use this as the FINAL STEP
-    after identifying the right datasets and understanding their structure.
+    Use AFTER identifying the right datasets and understanding tables structure.
+    It includes a 20GB processing limit for safety.
 
     Args:
-        sql_query (str): Standard SQL query using BigQuery syntax. Must reference
-            tables using their full `gcp_id` from get_dataset_details().
+        sql_query (str): Standard GoogleSQL query. Must reference
+            tables using their full `gcp_id` from `get_dataset_details()`.
 
-            SQL Best Practices:
-            - Use fully qualified table names: `project.dataset.table`
-            - Select only needed columns, avoid SELECT *
-            - Add LIMIT clause for exploration: LIMIT 10, LIMIT 100
-            - Filter early with WHERE clauses to reduce data processing
-            - Order results by relevant columns to present the most significant results first.
-            - Never use DDL (e.g, `CREATE`, `ALTER`, `DROP`) or DML (e.g., `INSERT`, `UPDATE`, `DELETE`) commands
-            - Use appropriate data types in comparisons
+    Best practices:
+        - Use fully qualified names: `project.dataset.table`
+        - Select only needed columns, avoid `SELECT *`
+        - Add `LIMIT` for exploration
+        - Filter early with `WHERE` clauses
+        - Order by relevant columns
+        - Never use DDL/DML commands
+        - Use appropriate data types in comparisons
 
     Returns:
-        str: Query results as JSON array of objects, where each object represents a row. Special cases:
-            - Empty results: Returns "[]"
-            - Query too large: Returns error with processing size details
-            - SQL errors: Returns error message with details for debugging
-
-    Safety Features:
-        - Dry run validation before execution
-        - 20GB processing limit to prevent expensive queries
-
-    Next steps after using this tool:
-        1. If results are empty, check your filters and table names
-        2. If you get size limit errors, add more specific WHERE conditions
-        3. For large result sets, consider using LIMIT or aggregation
-        4. Analyze results and refine query if needed
-        5. Format results for final presentation
-
-    Common SQL patterns for Base dos Dados:
-        ```sql
-        -- Basic exploration
-        SELECT * FROM `basedosdados.br_inep_ideb.municipio` LIMIT 10
-
-        -- Filtered by geography
-        SELECT * FROM `basedosdados.br_inep_ideb.municipio`
-        WHERE sigla_uf = 'SP' LIMIT 100
-
-        -- Aggregation by region
-        SELECT sigla_uf, COUNT(*)
-        FROM `basedosdados.br_inep_ideb.municipio`
-        GROUP BY sigla_uf
-
-        -- Time series data
-        SELECT ano, AVG(ideb) FROM `basedosdados.br_inep_ideb.municipio`
-        WHERE ano BETWEEN 2010 AND 2020
-        GROUP BY ano
-        ORDER BY ano
-        ```
-
-    Troubleshooting:
-        - "Not found" → Check `gcp_id` from `get_dataset_details()`
-        - "Unrecognized name" → Verify column names match table structure from `get_dataset_details()`
-        - "Query too large" → Add WHERE filters or select fewer columns
-        - "Syntax error" → Check GoogleSQL syntax
+        str: Query results as JSON array. Empty results return "[]".
     """  # noqa: E501
     try:
         job_config = bq.QueryJobConfig(dry_run=True, use_query_cache=False)
         query_job = client.query(sql_query, job_config=job_config)
 
         limit_bytes = 20e9  # 20GB limit for queries
+        total_bytes = query_job.total_bytes_processed
 
-        if query_job.total_bytes_processed > limit_bytes:
+        if total_bytes and total_bytes > limit_bytes:
             tool_output = ToolOutput(
                 status="error",
                 error_details={
                     "type": "QueryTooLarge",
                     "limit_bytes": limit_bytes,
-                    "total_processed_bytes": query_job.total_bytes_processed,
+                    "total_processed_bytes": total_bytes,
                     "message": (
                         "Query aborted: Data processed exceeds the 20GB per-query limit. "
                         "Consider optimizing by adding filters, selecting fewer columns, "
@@ -438,154 +352,40 @@ def execute_bigquery_sql(sql_query: str) -> str:
             status="error", error_details={"message": f"SQL query execution failed:\n{e}"}
         ).model_dump(exclude_none=True)
 
-    return json.dumps(tool_output, ensure_ascii=False)
+    return json.dumps(tool_output, ensure_ascii=False, default=str)
 
 
 @tool
-def inspect_column_values(table_gcp_id: str, column_name: str, limit: int = 100) -> str:
-    """Inspect the actual values in a specific column to understand data content and patterns.
+def decode_table_values(table_gcp_id: str, column_name: Optional[str] = None) -> str:
+    """Decode coded values from a table.
 
-    Use this tool as a FALLBACK when `search_dictionary_table()` fails or returns no results.
-    Always try `search_dictionary_table()` FIRST before using this tool, as dictionary tables
-    provide more meaningful information about coded values.
+    Use when column values appear to be codes (e.g., 1,2,3 or A,B,C).
+    Many datasets use codes for storage efficiency. This tool provides
+    the authoritative meanings of these codes.
 
     Args:
-        table_gcp_id (str): Full BigQuery table reference from get_table_details() (project.dataset.table)
-        column_name (str): Exact column name as shown in get_table_details()
-        limit (int, optional): Maximum number of distinct values to return (default: 100)
-            Use smaller limits (10-20) for initial exploration, larger for comprehensive views
+        table_gcp_id (str): Full BigQuery table reference
+        column_name (Optional[str], optional): Column with coded values. If `None`,
+            all columns will be used. Defaults to `None`.
 
     Returns:
-        str: JSON array of distinct values found in the column, sorted by frequency.
-            - Shows actual data patterns (encoded IDs, abbreviations, etc.)
-            - Reveals if values are numeric codes that need dictionary decoding
-            - Helps identify filtering options and data quality issues
-
-    Use this tool when:
-        - Planning WHERE clauses to see available filter values
-        - Column values look like codes (1, 2, 3 or 'A', 'B', 'C') that might need decoding
-        - Getting "no results" from queries and need to verify correct values
-        - Understanding data patterns before analysis
-        - Checking for NULL values or data quality issues
-
-    Next steps after using this tool:
-        1. If values look like codes → Use search_dictionary_table() to find meanings
-        2. If values are clear → Use them directly in WHERE clauses
-        3. If unexpected values → Investigate data quality or documentation
-        4. Plan your main analysis query with correct filter values
-
-    Example workflow:
-        1. get_table_details("table-id") → see columns
-        2. inspect_column_values("project.dataset.table", "tipo_escola") → see actual values
-        3. If returns [1,2,3,4] → search dictionary for meanings
-        4. execute_sql_query with proper filters based on real values
-
-    Common patterns in Brazilian data:
-        - Estado codes: 11, 12, 13 (need IBGE state dictionary)
-        - Municipality codes: 3550308 (São Paulo city IBGE code)
-        - Category codes: 1,2,3,4 (often need dataset dictionary)
-        - Yes/No: 0/1 or S/N depending on dataset
+        str: JSON array with chave (code) and valor (meaning) mappings.
     """  # noqa: E501
-    sql_query = f"SELECT DISTINCT {column_name} FROM {table_gcp_id} LIMIT {limit}"
-
     try:
-        job_config = bq.QueryJobConfig(dry_run=True, use_query_cache=False)
-        query_job = client.query(sql_query, job_config=job_config)
+        project_name, dataset_name, table_name = table_gcp_id.split(".")
+    except ValueError:
+        return ToolOutput(
+            status="error",
+            error_details={
+                "message": (
+                    f"{table_gcp_id} is not a valid table reference. "
+                    "Please, provide a valid table reference in the format `project.dataset.table`"
+                )
+            },
+        ).model_dump_json(indent=2, exclude_none=True)
 
-        limit_bytes = 5e9  # 5GB limit for inspection queries
-
-        if query_job.total_bytes_processed and query_job.total_bytes_processed > limit_bytes:
-            bytes_processed_gb = query_job.total_bytes_processed / 1e9
-            return ToolOutput(
-                status="error",
-                error_details={
-                    "status": "error",
-                    "type": "QueryTooLarge",
-                    "limit_bytes": limit_bytes,
-                    "total_processed_bytes": query_job.total_bytes_processed,
-                    "message": (
-                        f"Column inspection exceeds the 5GB per-query "
-                        f"limit for inspection({bytes_processed_gb:.1f} GB). "
-                        "Try a smaller limit or add WHERE filters to reduce data size."
-                    ),
-                },
-            ).model_dump_json(indent=2, exclude_none=True)
-
-        rows = client.query(sql_query).result()
-
-        results = [row.get(column_name) for row in rows]
-
-        tool_output = ToolOutput(status="success", results=results).model_dump(exclude_none=True)
-    except Exception as e:
-        tool_output = ToolOutput(
-            status="error", error_details={"message": f"Failed to inspect colum values:\n{e}"}
-        ).model_dump(exclude_none=True)
-
-    return json.dumps(tool_output, ensure_ascii=False)
-
-
-@tool
-def search_dictionary_table(dataset_gcp_id: str, table_name: str, column_name: str) -> str:
-    """Look up the meaning of coded values in a column using the dataset's dictionary table
-
-    **ALWAYS USE THIS TOOL FIRST** when you need to understand column values before `inspect_column_values()`.
-    Many Base dos Dados datasets use coded values or abbreviations for storage efficiency.
-    This tool provides the authoritative meanings of these codes.
-
-    Args:
-        dataset_gcp_id (str): Dataset portion of BigQuery reference (project.dataset_name)
-            - Extract from table gcp_id: if table is "basedosdados.br_ibge_censo.municipio"
-            - Use dataset_gcp_id: "basedosdados.br_ibge_censo"
-        table_name (str): Just the table name (not full gcp_id)
-            - Extract from gcp_id: if "basedosdados.br_ibge_censo.municipio"
-            - Use table_name: "municipio"
-        column_name (str): Exact column name that contains encoded values
-
-    Returns:
-        str: JSON array of dictionary mappings with structure:
-            - chave: The encoded value found in your data (1, 2, 'A', 'B', etc.)
-            - valor: Human-readable meaning/description
-
-        If no mappings found, returns guidance on alternative approaches.
-
-    Next steps after using this tool:
-        1. Match the returned 'chave' values with codes in your data
-        2. Use JOIN with dictionary table for readable results:
-           ```sql
-           SELECT t.*, d.valor as decoded_column
-           FROM `project.dataset.table` t
-           LEFT JOIN `project.dataset.dicionario` d
-           ON t.encoded_column = d.chave
-           AND d.id_tabela = 'table_name'
-           AND d.nome_coluna = 'column_name'
-           ```
-        3. Or use the mappings to understand what codes mean for filtering
-
-    Example usage:
-        # After inspect_column_values shows tipo_escola has values [1,2,3,4]:
-        search_dictionary_table("basedosdados.br_inep_censo_escolar", "escola", "tipo_escola")
-
-        # Result might show: 1='Pública', 2='Privada', 3='Federal', 4='Municipal'
-
-        # Then use in queries:
-        SELECT tipo_escola, COUNT(*) FROM `basedosdados.br_inep_censo_escolar.escola`
-        WHERE tipo_escola IN (1, 2)  -- Now you know 1=Pública, 2=Privada
-        GROUP BY tipo_escola
-
-    Common encoded column types in Brazilian data:
-        - Geographic codes: estado, municipio (IBGE codes)
-        - Category codes: tipo_*, categoria_*, situacao_*
-        - Status codes: ativo, situacao, condicao
-        - Classification codes: nivel_*, grau_*, classe_*
-
-    If no dictionary found:
-        - Dataset might not have encoded values
-        - Values might be in separate reference tables
-        - Try common directory datasets like br_bd_diretorios_brasil
-    """  # noqa: E501
-
-    # Build the specific query for this table/column combination
-    dict_table_id = f"{dataset_gcp_id}.dicionario"
+    dataset_id = f"{project_name}.{dataset_name}"
+    dict_table_id = f"{dataset_id}.dicionario"
 
     search_query = f"""
         SELECT nome_coluna, chave, valor
@@ -603,14 +403,15 @@ def search_dictionary_table(dataset_gcp_id: str, table_name: str, column_name: s
         query_job = client.query(search_query, job_config=job_config)
 
         limit_bytes = 1e9  # 1GB limit for dictionary queries
+        total_bytes = query_job.total_bytes_processed
 
-        if query_job.total_bytes_processed > limit_bytes:
+        if total_bytes and total_bytes > limit_bytes:
             return ToolOutput(
                 status="error",
                 error_details={
                     "type": "QueryTooLarge",
                     "limit_bytes": limit_bytes,
-                    "total_processed_bytes": query_job.total_bytes_processed,
+                    "total_processed_bytes": total_bytes,
                     "message": (
                         "Dictionary table is unexpectedly large. "
                         "This might not be the right approach. "
@@ -629,7 +430,7 @@ def search_dictionary_table(dataset_gcp_id: str, table_name: str, column_name: s
             error_details={
                 "type": "TableNotFound",
                 "message": (
-                    f"Dictionary table not found for dataset {dataset_gcp_id}. "
+                    f"Dictionary table not found for dataset {dataset_id}. "
                     "This indicates this dataset does not contain a dicionary table. "
                     "Consider using the `inspect_column_values` tool to inspect column values."
                 ),
@@ -637,7 +438,60 @@ def search_dictionary_table(dataset_gcp_id: str, table_name: str, column_name: s
         ).model_dump_json(indent=2, exclude_none=True)
     except Exception as e:
         tool_output = ToolOutput(
-            status="error", error_details={"message": f"Failed to search dictionary table:\n{e}"}
+            status="error", error_details={"message": f"Failed to decode table values:\n{e}"}
         ).model_dump(exclude_none=True)
 
-    return json.dumps(tool_output, ensure_ascii=False)
+    return json.dumps(tool_output, ensure_ascii=False, default=str)
+
+
+@tool
+def inspect_column_values(table_gcp_id: str, column_name: str, limit: int = 100) -> str:
+    """Show actual distinct values in a column.
+
+    FALLBACK tool to use when `search_dictionary_table()` fails.
+    Useful for understanding data patterns and planning `WHERE` clauses.
+
+    Args:
+        table_gcp_id (str): Full BigQuery table reference
+        column_name (str): Column name from `get_dataset_details()`
+        limit (int, optional): Max distinct values to return (default: 100)
+
+    Returns:
+        str: JSON array of distinct values.
+    """  # noqa: E501
+    sql_query = f"SELECT DISTINCT {column_name} FROM {table_gcp_id} LIMIT {limit}"
+
+    try:
+        job_config = bq.QueryJobConfig(dry_run=True, use_query_cache=False)
+        query_job = client.query(sql_query, job_config=job_config)
+
+        limit_bytes = 5e9  # 5GB limit for inspection queries
+        total_bytes = query_job.total_bytes_processed
+
+        if total_bytes and total_bytes > limit_bytes:
+            return ToolOutput(
+                status="error",
+                error_details={
+                    "status": "error",
+                    "type": "QueryTooLarge",
+                    "limit_bytes": limit_bytes,
+                    "total_processed_bytes": total_bytes,
+                    "message": (
+                        f"Column inspection exceeds the 5GB per-query "
+                        f"limit for inspection({total_bytes/1e9:.1f} GB). "
+                        "Try a smaller limit or add WHERE filters to reduce data size."
+                    ),
+                },
+            ).model_dump_json(indent=2, exclude_none=True)
+
+        rows = client.query(sql_query).result()
+
+        results = [row.get(column_name) for row in rows]
+
+        tool_output = ToolOutput(status="success", results=results).model_dump(exclude_none=True)
+    except Exception as e:
+        tool_output = ToolOutput(
+            status="error", error_details={"message": f"Failed to inspect colum values:\n{e}"}
+        ).model_dump(exclude_none=True)
+
+    return json.dumps(tool_output, ensure_ascii=False, default=str)
