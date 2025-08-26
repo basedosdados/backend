@@ -1,13 +1,13 @@
 # -*- coding: utf-8 -*-
 import json
 import os
-from typing import Any, Literal, Optional
+from typing import Any, Literal, Optional, Self
 
 import httpx
 from google.api_core import exceptions
 from google.cloud import bigquery as bq
 from langchain_core.tools import tool
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 SEARCH_URL = "https://backend.basedosdados.org/search/"
 GRAPHQL_URL = "https://backend.basedosdados.org/graphql"
@@ -114,6 +114,12 @@ class ToolOutput(BaseModel):
     status: Literal["success", "error"]
     results: Optional[Any] = None
     error_details: Optional[dict[str, Any]] = None
+
+    @model_validator(mode="after")
+    def check_passwords_match(self) -> Self:
+        if (self.results is None) ^ (self.error_details is None):
+            return self
+        raise ValueError("Only one of 'results' or 'error_details' should be set")
 
 
 client = bq.Client(project=os.environ["QUERY_PROJECT_ID"])
