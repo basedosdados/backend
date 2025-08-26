@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
 import os
+from functools import cache
 from typing import Any, Literal, Optional, Self
 
 import httpx
@@ -122,7 +123,9 @@ class ToolOutput(BaseModel):
         raise ValueError("Only one of 'results' or 'error_details' should be set")
 
 
-client = bq.Client(project=os.environ["QUERY_PROJECT_ID"])
+@cache
+def get_bigquery_client():
+    return bq.Client(project=os.environ["QUERY_PROJECT_ID"])
 
 
 @tool
@@ -210,7 +213,7 @@ def get_dataset_details(dataset_id: str) -> str:
             response.raise_for_status()
             data: dict[str, dict[str, dict]] = response.json()
 
-        dataset_edges = data.get("data").get("allDataset", {}).get("edges", [])
+        dataset_edges = data.get("data", {}).get("allDataset", {}).get("edges", [])
 
         if not dataset_edges:
             return f"Dataset {dataset_id} not found"
@@ -325,6 +328,8 @@ def execute_bigquery_sql(sql_query: str) -> str:
     Returns:
         str: Query results as JSON array. Empty results return "[]".
     """  # noqa: E501
+    client = get_bigquery_client()
+
     try:
         job_config = bq.QueryJobConfig(dry_run=True, use_query_cache=False)
         query_job = client.query(sql_query, job_config=job_config)
@@ -377,6 +382,8 @@ def decode_table_values(table_gcp_id: str, column_name: Optional[str] = None) ->
     Returns:
         str: JSON array with chave (code) and valor (meaning) mappings.
     """  # noqa: E501
+    client = get_bigquery_client()
+
     try:
         project_name, dataset_name, table_name = table_gcp_id.split(".")
     except ValueError:
@@ -465,6 +472,8 @@ def inspect_column_values(table_gcp_id: str, column_name: str, limit: int = 100)
     Returns:
         str: JSON array of distinct values.
     """  # noqa: E501
+    client = get_bigquery_client()
+
     sql_query = f"SELECT DISTINCT {column_name} FROM {table_gcp_id} LIMIT {limit}"
 
     try:
