@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import json
 import os
 import uuid
 from contextlib import contextmanager
@@ -21,9 +20,16 @@ from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from backend.apps.chatbot.agent.prompts import SQL_AGENT_SYSTEM_PROMPT
+from backend.apps.chatbot.agent.tools import (
+    decode_table_values,
+    execute_bigquery_sql,
+    get_dataset_details,
+    inspect_column_values,
+    search_datasets,
+)
 from backend.apps.chatbot.feedback_sender import LangSmithFeedbackSender
 from backend.apps.chatbot.models import Feedback, MessagePair, Thread
-from backend.apps.chatbot.prompts import SQL_AGENT_SYSTEM_PROMPT
 from backend.apps.chatbot.serializers import (
     FeedbackCreateSerializer,
     FeedbackSerializer,
@@ -32,13 +38,7 @@ from backend.apps.chatbot.serializers import (
     ThreadSerializer,
     UserMessageSerializer,
 )
-from backend.apps.chatbot.tools import (
-    decode_table_values,
-    execute_bigquery_sql,
-    get_dataset_details,
-    inspect_column_values,
-    search_datasets,
-)
+from backend.apps.chatbot.utils.stream import EventData, StreamEvent, process_chunk
 
 ModelSerializer = TypeVar("ModelSerializer", bound=Serializer)
 
@@ -176,7 +176,7 @@ class ThreadDetailView(APIView):
         try:
             thread.deleted = True
             thread.save()
-            with _get_sql_assistant() as assistant:
+            with _get_sql_agent() as assistant:
                 assistant.clear_thread(str(thread_id))
             return Response({"detail": "Thread deleted successfully"})
         except Exception:
@@ -305,46 +305,8 @@ def _get_feedback_sender() -> LangSmithFeedbackSender:
     return LangSmithFeedbackSender()
 
 
-# @cache
-# def _get_context_provider(connection: str) -> PostgresContextProvider:
-#     """Provide a configured `PostgresContextProvider` context provider.
-
-#     Args:
-#         connection (str): A vector database connection for providing few-shot examples.
-
-#     Returns:
-#         PostgresContextProvider: An instance of `PostgresContextProvider`.
-#     """
-#     bq_billing_project = os.environ["BILLING_PROJECT_ID"]
-#     bq_query_project = os.environ["QUERY_PROJECT_ID"]
-
-#     embedding_model = os.getenv("EMBEDDING_MODEL")
-#     pgvector_collection = os.getenv("PGVECTOR_COLLECTION")
-
-#     if embedding_model and pgvector_collection:
-#         embeddings = VertexAIEmbeddings(embedding_model)
-
-#         vector_store = PGVector(
-#             embeddings=embeddings,
-#             connection=connection,
-#             collection_name=pgvector_collection,
-#             use_jsonb=True,
-#         )
-#     else:
-#         vector_store = None
-
-#     context_provider = PostgresContextProvider(
-#         billing_project=bq_billing_project,
-#         query_project=bq_query_project,
-#         metadata_vector_store=vector_store,
-#         top_k=5,
-#     )
-
-#     return context_provider
-
-
 @contextmanager
-def _get_sql_assistant():
+def _get_sql_agent():
     """Provide a configured `SQLAssistant`.
 
     Yields:
@@ -358,47 +320,27 @@ def _get_sql_assistant():
 
     conn = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 
-    # context_provider = _get_context_provider(conn)
-
-    # prompt_formatter = SQLPromptFormatter(vector_store=None)
-
     with PostgresSaver.from_conn_string(conn) as checkpointer:
         checkpointer.setup()
 
         model = init_chat_model(MODEL_URI, temperature=0)
 
         tools = [
-            search_datasets,
-            get_dataset_details,
-            execute_bigquery_sql,
             decode_table_values,
+            execute_bigquery_sql,
+            get_dataset_details,
             inspect_column_values,
+            search_datasets,
         ]
 
-        # agent = ReActAgent(
-        #     model=model,
-        #     tools=tools,
-        #     system_message=SQL_AGENT_SYSTEM_PROMPT,
-        #     checkpointer=checkpointer,
-        # )
-
-        agent = create_react_agent(
+        sql_agent = create_react_agent(
             model=model,
             tools=tools,
             prompt=SQL_AGENT_SYSTEM_PROMPT,
             checkpointer=checkpointer,
         )
 
-        # assistant = SQLAssistant(
-        #     model=model,
-        #     context_provider=context_provider,
-        #     prompt_formatter=prompt_formatter,
-        #     checkpointer=checkpointer,
-        # )
-
-        # yield assistant
-
-        yield agent
+        yield sql_agent
 
 
 def _stream_sql_assistant_response(
@@ -414,88 +356,53 @@ def _stream_sql_assistant_response(
     Yields:
         Iterator[str]: JSON string containing the streaming status and the current step data.
     """
-    steps = []
-    # last_chunk = None
+    events = []
+    message_pair = {}
 
     try:
         logger.info("Calling SQLAssistant...")
-        with _get_sql_assistant() as assistant:
-            agent_response = assistant.invoke(
-                # question=message,
-                # config=config
+        with _get_sql_agent() as agent:
+            for chunk in agent.stream(
                 input={"messages": [{"role": "user", "content": message}]},
+                stream_mode="updates",
                 config=config,
-            )
-            # for mode, chunk in assistant.stream(
-            #     message=message,
-            #     config=config,
-            #     stream_mode=["updates", "values"],
-            #     rewrite_query=True,
-            # ):
-            #     last_chunk = chunk
+            ):
+                event = process_chunk(chunk)
+                events.append(event.model_dump())
 
-            #     # Skip "values" chunks during streaming. We only need the final one at the end,
-            #     # as it contains the SQL Agent's final state.
-            #     if mode == "values":
-            #         continue
+                yield event.to_sse()
 
-            #     step = process_chunk(chunk)
-
-            #     if step is None:
-            #         continue
-
-            #     steps.append(step.model_dump())
-
-            #     yield json.dumps({"status": "running", "data": step.model_dump_json()}) + "\n\n"
-
-        # The last chunk represents the SQLAgent's final state,
-        # so we format it as the final response for the user.
-        # response = format_sql_agent_response(last_chunk)
-        response = {}
-        response["error_message"] = None
+        # The last event always contains the agent's final answer,
+        # so we use it to save the message pair in the database
+        message_pair["content"] = event.data.message
+        message_pair["error_message"] = None
+        logger.success("SQLAssistant called successfully")
     except Exception:
         logger.exception(f"Error responding message {config['run_id']}:")
-        response = {
-            "error_message": (
-                "Ops, algo deu errado! Ocorreu um erro inesperado. Por favor, tente novamente. "
-                "Se o problema persistir, avise-nos. Obrigado pela paciência!"
-            ),
+        error_message = (
+            "Ops, algo deu errado! Ocorreu um erro inesperado. Por favor, tente novamente. "
+            "Se o problema persistir, avise-nos. Obrigado pela paciência!"
+        )
+
+        yield StreamEvent(
+            type="error", data=EventData(error_details={"message": error_message})
+        ).to_sse()
+
+        message_pair = {
             "content": None,
             "sql_queries": None,
+            "error_message": error_message,
         }
 
-    logger.success("SQLAssistant called successfully")
-
-    response["id"] = config["run_id"]
-
-    response["content"] = agent_response["messages"][-1].content
-    response["sql_queries"] = None
-
-    message_pair = MessagePair.objects.create(
-        id=response["id"],
+    MessagePair.objects.create(
+        id=config["run_id"],
         thread=thread,
         model_uri=MODEL_URI,
         user_message=message,
-        assistant_message=response["content"],
-        error_message=response["error_message"],
-        generated_queries=response["sql_queries"],
-        steps=steps,
-    )
-
-    yield (
-        json.dumps(
-            {
-                "status": "complete",
-                "data": {
-                    "id": message_pair.id,
-                    "user_message": message_pair.user_message,
-                    "assistant_message": message_pair.assistant_message,
-                    "error_message": message_pair.error_message,
-                    "generated_queries": message_pair.generated_queries,
-                },
-            }
-        )
-        + "\n\n"
+        assistant_message=message_pair["content"],
+        error_message=message_pair["error_message"],
+        generated_queries=None,
+        events=events,
     )
 
 
