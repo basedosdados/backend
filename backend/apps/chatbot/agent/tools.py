@@ -492,8 +492,7 @@ def inspect_column_values(table_gcp_id: str, column_name: str, limit: int = 100)
                     "limit_bytes": limit_bytes,
                     "total_processed_bytes": total_bytes,
                     "message": (
-                        f"Column inspection exceeds the 5GB per-query "
-                        f"limit for inspection({total_bytes/1e9:.1f} GB). "
+                        "Column inspection exceeds the 5GB per-query limit for inspection. "
                         "Try a smaller limit or add WHERE filters to reduce data size."
                     ),
                 },
