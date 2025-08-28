@@ -2,7 +2,7 @@
 from typing import Any, Literal, Optional
 
 from langchain_core.messages import AIMessage, ToolMessage
-from pydantic import BaseModel
+from pydantic import UUID4, BaseModel
 
 
 class ToolCall(BaseModel):
@@ -20,14 +20,16 @@ class ToolOutput(BaseModel):
 
 EventType = Literal[
     "tool_call",
-    "tool_result",
+    "tool_output",
     "final_answer",
     "error",
+    "complete",
 ]
 
 
 class EventData(BaseModel):
-    message: Optional[str] = None
+    run_id: Optional[UUID4] = None
+    content: Optional[str] = None
     tool_calls: Optional[list[ToolCall]] = None
     tool_outputs: Optional[list[ToolOutput]] = None
     error_details: Optional[dict[str, Any]] = None
@@ -55,8 +57,10 @@ def process_chunk(chunk: dict[str, Any]) -> StreamEvent:
     Returns:
         StreamEvent with appropriate type:
             - "tool_call" for agent messages with tool invocations
+            - "tool_output" for tool execution outputs
             - "final_answer" for agent messages without tool calls
-            - "tool_result" for tool execution outputs
+            - "error" if an error occurs
+            - "complete" when streaming has finished
     """
     if "agent" in chunk:
         message: AIMessage = chunk["agent"]["messages"][0]
@@ -67,10 +71,10 @@ def process_chunk(chunk: dict[str, Any]) -> StreamEvent:
                 for tool_call in message.tool_calls
             ]
             event_type = "tool_call"
-            event_data = EventData(message=message.content, tool_calls=tool_calls)
+            event_data = EventData(content=message.content, tool_calls=tool_calls)
         else:
             event_type = "final_answer"
-            event_data = EventData(message=message.content)
+            event_data = EventData(content=message.content)
 
         return StreamEvent(type=event_type, data=event_data)
     elif "tools" in chunk:
@@ -86,4 +90,4 @@ def process_chunk(chunk: dict[str, Any]) -> StreamEvent:
             for message in messages
         ]
 
-        return StreamEvent(type="tool_result", data=EventData(tool_outputs=tool_outputs))
+        return StreamEvent(type="tool_output", data=EventData(tool_outputs=tool_outputs))

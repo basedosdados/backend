@@ -357,10 +357,9 @@ def _stream_sql_assistant_response(
         Iterator[str]: JSON string containing the streaming status and the current step data.
     """
     events = []
-    message_pair = {}
 
     try:
-        logger.info("Calling SQLAssistant...")
+        logger.info("Calling SQL Agent...")
         with _get_sql_agent() as agent:
             for chunk in agent.stream(
                 input={"messages": [{"role": "user", "content": message}]},
@@ -374,11 +373,12 @@ def _stream_sql_assistant_response(
 
         # The last event always contains the agent's final answer,
         # so we use it to save the message pair in the database
-        message_pair["content"] = event.data.message
-        message_pair["error_message"] = None
-        logger.success("SQLAssistant called successfully")
+        assistant_message = event.data.content
+        error_message = None
+        logger.success("SQL Agent called successfully. Saving message pair...")
     except Exception:
         logger.exception(f"Error responding message {config['run_id']}:")
+        assistant_message = None
         error_message = (
             "Ops, algo deu errado! Ocorreu um erro inesperado. Por favor, tente novamente. "
             "Se o problema persistir, avise-nos. Obrigado pela paciência!"
@@ -388,22 +388,18 @@ def _stream_sql_assistant_response(
             type="error", data=EventData(error_details={"message": error_message})
         ).to_sse()
 
-        message_pair = {
-            "content": None,
-            "sql_queries": None,
-            "error_message": error_message,
-        }
-
-    MessagePair.objects.create(
+    message_pair = MessagePair.objects.create(
         id=config["run_id"],
         thread=thread,
         model_uri=MODEL_URI,
         user_message=message,
-        assistant_message=message_pair["content"],
-        error_message=message_pair["error_message"],
-        generated_queries=None,
+        assistant_message=assistant_message,
+        error_message=error_message,
         events=events,
     )
+    logger.success(f"Message pair {message_pair.id} saved successfully")
+
+    yield StreamEvent(type="complete", data=EventData(run_id=message_pair.id)).to_sse()
 
 
 def _get_thread_by_id(thread_id: uuid.UUID) -> Thread:
