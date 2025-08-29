@@ -12,6 +12,14 @@ from backend.apps.chatbot import views
 from backend.apps.chatbot.models import Feedback, MessagePair, Thread
 
 
+class MockLangSmithFeedbackSender:
+    def __init__(self, *args, **kwargs):
+        ...
+
+    def send_feedback(self, *args, **kwargs):
+        ...
+
+
 class MockReactAgent:
     def __init__(self, *args, **kwargs):
         ...
@@ -20,14 +28,6 @@ class MockReactAgent:
         yield "updates", {"agent": AIMessage("mock response")}
 
     def clear_thread(self, *args, **kwargs):
-        ...
-
-
-class MockLangSmithFeedbackSender:
-    def __init__(self, *args, **kwargs):
-        ...
-
-    def send_feedback(self, *args, **kwargs):
         ...
 
 
