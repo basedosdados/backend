@@ -43,24 +43,19 @@ class StreamEvent(BaseModel):
         return self.model_dump_json() + "\n\n"
 
 
-def process_chunk(chunk: dict[str, Any]) -> StreamEvent:
-    """Process a streaming chunk from an agent workflow into a standardized StreamEvent.
-
-    Converts LangChain agent and tool execution chunks into structured events for
-    consistent handling in streaming applications.
+def process_chunk(chunk: dict[str, Any]) -> StreamEvent | None:
+    """Process a streaming chunk from a react agent workflow into a standardized StreamEvent.
 
     Args:
-        chunk (dict[str, Any]): Raw chunk dictionary containing either:
-            - "agent" key with AIMessage for tool calls or final answers
-            - "tools" key with ToolMessage list for tool execution results
+        chunk (dict[str, Any]): Raw chunk from agent workflow.
+            Only processes "agent" and "tools" nodes.
 
     Returns:
-        StreamEvent with appropriate type:
-            - "tool_call" for agent messages with tool invocations
-            - "tool_output" for tool execution outputs
+        StreamEvent | None: Structured event or None if the chunk is ignored:
+            - "tool_call" for agent messages with tool calls
+            - "tool_output" for tool execution results
             - "final_answer" for agent messages without tool calls
-            - "error" if an error occurs
-            - "complete" when streaming has finished
+            - None for ignored chunks
     """
     if "agent" in chunk:
         message: AIMessage = chunk["agent"]["messages"][0]
@@ -91,3 +86,4 @@ def process_chunk(chunk: dict[str, Any]) -> StreamEvent:
         ]
 
         return StreamEvent(type="tool_output", data=EventData(tool_outputs=tool_outputs))
+    return None
