@@ -10,6 +10,15 @@ from google.cloud import bigquery as bq
 from langchain_core.tools import BaseTool, tool
 from pydantic import BaseModel, model_validator
 
+# 1GB limit for dictionary queries
+LIMIT_DICTIONARY_QUERY = 1e9
+
+# 5GB limit for inspection queries
+LIMIT_INSPECTION_QUERY = 5e9
+
+# 20GB limit for other queries
+LIMIT_BIGQUERY_QUERY = 20e9
+
 SEARCH_URL = "https://backend.basedosdados.org/search/"
 GRAPHQL_URL = "https://backend.basedosdados.org/graphql"
 
@@ -334,7 +343,7 @@ def execute_bigquery_sql(sql_query: str) -> str:
         job_config = bq.QueryJobConfig(dry_run=True, use_query_cache=False)
         query_job = client.query(sql_query, job_config=job_config)
 
-        limit_bytes = 20e9  # 20GB limit for queries
+        limit_bytes = LIMIT_BIGQUERY_QUERY
         total_bytes = query_job.total_bytes_processed
 
         if total_bytes and total_bytes > limit_bytes:
@@ -345,7 +354,7 @@ def execute_bigquery_sql(sql_query: str) -> str:
                     "limit_bytes": limit_bytes,
                     "total_processed_bytes": total_bytes,
                     "message": (
-                        "Query aborted: Data processed exceeds the 20GB per-query limit. "
+                        "Query aborted: Data processed exceeds the per-query limit. "
                         "Consider optimizing by adding filters, selecting fewer columns, "
                         "or using a LIMIT clause before retrying."
                     ),
@@ -415,7 +424,7 @@ def decode_table_values(table_gcp_id: str, column_name: Optional[str] = None) ->
         job_config = bq.QueryJobConfig(dry_run=True, use_query_cache=False)
         query_job = client.query(search_query, job_config=job_config)
 
-        limit_bytes = 1e9  # 1GB limit for dictionary queries
+        limit_bytes = LIMIT_DICTIONARY_QUERY
         total_bytes = query_job.total_bytes_processed
 
         if total_bytes and total_bytes > limit_bytes:
@@ -480,7 +489,7 @@ def inspect_column_values(table_gcp_id: str, column_name: str, limit: int = 100)
         job_config = bq.QueryJobConfig(dry_run=True, use_query_cache=False)
         query_job = client.query(sql_query, job_config=job_config)
 
-        limit_bytes = 5e9  # 5GB limit for inspection queries
+        limit_bytes = LIMIT_INSPECTION_QUERY
         total_bytes = query_job.total_bytes_processed
 
         if total_bytes and total_bytes > limit_bytes:
@@ -492,7 +501,7 @@ def inspect_column_values(table_gcp_id: str, column_name: str, limit: int = 100)
                     "limit_bytes": limit_bytes,
                     "total_processed_bytes": total_bytes,
                     "message": (
-                        "Column inspection exceeds the 5GB per-query limit for inspection. "
+                        "Column inspection exceeds the per-query limit for inspection. "
                         "Try a smaller limit or add WHERE filters to reduce data size."
                     ),
                 },
