@@ -5,9 +5,9 @@ from functools import cache
 from typing import Any, Literal, Optional, Self
 
 import httpx
-from google.api_core import exceptions
+from google.api_core import exceptions as google_api_exceptions
 from google.cloud import bigquery as bq
-from langchain_core.tools import tool
+from langchain_core.tools import BaseTool, tool
 from pydantic import BaseModel, model_validator
 
 SEARCH_URL = "https://backend.basedosdados.org/search/"
@@ -437,7 +437,7 @@ def decode_table_values(table_gcp_id: str, column_name: Optional[str] = None) ->
         rows = client.query(search_query).result()
         results = [dict(row) for row in rows]
         tool_output = ToolOutput(status="success", results=results).model_dump(exclude_none=True)
-    except exceptions.NotFound:
+    except google_api_exceptions.NotFound:
         return ToolOutput(
             status="error",
             error_details={
@@ -509,3 +509,26 @@ def inspect_column_values(table_gcp_id: str, column_name: str, limit: int = 100)
         ).model_dump(exclude_none=True)
 
     return json.dumps(tool_output, ensure_ascii=False, default=str)
+
+
+def get_tools() -> list[BaseTool]:
+    """Return all available tools for Base dos Dados database interaction.
+
+    This function provides a complete set of tools for discovering, exploring,
+    and querying Brazilian public datasets through the Base dos Dados platform.
+
+    Returns:
+        list[BaseTool]: A list of LangChain tool functions in suggested usage order:
+            - search_datasets: Find datasets using keywords
+            - get_dataset_details: Get comprehensive dataset information
+            - execute_bigquery_sql: Execute SQL queries against BigQuery tables
+            - decode_table_values: Decode coded values using dictionary tables
+            - inspect_column_values: Inspect actual column values as fallback
+    """
+    return [
+        search_datasets,
+        get_dataset_details,
+        execute_bigquery_sql,
+        decode_table_values,
+        inspect_column_values,
+    ]
