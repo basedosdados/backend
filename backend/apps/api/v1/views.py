@@ -143,13 +143,9 @@ def table_stats(request: HttpRequest):
 
     thirty_days_ago = timezone.now() - timedelta(days=30)
     recent_tables_count = treated_tables.filter(
-        updates__latest__gte=thirty_days_ago
+        updates__latest__gte=thirty_days_ago,
+        updates__entity__slug__in=['month', 'week', 'day']
     ).distinct().count()
-    percentage_recent = (
-        (recent_tables_count / total_treated_tables_count) * 100
-        if total_treated_tables_count > 0
-        else 0
-    )
 
     aggregates = treated_tables.aggregate(
         total_size=Sum("uncompressed_file_size"),
@@ -159,7 +155,7 @@ def table_stats(request: HttpRequest):
     data = {
         "datasets_with_treated_tables": datasets_with_treated_tables_count,
         "total_treated_tables": total_treated_tables_count,
-        "percentage_updated_last_30_days": round(percentage_recent, 2),
+        "updated_last_30_days": recent_tables_count,
         "total_size_bytes": aggregates["total_size"] or 0,
         "total_rows": aggregates["total_rows"] or 0,
     }
