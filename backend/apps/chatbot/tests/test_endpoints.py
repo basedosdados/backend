@@ -20,7 +20,7 @@ class MockLangSmithFeedbackSender:
         ...
 
 
-class MockReactAgent:
+class MockReActAgent:
     def __init__(self, *args, **kwargs):
         ...
 
@@ -32,7 +32,7 @@ class MockReactAgent:
 
 
 def mock_create_react_agent():
-    return MockReactAgent()
+    return MockReActAgent()
 
 
 @pytest.fixture
