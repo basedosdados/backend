@@ -26,7 +26,7 @@ class MessagePair(models.Model):
     generated_queries = models.JSONField(null=True, blank=True)
     generated_chart = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    steps = models.JSONField(null=True)
+    events = models.JSONField(null=True)
 
     class Meta:
         constraints = [
