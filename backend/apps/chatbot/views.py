@@ -46,7 +46,7 @@ ModelSerializer = TypeVar("ModelSerializer", bound=Serializer)
 
 # Model name/URI. Refer to the LangChain docs for valid names/URIs
 # https://python.langchain.com/api_reference/langchain/chat_models/langchain.chat_models.base.init_chat_model.html
-MODEL_URI = os.environ["MODEL_URI"]
+MODEL_URI = "google_vertexai:gemini-2.5-flash"
 
 # Gemini models have a ~1 million tokens context window
 CONTEXT_WINDOW = 2**20
