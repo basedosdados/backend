@@ -4,23 +4,12 @@ import uuid
 
 import pytest
 from django.utils.dateparse import parse_datetime
+from langchain_core.messages import AIMessage
 from rest_framework.test import APIClient
 
 from backend.apps.account.models import Account
 from backend.apps.chatbot import views
 from backend.apps.chatbot.models import Feedback, MessagePair, Thread
-from chatbot.assistants import SQLAssistantMessage
-
-
-class MockSQLAssistant:
-    def __init__(self, *args, **kwargs):
-        ...
-
-    def invoke(self, *args, **kwargs):
-        return SQLAssistantMessage(content="mock response")
-
-    def clear_thread(self, *args, **kwargs):
-        ...
 
 
 class MockLangSmithFeedbackSender:
@@ -29,6 +18,21 @@ class MockLangSmithFeedbackSender:
 
     def send_feedback(self, *args, **kwargs):
         ...
+
+
+class MockReActAgent:
+    def __init__(self, *args, **kwargs):
+        ...
+
+    def stream(self, *args, **kwargs):
+        yield "updates", {"agent": AIMessage("mock response")}
+
+    def clear_thread(self, *args, **kwargs):
+        ...
+
+
+def mock_create_react_agent():
+    return MockReActAgent()
 
 
 @pytest.fixture
@@ -272,7 +276,7 @@ def test_message_list_view_get_order_invalid(auth_client: APIClient, auth_user: 
 
 @pytest.mark.django_db
 def test_message_list_view_post(monkeypatch, auth_client: APIClient, auth_user: Account):
-    monkeypatch.setattr(views, "SQLAssistant", MockSQLAssistant)
+    monkeypatch.setattr(views, "create_react_agent", mock_create_react_agent)
 
     thread = Thread.objects.create(account=auth_user)
 
