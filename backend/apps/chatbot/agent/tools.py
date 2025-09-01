@@ -337,6 +337,31 @@ def execute_bigquery_sql(sql_query: str) -> str:
     Returns:
         str: Query results as JSON array. Empty results return "[]".
     """  # noqa: E501
+    forbidden_commands = [
+        "CREATE",
+        "ALTER",
+        "DROP",
+        "TRUNCATE",
+        "INSERT",
+        "UPDATE",
+        "DELETE",
+        "GRANT",
+        "REVOKE",
+    ]
+
+    for command in forbidden_commands:
+        if command in sql_query.upper():
+            tool_output = ToolOutput(
+                status="error",
+                error_details={
+                    "message": (
+                        f"Query aborted: Command {command} is forbidden. ",
+                        "Your access is strictly read-only.",
+                    )
+                },
+            )
+        return tool_output.model_dump_json(indent=2, exclude_none=True)
+
     client = get_bigquery_client()
 
     try:
