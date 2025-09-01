@@ -1,17 +1,21 @@
 # -*- coding: utf-8 -*-
-import json
 import os
 import uuid
+from collections.abc import Generator
 from contextlib import contextmanager
 from functools import cache
 from typing import Any, Iterator, Type, TypedDict, TypeVar
 
 from django.http import StreamingHttpResponse
+from google.api_core import exceptions as google_api_exceptions
 from graphql_jwt.shortcuts import get_user_by_token
 from langchain.chat_models import init_chat_model
-from langchain_google_vertexai import VertexAIEmbeddings
-from langchain_postgres import PGVector
+from langchain_core.messages import RemoveMessage, ToolMessage
+from langchain_core.messages.utils import count_tokens_approximately, trim_messages
 from langgraph.checkpoint.postgres import PostgresSaver
+from langgraph.graph.graph import CompiledGraph
+from langgraph.graph.message import REMOVE_ALL_MESSAGES
+from langgraph.prebuilt import create_react_agent
 from loguru import logger
 from rest_framework import exceptions, status
 from rest_framework.parsers import JSONParser
@@ -22,7 +26,8 @@ from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from backend.apps.chatbot.context_provider import PostgresContextProvider
+from backend.apps.chatbot.agent.prompts import SQL_AGENT_SYSTEM_PROMPT
+from backend.apps.chatbot.agent.tools import get_tools
 from backend.apps.chatbot.feedback_sender import LangSmithFeedbackSender
 from backend.apps.chatbot.models import Feedback, MessagePair, Thread
 from backend.apps.chatbot.serializers import (
@@ -33,16 +38,27 @@ from backend.apps.chatbot.serializers import (
     ThreadSerializer,
     UserMessageSerializer,
 )
-from backend.apps.chatbot.utils.stream import process_chunk
-from chatbot.assistants import SQLAssistant, format_sql_agent_response
-from chatbot.formatters import SQLPromptFormatter
+from backend.apps.chatbot.utils.stream import EventData, StreamEvent, process_chunk
+from chatbot.agents.utils import delete_checkpoints
 
 ModelSerializer = TypeVar("ModelSerializer", bound=Serializer)
 
 
 # Model name/URI. Refer to the LangChain docs for valid names/URIs
 # https://python.langchain.com/api_reference/langchain/chat_models/langchain.chat_models.base.init_chat_model.html
-MODEL_URI = os.environ["MODEL_URI"]
+MODEL_URI = "google_vertexai:gemini-2.5-flash"
+
+# Gemini models have a ~1 million tokens context window
+CONTEXT_WINDOW = 2**20
+
+# Maximum number of tokens allowed at the START of a conversation turn
+MAX_TOKENS = CONTEXT_WINDOW // 2
+
+# Generic error message for unexpected errors when calling the agent
+UNEXPECTED_ERROR_MESSAGE = (
+    "Ops, algo deu errado! Ocorreu um erro inesperado. Por favor, tente novamente. "
+    "Se o problema persistir, avise-nos. Obrigado pela paciência!"
+)
 
 
 class ConfigDict(TypedDict):
@@ -173,10 +189,16 @@ class ThreadDetailView(APIView):
         try:
             thread.deleted = True
             thread.save()
-            with _get_sql_assistant() as assistant:
-                assistant.clear_thread(str(thread_id))
+            with _get_sql_agent() as agent:
+                if agent.checkpointer is None:
+                    logger.info("Checkpointer is None, ignoring...")
+                else:
+                    logger.info(f"Deleting checkpoints for thread {thread_id}...")
+                    delete_checkpoints(agent.checkpointer, str(thread_id))
+                    logger.success(f"Checkpoints for thread {thread_id} deleted successfully")
             return Response({"detail": "Thread deleted successfully"})
         except Exception:
+            logger.exception(f"Error deleting thread {thread_id}:")
             return Response(
                 {"detail": "Error deleting thread"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -302,50 +324,12 @@ def _get_feedback_sender() -> LangSmithFeedbackSender:
     return LangSmithFeedbackSender()
 
 
-@cache
-def _get_context_provider(connection: str) -> PostgresContextProvider:
-    """Provide a configured `PostgresContextProvider` context provider.
-
-    Args:
-        connection (str): A vector database connection for providing few-shot examples.
-
-    Returns:
-        PostgresContextProvider: An instance of `PostgresContextProvider`.
-    """
-    bq_billing_project = os.environ["BILLING_PROJECT_ID"]
-    bq_query_project = os.environ["QUERY_PROJECT_ID"]
-
-    embedding_model = os.getenv("EMBEDDING_MODEL")
-    pgvector_collection = os.getenv("PGVECTOR_COLLECTION")
-
-    if embedding_model and pgvector_collection:
-        embeddings = VertexAIEmbeddings(embedding_model)
-
-        vector_store = PGVector(
-            embeddings=embeddings,
-            connection=connection,
-            collection_name=pgvector_collection,
-            use_jsonb=True,
-        )
-    else:
-        vector_store = None
-
-    context_provider = PostgresContextProvider(
-        billing_project=bq_billing_project,
-        query_project=bq_query_project,
-        metadata_vector_store=vector_store,
-        top_k=5,
-    )
-
-    return context_provider
-
-
 @contextmanager
-def _get_sql_assistant():
-    """Provide a configured `SQLAssistant`.
+def _get_sql_agent() -> Generator[CompiledGraph]:
+    """Provide a configured ReAct agent.
 
     Yields:
-        Iterator[SQLAssistant]: An instance of `SQLAssistant`.
+        Iterator[CompiledGraph]: An instance of `CompiledGraph`.
     """
     db_host = os.environ["DB_HOST"]
     db_port = os.environ["DB_PORT"]
@@ -355,23 +339,47 @@ def _get_sql_assistant():
 
     conn = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 
-    context_provider = _get_context_provider(conn)
+    model = init_chat_model(MODEL_URI, temperature=0)
 
-    prompt_formatter = SQLPromptFormatter(vector_store=None)
+    def pre_model_hook(state: dict):
+        messages = state["messages"]
+
+        # The last message in the pre_model_hook node will
+        # ALWAYS be a HumanMessage or a ToolMessage.
+        last_message = state["messages"][-1]
+
+        # If this is the first message in the chat, we don't trim.
+        # If the last message is a ToolMessage, the agent has called a tool.
+        # This means we are in the middle of a chat turn and we also dont't trim.
+        if len(messages) == 1 or isinstance(last_message, ToolMessage):
+            return {"messages": []}
+
+        # Otherwise, we are just starting a chat turn and we can trim the chat history.
+        remaining_messages = trim_messages(
+            messages,
+            token_counter=count_tokens_approximately,  # The accurate counter is too slow.
+            max_tokens=MAX_TOKENS,
+            strategy="last",
+            start_on="human",
+            end_on="human",
+            include_system=True,
+            allow_partial=False,
+        )
+
+        return {"messages": [RemoveMessage(id=REMOVE_ALL_MESSAGES), *remaining_messages]}
 
     with PostgresSaver.from_conn_string(conn) as checkpointer:
         checkpointer.setup()
 
-        model = init_chat_model(MODEL_URI, temperature=0)
-
-        assistant = SQLAssistant(
+        sql_agent = create_react_agent(
             model=model,
-            context_provider=context_provider,
-            prompt_formatter=prompt_formatter,
+            tools=get_tools(),
+            prompt=SQL_AGENT_SYSTEM_PROMPT,
+            pre_model_hook=pre_model_hook,
             checkpointer=checkpointer,
         )
 
-        yield assistant
+        yield sql_agent
 
 
 def _stream_sql_assistant_response(
@@ -387,79 +395,75 @@ def _stream_sql_assistant_response(
     Yields:
         Iterator[str]: JSON string containing the streaming status and the current step data.
     """
-    steps = []
-    last_chunk = None
+    events = []
+    agent_state = None
 
     try:
-        logger.info("Calling SQLAssistant...")
-        with _get_sql_assistant() as assistant:
-            for mode, chunk in assistant.stream(
-                message=message,
-                config=config,
+        logger.info("Calling SQL Agent...")
+        with _get_sql_agent() as agent:
+            for mode, chunk in agent.stream(
+                input={"messages": [{"role": "user", "content": message}]},
                 stream_mode=["updates", "values"],
-                rewrite_query=True,
+                config=config,
             ):
-                last_chunk = chunk
-
-                # Skip "values" chunks during streaming. We only need the final one at the end,
-                # as it contains the SQL Agent's final state.
                 if mode == "values":
+                    agent_state = chunk
                     continue
 
-                step = process_chunk(chunk)
+                event = process_chunk(chunk)
 
-                if step is None:
-                    continue
+                if event is not None:
+                    events.append(event.model_dump())
+                    yield event.to_sse()
 
-                steps.append(step.model_dump())
+        # The last event always contains the agent's final answer,
+        # so we use it to save the message pair in the database
+        assistant_message = event.data.content
+        error_message = None
+        logger.success("SQL Agent called successfully. Saving message pair...")
 
-                yield json.dumps({"status": "running", "data": step.model_dump_json()}) + "\n\n"
+    except google_api_exceptions.InvalidArgument:
+        logger.exception("Agent execution failed with Google API InvalidArgument error:")
 
-        # The last chunk represents the SQLAgent's final state,
-        # so we format it as the final response for the user.
-        response = format_sql_agent_response(last_chunk)
-        response["error_message"] = None
+        assistant_message = None
+        error_message = UNEXPECTED_ERROR_MESSAGE
+
+        if agent_state is not None:
+            model = init_chat_model(MODEL_URI, temperature=0)
+            total_tokens = model.get_num_tokens_from_messages(agent_state["messages"])
+
+            if total_tokens >= CONTEXT_WINDOW:
+                error_message = (
+                    "Sua última mensagem ultrapassou o limite de tamanho para esta conversa. "
+                    "Por favor, tente dividir sua solicitação em partes menores "
+                    "ou inicie uma nova conversa."
+                )
+
+        yield StreamEvent(
+            type="error", data=EventData(error_details={"message": error_message})
+        ).to_sse()
+
     except Exception:
-        logger.exception(f"Error responding message {config['run_id']}:")
-        response = {
-            "error_message": (
-                "Ops, algo deu errado! Ocorreu um erro inesperado. Por favor, tente novamente. "
-                "Se o problema persistir, avise-nos. Obrigado pela paciência!"
-            ),
-            "content": None,
-            "sql_queries": None,
-        }
+        logger.exception(f"Unexpected error responding message {config['run_id']}:")
+        assistant_message = None
+        error_message = UNEXPECTED_ERROR_MESSAGE
 
-    logger.success("SQLAssistant called successfully")
-
-    response["id"] = config["run_id"]
+        yield StreamEvent(
+            type="error", data=EventData(error_details={"message": error_message})
+        ).to_sse()
 
     message_pair = MessagePair.objects.create(
-        id=response["id"],
+        id=config["run_id"],
         thread=thread,
         model_uri=MODEL_URI,
         user_message=message,
-        assistant_message=response["content"],
-        error_message=response["error_message"],
-        generated_queries=response["sql_queries"],
-        steps=steps,
+        assistant_message=assistant_message,
+        error_message=error_message,
+        events=events,
     )
+    logger.success(f"Message pair {message_pair.id} saved successfully")
 
-    yield (
-        json.dumps(
-            {
-                "status": "complete",
-                "data": {
-                    "id": message_pair.id,
-                    "user_message": message_pair.user_message,
-                    "assistant_message": message_pair.assistant_message,
-                    "error_message": message_pair.error_message,
-                    "generated_queries": message_pair.generated_queries,
-                },
-            }
-        )
-        + "\n\n"
-    )
+    yield StreamEvent(type="complete", data=EventData(run_id=message_pair.id)).to_sse()
 
 
 def _get_thread_by_id(thread_id: uuid.UUID) -> Thread:

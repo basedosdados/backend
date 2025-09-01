@@ -46,6 +46,7 @@ djangorestframework-simplejwt = "^5.5.0"
 chatbot = {path = "chatbot"}
 langchain-google-vertexai = "2.0.24"
 langchain-postgres = "^0.0.14"
+httpx = "^0.28.1"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.3.3"

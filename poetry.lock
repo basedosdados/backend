@@ -426,7 +426,7 @@ files = [
 
 [[package]]
 name = "chatbot"
-version = "0.6.1"
+version = "0.6.2"
 description = ""
 optional = false
 python-versions = ">=3.10,<4.0"
@@ -4133,4 +4133,4 @@ cffi = ["cffi (>=1.11)"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.13"
-content-hash = "02d9ae83cf846222afc5a829393870f86e181af444079a785eb969082611c211"
+content-hash = "c1f3ab7225c125661378a75d692f498ddb3cf4bd3680293eeeb4cd09c32f70a9"
