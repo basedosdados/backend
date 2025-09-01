@@ -351,7 +351,7 @@ def execute_bigquery_sql(sql_query: str) -> str:
 
     for command in forbidden_commands:
         if command in sql_query.upper():
-            tool_output = ToolOutput(
+            return ToolOutput(
                 status="error",
                 error_details={
                     "message": (
@@ -359,8 +359,7 @@ def execute_bigquery_sql(sql_query: str) -> str:
                         "Your access is strictly read-only.",
                     )
                 },
-            )
-        return tool_output.model_dump_json(indent=2, exclude_none=True)
+            ).model_dump_json(indent=2, exclude_none=True)
 
     client = get_bigquery_client()
 
@@ -372,7 +371,7 @@ def execute_bigquery_sql(sql_query: str) -> str:
         total_bytes = query_job.total_bytes_processed
 
         if total_bytes and total_bytes > limit_bytes:
-            tool_output = ToolOutput(
+            return ToolOutput(
                 status="error",
                 error_details={
                     "type": "QueryTooLarge",
@@ -384,8 +383,7 @@ def execute_bigquery_sql(sql_query: str) -> str:
                         "or using a LIMIT clause before retrying."
                     ),
                 },
-            )
-            return tool_output.model_dump_json(indent=2, exclude_none=True)
+            ).model_dump_json(indent=2, exclude_none=True)
 
         rows = client.query(sql_query).result()
 
