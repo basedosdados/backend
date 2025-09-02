@@ -13,6 +13,7 @@ from langchain.chat_models import init_chat_model
 from langchain_core.messages import RemoveMessage, ToolMessage
 from langchain_core.messages.utils import count_tokens_approximately, trim_messages
 from langgraph.checkpoint.postgres import PostgresSaver
+from langgraph.errors import GraphRecursionError
 from langgraph.graph.graph import CompiledGraph
 from langgraph.graph.message import REMOVE_ALL_MESSAGES
 from langgraph.prebuilt import create_react_agent
@@ -413,15 +414,17 @@ def _stream_sql_assistant_response(
                 event = process_chunk(chunk)
 
                 if event is not None:
+                    if event.type == "final_answer":
+                        assistant_message = event.data.content
+                        error_message = None
                     events.append(event.model_dump())
                     yield event.to_sse()
 
         # The last event always contains the agent's final answer,
         # so we use it to save the message pair in the database
-        assistant_message = event.data.content
-        error_message = None
         logger.success("SQL Agent called successfully. Saving message pair...")
-
+    except GraphRecursionError:
+        logger.exception(f"Graph recursion error for message {config['run_id']}:")
     except google_api_exceptions.InvalidArgument:
         logger.exception("Agent execution failed with Google API InvalidArgument error:")
 
@@ -442,7 +445,6 @@ def _stream_sql_assistant_response(
         yield StreamEvent(
             type="error", data=EventData(error_details={"message": error_message})
         ).to_sse()
-
     except Exception:
         logger.exception(f"Unexpected error responding message {config['run_id']}:")
         assistant_message = None
