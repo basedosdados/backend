@@ -5,19 +5,16 @@ from functools import cache
 from typing import Any, Literal, Optional, Self
 
 import httpx
-from google.api_core import exceptions as google_api_exceptions
+from google.api_core.exceptions import GoogleAPICallError
 from google.cloud import bigquery as bq
 from langchain_core.tools import BaseTool, tool
 from pydantic import BaseModel, model_validator
 
-# 1GB limit for dictionary queries
-LIMIT_DICTIONARY_QUERY = 1e9
-
 # 5GB limit for inspection queries
-LIMIT_INSPECTION_QUERY = 5e9
+LIMIT_INSPECTION_QUERY = int(5 * 1e9)
 
-# 20GB limit for other queries
-LIMIT_BIGQUERY_QUERY = 20e9
+# 10GB limit for other queries
+LIMIT_BIGQUERY_QUERY = int(10 * 1e9)
 
 SEARCH_URL = "https://backend.basedosdados.org/search/"
 GRAPHQL_URL = "https://backend.basedosdados.org/graphql"
@@ -319,7 +316,7 @@ def execute_bigquery_sql(sql_query: str) -> str:
     """Execute a SQL query against BigQuery tables from the Base dos Dados database.
 
     Use AFTER identifying the right datasets and understanding tables structure.
-    It includes a 20GB processing limit for safety.
+    It includes a 10GB processing limit for safety.
 
     Args:
         sql_query (str): Standard GoogleSQL query. Must reference
@@ -355,8 +352,8 @@ def execute_bigquery_sql(sql_query: str) -> str:
                 status="error",
                 error_details={
                     "message": (
-                        f"Query aborted: Command {command} is forbidden. ",
-                        "Your access is strictly read-only.",
+                        f"Query aborted: Command {command} is forbidden. "
+                        "Your access is strictly read-only."
                     )
                 },
             ).model_dump_json(indent=2, exclude_none=True)
@@ -364,38 +361,44 @@ def execute_bigquery_sql(sql_query: str) -> str:
     client = get_bigquery_client()
 
     try:
-        job_config = bq.QueryJobConfig(dry_run=True, use_query_cache=False)
+        job_config = bq.QueryJobConfig(maximum_bytes_billed=LIMIT_BIGQUERY_QUERY)
         query_job = client.query(sql_query, job_config=job_config)
 
-        limit_bytes = LIMIT_BIGQUERY_QUERY
-        total_bytes = query_job.total_bytes_processed
-
-        if total_bytes and total_bytes > limit_bytes:
-            return ToolOutput(
-                status="error",
-                error_details={
-                    "type": "QueryTooLarge",
-                    "limit_bytes": limit_bytes,
-                    "total_processed_bytes": total_bytes,
-                    "message": (
-                        "Query aborted: Data processed exceeds the per-query limit. "
-                        "Consider optimizing by adding filters, selecting fewer columns, "
-                        "or using a LIMIT clause before retrying."
-                    ),
-                },
-            ).model_dump_json(indent=2, exclude_none=True)
-
-        rows = client.query(sql_query).result()
+        rows = query_job.result()
 
         results = [dict(row) for row in rows]
 
         tool_output = ToolOutput(status="success", results=results).model_dump(exclude_none=True)
-    except Exception as e:
-        tool_output = ToolOutput(
-            status="error", error_details={"message": f"SQL query execution failed:\n{e}"}
-        ).model_dump(exclude_none=True)
 
-    return json.dumps(tool_output, ensure_ascii=False, default=str)
+        return json.dumps(tool_output, ensure_ascii=False, default=str)
+    except GoogleAPICallError as e:
+        if e.errors:
+            reason = e.errors[0].get("reason")
+            raw_message = e.errors[0].get("message")
+        else:
+            reason = None
+
+        if reason == "bytesBilledLimitExceeded":
+            error_details = {
+                "type": "QueryTooExpensive",
+                "reason": reason,
+                "message": (
+                    f"{raw_message} "
+                    "Consider optimizing by adding filters or selecting fewer columns."
+                ),
+            }
+        else:
+            error_details = {
+                "reason": reason,
+                "message": f"SQL query execution failed:\n{e}",
+            }
+        return ToolOutput(status="error", error_details=error_details).model_dump_json(
+            indent=2, exclude_none=True
+        )
+    except Exception as e:
+        return ToolOutput(
+            status="error", error_details={"message": f"SQL query execution failed:\n{e}"}
+        ).model_dump_json(indent=2, exclude_none=True)
 
 
 @tool
@@ -414,8 +417,6 @@ def decode_table_values(table_gcp_id: str, column_name: Optional[str] = None) ->
     Returns:
         str: JSON array with chave (code) and valor (meaning) mappings.
     """  # noqa: E501
-    client = get_bigquery_client()
-
     try:
         project_name, dataset_name, table_name = table_gcp_id.split(".")
     except ValueError:
@@ -428,6 +429,8 @@ def decode_table_values(table_gcp_id: str, column_name: Optional[str] = None) ->
                 )
             },
         ).model_dump_json(indent=2, exclude_none=True)
+
+    client = get_bigquery_client()
 
     dataset_id = f"{project_name}.{dataset_name}"
     dict_table_id = f"{dataset_id}.dicionario"
@@ -444,49 +447,38 @@ def decode_table_values(table_gcp_id: str, column_name: Optional[str] = None) ->
     search_query += "ORDER BY nome_coluna, chave"
 
     try:
-        job_config = bq.QueryJobConfig(dry_run=True, use_query_cache=False)
-        query_job = client.query(search_query, job_config=job_config)
-
-        limit_bytes = LIMIT_DICTIONARY_QUERY
-        total_bytes = query_job.total_bytes_processed
-
-        if total_bytes and total_bytes > limit_bytes:
-            return ToolOutput(
-                status="error",
-                error_details={
-                    "type": "QueryTooLarge",
-                    "limit_bytes": limit_bytes,
-                    "total_processed_bytes": total_bytes,
-                    "message": (
-                        "Dictionary table is unexpectedly large. "
-                        "This might not be the right approach. "
-                        "Check if this dataset actually uses "
-                        "encoded values or try a different table."
-                    ),
-                },
-            ).model_dump_json(indent=2, exclude_none=True)
-
         rows = client.query(search_query).result()
         results = [dict(row) for row in rows]
         tool_output = ToolOutput(status="success", results=results).model_dump(exclude_none=True)
-    except google_api_exceptions.NotFound:
-        return ToolOutput(
-            status="error",
-            error_details={
+        return json.dumps(tool_output, ensure_ascii=False, default=str)
+    except GoogleAPICallError as e:
+        if e.errors:
+            reason = e.errors[0].get("reason")
+        else:
+            reason = None
+
+        if reason == "notFound":
+            error_details = {
                 "type": "TableNotFound",
+                "reason": reason,
                 "message": (
                     f"Dictionary table not found for dataset {dataset_id}. "
                     "This indicates this dataset does not contain a dicionary table. "
                     "Consider using the `inspect_column_values` tool to inspect column values."
                 ),
-            },
-        ).model_dump_json(indent=2, exclude_none=True)
+            }
+        else:
+            error_details = {
+                "reason": reason,
+                "message": f"SQL query execution failed:\n{e}",
+            }
+        return ToolOutput(status="error", error_details=error_details).model_dump_json(
+            indent=2, exclude_none=True
+        )
     except Exception as e:
-        tool_output = ToolOutput(
+        return ToolOutput(
             status="error", error_details={"message": f"Failed to decode table values:\n{e}"}
-        ).model_dump(exclude_none=True)
-
-    return json.dumps(tool_output, ensure_ascii=False, default=str)
+        ).model_dump_json(indent=2, exclude_none=True)
 
 
 @tool
@@ -509,38 +501,43 @@ def inspect_column_values(table_gcp_id: str, column_name: str, limit: int = 100)
     sql_query = f"SELECT DISTINCT {column_name} FROM {table_gcp_id} LIMIT {limit}"
 
     try:
-        job_config = bq.QueryJobConfig(dry_run=True, use_query_cache=False)
+        job_config = bq.QueryJobConfig(maximum_bytes_billed=LIMIT_INSPECTION_QUERY)
         query_job = client.query(sql_query, job_config=job_config)
 
-        limit_bytes = LIMIT_INSPECTION_QUERY
-        total_bytes = query_job.total_bytes_processed
-
-        if total_bytes and total_bytes > limit_bytes:
-            return ToolOutput(
-                status="error",
-                error_details={
-                    "status": "error",
-                    "type": "QueryTooLarge",
-                    "limit_bytes": limit_bytes,
-                    "total_processed_bytes": total_bytes,
-                    "message": (
-                        "Column inspection exceeds the per-query limit for inspection. "
-                        "Try a smaller limit or add WHERE filters to reduce data size."
-                    ),
-                },
-            ).model_dump_json(indent=2, exclude_none=True)
-
-        rows = client.query(sql_query).result()
+        rows = query_job.result()
 
         results = [row.get(column_name) for row in rows]
 
         tool_output = ToolOutput(status="success", results=results).model_dump(exclude_none=True)
-    except Exception as e:
-        tool_output = ToolOutput(
-            status="error", error_details={"message": f"Failed to inspect colum values:\n{e}"}
-        ).model_dump(exclude_none=True)
+        return json.dumps(tool_output, ensure_ascii=False, default=str)
+    except GoogleAPICallError as e:
+        if e.errors:
+            reason = e.errors[0].get("reason")
+            raw_message = e.errors[0].get("message")
+        else:
+            reason = None
 
-    return json.dumps(tool_output, ensure_ascii=False, default=str)
+        if reason == "bytesBilledLimitExceeded":
+            error_details = {
+                "type": "QueryTooExpensive",
+                "reason": reason,
+                "message": (
+                    f"Column inspection failed: {raw_message} "
+                    "Add WHERE filters to reduce data size."
+                ),
+            }
+        else:
+            error_details = {
+                "reason": reason,
+                "message": f"SQL query execution failed:\n{e}",
+            }
+        return ToolOutput(status="error", error_details=error_details).model_dump_json(
+            indent=2, exclude_none=True
+        )
+    except Exception as e:
+        return ToolOutput(
+            status="error", error_details={"message": f"Failed to inspect colum values:\n{e}"}
+        ).model_dump_json(indent=2, exclude_none=True)
 
 
 def get_tools() -> list[BaseTool]:
