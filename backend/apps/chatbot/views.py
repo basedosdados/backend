@@ -353,7 +353,7 @@ def _get_sql_agent() -> Generator[ReActAgent]:
         remaining_messages = trim_messages(
             messages,
             token_counter=count_tokens_approximately,  # The accurate counter is too slow.
-            max_tokens=100,
+            max_tokens=MAX_TOKENS,
             strategy="last",
             start_on="human",
             end_on="human",
