@@ -11,15 +11,28 @@ from google.cloud import bigquery as bq
 from langchain_core.tools import BaseTool, tool
 from pydantic import BaseModel, model_validator
 
+# HTTPX Default Timeout
+TIMEOUT = 5.0
+
+# HTTPX Read Timeout
+READ_TIMEOUT = 60.0
+
+# Number of datasets returned on search
+PAGE_SIZE = 10
+
 # 5GB limit for inspection queries
 LIMIT_INSPECTION_QUERY = int(5 * 1e9)
 
 # 10GB limit for other queries
 LIMIT_BIGQUERY_QUERY = int(10 * 1e9)
 
+# URL for searching datasets
 SEARCH_URL = "https://backend.basedosdados.org/search/"
+
+# URL for fetching dataset details
 GRAPHQL_URL = "https://backend.basedosdados.org/graphql"
 
+# GraphQL query for fetching dataset details
 DATASET_DETAILS_QUERY = """
 query GetDatasetOverview($id: ID!) {
     allDataset(id: $id, first: 1) {
@@ -89,13 +102,24 @@ query GetDatasetOverview($id: ID!) {
 """
 
 
+class GoogleAPIError:
+    """Constants for expected Google API error types."""
+
+    BYTES_BILLED_LIMIT_EXCEEDED = "bytesBilledLimitExceeded"
+    NOT_FOUND = "notFound"
+
+
 class Column(BaseModel):
+    """Represents a column in a BigQuery table with metadata."""
+
     name: str
     type: str
     description: Optional[str]
 
 
 class Table(BaseModel):
+    """Represents a BigQuery table with its columns and metadata."""
+
     id: str
     gcp_id: Optional[str]
     name: str
@@ -105,6 +129,8 @@ class Table(BaseModel):
 
 
 class DatasetOverview(BaseModel):
+    """Basic dataset information without table details."""
+
     id: str
     name: str
     slug: Optional[str]
@@ -115,15 +141,22 @@ class DatasetOverview(BaseModel):
 
 
 class Dataset(DatasetOverview):
+    """Complete dataset information including all tables and columns."""
+
     tables: list[Table]
 
 
-class BigQueryError:
-    BYTES_BILLED_LIMIT_EXCEEDED = "bytesBilledLimitExceeded"
-    NOT_FOUND = "notFound"
+class ErrorDetails(BaseModel):
+    "Error response format."
+
+    error_type: Optional[str] = None
+    message: str
+    instructions: Optional[str] = None
 
 
 class ToolError(Exception):
+    """Custom exception for tool-specific errors."""
+
     def __init__(
         self, message: str, error_type: Optional[str] = None, instructions: Optional[str] = None
     ):
@@ -133,9 +166,11 @@ class ToolError(Exception):
 
 
 class ToolOutput(BaseModel):
+    """Tool output response format."""
+
     status: Literal["success", "error"]
     results: Optional[Any] = None
-    error_details: Optional[dict[str, Any]] = None
+    error_details: Optional[ErrorDetails] = None
 
     @model_validator(mode="after")
     def check_passwords_match(self) -> Self:
@@ -145,72 +180,59 @@ class ToolOutput(BaseModel):
 
 
 def handle_tool_errors(
-    _func: Optional[Callable[..., Any]] = None,
+    _func: Callable[..., Any] | None = None,
     *,
-    instructions: Optional[dict[BigQueryError, str]] = {},
-):
-    """Decorator to handle tool errors and return structured error JSON.
+    instructions: dict[str, str] = {},
+) -> Callable[..., Any]:
+    """Decorator that catches errors in a tool function and returns them as structured JSON.
 
     Args:
-        instructions: Optional mapping of error 'error_type' -> recovery instructions.
-                      If provided, the matching instruction will be added to the
-                      error JSON when the error_type matches.
+        _func (Optional[Callable[..., Any]], optional): Function to wrap.
+            Set automatically when used as a decorator. Defaults to None.
+        instructions (dict[str, str], optional): Maps known error reasons
+            from Google API to recovery instructions. If a reason matches,
+            the instruction is added to the error JSON.
+
+    Returns:
+        Callable[..., Any]: Wrapped function that returns the tool result on success
+            or structured error JSON on failure.
     """
 
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args, **kwargs) -> Any:
             try:
                 return func(*args, **kwargs)
-            except ToolError as e:
-                error_details = {
-                    "error_type": e.error_type,
-                    "message": str(e),
-                    "instructions": e.instructions,
-                }
-
-                error_details = {k: v for k, v in error_details.items() if v is not None}
-
-                tool_output = ToolOutput(status="error", error_details=error_details).model_dump(
-                    exclude_none=True
-                )
             except GoogleAPICallError as e:
                 if e.errors:
                     reason = e.errors[0].get("reason")
-                    message = e.errors[0].get("message")
-                else:
-                    reason = None
-                    message = str(e)
+                    message = e.errors[0].get("message", str(e))
 
-                error_details = {
-                    "error_type": reason,
-                    "message": message,
-                }
-
-                if reason in instructions:
-                    error_details["instructions"] = instructions[reason]
-
-                error_details = {k: v for k, v in error_details.items() if v is not None}
-
-                tool_output = ToolOutput(status="error", error_details=error_details).model_dump(
-                    exclude_none=True
+                error_details = ErrorDetails(
+                    error_type=reason, message=message, instructions=instructions.get(reason)
+                )
+            except ToolError as e:
+                error_details = ErrorDetails(
+                    error_type=e.error_type, message=str(e), instructions=e.instructions
                 )
             except Exception as e:
-                tool_output = ToolOutput(
-                    status="error", error_details={"message": f"Unexpected error: {e}"}
-                ).model_dump(exclude_none=True)
+                error_details = ErrorDetails(message=f"Unexpected error: {e}")
+
+            tool_output = ToolOutput(status="error", error_details=error_details).model_dump(
+                exclude_none=True
+            )
             return json.dumps(tool_output, ensure_ascii=False, indent=2)
 
         return wrapper
 
-    if callable(_func):
-        return decorator(_func)
+    if _func is None:
+        return decorator
 
-    return decorator
+    return decorator(_func)
 
 
 @cache
-def get_bigquery_client():
+def get_bigquery_client() -> bq.Client:
     return bq.Client(project=os.environ["QUERY_PROJECT_ID"])
 
 
@@ -235,8 +257,8 @@ def search_datasets(query: str) -> str:
     with httpx.Client() as client:
         response = client.get(
             url=SEARCH_URL,
-            params={"q": query, "page_size": 10},
-            timeout=httpx.Timeout(5.0, read=60.0),
+            params={"q": query, "page_size": PAGE_SIZE},
+            timeout=httpx.Timeout(TIMEOUT, read=READ_TIMEOUT),
         )
         response.raise_for_status()
         data: dict = response.json()
@@ -289,15 +311,20 @@ def get_dataset_details(dataset_id: str) -> str:
                 "query": DATASET_DETAILS_QUERY,
                 "variables": {"id": dataset_id},
             },
-            timeout=httpx.Timeout(5.0, read=60.0),
+            timeout=httpx.Timeout(TIMEOUT, read=READ_TIMEOUT),
         )
         response.raise_for_status()
         data: dict[str, dict[str, dict]] = response.json()
 
-    dataset_edges = data.get("data", {}).get("allDataset", {}).get("edges", [])
+    all_datasets = data.get("data", {}).get("allDataset") or {}
+    dataset_edges = all_datasets.get("edges", [])
 
     if not dataset_edges:
-        return f"Dataset {dataset_id} not found"
+        raise ToolError(
+            message=f"Dataset {dataset_id} not found",
+            error_type="DATASET_NOT_FOUND",
+            instructions="Verify the dataset ID from `search_datasets` results",
+        )
 
     dataset = dataset_edges[0]["node"]
 
@@ -383,7 +410,9 @@ def get_dataset_details(dataset_id: str) -> str:
 
 @tool
 @handle_tool_errors(
-    instructions={BigQueryError.BYTES_BILLED_LIMIT_EXCEEDED: "Add filters or select fewer columns."}
+    instructions={
+        GoogleAPIError.BYTES_BILLED_LIMIT_EXCEEDED: "Add WHERE filters or select fewer columns."
+    }
 )
 def execute_bigquery_sql(sql_query: str) -> str:
     """Execute a SQL query against BigQuery tables from the Base dos Dados database.
@@ -421,15 +450,11 @@ def execute_bigquery_sql(sql_query: str) -> str:
 
     for command in forbidden_commands:
         if command in sql_query.upper():
-            return ToolOutput(
-                status="error",
-                error_details={
-                    "message": (
-                        f"Query aborted: Command {command} is forbidden. "
-                        "Your access is strictly read-only."
-                    )
-                },
-            ).model_dump_json(indent=2, exclude_none=True)
+            raise ToolError(
+                message=f"Query aborted: Command {command} is forbidden.",
+                error_type="FORBIDDEN_COMMAND",
+                instructions="Your access is strictly read-only. Use only SELECT statements.",
+            )
 
     client = get_bigquery_client()
 
@@ -444,7 +469,13 @@ def execute_bigquery_sql(sql_query: str) -> str:
 
 
 @tool
-@handle_tool_errors
+@handle_tool_errors(
+    instructions={
+        GoogleAPIError.NOT_FOUND: (
+            "Dictionary table not found for this dataset. Use `inspect_column_values` instead."
+        )
+    }
+)
 def decode_table_values(table_gcp_id: str, column_name: Optional[str] = None) -> str:
     """Decode coded values from a table.
 
@@ -463,11 +494,12 @@ def decode_table_values(table_gcp_id: str, column_name: Optional[str] = None) ->
     # noqa: E501
     try:
         project_name, dataset_name, table_name = table_gcp_id.split(".")
-    except ValueError as e:
+    except ValueError:
         raise ToolError(
-            message=f"{table_gcp_id} is not a valid table reference",
+            message=f"Invalid table reference: '{table_gcp_id}'",
+            error_type="INVALID_TABLE_REFERENCE",
             instructions="Provide a valid table reference in the format `project.dataset.table`",
-        ) from e
+        )
 
     client = get_bigquery_client()
 
@@ -485,31 +517,15 @@ def decode_table_values(table_gcp_id: str, column_name: Optional[str] = None) ->
 
     search_query += "ORDER BY nome_coluna, chave"
 
-    try:
-        rows = client.query(search_query).result()
-        results = [dict(row) for row in rows]
-        tool_output = ToolOutput(status="success", results=results).model_dump(exclude_none=True)
-        return json.dumps(tool_output, ensure_ascii=False, default=str)
-    except GoogleAPICallError as e:
-        if e.errors and e.errors[0].get("reason") == BigQueryError.NOT_FOUND:
-            raise ToolError(
-                message=f"Dictionary table not found for dataset {dataset_id}",
-                error_type=BigQueryError.NOT_FOUND,
-                instructions=(
-                    "This indicates this dataset does not contain a dicionary table. "
-                    "Consider using the `inspect_column_values` tool "
-                    "to inspect column values instead.",
-                ),
-            ) from e
-        raise e
+    rows = client.query(search_query).result()
+    results = [dict(row) for row in rows]
+
+    tool_output = ToolOutput(status="success", results=results).model_dump(exclude_none=True)
+    return json.dumps(tool_output, ensure_ascii=False, default=str)
 
 
 @tool
-@handle_tool_errors(
-    instructions={
-        BigQueryError.BYTES_BILLED_LIMIT_EXCEEDED: "Add WHERE filters to reduce data size."
-    }
-)
+@handle_tool_errors(instructions={GoogleAPIError.BYTES_BILLED_LIMIT_EXCEEDED: "Add WHERE filters."})
 def inspect_column_values(table_gcp_id: str, column_name: str, limit: int = 100) -> str:
     """Show actual distinct values in a column.
 
