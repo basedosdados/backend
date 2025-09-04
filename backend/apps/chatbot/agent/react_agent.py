@@ -13,7 +13,6 @@ from langgraph.graph.graph import CompiledGraph
 from langgraph.graph.message import add_messages
 from langgraph.managed import IsLastStep
 from langgraph.prebuilt import ToolNode
-from loguru import logger
 
 from chatbot.agents.utils import async_delete_checkpoints, delete_checkpoints
 
@@ -257,11 +256,8 @@ class ReActAgent:
         Args:
             thread_id (str): The thread unique identifier.
         """
-        if self.checkpointer is None:
-            logger.info("Checkpointer is None, ignoring...")
-        else:
+        if self.checkpointer is not None:
             delete_checkpoints(self.checkpointer, thread_id)
-            logger.info(f"Deleted checkpoints for thread {thread_id}")
 
     async def aclear_thread(self, thread_id: str):
         """Asynchronously deletes all checkpoints for a given thread.
@@ -269,11 +265,8 @@ class ReActAgent:
         Args:
             thread_id (str): The thread unique identifier.
         """
-        if self.checkpointer is None:
-            logger.info("Checkpointer is None, ignoring...")
-        else:
+        if self.checkpointer is not None:
             await async_delete_checkpoints(self.checkpointer, thread_id)
-            logger.info(f"Deleted checkpoints for thread {thread_id}")
 
 
 def _should_continue(state: State) -> Literal["tools", "__end__"]:

@@ -39,7 +39,6 @@ from backend.apps.chatbot.serializers import (
     UserMessageSerializer,
 )
 from backend.apps.chatbot.utils.stream import EventData, StreamEvent, process_chunk
-from chatbot.agents.utils import delete_checkpoints
 
 ModelSerializer = TypeVar("ModelSerializer", bound=Serializer)
 
@@ -186,19 +185,17 @@ class ThreadDetailView(APIView):
         """
         thread = _get_thread_by_id(thread_id)
 
+        logger.info(f"Deleting thread {thread_id}")
+
         try:
             thread.deleted = True
             thread.save()
             with _get_sql_agent() as agent:
-                if agent.checkpointer is None:
-                    logger.info("Checkpointer is None, ignoring...")
-                else:
-                    logger.info(f"Deleting checkpoints for thread {thread_id}...")
-                    delete_checkpoints(agent.checkpointer, str(thread_id))
-                    logger.success(f"Checkpoints for thread {thread_id} deleted successfully")
+                agent.clear_thread(str(thread.id))
+            logger.success(f"Thread {thread.id} deleted successfully")
             return Response({"detail": "Thread deleted successfully"})
         except Exception:
-            logger.exception(f"Error deleting thread {thread_id}:")
+            logger.exception(f"Error deleting thread {thread.id}:")
             return Response(
                 {"detail": "Error deleting thread"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -391,7 +388,7 @@ def _stream_sql_agent_response(message: str, config: ConfigDict, thread: Thread)
     agent_state = None
 
     try:
-        logger.info("Calling SQL Agent...")
+        logger.info("Calling SQL Agent")
         with _get_sql_agent() as agent:
             for mode, chunk in agent.stream(
                 message=message,
@@ -413,7 +410,7 @@ def _stream_sql_agent_response(message: str, config: ConfigDict, thread: Thread)
 
         # The last event always contains the agent's final answer,
         # so we use it to save the message pair in the database
-        logger.success("SQL Agent called successfully. Saving message pair...")
+        logger.success("SQL Agent called successfully")
     except GraphRecursionError:
         logger.exception(f"Graph recursion error for message {config['run_id']}:")
     except google_api_exceptions.InvalidArgument:
