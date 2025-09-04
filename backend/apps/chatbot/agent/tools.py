@@ -525,8 +525,15 @@ def decode_table_values(table_gcp_id: str, column_name: Optional[str] = None) ->
 
 
 @tool
-@handle_tool_errors(instructions={GoogleAPIError.BYTES_BILLED_LIMIT_EXCEEDED: "Add WHERE filters."})
-def inspect_column_values(table_gcp_id: str, column_name: str, limit: int = 100) -> str:
+@handle_tool_errors(
+    instructions={
+        GoogleAPIError.BYTES_BILLED_LIMIT_EXCEEDED: (
+            "Use `execute_bigquery_sql` with a WHERE clause "
+            "to inspect a sample of the column's values"
+        )
+    }
+)
+def inspect_column_values(table_gcp_id: str, column_name: str) -> str:
     """Show actual distinct values in a column.
 
     FALLBACK tool to use when `search_dictionary_table()` fails.
@@ -535,14 +542,13 @@ def inspect_column_values(table_gcp_id: str, column_name: str, limit: int = 100)
     Args:
         table_gcp_id (str): Full BigQuery table reference
         column_name (str): Column name from `get_dataset_details()`
-        limit (int, optional): Max distinct values to return (default: 100)
 
     Returns:
         str: JSON array of distinct values.
     """  # noqa: E501
     client = get_bigquery_client()
 
-    sql_query = f"SELECT DISTINCT {column_name} FROM {table_gcp_id} LIMIT {limit}"
+    sql_query = f"SELECT DISTINCT {column_name} FROM {table_gcp_id}"
 
     job_config = bq.QueryJobConfig(maximum_bytes_billed=LIMIT_INSPECTION_QUERY)
     query_job = client.query(sql_query, job_config=job_config)
