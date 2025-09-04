@@ -1,27 +1,38 @@
 # -*- coding: utf-8 -*-
 import json
 import os
-from functools import cache
+from collections.abc import Callable
+from functools import cache, wraps
 from typing import Any, Literal, Optional, Self
 
 import httpx
-from google.api_core import exceptions as google_api_exceptions
+from google.api_core.exceptions import GoogleAPICallError
 from google.cloud import bigquery as bq
 from langchain_core.tools import BaseTool, tool
 from pydantic import BaseModel, model_validator
 
-# 1GB limit for dictionary queries
-LIMIT_DICTIONARY_QUERY = 1e9
+# HTTPX Default Timeout
+TIMEOUT = 5.0
+
+# HTTPX Read Timeout
+READ_TIMEOUT = 60.0
+
+# Number of datasets returned on search
+PAGE_SIZE = 10
 
 # 5GB limit for inspection queries
-LIMIT_INSPECTION_QUERY = 5e9
+LIMIT_INSPECTION_QUERY = int(5 * 1e9)
 
-# 20GB limit for other queries
-LIMIT_BIGQUERY_QUERY = 20e9
+# 10GB limit for other queries
+LIMIT_BIGQUERY_QUERY = int(10 * 1e9)
 
+# URL for searching datasets
 SEARCH_URL = "https://backend.basedosdados.org/search/"
+
+# URL for fetching dataset details
 GRAPHQL_URL = "https://backend.basedosdados.org/graphql"
 
+# GraphQL query for fetching dataset details
 DATASET_DETAILS_QUERY = """
 query GetDatasetOverview($id: ID!) {
     allDataset(id: $id, first: 1) {
@@ -91,13 +102,24 @@ query GetDatasetOverview($id: ID!) {
 """
 
 
+class GoogleAPIError:
+    """Constants for expected Google API error types."""
+
+    BYTES_BILLED_LIMIT_EXCEEDED = "bytesBilledLimitExceeded"
+    NOT_FOUND = "notFound"
+
+
 class Column(BaseModel):
+    """Represents a column in a BigQuery table with metadata."""
+
     name: str
     type: str
     description: Optional[str]
 
 
 class Table(BaseModel):
+    """Represents a BigQuery table with its columns and metadata."""
+
     id: str
     gcp_id: Optional[str]
     name: str
@@ -107,6 +129,8 @@ class Table(BaseModel):
 
 
 class DatasetOverview(BaseModel):
+    """Basic dataset information without table details."""
+
     id: str
     name: str
     slug: Optional[str]
@@ -117,13 +141,36 @@ class DatasetOverview(BaseModel):
 
 
 class Dataset(DatasetOverview):
+    """Complete dataset information including all tables and columns."""
+
     tables: list[Table]
 
 
+class ErrorDetails(BaseModel):
+    "Error response format."
+
+    error_type: Optional[str] = None
+    message: str
+    instructions: Optional[str] = None
+
+
+class ToolError(Exception):
+    """Custom exception for tool-specific errors."""
+
+    def __init__(
+        self, message: str, error_type: Optional[str] = None, instructions: Optional[str] = None
+    ):
+        super().__init__(message)
+        self.error_type = error_type
+        self.instructions = instructions
+
+
 class ToolOutput(BaseModel):
+    """Tool output response format."""
+
     status: Literal["success", "error"]
     results: Optional[Any] = None
-    error_details: Optional[dict[str, Any]] = None
+    error_details: Optional[ErrorDetails] = None
 
     @model_validator(mode="after")
     def check_passwords_match(self) -> Self:
@@ -132,12 +179,65 @@ class ToolOutput(BaseModel):
         raise ValueError("Only one of 'results' or 'error_details' should be set")
 
 
+def handle_tool_errors(
+    _func: Callable[..., Any] | None = None,
+    *,
+    instructions: dict[str, str] = {},
+) -> Callable[..., Any]:
+    """Decorator that catches errors in a tool function and returns them as structured JSON.
+
+    Args:
+        _func (Optional[Callable[..., Any]], optional): Function to wrap.
+            Set automatically when used as a decorator. Defaults to None.
+        instructions (dict[str, str], optional): Maps known error reasons
+            from Google API to recovery instructions. If a reason matches,
+            the instruction is added to the error JSON.
+
+    Returns:
+        Callable[..., Any]: Wrapped function that returns the tool result on success
+            or structured error JSON on failure.
+    """
+
+    def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
+        @wraps(func)
+        def wrapper(*args, **kwargs) -> Any:
+            try:
+                return func(*args, **kwargs)
+            except GoogleAPICallError as e:
+                if e.errors:
+                    reason = e.errors[0].get("reason")
+                    message = e.errors[0].get("message", str(e))
+
+                error_details = ErrorDetails(
+                    error_type=reason, message=message, instructions=instructions.get(reason)
+                )
+            except ToolError as e:
+                error_details = ErrorDetails(
+                    error_type=e.error_type, message=str(e), instructions=e.instructions
+                )
+            except Exception as e:
+                error_details = ErrorDetails(message=f"Unexpected error: {e}")
+
+            tool_output = ToolOutput(status="error", error_details=error_details).model_dump(
+                exclude_none=True
+            )
+            return json.dumps(tool_output, ensure_ascii=False, indent=2)
+
+        return wrapper
+
+    if _func is None:
+        return decorator
+
+    return decorator(_func)
+
+
 @cache
-def get_bigquery_client():
+def get_bigquery_client() -> bq.Client:
     return bq.Client(project=os.environ["QUERY_PROJECT_ID"])
 
 
 @tool
+@handle_tool_errors
 def search_datasets(query: str) -> str:
     """Search for datasets in Base dos Dados using keywords.
 
@@ -154,42 +254,37 @@ def search_datasets(query: str) -> str:
     Strategy: Start with broad terms like "censo", "ibge", "inep", "rais", then get specific if needed.
     Next step: Use `get_dataset_details()` with returned dataset IDs.
     """  # noqa: E501
-    try:
-        with httpx.Client() as client:
-            response = client.get(
-                url=SEARCH_URL,
-                params={"q": query, "page_size": 10},
-                timeout=httpx.Timeout(5.0, read=60.0),
-            )
-            response.raise_for_status()
-            data: dict = response.json()
+    with httpx.Client() as client:
+        response = client.get(
+            url=SEARCH_URL,
+            params={"q": query, "page_size": PAGE_SIZE},
+            timeout=httpx.Timeout(TIMEOUT, read=READ_TIMEOUT),
+        )
+        response.raise_for_status()
+        data: dict = response.json()
 
-        datasets = data.get("results", [])
+    datasets = data.get("results", [])
 
-        overviews = []
+    overviews = []
 
-        for dataset in datasets:
-            dataset_overview = DatasetOverview(
-                id=dataset["id"],
-                name=dataset["name"],
-                slug=dataset.get("slug"),
-                description=dataset.get("description"),
-                tags=[tag["name"] for tag in dataset.get("tags", [])],
-                themes=[theme["name"] for theme in dataset.get("themes", [])],
-                organizations=[org["name"] for org in dataset.get("organizations", [])],
-            )
-            overviews.append(dataset_overview.model_dump())
+    for dataset in datasets:
+        dataset_overview = DatasetOverview(
+            id=dataset["id"],
+            name=dataset["name"],
+            slug=dataset.get("slug"),
+            description=dataset.get("description"),
+            tags=[tag["name"] for tag in dataset.get("tags", [])],
+            themes=[theme["name"] for theme in dataset.get("themes", [])],
+            organizations=[org["name"] for org in dataset.get("organizations", [])],
+        )
+        overviews.append(dataset_overview.model_dump())
 
-        tool_output = ToolOutput(status="success", results=overviews).model_dump(exclude_none=True)
-    except Exception as e:
-        tool_output = ToolOutput(
-            status="error", error_details={"message": f"Error searching datasets:\n{e}"}
-        ).model_dump(exclude_none=True)
-
+    tool_output = ToolOutput(status="success", results=overviews).model_dump(exclude_none=True)
     return json.dumps(tool_output, ensure_ascii=False, indent=2)
 
 
 @tool
+@handle_tool_errors
 def get_dataset_details(dataset_id: str) -> str:
     """Get comprehensive details about a specific dataset including all tables and columns.
 
@@ -209,117 +304,121 @@ def get_dataset_details(dataset_id: str) -> str:
 
     Next step: Use `execute_bigquery_sql()` to execute queries.
     """  # noqa: E501
-    try:
-        with httpx.Client() as client:
-            response = client.post(
-                url=GRAPHQL_URL,
-                json={
-                    "query": DATASET_DETAILS_QUERY,
-                    "variables": {"id": dataset_id},
-                },
-                timeout=httpx.Timeout(5.0, read=60.0),
-            )
-            response.raise_for_status()
-            data: dict[str, dict[str, dict]] = response.json()
+    with httpx.Client() as client:
+        response = client.post(
+            url=GRAPHQL_URL,
+            json={
+                "query": DATASET_DETAILS_QUERY,
+                "variables": {"id": dataset_id},
+            },
+            timeout=httpx.Timeout(TIMEOUT, read=READ_TIMEOUT),
+        )
+        response.raise_for_status()
+        data: dict[str, dict[str, dict]] = response.json()
 
-        dataset_edges = data.get("data", {}).get("allDataset", {}).get("edges", [])
+    all_datasets = data.get("data", {}).get("allDataset") or {}
+    dataset_edges = all_datasets.get("edges", [])
 
-        if not dataset_edges:
-            return f"Dataset {dataset_id} not found"
+    if not dataset_edges:
+        raise ToolError(
+            message=f"Dataset {dataset_id} not found",
+            error_type="DATASET_NOT_FOUND",
+            instructions="Verify the dataset ID from `search_datasets` results",
+        )
 
-        dataset = dataset_edges[0]["node"]
+    dataset = dataset_edges[0]["node"]
 
-        dataset_id = dataset["id"]
-        dataset_name = dataset["name"]
-        dataset_slug = dataset.get("slug")
-        dataset_description = dataset.get("description")
+    dataset_id = dataset["id"]
+    dataset_name = dataset["name"]
+    dataset_slug = dataset.get("slug")
+    dataset_description = dataset.get("description")
 
-        # Tags
-        dataset_tags = []
-        for edge in dataset.get("tags", {}).get("edges", []):
-            if tag := edge.get("node", {}).get("name"):
-                dataset_tags.append(tag)
+    # Tags
+    dataset_tags = []
+    for edge in dataset.get("tags", {}).get("edges", []):
+        if tag := edge.get("node", {}).get("name"):
+            dataset_tags.append(tag)
 
-        # Themes
-        dataset_themes = []
-        for edge in dataset.get("themes", {}).get("edges", []):
-            if theme := edge.get("node", {}).get("name"):
-                dataset_themes.append(theme)
+    # Themes
+    dataset_themes = []
+    for edge in dataset.get("themes", {}).get("edges", []):
+        if theme := edge.get("node", {}).get("name"):
+            dataset_themes.append(theme)
 
-        # Organizations
-        dataset_organizations = []
-        for edge in dataset.get("organizations", {}).get("edges", []):
-            if org := edge.get("node", {}).get("name"):
-                dataset_organizations.append(org)
+    # Organizations
+    dataset_organizations = []
+    for edge in dataset.get("organizations", {}).get("edges", []):
+        if org := edge.get("node", {}).get("name"):
+            dataset_organizations.append(org)
 
-        # Tables
-        dataset_tables = []
-        for edge in dataset.get("tables", {}).get("edges", []):
-            table = edge["node"]
+    # Tables
+    dataset_tables = []
+    for edge in dataset.get("tables", {}).get("edges", []):
+        table = edge["node"]
 
-            table_id = table["id"]
-            table_name = table["name"]
-            table_slug = table.get("slug")
-            table_description = table.get("description")
+        table_id = table["id"]
+        table_name = table["name"]
+        table_slug = table.get("slug")
+        table_description = table.get("description")
 
-            cloud_table_edges = table["cloudTables"]["edges"]
-            if cloud_table_edges:
-                cloud_table = cloud_table_edges[0]["node"]
-                gcp_project_id = cloud_table["gcpProjectId"]
-                gcp_dataset_id = cloud_table["gcpDatasetId"]
-                gcp_table_id = cloud_table["gcpTableId"]
-                table_gcp_id = f"{gcp_project_id}.{gcp_dataset_id}.{gcp_table_id}"
-            else:
-                table_gcp_id = None
+        cloud_table_edges = table["cloudTables"]["edges"]
+        if cloud_table_edges:
+            cloud_table = cloud_table_edges[0]["node"]
+            gcp_project_id = cloud_table["gcpProjectId"]
+            gcp_dataset_id = cloud_table["gcpDatasetId"]
+            gcp_table_id = cloud_table["gcpTableId"]
+            table_gcp_id = f"{gcp_project_id}.{gcp_dataset_id}.{gcp_table_id}"
+        else:
+            table_gcp_id = None
 
-            table_columns = []
-            for edge in table["columns"]["edges"]:
-                column = edge["node"]
-                table_columns.append(
-                    Column(
-                        name=column["name"],
-                        type=column["bigqueryType"]["name"],
-                        description=column.get("description"),
-                    )
-                )
-
-            dataset_tables.append(
-                Table(
-                    id=table_id,
-                    gcp_id=table_gcp_id,
-                    name=table_name,
-                    slug=table_slug,
-                    description=table_description,
-                    columns=table_columns,
+        table_columns = []
+        for edge in table["columns"]["edges"]:
+            column = edge["node"]
+            table_columns.append(
+                Column(
+                    name=column["name"],
+                    type=column["bigqueryType"]["name"],
+                    description=column.get("description"),
                 )
             )
 
-        dataset = Dataset(
-            id=dataset_id,
-            name=dataset_name,
-            slug=dataset_slug,
-            description=dataset_description,
-            tags=dataset_tags,
-            themes=dataset_themes,
-            organizations=dataset_organizations,
-            tables=dataset_tables,
-        ).model_dump()
+        dataset_tables.append(
+            Table(
+                id=table_id,
+                gcp_id=table_gcp_id,
+                name=table_name,
+                slug=table_slug,
+                description=table_description,
+                columns=table_columns,
+            )
+        )
 
-        tool_output = ToolOutput(status="success", results=dataset).model_dump(exclude_none=True)
-    except Exception as e:
-        tool_output = ToolOutput(
-            status="error", error_details={"message": f"Error fetching dataset details:\n{e}"}
-        ).model_dump(exclude_none=True)
+    dataset = Dataset(
+        id=dataset_id,
+        name=dataset_name,
+        slug=dataset_slug,
+        description=dataset_description,
+        tags=dataset_tags,
+        themes=dataset_themes,
+        organizations=dataset_organizations,
+        tables=dataset_tables,
+    ).model_dump()
 
+    tool_output = ToolOutput(status="success", results=dataset).model_dump(exclude_none=True)
     return json.dumps(tool_output, ensure_ascii=False, indent=2)
 
 
 @tool
+@handle_tool_errors(
+    instructions={
+        GoogleAPIError.BYTES_BILLED_LIMIT_EXCEEDED: "Add WHERE filters or select fewer columns."
+    }
+)
 def execute_bigquery_sql(sql_query: str) -> str:
     """Execute a SQL query against BigQuery tables from the Base dos Dados database.
 
     Use AFTER identifying the right datasets and understanding tables structure.
-    It includes a 20GB processing limit for safety.
+    It includes a 10GB processing limit for safety.
 
     Args:
         sql_query (str): Standard GoogleSQL query. Must reference
@@ -351,54 +450,32 @@ def execute_bigquery_sql(sql_query: str) -> str:
 
     for command in forbidden_commands:
         if command in sql_query.upper():
-            return ToolOutput(
-                status="error",
-                error_details={
-                    "message": (
-                        f"Query aborted: Command {command} is forbidden. ",
-                        "Your access is strictly read-only.",
-                    )
-                },
-            ).model_dump_json(indent=2, exclude_none=True)
+            raise ToolError(
+                message=f"Query aborted: Command {command} is forbidden.",
+                error_type="FORBIDDEN_COMMAND",
+                instructions="Your access is strictly read-only. Use only SELECT statements.",
+            )
 
     client = get_bigquery_client()
 
-    try:
-        job_config = bq.QueryJobConfig(dry_run=True, use_query_cache=False)
-        query_job = client.query(sql_query, job_config=job_config)
+    job_config = bq.QueryJobConfig(maximum_bytes_billed=LIMIT_BIGQUERY_QUERY)
+    query_job = client.query(sql_query, job_config=job_config)
 
-        limit_bytes = LIMIT_BIGQUERY_QUERY
-        total_bytes = query_job.total_bytes_processed
+    rows = query_job.result()
+    results = [dict(row) for row in rows]
 
-        if total_bytes and total_bytes > limit_bytes:
-            return ToolOutput(
-                status="error",
-                error_details={
-                    "type": "QueryTooLarge",
-                    "limit_bytes": limit_bytes,
-                    "total_processed_bytes": total_bytes,
-                    "message": (
-                        "Query aborted: Data processed exceeds the per-query limit. "
-                        "Consider optimizing by adding filters, selecting fewer columns, "
-                        "or using a LIMIT clause before retrying."
-                    ),
-                },
-            ).model_dump_json(indent=2, exclude_none=True)
-
-        rows = client.query(sql_query).result()
-
-        results = [dict(row) for row in rows]
-
-        tool_output = ToolOutput(status="success", results=results).model_dump(exclude_none=True)
-    except Exception as e:
-        tool_output = ToolOutput(
-            status="error", error_details={"message": f"SQL query execution failed:\n{e}"}
-        ).model_dump(exclude_none=True)
-
+    tool_output = ToolOutput(status="success", results=results).model_dump(exclude_none=True)
     return json.dumps(tool_output, ensure_ascii=False, default=str)
 
 
 @tool
+@handle_tool_errors(
+    instructions={
+        GoogleAPIError.NOT_FOUND: (
+            "Dictionary table not found for this dataset. Use `inspect_column_values` instead."
+        )
+    }
+)
 def decode_table_values(table_gcp_id: str, column_name: Optional[str] = None) -> str:
     """Decode coded values from a table.
 
@@ -413,21 +490,18 @@ def decode_table_values(table_gcp_id: str, column_name: Optional[str] = None) ->
 
     Returns:
         str: JSON array with chave (code) and valor (meaning) mappings.
-    """  # noqa: E501
-    client = get_bigquery_client()
-
+    """
+    # noqa: E501
     try:
         project_name, dataset_name, table_name = table_gcp_id.split(".")
     except ValueError:
-        return ToolOutput(
-            status="error",
-            error_details={
-                "message": (
-                    f"{table_gcp_id} is not a valid table reference. "
-                    "Please, provide a valid table reference in the format `project.dataset.table`"
-                )
-            },
-        ).model_dump_json(indent=2, exclude_none=True)
+        raise ToolError(
+            message=f"Invalid table reference: '{table_gcp_id}'",
+            error_type="INVALID_TABLE_REFERENCE",
+            instructions="Provide a valid table reference in the format `project.dataset.table`",
+        )
+
+    client = get_bigquery_client()
 
     dataset_id = f"{project_name}.{dataset_name}"
     dict_table_id = f"{dataset_id}.dicionario"
@@ -443,54 +517,23 @@ def decode_table_values(table_gcp_id: str, column_name: Optional[str] = None) ->
 
     search_query += "ORDER BY nome_coluna, chave"
 
-    try:
-        job_config = bq.QueryJobConfig(dry_run=True, use_query_cache=False)
-        query_job = client.query(search_query, job_config=job_config)
+    rows = client.query(search_query).result()
+    results = [dict(row) for row in rows]
 
-        limit_bytes = LIMIT_DICTIONARY_QUERY
-        total_bytes = query_job.total_bytes_processed
-
-        if total_bytes and total_bytes > limit_bytes:
-            return ToolOutput(
-                status="error",
-                error_details={
-                    "type": "QueryTooLarge",
-                    "limit_bytes": limit_bytes,
-                    "total_processed_bytes": total_bytes,
-                    "message": (
-                        "Dictionary table is unexpectedly large. "
-                        "This might not be the right approach. "
-                        "Check if this dataset actually uses "
-                        "encoded values or try a different table."
-                    ),
-                },
-            ).model_dump_json(indent=2, exclude_none=True)
-
-        rows = client.query(search_query).result()
-        results = [dict(row) for row in rows]
-        tool_output = ToolOutput(status="success", results=results).model_dump(exclude_none=True)
-    except google_api_exceptions.NotFound:
-        return ToolOutput(
-            status="error",
-            error_details={
-                "type": "TableNotFound",
-                "message": (
-                    f"Dictionary table not found for dataset {dataset_id}. "
-                    "This indicates this dataset does not contain a dicionary table. "
-                    "Consider using the `inspect_column_values` tool to inspect column values."
-                ),
-            },
-        ).model_dump_json(indent=2, exclude_none=True)
-    except Exception as e:
-        tool_output = ToolOutput(
-            status="error", error_details={"message": f"Failed to decode table values:\n{e}"}
-        ).model_dump(exclude_none=True)
-
+    tool_output = ToolOutput(status="success", results=results).model_dump(exclude_none=True)
     return json.dumps(tool_output, ensure_ascii=False, default=str)
 
 
 @tool
-def inspect_column_values(table_gcp_id: str, column_name: str, limit: int = 100) -> str:
+@handle_tool_errors(
+    instructions={
+        GoogleAPIError.BYTES_BILLED_LIMIT_EXCEEDED: (
+            "Use `execute_bigquery_sql` with a WHERE clause "
+            "to inspect a sample of the column's values"
+        )
+    }
+)
+def inspect_column_values(table_gcp_id: str, column_name: str) -> str:
     """Show actual distinct values in a column.
 
     FALLBACK tool to use when `search_dictionary_table()` fails.
@@ -499,47 +542,21 @@ def inspect_column_values(table_gcp_id: str, column_name: str, limit: int = 100)
     Args:
         table_gcp_id (str): Full BigQuery table reference
         column_name (str): Column name from `get_dataset_details()`
-        limit (int, optional): Max distinct values to return (default: 100)
 
     Returns:
         str: JSON array of distinct values.
     """  # noqa: E501
     client = get_bigquery_client()
 
-    sql_query = f"SELECT DISTINCT {column_name} FROM {table_gcp_id} LIMIT {limit}"
+    sql_query = f"SELECT DISTINCT {column_name} FROM {table_gcp_id}"
 
-    try:
-        job_config = bq.QueryJobConfig(dry_run=True, use_query_cache=False)
-        query_job = client.query(sql_query, job_config=job_config)
+    job_config = bq.QueryJobConfig(maximum_bytes_billed=LIMIT_INSPECTION_QUERY)
+    query_job = client.query(sql_query, job_config=job_config)
 
-        limit_bytes = LIMIT_INSPECTION_QUERY
-        total_bytes = query_job.total_bytes_processed
+    rows = query_job.result()
+    results = [row.get(column_name) for row in rows]
 
-        if total_bytes and total_bytes > limit_bytes:
-            return ToolOutput(
-                status="error",
-                error_details={
-                    "status": "error",
-                    "type": "QueryTooLarge",
-                    "limit_bytes": limit_bytes,
-                    "total_processed_bytes": total_bytes,
-                    "message": (
-                        "Column inspection exceeds the per-query limit for inspection. "
-                        "Try a smaller limit or add WHERE filters to reduce data size."
-                    ),
-                },
-            ).model_dump_json(indent=2, exclude_none=True)
-
-        rows = client.query(sql_query).result()
-
-        results = [row.get(column_name) for row in rows]
-
-        tool_output = ToolOutput(status="success", results=results).model_dump(exclude_none=True)
-    except Exception as e:
-        tool_output = ToolOutput(
-            status="error", error_details={"message": f"Failed to inspect colum values:\n{e}"}
-        ).model_dump(exclude_none=True)
-
+    tool_output = ToolOutput(status="success", results=results).model_dump(exclude_none=True)
     return json.dumps(tool_output, ensure_ascii=False, default=str)
 
 
