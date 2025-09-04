@@ -25,8 +25,8 @@ from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from backend.apps.chatbot.agent import ReActAgent
 from backend.apps.chatbot.agent.prompts import SQL_AGENT_SYSTEM_PROMPT
+from backend.apps.chatbot.agent.react_agent import ReActAgent, State
 from backend.apps.chatbot.agent.tools import get_tools
 from backend.apps.chatbot.feedback_sender import LangSmithFeedbackSender
 from backend.apps.chatbot.models import Feedback, MessagePair, Thread
@@ -341,15 +341,14 @@ def _get_sql_agent() -> Generator[ReActAgent]:
 
     model = init_chat_model(MODEL_URI, temperature=0)
 
-    def start_hook(state: dict):
+    def start_hook(state: State):
         messages = state["messages"]
 
-        # If this is the first message in the chat, we don't trim, i.e.,
-        # if the message is too long, we let it fail.
+        # For the first message, skip trimming. If it's too long, let it fail.
         if len(messages) == 1:
             return {"messages": []}
 
-        # Otherwise, we trim the chat history.
+        # For subsequent turns, trim chat history to fit within token limits.
         remaining_messages = trim_messages(
             messages,
             token_counter=count_tokens_approximately,  # The accurate counter is too slow.
