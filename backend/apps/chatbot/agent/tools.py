@@ -17,7 +17,7 @@ TIMEOUT = 5.0
 # HTTPX Read Timeout
 READ_TIMEOUT = 60.0
 
-# Number of datasets returned on search
+# Maximum number of datasets returned on search
 PAGE_SIZE = 10
 
 # 5GB limit for inspection queries
