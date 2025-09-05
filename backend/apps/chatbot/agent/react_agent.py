@@ -11,7 +11,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import StateGraph
 from langgraph.graph.graph import CompiledGraph
 from langgraph.graph.message import add_messages
-from langgraph.managed import IsLastStep
+from langgraph.managed import IsLastStep, RemainingSteps
 from langgraph.prebuilt import ToolNode
 
 from chatbot.agents.utils import async_delete_checkpoints, delete_checkpoints
@@ -20,6 +20,7 @@ from chatbot.agents.utils import async_delete_checkpoints, delete_checkpoints
 class State(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
     is_last_step: IsLastStep
+    remaining_steps: RemainingSteps
 
 
 class ReActAgent:
@@ -70,10 +71,11 @@ class ReActAgent:
         """
         messages = state["messages"]
         is_last_step = state["is_last_step"]
+        remaining_steps = state["remaining_steps"]
 
-        response = self.model_runnable.invoke(messages, config)
+        response: AIMessage = self.model_runnable.invoke(messages, config)
 
-        if is_last_step and response.tool_calls:
+        if is_last_step and response.tool_calls or remaining_steps < 2 and response.tool_calls:
             return {
                 "messages": [
                     AIMessage(
@@ -102,10 +104,11 @@ class ReActAgent:
         """
         messages = state["messages"]
         is_last_step = state["is_last_step"]
+        remaining_steps = state["remaining_steps"]
 
-        response = await self.model_runnable.ainvoke(messages, config)
+        response: AIMessage = await self.model_runnable.ainvoke(messages, config)
 
-        if is_last_step and response.tool_calls:
+        if is_last_step and response.tool_calls or remaining_steps < 2 and response.tool_calls:
             return {
                 "messages": [
                     AIMessage(
