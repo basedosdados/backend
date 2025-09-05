@@ -8,6 +8,11 @@ import pandas as pd
 from django.http import HttpRequest, HttpResponseRedirect, JsonResponse
 from django.views import View
 
+from datetime import timedelta
+
+from django.db.models import Sum
+from django.utils import timezone  
+
 from backend.apps.api.v1.models import BigQueryType, CloudTable, Column, Dataset, Table
 
 URL_MAPPING = {
@@ -117,3 +122,42 @@ def create_columns(selected_table: Table, tables_dict: Dict[str, Table], row: pd
     )
 
     return column
+
+def table_stats(request: HttpRequest):
+    """
+    Calculates and returns statistics about the tables and datasets.
+    """
+    treated_tables = Table.objects.exclude(
+        status__slug__in=["under_review", "excluded"]
+    ).exclude(
+        slug__in=["dicionario", "dictionary"]
+    ).exclude(
+        dataset__status__slug__in=["under_review", "excluded"]
+    )
+
+    datasets_with_treated_tables_count = treated_tables.values_list(
+        'dataset_id', flat=True
+    ).distinct().count()
+
+    total_treated_tables_count = treated_tables.count()
+
+    thirty_days_ago = timezone.now() - timedelta(days=30)
+    recent_tables_count = treated_tables.filter(
+        updates__latest__gte=thirty_days_ago,
+        updates__entity__slug__in=['month', 'week', 'day']
+    ).distinct().count()
+
+    aggregates = treated_tables.aggregate(
+        total_size=Sum("uncompressed_file_size"),
+        total_rows=Sum("number_rows")
+    )
+
+    data = {
+        "datasets_with_treated_tables": datasets_with_treated_tables_count,
+        "total_treated_tables": total_treated_tables_count,
+        "updated_last_30_days": recent_tables_count,
+        "total_size_bytes": aggregates["total_size"] or 0,
+        "total_rows": aggregates["total_rows"] or 0,
+    }
+
+    return JsonResponse(data)
