@@ -3,7 +3,7 @@ import json
 import os
 from collections.abc import Callable
 from functools import cache, wraps
-from typing import Any, Literal, Optional, Self
+from typing import Any, Literal, Self
 
 import httpx
 from google.api_core.exceptions import GoogleAPICallError
@@ -17,7 +17,7 @@ TIMEOUT = 5.0
 # HTTPX Read Timeout
 READ_TIMEOUT = 60.0
 
-# Number of datasets returned on search
+# Maximum number of datasets returned on search
 PAGE_SIZE = 10
 
 # 5GB limit for inspection queries
@@ -114,17 +114,17 @@ class Column(BaseModel):
 
     name: str
     type: str
-    description: Optional[str]
+    description: str | None
 
 
 class Table(BaseModel):
     """Represents a BigQuery table with its columns and metadata."""
 
     id: str
-    gcp_id: Optional[str]
+    gcp_id: str | None
     name: str
-    slug: Optional[str]
-    description: Optional[str]
+    slug: str | None
+    description: str | None
     columns: list[Column]
 
 
@@ -133,8 +133,8 @@ class DatasetOverview(BaseModel):
 
     id: str
     name: str
-    slug: Optional[str]
-    description: Optional[str]
+    slug: str | None
+    description: str | None
     tags: list[str]
     themes: list[str]
     organizations: list[str]
@@ -149,16 +149,16 @@ class Dataset(DatasetOverview):
 class ErrorDetails(BaseModel):
     "Error response format."
 
-    error_type: Optional[str] = None
+    error_type: str | None = None
     message: str
-    instructions: Optional[str] = None
+    instructions: str | None = None
 
 
 class ToolError(Exception):
     """Custom exception for tool-specific errors."""
 
     def __init__(
-        self, message: str, error_type: Optional[str] = None, instructions: Optional[str] = None
+        self, message: str, error_type: str | None = None, instructions: str | None = None
     ):
         super().__init__(message)
         self.error_type = error_type
@@ -169,8 +169,8 @@ class ToolOutput(BaseModel):
     """Tool output response format."""
 
     status: Literal["success", "error"]
-    results: Optional[Any] = None
-    error_details: Optional[ErrorDetails] = None
+    results: Any | None = None
+    error_details: ErrorDetails | None = None
 
     @model_validator(mode="after")
     def check_passwords_match(self) -> Self:
@@ -187,7 +187,7 @@ def handle_tool_errors(
     """Decorator that catches errors in a tool function and returns them as structured JSON.
 
     Args:
-        _func (Optional[Callable[..., Any]], optional): Function to wrap.
+        _func (Callable[..., Any] | None, optional): Function to wrap.
             Set automatically when used as a decorator. Defaults to None.
         instructions (dict[str, str], optional): Maps known error reasons
             from Google API to recovery instructions. If a reason matches,
@@ -476,7 +476,7 @@ def execute_bigquery_sql(sql_query: str) -> str:
         )
     }
 )
-def decode_table_values(table_gcp_id: str, column_name: Optional[str] = None) -> str:
+def decode_table_values(table_gcp_id: str, column_name: str | None = None) -> str:
     """Decode coded values from a table.
 
     Use when column values appear to be codes (e.g., 1,2,3 or A,B,C).
@@ -485,7 +485,7 @@ def decode_table_values(table_gcp_id: str, column_name: Optional[str] = None) ->
 
     Args:
         table_gcp_id (str): Full BigQuery table reference
-        column_name (Optional[str], optional): Column with coded values. If `None`,
+        column_name (str | None, optional): Column with coded values. If `None`,
             all columns will be used. Defaults to `None`.
 
     Returns:

@@ -10,13 +10,11 @@ from django.http import StreamingHttpResponse
 from google.api_core import exceptions as google_api_exceptions
 from graphql_jwt.shortcuts import get_user_by_token
 from langchain.chat_models import init_chat_model
-from langchain_core.messages import RemoveMessage, ToolMessage
+from langchain_core.messages import RemoveMessage
 from langchain_core.messages.utils import count_tokens_approximately, trim_messages
 from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.errors import GraphRecursionError
-from langgraph.graph.graph import CompiledGraph
 from langgraph.graph.message import REMOVE_ALL_MESSAGES
-from langgraph.prebuilt import create_react_agent
 from loguru import logger
 from rest_framework import exceptions, status
 from rest_framework.parsers import JSONParser
@@ -28,6 +26,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from backend.apps.chatbot.agent.prompts import SQL_AGENT_SYSTEM_PROMPT
+from backend.apps.chatbot.agent.react_agent import ReActAgent, State
 from backend.apps.chatbot.agent.tools import get_tools
 from backend.apps.chatbot.feedback_sender import LangSmithFeedbackSender
 from backend.apps.chatbot.models import Feedback, MessagePair, Thread
@@ -40,7 +39,6 @@ from backend.apps.chatbot.serializers import (
     UserMessageSerializer,
 )
 from backend.apps.chatbot.utils.stream import EventData, StreamEvent, process_chunk
-from chatbot.agents.utils import delete_checkpoints
 
 ModelSerializer = TypeVar("ModelSerializer", bound=Serializer)
 
@@ -56,7 +54,7 @@ CONTEXT_WINDOW = 2**20
 MAX_TOKENS = CONTEXT_WINDOW // 2
 
 # Generic error message for unexpected errors when calling the agent
-UNEXPECTED_ERROR_MESSAGE = (
+ERROR_MESSAGE_UNEXPECTED = (
     "Ops, algo deu errado! Ocorreu um erro inesperado. Por favor, tente novamente. "
     "Se o problema persistir, avise-nos. Obrigado pela paciência!"
 )
@@ -187,19 +185,17 @@ class ThreadDetailView(APIView):
         """
         thread = _get_thread_by_id(thread_id)
 
+        logger.info(f"Deleting thread {thread_id}")
+
         try:
             thread.deleted = True
             thread.save()
             with _get_sql_agent() as agent:
-                if agent.checkpointer is None:
-                    logger.info("Checkpointer is None, ignoring...")
-                else:
-                    logger.info(f"Deleting checkpoints for thread {thread_id}...")
-                    delete_checkpoints(agent.checkpointer, str(thread_id))
-                    logger.success(f"Checkpoints for thread {thread_id} deleted successfully")
+                agent.clear_thread(str(thread.id))
+            logger.success(f"Thread {thread.id} deleted successfully")
             return Response({"detail": "Thread deleted successfully"})
         except Exception:
-            logger.exception(f"Error deleting thread {thread_id}:")
+            logger.exception(f"Error deleting thread {thread.id}:")
             return Response(
                 {"detail": "Error deleting thread"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -263,7 +259,7 @@ class MessageListView(APIView):
         message = serializer.validated_data["content"]
 
         return StreamingHttpResponse(
-            _stream_sql_assistant_response(
+            _stream_sql_agent_response(
                 message=message,
                 config=config,
                 thread=thread,
@@ -326,7 +322,7 @@ def _get_feedback_sender() -> LangSmithFeedbackSender:
 
 
 @contextmanager
-def _get_sql_agent() -> Generator[CompiledGraph]:
+def _get_sql_agent() -> Generator[ReActAgent]:
     """Provide a configured ReAct agent.
 
     Yields:
@@ -342,20 +338,14 @@ def _get_sql_agent() -> Generator[CompiledGraph]:
 
     model = init_chat_model(MODEL_URI, temperature=0)
 
-    def pre_model_hook(state: dict):
+    def start_hook(state: State):
         messages = state["messages"]
 
-        # The last message in the pre_model_hook node will
-        # ALWAYS be a HumanMessage or a ToolMessage.
-        last_message = state["messages"][-1]
-
-        # If this is the first message in the chat, we don't trim.
-        # If the last message is a ToolMessage, the agent has called a tool.
-        # This means we are in the middle of a chat turn and we also dont't trim.
-        if len(messages) == 1 or isinstance(last_message, ToolMessage):
+        # For the first message, skip trimming. If it's too long, let it fail.
+        if len(messages) == 1:
             return {"messages": []}
 
-        # Otherwise, we are just starting a chat turn and we can trim the chat history.
+        # For subsequent turns, trim chat history to fit within token limits.
         remaining_messages = trim_messages(
             messages,
             token_counter=count_tokens_approximately,  # The accurate counter is too slow.
@@ -372,25 +362,23 @@ def _get_sql_agent() -> Generator[CompiledGraph]:
     with PostgresSaver.from_conn_string(conn) as checkpointer:
         checkpointer.setup()
 
-        sql_agent = create_react_agent(
+        sql_agent = ReActAgent(
             model=model,
             tools=get_tools(),
             prompt=SQL_AGENT_SYSTEM_PROMPT,
-            pre_model_hook=pre_model_hook,
+            start_hook=start_hook,
             checkpointer=checkpointer,
         )
 
         yield sql_agent
 
 
-def _stream_sql_assistant_response(
-    message: str, config: ConfigDict, thread: Thread
-) -> Iterator[str]:
-    """Stream SQLAssistant's execution progress.
+def _stream_sql_agent_response(message: str, config: ConfigDict, thread: Thread) -> Iterator[str]:
+    """Stream agent's execution progress.
 
     Args:
         message (str): User's input message.
-        config (ConfigDict): Configuration for the assistant's execution.
+        config (ConfigDict): Configuration for the agent's execution.
         thread (Thread): Unique identifier for the conversation thread.
 
     Yields:
@@ -400,12 +388,12 @@ def _stream_sql_assistant_response(
     agent_state = None
 
     try:
-        logger.info("Calling SQL Agent...")
+        logger.info("Calling SQL Agent")
         with _get_sql_agent() as agent:
             for mode, chunk in agent.stream(
-                input={"messages": [{"role": "user", "content": message}]},
-                stream_mode=["updates", "values"],
+                message=message,
                 config=config,
+                stream_mode=["updates", "values"],
             ):
                 if mode == "values":
                     agent_state = chunk
@@ -422,14 +410,14 @@ def _stream_sql_assistant_response(
 
         # The last event always contains the agent's final answer,
         # so we use it to save the message pair in the database
-        logger.success("SQL Agent called successfully. Saving message pair...")
+        logger.success("SQL Agent called successfully")
     except GraphRecursionError:
         logger.exception(f"Graph recursion error for message {config['run_id']}:")
     except google_api_exceptions.InvalidArgument:
         logger.exception("Agent execution failed with Google API InvalidArgument error:")
 
         assistant_message = None
-        error_message = UNEXPECTED_ERROR_MESSAGE
+        error_message = ERROR_MESSAGE_UNEXPECTED
 
         if agent_state is not None:
             model = init_chat_model(MODEL_URI, temperature=0)
@@ -448,7 +436,7 @@ def _stream_sql_assistant_response(
     except Exception:
         logger.exception(f"Unexpected error responding message {config['run_id']}:")
         assistant_message = None
-        error_message = UNEXPECTED_ERROR_MESSAGE
+        error_message = ERROR_MESSAGE_UNEXPECTED
 
         yield StreamEvent(
             type="error", data=EventData(error_details={"message": error_message})
