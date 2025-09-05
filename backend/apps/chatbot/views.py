@@ -54,7 +54,7 @@ CONTEXT_WINDOW = 2**20
 MAX_TOKENS = CONTEXT_WINDOW // 2
 
 # Generic error message for unexpected errors when calling the agent
-UNEXPECTED_ERROR_MESSAGE = (
+ERROR_MESSAGE_UNEXPECTED = (
     "Ops, algo deu errado! Ocorreu um erro inesperado. Por favor, tente novamente. "
     "Se o problema persistir, avise-nos. Obrigado pela paciência!"
 )
@@ -417,7 +417,7 @@ def _stream_sql_agent_response(message: str, config: ConfigDict, thread: Thread)
         logger.exception("Agent execution failed with Google API InvalidArgument error:")
 
         assistant_message = None
-        error_message = UNEXPECTED_ERROR_MESSAGE
+        error_message = ERROR_MESSAGE_UNEXPECTED
 
         if agent_state is not None:
             model = init_chat_model(MODEL_URI, temperature=0)
@@ -436,7 +436,7 @@ def _stream_sql_agent_response(message: str, config: ConfigDict, thread: Thread)
     except Exception:
         logger.exception(f"Unexpected error responding message {config['run_id']}:")
         assistant_message = None
-        error_message = UNEXPECTED_ERROR_MESSAGE
+        error_message = ERROR_MESSAGE_UNEXPECTED
 
         yield StreamEvent(
             type="error", data=EventData(error_details={"message": error_message})
