@@ -406,7 +406,7 @@ class StripeSubscriptionCustomerCreateMutation(Mutation):
 
             subscription = Subscription.objects.get(id=subscription_id)
             assert admin.id == subscription.admin.id
-            add_user(account.gcp_email or account.email)
+            add_user(account.gcp_email or account.email, account=account)
             subscription.subscribers.add(account)
             return cls(ok=True)
         except Exception as e:
@@ -512,7 +512,7 @@ class ChangeUserGCPEmail(Mutation):
 
             if not is_email_in_group(email):
                 try:
-                    add_user(email)
+                    add_user(email, account=user)
                 except Exception:
                     pass
 
