@@ -5,7 +5,8 @@ from typing import Dict, List
 from urllib.parse import urlparse
 
 import pandas as pd
-from django.http import HttpRequest, HttpResponseRedirect, JsonResponse
+from django.core.serializers import serialize
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.views import View
 
 from datetime import timedelta
@@ -13,7 +14,13 @@ from datetime import timedelta
 from django.db.models import Sum
 from django.utils import timezone  
 
-from backend.apps.api.v1.models import BigQueryType, CloudTable, Column, Dataset, Table
+from backend.apps.api.v1.models import (
+    BigQueryType,
+    CloudTable,
+    Column,
+    Dataset,
+    Table,
+)
 
 URL_MAPPING = {
     "localhost:8080": "http://localhost:3000",
@@ -161,3 +168,88 @@ def table_stats(request: HttpRequest):
     }
 
     return JsonResponse(data)
+
+def columns_view(request: HttpRequest, table_id: str = None, column_id: str = None):
+    """
+    A simple REST API view for Columns.
+    """
+    if column_id:
+        try:
+            column = Column.objects.select_related(
+                "table", "table__dataset", "bigquery_type"
+            ).get(id=column_id)
+            data = serialize(
+                "json",
+                [column],
+                fields=(
+                    "name",
+                    "description",
+                    "bigquery_type",
+                    "is_primary_key",
+                    "table",
+                ),
+            )
+            return HttpResponse(data, content_type="application/json")
+        except Column.DoesNotExist:
+            return JsonResponse({"error": "Column not found"}, status=404)
+    elif table_id:
+        columns = (
+            Column.objects.filter(table_id=table_id)
+            .select_related(
+                "table",
+                "table__dataset",
+                "bigquery_type",
+                "directory_primary_key__table__dataset",
+            )
+            .prefetch_related("directory_primary_key__table__cloud_tables")
+            .order_by("order")
+        )
+
+        if not columns.exists():
+            return JsonResponse({"error": "Table not found or has no columns"}, status=404)
+
+        results = []
+        for col in columns:
+            col_data = {
+                "id": str(col.id),
+                "order": col.order,
+                "name": col.name,
+                "description": col.description,
+                "bigquery_type": {"name": col.bigquery_type.name if col.bigquery_type else None},
+                "is_primary_key": col.is_primary_key,
+                "covered_by_dictionary": col.covered_by_dictionary,
+                "measurement_unit": col.measurement_unit,
+                "contains_sensitive_data": col.contains_sensitive_data,
+                "observations": col.observations,
+                "temporal_coverage": col.temporal_coverage,
+                "directory_primary_key": None,
+            }
+
+            if dpk := col.directory_primary_key:
+                cloud_table = dpk.table.cloud_tables.first()
+                col_data["directory_primary_key"] = {
+                    "id": str(dpk.id),
+                    "name": dpk.name,
+                    "table": {
+                        "id": str(dpk.table.id),
+                        "name": dpk.table.name,
+                        "is_closed": dpk.table.is_closed,
+                        "uncompressed_file_size": dpk.table.uncompressed_file_size,
+                        "dataset": {
+                            "id": str(dpk.table.dataset.id),
+                            "name": dpk.table.dataset.name,
+                        },
+                        "cloud_table": {"gcp_table_id": cloud_table.gcp_table_id, "gcp_dataset_id": cloud_table.gcp_dataset_id, "gcp_project_id": cloud_table.gcp_project_id} if cloud_table else None
+                    },
+                }
+            results.append(col_data)
+
+        return JsonResponse(results, safe=False)
+    else:
+        columns = Column.objects.all()[:100]
+        data = serialize(
+            "json",
+            columns,
+            fields=("id", "name", "table"),
+        )
+        return HttpResponse(data, content_type="application/json")
