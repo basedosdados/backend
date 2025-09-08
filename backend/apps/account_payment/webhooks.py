@@ -14,10 +14,17 @@ from django.core.exceptions import ObjectDoesNotExist
 
 from backend.apps.account.models import Account, Subscription
 from backend.custom.client import send_discord_message as send
-from backend.custom.environment import get_backend_url
+from backend.custom.environment import get_backend_url, is_dev, is_stg
 
 logger = logger.bind(module="payment")
 
+def _normalize_plus(email: str) -> str:
+    """Normaliza: trim, lower e remove +alias antes do @."""
+    email = email.strip().lower()
+    local, _, domain = email.partition("@")
+    if "+" in local:
+        local = local.split("+", 1)[0]
+    return f"{local}@{domain}"
 
 def get_subscription(event: Event) -> Subscription:
     """Get internal subscription model, mirror of stripe"""
@@ -58,12 +65,23 @@ def get_service() -> Resource:
     return build("admin", "directory_v1", credentials=credentials)
 
 
-def add_user(email: str, group_key: str = None, role: str = "MEMBER"):
+def add_user(email: str, account: Account = None, group_key: str = None, role: str = "MEMBER"):
     """Add user to google group"""
+    if is_dev() or is_stg():
+        if account is None:
+            try:
+                normalized_email = _normalize_plus(email)
+                account = Account.objects.get(Q(email__iexact=email) | Q(email__iexact=normalized_email))
+            except Account.DoesNotExist:
+                account = None
+
+        if not (account and account.is_admin):
+            logger.info(f"Ignorando adição do usuário '{email}' em ambiente de dev/staging pois não é admin.")
+            return
+
     if not group_key:
         group_key = settings.GOOGLE_DIRECTORY_GROUP_KEY
-    if "+" in email and email.index("+") < email.index("@"):
-        email = email.split("+")[0] + "@" + email.split("@")[1]
+    email = _normalize_plus(email)
     try:
         service = get_service()
         service.members().insert(
@@ -77,14 +95,6 @@ def add_user(email: str, group_key: str = None, role: str = "MEMBER"):
             send(f"Verifique o erro ao adicionar o usuário ao google groups: {e}")
             logger.error(e)
             raise e
-
-def _normalize_plus(email: str) -> str:
-    """Normaliza: trim, lower e remove +alias antes do @."""
-    email = email.strip().lower()
-    local, _, domain = email.partition("@")
-    if "+" in local:
-        local = local.split("+", 1)[0]
-    return f"{local}@{domain}"
 
 def remove_user(email: str, group_key: str = None) -> None:
     """Remove user from Google Group"""
@@ -196,9 +206,9 @@ def handle_subscription(event: Event):
 
         # Add user to google group if subscription exists or not
         if account:
-            add_user(account.gcp_email or account.email)
+            add_user(account.gcp_email or account.email, account=account)
         else:
-            add_user(event.customer.email)
+            add_user(event.customer.email, account=None)
     else:
         if subscription:
             logger.info(f"Removendo a inscrição do cliente {event.customer.email}")
@@ -276,9 +286,9 @@ def resume_subscription(event: Event, **kwargs):
 
     try:
         if account:
-            add_user(account.gcp_email or account.email)
+            add_user(account.gcp_email or account.email, account=account)
         else:
-            add_user(event.customer.email)
+            add_user(event.customer.email, account=None)
     except Exception as e:
         logger.error(e)
 
