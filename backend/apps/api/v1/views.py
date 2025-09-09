@@ -202,7 +202,10 @@ def columns_view(request: HttpRequest, table_id: str = None, column_id: str = No
                 "bigquery_type",
                 "directory_primary_key__table__dataset",
             )
-            .prefetch_related("directory_primary_key__table__cloud_tables")
+            .prefetch_related(
+                "directory_primary_key__table__cloud_tables",
+                "coverages__datetime_ranges"
+            )
             .order_by("order")
         )
 
