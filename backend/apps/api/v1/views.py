@@ -18,6 +18,7 @@ from backend.apps.api.v1.models import (
     BigQueryType,
     CloudTable,
     Column,
+    get_temporal_coverage,
     Dataset,
     Table,
 )
@@ -209,6 +210,7 @@ def columns_view(request: HttpRequest, table_id: str = None, column_id: str = No
             return JsonResponse({"error": "Table not found or has no columns"}, status=404)
 
         results = []
+        table_temporal_coverage = None
         for col in columns:
             col_data = {
                 "id": str(col.id),
@@ -221,9 +223,17 @@ def columns_view(request: HttpRequest, table_id: str = None, column_id: str = No
                 "measurement_unit": col.measurement_unit,
                 "contains_sensitive_data": col.contains_sensitive_data,
                 "observations": col.observations,
-                "temporal_coverage": col.temporal_coverage,
+                "temporal_coverage": None, 
                 "directory_primary_key": None,
             }
+
+            col_coverage = get_temporal_coverage([col])
+            if not col_coverage.get("start") and not col_coverage.get("end"):
+                if table_temporal_coverage is None:
+                    table_temporal_coverage = col.table.temporal_coverage_from_table
+                col_data["temporal_coverage"] = table_temporal_coverage
+            else:
+                col_data["temporal_coverage"] = col_coverage
 
             if dpk := col.directory_primary_key:
                 cloud_table = dpk.table.cloud_tables.first()
