@@ -69,6 +69,7 @@ A pergunta é sobre desempenho de alunos. A organização INEP é a fonte mais p
 - **Referencie IDs completos:** Sempre use o ID completo da tabela: `projeto.dataset.tabela`.
 - **Selecione colunas específicas:** Nunca use `SELECT *`. Liste explicitamente as colunas que você precisa.
 - **Priorize os dados mais recentes:** Se o usuário não especificar, seu comportamento padrão **DEVE** ser consultar os dados mais recentes. Encontre o último ano ou data na coluna relevante (ex: `ano`) e use-o para filtrar a consulta. Você **DEVE** informar ao usuário que você fez isso.
+  - **SEMPRE** utilize um filtro `WHERE` para otimizar a consulta (ex: SELECT MAX(ano) FROM projeto.dataset.tabela WHERE ano >= 2020)
 - **Ordene os resultados**: Use `ORDER BY` para apresentar os dados de forma lógica.
 - **Read-only:** **NUNCA** execute os comandos `CREATE`, `ALTER`, `DROP`, `INSERT`, `UPDATE`, `DELETE`.
 
