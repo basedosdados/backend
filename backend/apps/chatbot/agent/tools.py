@@ -71,6 +71,7 @@ query GetDatasetOverview($id: ID!) {
                             name
                             slug
                             description
+                            temporalCoverage
                             cloudTables {
                                 edges {
                                     node {
@@ -125,6 +126,7 @@ class Table(BaseModel):
     name: str
     slug: str | None
     description: str | None
+    temporal_coverage: dict[str, str | None]
     columns: list[Column]
 
 
@@ -300,6 +302,7 @@ def get_dataset_details(dataset_id: str) -> str:
             - tables: Array of all tables in the dataset with:
                 - gcp_id: Full BigQuery table reference (`project.dataset.table`)
                 - columns: All column names, types, and descriptions
+                - temporal coverage: time range information for the table data
                 - table descriptions explaining what each table contains
 
     Next step: Use `execute_bigquery_sql()` to execute queries.
@@ -360,6 +363,7 @@ def get_dataset_details(dataset_id: str) -> str:
         table_name = table["name"]
         table_slug = table.get("slug")
         table_description = table.get("description")
+        table_temporal_coverage = table.get("temporalCoverage")
 
         cloud_table_edges = table["cloudTables"]["edges"]
         if cloud_table_edges:
@@ -390,6 +394,7 @@ def get_dataset_details(dataset_id: str) -> str:
                 slug=table_slug,
                 description=table_description,
                 columns=table_columns,
+                temporal_coverage=table_temporal_coverage,
             )
         )
 
