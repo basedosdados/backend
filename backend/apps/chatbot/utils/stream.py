@@ -151,9 +151,7 @@ def process_chunk(chunk: dict[str, Any]) -> StreamEvent | None:
         # If no messages are returned, the model returned an empty response
         # with no tool calls. This also counts as a final (but empty) answer.
         if not ai_messages:
-            event_type = "final_answer"
-            event_data = EventData(content="")
-            return StreamEvent(type=event_type, data=event_data)
+            return StreamEvent(type="final_answer", data=EventData(content=""))
 
         message = ai_messages[0]
 
