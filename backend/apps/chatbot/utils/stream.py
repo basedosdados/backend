@@ -146,7 +146,16 @@ def process_chunk(chunk: dict[str, Any]) -> StreamEvent | None:
             - None for ignored chunks
     """
     if "agent" in chunk:
-        message: AIMessage = chunk["agent"]["messages"][0]
+        ai_messages: list[AIMessage] = chunk["agent"]["messages"]
+
+        # If no messages are returned, the model returned an empty response
+        # with no tool calls. This also counts as a final (but empty) answer.
+        if not ai_messages:
+            event_type = "final_answer"
+            event_data = EventData(content="")
+            return StreamEvent(type=event_type, data=event_data)
+
+        message = ai_messages[0]
 
         if message.tool_calls:
             tool_calls = [
@@ -161,12 +170,12 @@ def process_chunk(chunk: dict[str, Any]) -> StreamEvent | None:
 
         return StreamEvent(type=event_type, data=event_data)
     elif "tools" in chunk:
-        messages: list[ToolMessage] = chunk["tools"]["messages"]
+        tool_messages: list[ToolMessage] = chunk["tools"]["messages"]
 
         tool_outputs = []
 
-        for msg in messages:
-            content, truncated = _truncate_content(msg.content, MAX_BYTES)
+        for message in tool_messages:
+            content, truncated = _truncate_content(message.content, MAX_BYTES)
 
             if truncated:
                 metadata = {"truncated": True}
@@ -175,9 +184,9 @@ def process_chunk(chunk: dict[str, Any]) -> StreamEvent | None:
 
             tool_outputs.append(
                 ToolOutput(
-                    status=msg.status,
-                    tool_call_id=msg.tool_call_id,
-                    tool_name=msg.name,
+                    status=message.status,
+                    tool_call_id=message.tool_call_id,
+                    tool_name=message.name,
                     output=content,
                     metadata=metadata,
                 )
