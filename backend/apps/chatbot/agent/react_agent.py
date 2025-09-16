@@ -13,6 +13,7 @@ from langgraph.graph.graph import CompiledGraph
 from langgraph.graph.message import add_messages
 from langgraph.managed import IsLastStep, RemainingSteps
 from langgraph.prebuilt import ToolNode
+from loguru import logger
 
 from chatbot.agents.utils import async_delete_checkpoints, delete_checkpoints
 
@@ -75,6 +76,10 @@ class ReActAgent:
 
         response: AIMessage = self.model_runnable.invoke(messages, config)
 
+        if not response.content and not response.tool_calls:
+            logger.warning("Received empty response from model, skipping message list update")
+            return {"messages": []}
+
         if is_last_step and response.tool_calls or remaining_steps < 2 and response.tool_calls:
             return {
                 "messages": [
@@ -107,6 +112,10 @@ class ReActAgent:
         remaining_steps = state["remaining_steps"]
 
         response: AIMessage = await self.model_runnable.ainvoke(messages, config)
+
+        if not response.content and not response.tool_calls:
+            logger.warning("Received empty response from model, skipping message list update")
+            return {"messages": []}
 
         if is_last_step and response.tool_calls or remaining_steps < 2 and response.tool_calls:
             return {

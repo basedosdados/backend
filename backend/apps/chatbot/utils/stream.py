@@ -85,15 +85,15 @@ def _truncate_dict(data: dict, max_bytes: int) -> dict:
     Returns:
         dict: Truncated dictionary that fits within the byte limit.
     """
-    items = data.items()
+    items = list(data.items())
 
     left, right = 0, len(items)
     best_size = 0
 
     while left <= right:
         mid = (left + right) // 2
-        test_dict = dict(items[:mid])
-        size = len(json.dumps(test_dict, ensure_ascii=False, indent=2).encode("utf-8"))
+        sub_dict = dict(items[:mid])
+        size = len(json.dumps(sub_dict, ensure_ascii=False, indent=2).encode("utf-8"))
 
         if size <= max_bytes:
             best_size = mid
@@ -119,8 +119,8 @@ def _truncate_list(data: list, max_bytes: int) -> list:
 
     while left <= right:
         mid = (left + right) // 2
-        test_list = data[:mid]
-        size = len(json.dumps(test_list, ensure_ascii=False, indent=2).encode("utf-8"))
+        sub_list = data[:mid]
+        size = len(json.dumps(sub_list, ensure_ascii=False, indent=2).encode("utf-8"))
 
         if size <= max_bytes:
             best_size = mid
@@ -146,7 +146,14 @@ def process_chunk(chunk: dict[str, Any]) -> StreamEvent | None:
             - None for ignored chunks
     """
     if "agent" in chunk:
-        message: AIMessage = chunk["agent"]["messages"][0]
+        ai_messages: list[AIMessage] = chunk["agent"]["messages"]
+
+        # If no messages are returned, the model returned an empty response
+        # with no tool calls. This also counts as a final (but empty) answer.
+        if not ai_messages:
+            return StreamEvent(type="final_answer", data=EventData(content=""))
+
+        message = ai_messages[0]
 
         if message.tool_calls:
             tool_calls = [
@@ -161,12 +168,12 @@ def process_chunk(chunk: dict[str, Any]) -> StreamEvent | None:
 
         return StreamEvent(type=event_type, data=event_data)
     elif "tools" in chunk:
-        messages: list[ToolMessage] = chunk["tools"]["messages"]
+        tool_messages: list[ToolMessage] = chunk["tools"]["messages"]
 
         tool_outputs = []
 
-        for msg in messages:
-            content, truncated = _truncate_content(msg.content, MAX_BYTES)
+        for message in tool_messages:
+            content, truncated = _truncate_content(message.content, MAX_BYTES)
 
             if truncated:
                 metadata = {"truncated": True}
@@ -175,9 +182,9 @@ def process_chunk(chunk: dict[str, Any]) -> StreamEvent | None:
 
             tool_outputs.append(
                 ToolOutput(
-                    status=msg.status,
-                    tool_call_id=msg.tool_call_id,
-                    tool_name=msg.name,
+                    status=message.status,
+                    tool_call_id=message.tool_call_id,
+                    tool_name=message.name,
                     output=content,
                     metadata=metadata,
                 )
