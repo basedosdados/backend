@@ -85,15 +85,15 @@ def _truncate_dict(data: dict, max_bytes: int) -> dict:
     Returns:
         dict: Truncated dictionary that fits within the byte limit.
     """
-    items = data.items()
+    items = list(data.items())
 
     left, right = 0, len(items)
     best_size = 0
 
     while left <= right:
         mid = (left + right) // 2
-        test_dict = dict(items[:mid])
-        size = len(json.dumps(test_dict, ensure_ascii=False, indent=2).encode("utf-8"))
+        sub_dict = dict(items[:mid])
+        size = len(json.dumps(sub_dict, ensure_ascii=False, indent=2).encode("utf-8"))
 
         if size <= max_bytes:
             best_size = mid
@@ -119,8 +119,8 @@ def _truncate_list(data: list, max_bytes: int) -> list:
 
     while left <= right:
         mid = (left + right) // 2
-        test_list = data[:mid]
-        size = len(json.dumps(test_list, ensure_ascii=False, indent=2).encode("utf-8"))
+        sub_list = data[:mid]
+        size = len(json.dumps(sub_list, ensure_ascii=False, indent=2).encode("utf-8"))
 
         if size <= max_bytes:
             best_size = mid
