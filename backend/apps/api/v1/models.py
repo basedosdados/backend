@@ -1234,6 +1234,11 @@ class Table(BaseModel, OrderedModel):
         return get_temporal_coverage([self])
 
     @property
+    def temporal_coverage_from_table(self) -> dict:
+        """Temporal coverage from table, used as fallback for columns."""
+        return self.temporal_coverage
+
+    @property
     def full_temporal_coverage(self) -> dict:
         """Temporal coverage steps"""
         return get_full_temporal_coverage([self])

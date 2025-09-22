@@ -8,6 +8,7 @@ from backend.apps.api.v1.search_views import DatasetFacetValuesView, DatasetSear
 from backend.apps.api.v1.views import (
     DatasetRedirectView,
     table_stats,
+    columns_view,
     upload_columns,
 )
 
@@ -31,4 +32,7 @@ urlpatterns = [
     path("dataset_redirect/", DatasetRedirectView.as_view()),
     path("tables/stats/", table_stats),
     path("upload_columns/", upload_columns),
+    path("columns/", columns_view),
+    path("tables/<uuid:table_id>/columns/", columns_view),
+    path("columns/<uuid:column_id>/", columns_view),
 ]
