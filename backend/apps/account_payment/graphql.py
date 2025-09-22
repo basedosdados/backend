@@ -371,13 +371,21 @@ class StripeSubscriptionDeleteImmediatelyMutation(Mutation):
     @login_required
     def mutate(cls, root, info, subscription_id):
         try:
+            admin = info.context.user
             subscription = Subscription.objects.get(id=subscription_id)
+            assert admin.id == subscription.admin.id
+
+            errors = []
+            for account in subscription.subscribers.all():
+                try:
+                    remove_user(account.gcp_email or account.email)
+                except Exception as e:
+                    errors.append(f"Erro ao remover {account.email}: {str(e)}")
+                    logger.error(f"Falha ao remover usuário {account.email}: {e}")
+            subscription.subscribers.clear()
+
             stripe_subscription = subscription.subscription
             stripe_subscription.cancel(at_period_end=False)
-            return None
-        except Exception as e:
-            logger.error(e)
-            return cls(errors=[str(e)])
 
 
 class StripeSubscriptionAddMemberMutation(Mutation):
@@ -440,8 +448,8 @@ class StripeSubscriptionRemoveMemberMutation(Mutation):
             return cls(errors=[str(e)])
 
 
-class StripeSubscriptionCustomerAllMembersDeleteMutation(Mutation):
-    """Remove all members from subscription"""
+class StripeSubscriptionRemoveAllMembersMutation(Mutation):
+    """Remove all members from a subscription, but keeps the subscription active for the admin."""
 
     ok = Boolean()
     errors = List(String)
@@ -578,7 +586,7 @@ class Mutation(ObjectType):
     delete_stripe_subscription_immediately = StripeSubscriptionDeleteImmediatelyMutation.Field()
     add_stripe_subscription_member = StripeSubscriptionAddMemberMutation.Field()
     remove_stripe_subscription_member = StripeSubscriptionRemoveMemberMutation.Field()
-    remove_all_stripe_subscription_members = StripeSubscriptionCustomerAllMembersDeleteMutation.Field()
+    remove_all_stripe_subscription_members = StripeSubscriptionRemoveAllMembersMutation.Field()
     validate_stripe_coupon = StripeCouponValidationMutation.Field()
     change_user_gcp_email = ChangeUserGCPEmail.Field()
 
