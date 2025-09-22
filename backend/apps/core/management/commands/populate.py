@@ -1,3 +1,4 @@
+
 # -*- coding: utf-8 -*-
 import json
 import os
@@ -170,18 +171,15 @@ class Command(BaseCommand):
             if isinstance(item, str):  # É um nome de tabela (sem modelo)
                 # Para tabelas sem modelo, precisamos obter as colunas NOT NULL do banco de dados
                 with connection.cursor() as cursor:
-                    cursor.execute(
-                        """
+                    cursor.execute("""
                         SELECT column_name 
                         FROM information_schema.columns 
                         WHERE table_name = %s 
                         AND is_nullable = 'NO'
                         AND column_name != 'id'
-                    """,
-                        [item],
-                    )
+                    """, [item])
                     not_null_columns = [row[0] for row in cursor.fetchall()]
-
+                    
                     for column in not_null_columns:
                         self.disable_not_null_if_exists(item, column)
             else:  # É um modelo Django
@@ -190,6 +188,7 @@ class Command(BaseCommand):
                     if isinstance(field, models.Field) and field.null is False:
                         self.disable_not_null_if_exists(table_name, field.column)
 
+
     def enable_constraints(self, items):
         """
         Habilita constraints NOT NULL para uma lista de modelos ou nomes de tabelas
@@ -197,15 +196,12 @@ class Command(BaseCommand):
         for item in items:
             if isinstance(item, str):  # É um nome de tabela (sem modelo)
                 with connection.cursor() as cursor:
-                    cursor.execute(
-                        """
+                    cursor.execute("""
                         SELECT column_name 
                         FROM information_schema.columns 
                         WHERE table_name = %s 
                         AND is_nullable = 'YES'
-                    """,
-                        [item],
-                    )
+                    """, [item])
                     nullable_columns = [row[0] for row in cursor.fetchall()]
 
                     for column in nullable_columns:
@@ -322,9 +318,7 @@ class Command(BaseCommand):
                             except Exception:
                                 # Fallback to DELETE if TRUNCATE fails
                                 cursor.execute(f'DELETE FROM "{item}";')
-                                self.stdout.write(
-                                    self.style.SUCCESS(f"Cleared table {item} (using DELETE)")
-                                )
+                                self.stdout.write(self.style.SUCCESS(f"Cleared table {item} (using DELETE)"))
                     else:  # It's a Django model
                         item.objects.all().delete()
                         self.stdout.write(self.style.SUCCESS(f"Cleared model {item.__name__}"))
@@ -416,15 +410,9 @@ class Command(BaseCommand):
 
         # Remove as tabelas que já têm modelos da lista de tabelas sem modelos
         tables_with_models = [model._meta.db_table for model in models_to_populate]
-        tables_without_models = [
-            table for table in tables_from_files if table not in tables_with_models
-        ]
+        tables_without_models = [table for table in tables_from_files if table not in tables_with_models]
 
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Will populate {len(models_to_populate)} models and {len(tables_without_models)} tables without models."
-            )
-        )
+        self.stdout.write(self.style.SUCCESS(f"Will populate {len(models_to_populate)} models and {len(tables_without_models)} tables without models."))
 
         # Popula os modelos correspondentes
         if models_to_populate:

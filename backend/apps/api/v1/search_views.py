@@ -160,8 +160,6 @@ class DatasetSearchView(FacetedSearchView):
         for key, values in facet_counts:
             facets[key] = []
             for value in values:
-                if not value[0]:
-                    continue
                 facets[key].append(
                     {
                         "key": value[0],
