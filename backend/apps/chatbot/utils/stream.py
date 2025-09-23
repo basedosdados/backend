@@ -45,14 +45,14 @@ class StreamEvent(BaseModel):
         return self.model_dump_json() + "\n\n"
 
 
-def _truncate_json(json_string: str, max_list_len: int = 10, max_str_len: int = 500) -> str:
+def _truncate_json(json_string: str, max_list_len: int = 10, max_str_len: int = 300) -> str:
     """Iteratively truncates a serialized JSON by shortening lists and strings
     and adding human-readable placeholders.
 
     Args:
         json_string (str): The serialized JSON to process.
         max_list_len (int, optional): The max number of items to keep in a list. Defaults to 10.
-        max_str_len (int, optional): The max length for any single string. Defaults to 500.
+        max_str_len (int, optional): The max length for any single string. Defaults to 300.
 
     Returns:
         str: The truncated and formatted JSON string.
