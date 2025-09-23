@@ -49,6 +49,10 @@ def _truncate_json(json_string: str, max_list_len: int = 10, max_str_len: int = 
     """Iteratively truncates a serialized JSON object by shortening lists and strings
     and adding human-readable placeholders.
 
+    Note:
+        This function only processes JSON objects (dictionaries). If the serialized JSON
+        represents any other type, the original JSON string will be returned unchanged.
+
     Args:
         json_string (str): The serialized JSON to process.
         max_list_len (int, optional): The max number of items to keep in a list. Defaults to 10.
