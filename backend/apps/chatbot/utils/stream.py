@@ -5,9 +5,6 @@ from typing import Any, Literal, Optional
 from langchain_core.messages import AIMessage, ToolMessage
 from pydantic import UUID4, BaseModel
 
-# 100KB limit for tool outputs
-MAX_BYTES = 100 * 1024
-
 
 class ToolCall(BaseModel):
     id: str
@@ -48,87 +45,55 @@ class StreamEvent(BaseModel):
         return self.model_dump_json() + "\n\n"
 
 
-def _truncate_content(json_string: str, max_bytes: int) -> tuple[str, bool]:
-    """Truncate a JSON string to fit within the byte limit while preserving structure.
+def _truncate_json(json_string: str, max_list_len: int = 10, max_str_len: int = 500) -> str:
+    """Iteratively truncates a serialized JSON by shortening lists and strings
+    and adding human-readable placeholders.
 
     Args:
-        json_string (str): JSON string to truncate.
-        max_bytes (int): Maximum allowed size in bytes.
+        json_string (str): The serialized JSON to process.
+        max_list_len (int, optional): The max number of items to keep in a list. Defaults to 10.
+        max_str_len (int, optional): The max length for any single string. Defaults to 500.
 
     Returns:
-        tuple[str, bool]: Processed JSON string and a flag indicating if it was truncated.
+        str: The truncated and formatted JSON string.
     """
-    if len(json_string.encode("utf-8")) <= max_bytes:
-        return json_string, False
+    try:
+        data = json.loads(json_string)
+    except json.JSONDecodeError:
+        return json_string
 
-    data = json.loads(json_string)
+    if not isinstance(data, (dict, list)):
+        return json.dumps(data, ensure_ascii=False, indent=2)
 
-    results = data["results"]
+    stack = [data]
 
-    if isinstance(results, dict):
-        results = _truncate_dict(results, max_bytes)
-    else:
-        results = _truncate_list(results, max_bytes)
+    while stack:
+        current_node = stack.pop()
 
-    data["results"] = results
-
-    return json.dumps(data, ensure_ascii=False, indent=2), True
-
-
-def _truncate_dict(data: dict, max_bytes: int) -> dict:
-    """Reduce dictionary size by removing key-value pairs until it fits the byte limit.
-
-    Args:
-        data (dict): Dictionary to truncate.
-        max_bytes (int): Maximum allowed size in bytes when serialized to JSON.
-
-    Returns:
-        dict: Truncated dictionary that fits within the byte limit.
-    """
-    items = list(data.items())
-
-    left, right = 0, len(items)
-    best_size = 0
-
-    while left <= right:
-        mid = (left + right) // 2
-        sub_dict = dict(items[:mid])
-        size = len(json.dumps(sub_dict, ensure_ascii=False, indent=2).encode("utf-8"))
-
-        if size <= max_bytes:
-            best_size = mid
-            left = mid + 1
+        if isinstance(current_node, dict):
+            items_to_process = current_node.items()
         else:
-            right = mid - 1
+            items_to_process = enumerate(current_node)
 
-    return dict(items[:best_size])
+        for key_or_idx, item in items_to_process:
+            if isinstance(item, str):
+                if len(item) > max_str_len:
+                    truncated_str = (
+                        item[:max_str_len] + f"... ({len(item) - max_str_len} more characters)"
+                    )
+                    current_node[key_or_idx] = truncated_str
 
+            elif isinstance(item, list):
+                if len(item) > max_list_len:
+                    original_len = len(item)
+                    del item[max_list_len:]
+                    item.append(f"... ({original_len - max_list_len} more items)")
+                stack.append(item)
 
-def _truncate_list(data: list, max_bytes: int) -> list:
-    """Reduce list size by removing elements until it fits the byte limit.
+            elif isinstance(item, dict):
+                stack.append(item)
 
-    Args:
-        data (list): List to truncate.
-        max_bytes (int): Maximum allowed size in bytes when serialized to JSON.
-
-    Returns:
-        list: Truncated list that fits within the byte limit.
-    """
-    left, right = 0, len(data)
-    best_size = 0
-
-    while left <= right:
-        mid = (left + right) // 2
-        sub_list = data[:mid]
-        size = len(json.dumps(sub_list, ensure_ascii=False, indent=2).encode("utf-8"))
-
-        if size <= max_bytes:
-            best_size = mid
-            left = mid + 1
-        else:
-            right = mid - 1
-
-    return data[:best_size]
+    return json.dumps(data, ensure_ascii=False, indent=2)
 
 
 def process_chunk(chunk: dict[str, Any]) -> StreamEvent | None:
@@ -170,25 +135,15 @@ def process_chunk(chunk: dict[str, Any]) -> StreamEvent | None:
     elif "tools" in chunk:
         tool_messages: list[ToolMessage] = chunk["tools"]["messages"]
 
-        tool_outputs = []
-
-        for message in tool_messages:
-            content, truncated = _truncate_content(message.content, MAX_BYTES)
-
-            if truncated:
-                metadata = {"truncated": True}
-            else:
-                metadata = None
-
-            tool_outputs.append(
-                ToolOutput(
-                    status=message.status,
-                    tool_call_id=message.tool_call_id,
-                    tool_name=message.name,
-                    output=content,
-                    metadata=metadata,
-                )
+        tool_outputs = [
+            ToolOutput(
+                status=message.status,
+                tool_call_id=message.tool_call_id,
+                tool_name=message.name,
+                output=_truncate_json(message.content),
             )
+            for message in tool_messages
+        ]
 
         return StreamEvent(type="tool_output", data=EventData(tool_outputs=tool_outputs))
     return None
