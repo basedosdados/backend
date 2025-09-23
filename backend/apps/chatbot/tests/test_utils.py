@@ -66,6 +66,13 @@ def test_truncate_json_nested():
     assert truncated == expected_json
 
 
+def test_truncate_json_not_dict():
+    data = list(range(LIST_LONG_LEN))
+    json_string = json.dumps(data)
+    truncated = _truncate_json(json_string)
+    assert truncated == json_string
+
+
 def test_truncate_json_not_needed():
     data = {
         "short_string": "hello",

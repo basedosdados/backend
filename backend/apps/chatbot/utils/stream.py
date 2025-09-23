@@ -46,7 +46,7 @@ class StreamEvent(BaseModel):
 
 
 def _truncate_json(json_string: str, max_list_len: int = 10, max_str_len: int = 300) -> str:
-    """Iteratively truncates a serialized JSON by shortening lists and strings
+    """Iteratively truncates a serialized JSON object by shortening lists and strings
     and adding human-readable placeholders.
 
     Args:
@@ -55,15 +55,15 @@ def _truncate_json(json_string: str, max_list_len: int = 10, max_str_len: int = 
         max_str_len (int, optional): The max length for any single string. Defaults to 300.
 
     Returns:
-        str: The truncated and formatted JSON string.
+        str: The truncated, formatted, and serialized JSON object.
     """
     try:
         data = json.loads(json_string)
     except json.JSONDecodeError:
         return json_string
 
-    if not isinstance(data, (dict, list)):
-        return json.dumps(data, ensure_ascii=False, indent=2)
+    if not isinstance(data, dict):
+        return json_string
 
     stack = [data]
 
