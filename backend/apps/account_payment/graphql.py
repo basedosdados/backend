@@ -386,7 +386,10 @@ class StripeSubscriptionDeleteImmediatelyMutation(Mutation):
 
             stripe_subscription = subscription.subscription
             stripe_subscription.cancel(at_period_end=False)
-
+            return None
+        except Exception as e:
+            logger.error(e)
+            return cls(errors=[str(e)])
 
 class StripeSubscriptionAddMemberMutation(Mutation):
     """Add account to subscription"""
