@@ -576,9 +576,9 @@ class Mutation(ObjectType):
     create_stripe_subscription = StripeSubscribeMutation.Field()
     delete_stripe_subscription = StripeSubscriptionDeleteMutation.Field()
     delete_stripe_subscription_immediately = StripeSubscriptionDeleteImmediatelyMutation.Field()
-    create_stripe_customer_subscription = StripeSubscriptionAddMemberMutation.Field()
-    update_stripe_customer_subscription = StripeSubscriptionRemoveMemberMutation.Field()
-    delete_stripe_customer_all_members = StripeSubscriptionRemoveAllMembersMutation.Field()
+    add_stripe_subscription_member = StripeSubscriptionAddMemberMutation.Field()
+    remove_stripe_subscription_member = StripeSubscriptionRemoveMemberMutation.Field()
+    remove_all_stripe_subscription_members = StripeSubscriptionRemoveAllMembersMutation.Field()
     validate_stripe_coupon = StripeCouponValidationMutation.Field()
     change_user_gcp_email = ChangeUserGCPEmail.Field()
 
