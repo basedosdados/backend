@@ -36,7 +36,6 @@ ENV POETRY_VIRTUALENVS_PATH=$POETRY_VIRTUALENVS_PATH
 # Copy and install project
 WORKDIR /app
 COPY . .
-RUN test -d ./chatbot || (echo "ERROR: Git submodule 'chatbot' not found. Please run 'git submodule update --init --recursive'. See backend/README.md for more information." && exit 1)
 RUN poetry install --only main && rm nginx.conf
 
 # Generate static and set permissions

@@ -279,7 +279,7 @@ class ReActAgent(Generic[StateT]):
             thread_id (str): The thread unique identifier.
         """
         if self.checkpointer is not None:
-            delete_checkpoints(self.checkpointer, thread_id)
+            self.checkpointer.delete_thread(thread_id)
 
     async def aclear_thread(self, thread_id: str):
         """Asynchronously deletes all checkpoints for a given thread.
@@ -288,7 +288,7 @@ class ReActAgent(Generic[StateT]):
             thread_id (str): The thread unique identifier.
         """
         if self.checkpointer is not None:
-            await async_delete_checkpoints(self.checkpointer, thread_id)
+            await self.checkpointer.adelete_thread(thread_id)
 
 
 def _should_continue(state: StateT) -> Literal["tools", "__end__"]:

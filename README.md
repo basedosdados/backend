@@ -17,11 +17,6 @@
   git clone https://github.com/basedosdados/backend.git
   ```
 
-- Baixar submodulos
-  ```
-  git submodule update --recursive --init
-  ```
-
 - Abrí-lo no seu editor de texto
 
 - No seu ambiente de desenvolvimento, instalar [poetry](https://python-poetry.org/) para gerenciamento de dependências
