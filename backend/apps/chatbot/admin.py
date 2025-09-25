@@ -13,6 +13,7 @@ class ThreadAdmin(admin.ModelAdmin):
     ]
     ordering = ["-created_at"]
 
+
 class MessagePairAdmin(admin.ModelAdmin):
     list_display = [field.name for field in MessagePair._meta.fields]
     readonly_fields = list_display
@@ -33,6 +34,7 @@ class FeedbackAdmin(admin.ModelAdmin):
         "message_pair__id",
     ]
     ordering = ["-created_at"]
+
 
 admin.site.register(Thread, ThreadAdmin)
 admin.site.register(MessagePair, MessagePairAdmin)

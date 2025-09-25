@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from backend.apps.account.models import Account
 
 
