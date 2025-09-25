@@ -473,7 +473,7 @@ def decode_table_values(table_gcp_id: str, column_name: str | None = None) -> st
     the authoritative meanings of these codes.
 
     Args:
-        table_gcp_id (str): Full BigQuery table reference
+        table_gcp_id (str): Full BigQuery table reference.
         column_name (str | None, optional): Column with coded values. If `None`,
             all columns will be used. Defaults to `None`.
 
