@@ -432,7 +432,6 @@ def execute_bigquery_sql(sql_query: str) -> str:
         - Add `LIMIT` for exploration
         - Filter early with `WHERE` clauses
         - Order by relevant columns
-        - Never use DDL/DML commands
         - Use appropriate data types in comparisons
 
     Returns:
@@ -447,7 +446,7 @@ def execute_bigquery_sql(sql_query: str) -> str:
     if statement_type != "SELECT":
         raise ToolError(
             message=f"Query aborted: Statement {statement_type} is forbidden.",
-            error_type="FORBIDDEN_COMMAND",
+            error_type="FORBIDDEN_STATEMENT",
             instructions="Your access is strictly read-only. Use only SELECT statements.",
         )
 
