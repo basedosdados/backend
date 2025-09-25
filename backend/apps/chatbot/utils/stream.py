@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 import json
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from langchain_core.messages import AIMessage, ToolMessage
+from loguru import logger
 from pydantic import UUID4, BaseModel
 
 
@@ -30,11 +31,11 @@ EventType = Literal[
 
 
 class EventData(BaseModel):
-    run_id: Optional[UUID4] = None
-    content: Optional[str] = None
-    tool_calls: Optional[list[ToolCall]] = None
-    tool_outputs: Optional[list[ToolOutput]] = None
-    error_details: Optional[dict[str, Any]] = None
+    run_id: UUID4 | None = None
+    content: str | None = None
+    tool_calls: list[ToolCall] | None = None
+    tool_outputs: list[ToolOutput] | None = None
+    error_details: dict[str, Any] | None = None
 
 
 class StreamEvent(BaseModel):
@@ -125,15 +126,26 @@ def process_chunk(chunk: dict[str, Any]) -> StreamEvent | None:
         message = ai_messages[0]
 
         if message.tool_calls:
+            event_type = "tool_call"
             tool_calls = [
                 ToolCall(id=tool_call["id"], name=tool_call["name"], args=tool_call["args"])
                 for tool_call in message.tool_calls
             ]
-            event_type = "tool_call"
-            event_data = EventData(content=message.content, tool_calls=tool_calls)
         else:
             event_type = "final_answer"
-            event_data = EventData(content=message.content)
+            tool_calls = None
+
+        # The content of an AIMessage can sometimes be a list, which is not the expected behavior.
+        # In that case, we just log a warning and cast it to string to keep processing consistent.
+        if not isinstance(message.content, str):
+            logger.warning(
+                f"Message content is of type '{type(message.content)}', casting to string"
+            )
+            content = str(message.content)
+        else:
+            content = message.content
+
+        event_data = EventData(content=content, tool_calls=tool_calls)
 
         return StreamEvent(type=event_type, data=event_data)
     elif "tools" in chunk:

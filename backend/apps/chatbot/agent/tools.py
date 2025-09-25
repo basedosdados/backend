@@ -20,9 +20,6 @@ READ_TIMEOUT = 60.0
 # Maximum number of datasets returned on search
 PAGE_SIZE = 10
 
-# 5GB limit for inspection queries
-LIMIT_INSPECTION_QUERY = int(5 * 1e9)
-
 # 10GB limit for other queries
 LIMIT_BIGQUERY_QUERY = int(10 * 1e9)
 
@@ -441,27 +438,18 @@ def execute_bigquery_sql(sql_query: str) -> str:
     Returns:
         str: Query results as JSON array. Empty results return "[]".
     """  # noqa: E501
-    forbidden_commands = [
-        "CREATE",
-        "ALTER",
-        "DROP",
-        "TRUNCATE",
-        "INSERT",
-        "UPDATE",
-        "DELETE",
-        "GRANT",
-        "REVOKE",
-    ]
-
-    for command in forbidden_commands:
-        if command in sql_query.upper():
-            raise ToolError(
-                message=f"Query aborted: Command {command} is forbidden.",
-                error_type="FORBIDDEN_COMMAND",
-                instructions="Your access is strictly read-only. Use only SELECT statements.",
-            )
-
     client = get_bigquery_client()
+
+    job_config = bq.QueryJobConfig(dry_run=True, use_query_cache=False)
+    dry_run_query_job = client.query(sql_query, job_config=job_config)
+    statement_type = dry_run_query_job.statement_type
+
+    if statement_type != "SELECT":
+        raise ToolError(
+            message=f"Query aborted: Statement {statement_type} is forbidden.",
+            error_type="FORBIDDEN_STATEMENT",
+            instructions="Your access is strictly read-only. Use only SELECT statements.",
+        )
 
     job_config = bq.QueryJobConfig(maximum_bytes_billed=LIMIT_BIGQUERY_QUERY)
     query_job = client.query(sql_query, job_config=job_config)
@@ -475,11 +463,7 @@ def execute_bigquery_sql(sql_query: str) -> str:
 
 @tool
 @handle_tool_errors(
-    instructions={
-        GoogleAPIError.NOT_FOUND: (
-            "Dictionary table not found for this dataset. Use `inspect_column_values` instead."
-        )
-    }
+    instructions={GoogleAPIError.NOT_FOUND: ("Dictionary table not found for this dataset.")}
 )
 def decode_table_values(table_gcp_id: str, column_name: str | None = None) -> str:
     """Decode coded values from a table.
@@ -489,7 +473,7 @@ def decode_table_values(table_gcp_id: str, column_name: str | None = None) -> st
     the authoritative meanings of these codes.
 
     Args:
-        table_gcp_id (str): Full BigQuery table reference
+        table_gcp_id (str): Full BigQuery table reference.
         column_name (str | None, optional): Column with coded values. If `None`,
             all columns will be used. Defaults to `None`.
 
@@ -529,42 +513,6 @@ def decode_table_values(table_gcp_id: str, column_name: str | None = None) -> st
     return json.dumps(tool_output, ensure_ascii=False, default=str)
 
 
-@tool
-@handle_tool_errors(
-    instructions={
-        GoogleAPIError.BYTES_BILLED_LIMIT_EXCEEDED: (
-            "Use `execute_bigquery_sql` with a WHERE clause "
-            "to inspect a sample of the column's values"
-        )
-    }
-)
-def inspect_column_values(table_gcp_id: str, column_name: str) -> str:
-    """Show actual distinct values in a column.
-
-    FALLBACK tool to use when `search_dictionary_table()` fails.
-    Useful for understanding data patterns and planning `WHERE` clauses.
-
-    Args:
-        table_gcp_id (str): Full BigQuery table reference
-        column_name (str): Column name from `get_dataset_details()`
-
-    Returns:
-        str: JSON array of distinct values.
-    """  # noqa: E501
-    client = get_bigquery_client()
-
-    sql_query = f"SELECT DISTINCT {column_name} FROM {table_gcp_id}"
-
-    job_config = bq.QueryJobConfig(maximum_bytes_billed=LIMIT_INSPECTION_QUERY)
-    query_job = client.query(sql_query, job_config=job_config)
-
-    rows = query_job.result()
-    results = [row.get(column_name) for row in rows]
-
-    tool_output = ToolOutput(status="success", results=results).model_dump(exclude_none=True)
-    return json.dumps(tool_output, ensure_ascii=False, default=str)
-
-
 def get_tools() -> list[BaseTool]:
     """Return all available tools for Base dos Dados database interaction.
 
@@ -577,12 +525,10 @@ def get_tools() -> list[BaseTool]:
             - get_dataset_details: Get comprehensive dataset information
             - execute_bigquery_sql: Execute SQL queries against BigQuery tables
             - decode_table_values: Decode coded values using dictionary tables
-            - inspect_column_values: Inspect actual column values as fallback
     """
     return [
         search_datasets,
         get_dataset_details,
         execute_bigquery_sql,
         decode_table_values,
-        inspect_column_values,
     ]
