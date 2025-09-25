@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import json
-from typing import Any, Literal, Optional
+from typing import Any, Literal
 
 from langchain_core.messages import AIMessage, ToolMessage
 from loguru import logger
@@ -31,11 +31,11 @@ EventType = Literal[
 
 
 class EventData(BaseModel):
-    run_id: Optional[UUID4] = None
-    content: Optional[str] = None
-    tool_calls: Optional[list[ToolCall]] = None
-    tool_outputs: Optional[list[ToolOutput]] = None
-    error_details: Optional[dict[str, Any]] = None
+    run_id: UUID4 | None = None
+    content: str | None = None
+    tool_calls: list[ToolCall] | None = None
+    tool_outputs: list[ToolOutput] | None = None
+    error_details: dict[str, Any] | None = None
 
 
 class StreamEvent(BaseModel):
