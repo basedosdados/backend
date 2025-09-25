@@ -11,4 +11,5 @@ class ChatbotConfig(AppConfig):
     def ready(self):
         # Enable logs from the chatbot package
         import chatbot
+
         logger.enable(chatbot.__name__)
