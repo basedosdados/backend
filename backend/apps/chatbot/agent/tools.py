@@ -21,13 +21,16 @@ READ_TIMEOUT = 60.0
 PAGE_SIZE = 10
 
 # 10GB limit for other queries
-LIMIT_BIGQUERY_QUERY = int(10 * 1e9)
+LIMIT_BIGQUERY_QUERY = 10 * 10**9
 
 # URL for searching datasets
 SEARCH_URL = "https://backend.basedosdados.org/search/"
 
 # URL for fetching dataset details
 GRAPHQL_URL = "https://backend.basedosdados.org/graphql"
+
+# URL for fetching usage guides
+BASE_USAGE_GUIDE_URL = "https://raw.githubusercontent.com/basedosdados/website/refs/heads/main/next/content/userGuide/pt"
 
 # GraphQL query for fetching dataset details
 DATASET_DETAILS_QUERY = """
@@ -143,6 +146,7 @@ class Dataset(DatasetOverview):
     """Complete dataset information including all tables and columns."""
 
     tables: list[Table]
+    usage_guide: str | None
 
 
 class ErrorDetails(BaseModel):
@@ -172,7 +176,7 @@ class ToolOutput(BaseModel):
     error_details: ErrorDetails | None = None
 
     @model_validator(mode="after")
-    def check_passwords_match(self) -> Self:
+    def check_results_or_error(self) -> Self:
         if (self.results is None) ^ (self.error_details is None):
             return self
         raise ValueError("Only one of 'results' or 'error_details' should be set")
@@ -232,6 +236,14 @@ def handle_tool_errors(
 
 @cache
 def get_bigquery_client() -> bq.Client:
+    """Return a cached BigQuery client.
+
+    The client is initialized once using the project ID from the
+    `QUERY_PROJECT_ID` environment variable and reused on subsequent calls.
+
+    Returns:
+        bigquery.Client: A cached, authenticated BigQuery client.
+    """
     return bq.Client(project=os.environ["QUERY_PROJECT_ID"])
 
 
@@ -259,8 +271,9 @@ def search_datasets(query: str) -> str:
             params={"q": query, "page_size": PAGE_SIZE},
             timeout=httpx.Timeout(TIMEOUT, read=READ_TIMEOUT),
         )
-        response.raise_for_status()
-        data: dict = response.json()
+
+    response.raise_for_status()
+    data: dict = response.json()
 
     datasets = data.get("results", [])
 
@@ -301,6 +314,7 @@ def get_dataset_details(dataset_id: str) -> str:
                 - columns: All column names, types, and descriptions
                 - temporal coverage: time range information for the table data
                 - table descriptions explaining what each table contains
+            - usage_guide: Provide key information and best practices for using the dataset.
 
     Next step: Use `execute_bigquery_sql()` to execute queries.
     """  # noqa: E501
@@ -313,8 +327,9 @@ def get_dataset_details(dataset_id: str) -> str:
             },
             timeout=httpx.Timeout(TIMEOUT, read=READ_TIMEOUT),
         )
-        response.raise_for_status()
-        data: dict[str, dict[str, dict]] = response.json()
+
+    response.raise_for_status()
+    data: dict[str, dict[str, dict]] = response.json()
 
     all_datasets = data.get("data", {}).get("allDataset") or {}
     dataset_edges = all_datasets.get("edges", [])
@@ -335,24 +350,29 @@ def get_dataset_details(dataset_id: str) -> str:
 
     # Tags
     dataset_tags = []
+
     for edge in dataset.get("tags", {}).get("edges", []):
         if tag := edge.get("node", {}).get("name"):
             dataset_tags.append(tag)
 
     # Themes
     dataset_themes = []
+
     for edge in dataset.get("themes", {}).get("edges", []):
         if theme := edge.get("node", {}).get("name"):
             dataset_themes.append(theme)
 
     # Organizations
     dataset_organizations = []
+
     for edge in dataset.get("organizations", {}).get("edges", []):
         if org := edge.get("node", {}).get("name"):
             dataset_organizations.append(org)
 
     # Tables
     dataset_tables = []
+    gcp_dataset_id = None
+
     for edge in dataset.get("tables", {}).get("edges", []):
         table = edge["node"]
 
@@ -366,7 +386,7 @@ def get_dataset_details(dataset_id: str) -> str:
         if cloud_table_edges:
             cloud_table = cloud_table_edges[0]["node"]
             gcp_project_id = cloud_table["gcpProjectId"]
-            gcp_dataset_id = cloud_table["gcpDatasetId"]
+            gcp_dataset_id = gcp_dataset_id or cloud_table["gcpDatasetId"]
             gcp_table_id = cloud_table["gcpTableId"]
             table_gcp_id = f"{gcp_project_id}.{gcp_dataset_id}.{gcp_table_id}"
         else:
@@ -382,6 +402,21 @@ def get_dataset_details(dataset_id: str) -> str:
                     description=column.get("description"),
                 )
             )
+
+        # Fetch usage guide
+        usage_guide = None
+
+        if gcp_dataset_id is not None:
+            filename = gcp_dataset_id.replace("_", "-")
+
+            with httpx.Client() as client:
+                response = client.get(
+                    url=f"{BASE_USAGE_GUIDE_URL}/{filename}.md",
+                    timeout=httpx.Timeout(TIMEOUT, read=READ_TIMEOUT),
+                )
+
+            if response.status_code == httpx.codes.OK:
+                usage_guide = response.text.strip()
 
         dataset_tables.append(
             Table(
@@ -404,6 +439,7 @@ def get_dataset_details(dataset_id: str) -> str:
         themes=dataset_themes,
         organizations=dataset_organizations,
         tables=dataset_tables,
+        usage_guide=usage_guide,
     ).model_dump()
 
     tool_output = ToolOutput(status="success", results=dataset).model_dump(exclude_none=True)
