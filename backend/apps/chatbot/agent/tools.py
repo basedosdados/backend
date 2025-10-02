@@ -314,7 +314,7 @@ def get_dataset_details(dataset_id: str) -> str:
                 - columns: All column names, types, and descriptions
                 - temporal coverage: time range information for the table data
                 - table descriptions explaining what each table contains
-            - usage_guide: Provide key information and best practices for using the dataset
+            - usage_guide: Provide key information and best practices for using the dataset.
 
     Next step: Use `execute_bigquery_sql()` to execute queries.
     """  # noqa: E501
