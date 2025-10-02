@@ -403,21 +403,6 @@ def get_dataset_details(dataset_id: str) -> str:
                 )
             )
 
-        # Fetch usage guide
-        usage_guide = None
-
-        if gcp_dataset_id is not None:
-            filename = gcp_dataset_id.replace("_", "-")
-
-            with httpx.Client() as client:
-                response = client.get(
-                    url=f"{BASE_USAGE_GUIDE_URL}/{filename}.md",
-                    timeout=httpx.Timeout(TIMEOUT, read=READ_TIMEOUT),
-                )
-
-            if response.status_code == httpx.codes.OK:
-                usage_guide = response.text.strip()
-
         dataset_tables.append(
             Table(
                 id=table_id,
@@ -429,6 +414,21 @@ def get_dataset_details(dataset_id: str) -> str:
                 temporal_coverage=table_temporal_coverage,
             )
         )
+
+    # Fetch usage guide
+    usage_guide = None
+
+    if gcp_dataset_id is not None:
+        filename = gcp_dataset_id.replace("_", "-")
+
+        with httpx.Client() as client:
+            response = client.get(
+                url=f"{BASE_USAGE_GUIDE_URL}/{filename}.md",
+                timeout=httpx.Timeout(TIMEOUT, read=READ_TIMEOUT),
+            )
+
+        if response.status_code == httpx.codes.OK:
+            usage_guide = response.text.strip()
 
     dataset = Dataset(
         id=dataset_id,
