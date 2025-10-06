@@ -2,6 +2,7 @@
 from collections.abc import Callable
 from typing import Annotated, AsyncIterator, Iterator, Literal, Sequence, TypedDict
 
+from chatbot.agents.utils import async_delete_checkpoints, delete_checkpoints
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig, RunnableLambda
@@ -14,8 +15,6 @@ from langgraph.graph.message import add_messages
 from langgraph.managed import IsLastStep, RemainingSteps
 from langgraph.prebuilt import ToolNode
 from loguru import logger
-
-from chatbot.agents.utils import async_delete_checkpoints, delete_checkpoints
 
 
 class State(TypedDict):
