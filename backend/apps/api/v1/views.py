@@ -1,26 +1,24 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from datetime import timedelta
 from typing import Dict, List
 from urllib.parse import urlparse
 
 import pandas as pd
 from django.core.serializers import serialize
-from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
-from django.views import View
-
-from datetime import timedelta
-
 from django.db.models import Sum
-from django.utils import timezone  
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
+from django.utils import timezone
+from django.views import View
 
 from backend.apps.api.v1.models import (
     BigQueryType,
     CloudTable,
     Column,
-    get_temporal_coverage,
     Dataset,
     Table,
+    get_temporal_coverage,
 )
 
 URL_MAPPING = {
@@ -131,33 +129,34 @@ def create_columns(selected_table: Table, tables_dict: Dict[str, Table], row: pd
 
     return column
 
+
 def table_stats(request: HttpRequest):
     """
     Calculates and returns statistics about the tables and datasets.
     """
-    treated_tables = Table.objects.exclude(
-        status__slug__in=["under_review", "excluded"]
-    ).exclude(
-        slug__in=["dicionario", "dictionary"]
-    ).exclude(
-        dataset__status__slug__in=["under_review", "excluded"]
+    treated_tables = (
+        Table.objects.exclude(status__slug__in=["under_review", "excluded"])
+        .exclude(slug__in=["dicionario", "dictionary"])
+        .exclude(dataset__status__slug__in=["under_review", "excluded"])
     )
 
-    datasets_with_treated_tables_count = treated_tables.values_list(
-        'dataset_id', flat=True
-    ).distinct().count()
+    datasets_with_treated_tables_count = (
+        treated_tables.values_list("dataset_id", flat=True).distinct().count()
+    )
 
     total_treated_tables_count = treated_tables.count()
 
     thirty_days_ago = timezone.now() - timedelta(days=30)
-    recent_tables_count = treated_tables.filter(
-        updates__latest__gte=thirty_days_ago,
-        updates__entity__slug__in=['month', 'week', 'day']
-    ).distinct().count()
+    recent_tables_count = (
+        treated_tables.filter(
+            updates__latest__gte=thirty_days_ago, updates__entity__slug__in=["month", "week", "day"]
+        )
+        .distinct()
+        .count()
+    )
 
     aggregates = treated_tables.aggregate(
-        total_size=Sum("uncompressed_file_size"),
-        total_rows=Sum("number_rows")
+        total_size=Sum("uncompressed_file_size"), total_rows=Sum("number_rows")
     )
 
     data = {
@@ -170,15 +169,16 @@ def table_stats(request: HttpRequest):
 
     return JsonResponse(data)
 
+
 def columns_view(request: HttpRequest, table_id: str = None, column_id: str = None):
     """
     A simple REST API view for Columns.
     """
     if column_id:
         try:
-            column = Column.objects.select_related(
-                "table", "table__dataset", "bigquery_type"
-            ).get(id=column_id)
+            column = Column.objects.select_related("table", "table__dataset", "bigquery_type").get(
+                id=column_id
+            )
             data = serialize(
                 "json",
                 [column],
@@ -203,8 +203,7 @@ def columns_view(request: HttpRequest, table_id: str = None, column_id: str = No
                 "directory_primary_key__table__dataset",
             )
             .prefetch_related(
-                "directory_primary_key__table__cloud_tables",
-                "coverages__datetime_ranges"
+                "directory_primary_key__table__cloud_tables", "coverages__datetime_ranges"
             )
             .order_by("order")
         )
@@ -226,7 +225,7 @@ def columns_view(request: HttpRequest, table_id: str = None, column_id: str = No
                 "measurement_unit": col.measurement_unit,
                 "contains_sensitive_data": col.contains_sensitive_data,
                 "observations": col.observations,
-                "temporal_coverage": None, 
+                "temporal_coverage": None,
                 "directory_primary_key": None,
             }
 
@@ -252,7 +251,13 @@ def columns_view(request: HttpRequest, table_id: str = None, column_id: str = No
                             "id": str(dpk.table.dataset.id),
                             "name": dpk.table.dataset.name,
                         },
-                        "cloud_table": {"gcp_table_id": cloud_table.gcp_table_id, "gcp_dataset_id": cloud_table.gcp_dataset_id, "gcp_project_id": cloud_table.gcp_project_id} if cloud_table else None
+                        "cloud_table": {
+                            "gcp_table_id": cloud_table.gcp_table_id,
+                            "gcp_dataset_id": cloud_table.gcp_dataset_id,
+                            "gcp_project_id": cloud_table.gcp_project_id,
+                        }
+                        if cloud_table
+                        else None,
                     },
                 }
             results.append(col_data)
