@@ -43,9 +43,10 @@ tqdm = "^4.66.4"
 django-admin-inline-paginator-plus = "^0.1.4"
 djangorestframework = "^3.16.0"
 djangorestframework-simplejwt = "^5.5.0"
-chatbot = {path = "chatbot"}
+langchain = "0.3.27"
+langgraph = "0.6.7"
+langgraph-checkpoint-postgres = "2.0.23"
 langchain-google-vertexai = "2.0.24"
-langchain-postgres = "^0.0.14"
 httpx = "^0.28.1"
 
 [tool.poetry.group.dev.dependencies]

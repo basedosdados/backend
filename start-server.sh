@@ -14,8 +14,5 @@ fi
 echo "> Running Huey"
 (cd /app; python manage.py run_huey &)
 
-echo "> Populating PGVector collection"
-(cd /app; python manage.py populate_pgvector)
-
 echo "> Running Gunicorn"
 (cd /app; gunicorn backend.wsgi --user www-data --bind 0.0.0.0:8000 --workers 3 --timeout 180) & nginx -g "daemon off;"
