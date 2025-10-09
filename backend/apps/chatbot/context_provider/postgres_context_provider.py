@@ -3,12 +3,12 @@ import json
 import os
 
 import cachetools.func
+from chatbot.contexts import BaseContextProvider
 from google.cloud import bigquery as bq
 from langchain_core.vectorstores import VectorStore
 from loguru import logger
 
 from backend.apps.api.v1.models import Dataset
-from chatbot.contexts import BaseContextProvider
 
 from .metadata_formatter import (
     ColumnMetadata,

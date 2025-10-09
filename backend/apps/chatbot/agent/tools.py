@@ -268,7 +268,7 @@ def search_datasets(query: str) -> str:
     with httpx.Client() as client:
         response = client.get(
             url=SEARCH_URL,
-            params={"q": query, "page_size": PAGE_SIZE},
+            params={"contains": "tables", "q": query, "page_size": PAGE_SIZE},
             timeout=httpx.Timeout(TIMEOUT, read=READ_TIMEOUT),
         )
 
