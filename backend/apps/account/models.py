@@ -332,6 +332,7 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
         "is_admin",
         "is_superuser",
         "staff_groups",
+        "google_sub",
         *BaseModel.graphql_fields_blacklist,
     ]
     graphql_filter_fields_blacklist = ["internal_subscription"]
