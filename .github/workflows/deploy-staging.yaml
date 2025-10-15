@@ -63,6 +63,11 @@ jobs:
             envFrom:
               - secretRef:
                   name: api-staging-secrets
+            env:
+              - name: GOOGLE_OAUTH_CLIENT_ID
+                value: "${{ secrets.GOOGLE_OAUTH_CLIENT_ID }}"
+              - name: GOOGLE_OAUTH_CLIENT_SECRET
+                value: "${{ secrets.GOOGLE_OAUTH_CLIENT_SECRET }}"
             settingsModule: "backend.settings.remote"
           database:
             host: "cloud-sql-proxy"
