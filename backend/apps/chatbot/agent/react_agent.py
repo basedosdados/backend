@@ -1,29 +1,36 @@
 # -*- coding: utf-8 -*-
 from collections.abc import Callable
-from typing import Annotated, AsyncIterator, Iterator, Literal, Sequence, TypedDict
+from typing import Annotated, AsyncIterator, Generic, Iterator, Literal, Sequence, Type, TypedDict
 
-from chatbot.agents.utils import async_delete_checkpoints, delete_checkpoints
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_core.runnables import RunnableConfig, RunnableLambda
 from langchain_core.tools import BaseTool, BaseToolkit
 from langgraph.checkpoint.postgres import PostgresSaver
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-from langgraph.graph import StateGraph
-from langgraph.graph.graph import CompiledGraph
 from langgraph.graph.message import add_messages
+from langgraph.graph.state import CompiledStateGraph, StateGraph
 from langgraph.managed import IsLastStep, RemainingSteps
 from langgraph.prebuilt import ToolNode
 from loguru import logger
 
+from chatbot.agents.utils import async_delete_checkpoints, delete_checkpoints
 
-class State(TypedDict):
+from .types import StateType
+
+
+class ReActState(TypedDict):
     messages: Annotated[list[BaseMessage], add_messages]
+    """Message list"""
+
     is_last_step: IsLastStep
+    """Flag indicating if the last step has been reached"""
+
     remaining_steps: RemainingSteps
+    """Number of remaining steps before reaching the steps limit"""
 
 
-class ReActAgent:
+class ReActAgent(Generic[StateType]):
     """A LangGraph ReAct Agent."""
 
     agent_node = "agent"
@@ -34,7 +41,8 @@ class ReActAgent:
         self,
         model: BaseChatModel,
         tools: Sequence[BaseTool] | BaseToolkit,
-        start_hook: Callable[[State], dict] | None = None,
+        state_schema: Type[StateType] = ReActState,
+        start_hook: Callable[[StateType], dict] | None = None,
         prompt: SystemMessage | str | None = None,
         checkpointer: PostgresSaver | AsyncPostgresSaver | bool | None = None,
     ):
@@ -57,13 +65,13 @@ class ReActAgent:
 
         self.checkpointer = checkpointer
 
-        self.graph = self._compile(start_hook=start_hook)
+        self.graph = self._compile(state_schema, start_hook)
 
-    def _call_model(self, state: State, config: RunnableConfig) -> dict[str, list[BaseMessage]]:
+    def _call_model(self, state: StateType, config: RunnableConfig) -> dict[str, list[BaseMessage]]:
         """Calls the LLM on a message list.
 
         Args:
-            state (State): The graph state.
+            state (StateType): The graph state.
             config (RunnableConfig): A config to use when calling the LLM.
 
         Returns:
@@ -95,12 +103,12 @@ class ReActAgent:
         return {"messages": [response]}
 
     async def _acall_model(
-        self, state: State, config: RunnableConfig
+        self, state: StateType, config: RunnableConfig
     ) -> dict[str, list[BaseMessage]]:
         """Asynchronously calls the LLM on a message list.
 
         Args:
-            state (State): The graph state.
+            state (StateType): The graph state.
             config (RunnableConfig): A config to use when calling the LLM.
 
         Returns:
@@ -131,18 +139,21 @@ class ReActAgent:
 
         return {"messages": [response]}
 
-    def _compile(self, start_hook: Callable[[State], dict]) -> CompiledGraph:
+    def _compile(
+        self, state_schema: Type[StateType], start_hook: Callable[[StateType], dict] | None
+    ) -> CompiledStateGraph:
         """Compiles the state graph into a LangChain Runnable.
 
         Args:
-            start_hook (Callable[[State], dict]): An optional node to add before the agent node.
+            state_schema (Type[StateType]): The state graph schema.
+            start_hook (Callable[[StateType], dict] | None): An optional node to add before the agent node.
             Useful for managing long message histories (e.g., message trimming, summarization, etc.).
             Must be a callable or a runnable that takes in current graph state and returns a state update.
 
         Returns:
-            CompiledGraph: The compiled state graph.
+            CompiledStateGraph: The compiled state graph.
         """  # noqa: E501
-        graph = StateGraph(State)
+        graph = StateGraph(state_schema)
 
         graph.add_node(self.agent_node, RunnableLambda(self._call_model, self._acall_model))
         graph.add_node(self.tools_node, ToolNode(self.tools))
@@ -164,7 +175,7 @@ class ReActAgent:
         # For more information, visit https://github.com/langchain-ai/langgraph/issues/3020
         return graph.compile(self.checkpointer)
 
-    def invoke(self, message: str, config: RunnableConfig | None = None) -> State:
+    def invoke(self, message: str, config: RunnableConfig | None = None) -> StateType:
         """Runs the compiled graph.
 
         Args:
@@ -172,7 +183,7 @@ class ReActAgent:
             config (RunnableConfig | None, optional): The configuration. Defaults to `None`.
 
         Returns:
-            dict[str, Any] | Any: The last output of the graph run.
+            StateType: The last output of the graph run.
         """
         message = HumanMessage(content=message.strip())
 
@@ -183,7 +194,7 @@ class ReActAgent:
 
         return response
 
-    async def ainvoke(self, message: str, config: RunnableConfig | None = None) -> State:
+    async def ainvoke(self, message: str, config: RunnableConfig | None = None) -> StateType:
         """Asynchronously runs the compiled graph.
 
         Args:
@@ -191,7 +202,7 @@ class ReActAgent:
             config (RunnableConfig | None, optional): The configuration. Defaults to `None`.
 
         Returns:
-            dict[str, Any] | Any: The last output of the graph run.
+            StateType: The last output of the graph run.
         """
         message = HumanMessage(content=message.strip())
 
@@ -280,12 +291,12 @@ class ReActAgent:
             await async_delete_checkpoints(self.checkpointer, thread_id)
 
 
-def _should_continue(state: State) -> Literal["tools", "__end__"]:
+def _should_continue(state: StateType) -> Literal["tools", "__end__"]:
     """Routes to the tools node if the last message has any tool calls.
     Otherwise, routes to the message pruning node.
 
     Args:
-        state (State): The graph state.
+        state (StateType): The graph state.
 
     Returns:
         str: The next node to route to.
