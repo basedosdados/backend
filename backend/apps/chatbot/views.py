@@ -25,9 +25,10 @@ from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from backend.apps.chatbot.agent.prompts import SQL_AGENT_SYSTEM_PROMPT
-from backend.apps.chatbot.agent.react_agent import ReActAgent, State
+from backend.apps.chatbot.agent.prompts import SQL_AGENT_SYSTEM_PROMPT_V3
+from backend.apps.chatbot.agent.react_agent import ReActAgent
 from backend.apps.chatbot.agent.tools import get_tools
+from backend.apps.chatbot.agent.types import StateType
 from backend.apps.chatbot.feedback_sender import LangSmithFeedbackSender
 from backend.apps.chatbot.models import Feedback, MessagePair, Thread
 from backend.apps.chatbot.serializers import (
@@ -341,7 +342,7 @@ def _get_sql_agent() -> Generator[ReActAgent]:
 
     model = init_chat_model(MODEL_URI, temperature=0, credentials=credentials)
 
-    def start_hook(state: State):
+    def start_hook(state: StateType):
         messages = state["messages"]
 
         # For the first message, skip trimming. If it's too long, let it fail.
@@ -368,8 +369,8 @@ def _get_sql_agent() -> Generator[ReActAgent]:
         sql_agent = ReActAgent(
             model=model,
             tools=get_tools(),
-            prompt=SQL_AGENT_SYSTEM_PROMPT,
             start_hook=start_hook,
+            prompt=SQL_AGENT_SYSTEM_PROMPT_V3,
             checkpointer=checkpointer,
         )
 
