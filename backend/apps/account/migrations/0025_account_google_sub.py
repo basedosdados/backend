@@ -6,7 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("account", "0023_alter_career_role_old_alter_career_team_old"),
+        ("account", "0024_dataapikey"),
     ]
 
     operations = [
