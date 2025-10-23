@@ -3,6 +3,7 @@ import os
 import uuid
 from collections.abc import Generator
 from contextlib import contextmanager
+from datetime import datetime
 from functools import cache
 from typing import Any, Iterator, Type, TypedDict, TypeVar
 
@@ -363,6 +364,8 @@ def _get_sql_agent() -> Generator[ReActAgent]:
 
         return {"messages": [RemoveMessage(id=REMOVE_ALL_MESSAGES), *remaining_messages]}
 
+    today_date = datetime.today().strftime("%d/%m/%y")
+
     with PostgresSaver.from_conn_string(conn) as checkpointer:
         checkpointer.setup()
 
@@ -370,7 +373,7 @@ def _get_sql_agent() -> Generator[ReActAgent]:
             model=model,
             tools=get_tools(),
             start_hook=start_hook,
-            prompt=SQL_AGENT_SYSTEM_PROMPT_V3,
+            prompt=SQL_AGENT_SYSTEM_PROMPT_V3.format(today_date=today_date),
             checkpointer=checkpointer,
         )
 
