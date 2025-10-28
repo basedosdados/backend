@@ -38,6 +38,7 @@ from backend.apps.chatbot.serializers import (
     ThreadSerializer,
     UserMessageSerializer,
 )
+from backend.apps.chatbot.utils.gcloud import get_chatbot_credentials
 from backend.apps.chatbot.utils.stream import EventData, StreamEvent, process_chunk
 
 ModelSerializer = TypeVar("ModelSerializer", bound=Serializer)
@@ -336,7 +337,9 @@ def _get_sql_agent() -> Generator[ReActAgent]:
 
     conn = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
 
-    model = init_chat_model(MODEL_URI, temperature=0)
+    credentials = get_chatbot_credentials()
+
+    model = init_chat_model(MODEL_URI, temperature=0, credentials=credentials)
 
     def start_hook(state: State):
         messages = state["messages"]

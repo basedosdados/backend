@@ -9,7 +9,8 @@ class ChatbotConfig(AppConfig):
     verbose_name = "Chatbot"
 
     def ready(self):
-        # Enable logs from the chatbot package
+        import backend.apps.chatbot.checks  # noqa: F401
         import chatbot
 
+        # Enable logs from the chatbot package
         logger.enable(chatbot.__name__)

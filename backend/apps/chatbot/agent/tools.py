@@ -1,8 +1,7 @@
 # -*- coding: utf-8 -*-
 import json
-import os
 from collections.abc import Callable
-from functools import cache, wraps
+from functools import wraps
 from typing import Any, Literal, Self
 
 import httpx
@@ -10,6 +9,8 @@ from google.api_core.exceptions import GoogleAPICallError
 from google.cloud import bigquery as bq
 from langchain_core.tools import BaseTool, tool
 from pydantic import BaseModel, model_validator
+
+from backend.apps.chatbot.utils.gcloud import get_bigquery_client
 
 # HTTPX Default Timeout
 TIMEOUT = 5.0
@@ -232,19 +233,6 @@ def handle_tool_errors(
         return decorator
 
     return decorator(_func)
-
-
-@cache
-def get_bigquery_client() -> bq.Client:
-    """Return a cached BigQuery client.
-
-    The client is initialized once using the project ID from the
-    `QUERY_PROJECT_ID` environment variable and reused on subsequent calls.
-
-    Returns:
-        bigquery.Client: A cached, authenticated BigQuery client.
-    """
-    return bq.Client(project=os.environ["QUERY_PROJECT_ID"])
 
 
 @tool
