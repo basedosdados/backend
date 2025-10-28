@@ -36,4 +36,5 @@ repos:
         name: yamlfix
         types: [yaml]
         language: system
-        entry: yamlfix --exclude "charts/**/*" .
+        entry: yamlfix
+        exclude: ^charts/
