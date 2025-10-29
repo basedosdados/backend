@@ -16,7 +16,7 @@ from loguru import logger
 
 from chatbot.agents.utils import async_delete_checkpoints, delete_checkpoints
 
-from .types import StateType
+from .types import StateT
 
 
 class ReActState(TypedDict):
@@ -30,7 +30,7 @@ class ReActState(TypedDict):
     """Number of remaining steps before reaching the steps limit"""
 
 
-class ReActAgent(Generic[StateType]):
+class ReActAgent(Generic[StateT]):
     """A LangGraph ReAct Agent."""
 
     agent_node = "agent"
@@ -41,8 +41,8 @@ class ReActAgent(Generic[StateType]):
         self,
         model: BaseChatModel,
         tools: Sequence[BaseTool] | BaseToolkit,
-        state_schema: Type[StateType] = ReActState,
-        start_hook: Callable[[StateType], dict] | None = None,
+        state_schema: Type[StateT] = ReActState,
+        start_hook: Callable[[StateT], dict] | None = None,
         prompt: SystemMessage | str | None = None,
         checkpointer: PostgresSaver | AsyncPostgresSaver | bool | None = None,
     ):
@@ -67,11 +67,11 @@ class ReActAgent(Generic[StateType]):
 
         self.graph = self._compile(state_schema, start_hook)
 
-    def _call_model(self, state: StateType, config: RunnableConfig) -> dict[str, list[BaseMessage]]:
+    def _call_model(self, state: StateT, config: RunnableConfig) -> dict[str, list[BaseMessage]]:
         """Calls the LLM on a message list.
 
         Args:
-            state (StateType): The graph state.
+            state (StateT): The graph state.
             config (RunnableConfig): A config to use when calling the LLM.
 
         Returns:
@@ -103,12 +103,12 @@ class ReActAgent(Generic[StateType]):
         return {"messages": [response]}
 
     async def _acall_model(
-        self, state: StateType, config: RunnableConfig
+        self, state: StateT, config: RunnableConfig
     ) -> dict[str, list[BaseMessage]]:
         """Asynchronously calls the LLM on a message list.
 
         Args:
-            state (StateType): The graph state.
+            state (StateT): The graph state.
             config (RunnableConfig): A config to use when calling the LLM.
 
         Returns:
@@ -140,13 +140,13 @@ class ReActAgent(Generic[StateType]):
         return {"messages": [response]}
 
     def _compile(
-        self, state_schema: Type[StateType], start_hook: Callable[[StateType], dict] | None
+        self, state_schema: Type[StateT], start_hook: Callable[[StateT], dict] | None
     ) -> CompiledStateGraph:
         """Compiles the state graph into a LangChain Runnable.
 
         Args:
-            state_schema (Type[StateType]): The state graph schema.
-            start_hook (Callable[[StateType], dict] | None): An optional node to add before the agent node.
+            state_schema (Type[StateT]): The state graph schema.
+            start_hook (Callable[[StateT], dict] | None): An optional node to add before the agent node.
             Useful for managing long message histories (e.g., message trimming, summarization, etc.).
             Must be a callable or a runnable that takes in current graph state and returns a state update.
 
@@ -175,7 +175,7 @@ class ReActAgent(Generic[StateType]):
         # For more information, visit https://github.com/langchain-ai/langgraph/issues/3020
         return graph.compile(self.checkpointer)
 
-    def invoke(self, message: str, config: RunnableConfig | None = None) -> StateType:
+    def invoke(self, message: str, config: RunnableConfig | None = None) -> StateT:
         """Runs the compiled graph.
 
         Args:
@@ -183,7 +183,7 @@ class ReActAgent(Generic[StateType]):
             config (RunnableConfig | None, optional): The configuration. Defaults to `None`.
 
         Returns:
-            StateType: The last output of the graph run.
+            StateT: The last output of the graph run.
         """
         message = HumanMessage(content=message.strip())
 
@@ -194,7 +194,7 @@ class ReActAgent(Generic[StateType]):
 
         return response
 
-    async def ainvoke(self, message: str, config: RunnableConfig | None = None) -> StateType:
+    async def ainvoke(self, message: str, config: RunnableConfig | None = None) -> StateT:
         """Asynchronously runs the compiled graph.
 
         Args:
@@ -202,7 +202,7 @@ class ReActAgent(Generic[StateType]):
             config (RunnableConfig | None, optional): The configuration. Defaults to `None`.
 
         Returns:
-            StateType: The last output of the graph run.
+            StateT: The last output of the graph run.
         """
         message = HumanMessage(content=message.strip())
 
@@ -291,12 +291,12 @@ class ReActAgent(Generic[StateType]):
             await async_delete_checkpoints(self.checkpointer, thread_id)
 
 
-def _should_continue(state: StateType) -> Literal["tools", "__end__"]:
+def _should_continue(state: StateT) -> Literal["tools", "__end__"]:
     """Routes to the tools node if the last message has any tool calls.
     Otherwise, routes to the message pruning node.
 
     Args:
-        state (StateType): The graph state.
+        state (StateT): The graph state.
 
     Returns:
         str: The next node to route to.
