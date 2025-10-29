@@ -63,7 +63,7 @@ services:
       database:
         condition: service_healthy
     healthcheck:
-      test: [CMD, curl, -f, http://localhost/healthcheck/]
+      test: [CMD, curl, -f, http://localhost:8000/healthcheck/]
       interval: 1m
       timeout: 30s
       retries: 5
