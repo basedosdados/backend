@@ -340,7 +340,7 @@ def _get_sql_agent() -> Generator[ReActAgent]:
 
     credentials = get_chatbot_credentials()
 
-    model = init_chat_model(MODEL_URI, temperature=0, credentials=credentials)
+    model = init_chat_model(MODEL_URI, temperature=0.2, credentials=credentials)
 
     def start_hook(state: StateType):
         messages = state["messages"]
