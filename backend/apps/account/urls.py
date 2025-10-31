@@ -4,6 +4,8 @@ from django.urls import path
 from backend.apps.account.views import (
     AccountActivateConfirmView,
     AccountActivateView,
+    GoogleAuthView,
+    GoogleCallbackView,
     PasswordResetConfirmView,
     PasswordResetView,
 )
@@ -28,5 +30,15 @@ urlpatterns = [
         "account/password_reset_confirm/<uidb64>/<token>/",
         PasswordResetConfirmView.as_view(),
         name="password_reset_confirm",
+    ),
+    path(
+        "account/google/login/",
+        GoogleAuthView.as_view(),
+        name="google_auth",
+    ),
+    path(
+        "account/google/callback/",
+        GoogleCallbackView.as_view(),
+        name="google_callback",
     ),
 ]
