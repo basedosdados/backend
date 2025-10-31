@@ -33,7 +33,8 @@ def get_bigquery_client() -> bq.Client:
     Returns:
         bigquery.Client: A cached, authenticated BigQuery client.
     """
-    project = os.getenv("QUERY_PROJECT_ID")
+    # TODO: revert to os.getenv("QUERY_PROJECT_ID")
+    project = "basedosdados"
 
     if not project:
         raise ValueError(
