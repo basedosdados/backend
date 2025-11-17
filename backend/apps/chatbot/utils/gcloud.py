@@ -28,17 +28,16 @@ def get_bigquery_client() -> bq.Client:
     """Return a cached BigQuery client.
 
     The client is initialized once using the project ID from the
-    `QUERY_PROJECT_ID` environment variable and reused on subsequent calls.
+    `BIGQUERY_PROJECT_ID` environment variable and reused on subsequent calls.
 
     Returns:
         bigquery.Client: A cached, authenticated BigQuery client.
     """
-    # TODO: revert to os.getenv("QUERY_PROJECT_ID")
-    project = "basedosdados"
+    project = os.getenv("BIGQUERY_PROJECT_ID")
 
     if not project:
         raise ValueError(
-            "QUERY_PROJECT_ID environment variable must be set. "
+            "BIGQUERY_PROJECT_ID environment variable must be set. "
             "Please provide the ID of your BigQuery project."
         )
 
