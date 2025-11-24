@@ -1,6 +1,12 @@
 # -*- coding: utf-8 -*-
+import re
+
 import stripe
 from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
+from django.db import IntegrityError, transaction
+from django.db.models import Q
 from djstripe.models import Customer as DJStripeCustomer
 from djstripe.models import Price as DJStripePrice
 from djstripe.models import Subscription as DJStripeSubscription
@@ -425,6 +431,102 @@ class StripeSubscriptionAddMemberMutation(Mutation):
             return cls(errors=[str(e)])
 
 
+class StripeSubscriptionAddServiceAccountMutation(Mutation):
+    """Add or create a service account and attach it to a subscription"""
+
+    ok = Boolean()
+    account_id = ID()
+    errors = List(String)
+
+    class Arguments:
+        email = String(required=True)
+        subscription_id = ID(required=True)
+
+    @classmethod
+    @login_required
+    def mutate(cls, root, info, email, subscription_id):
+        try:
+            admin = info.context.user
+
+            try:
+                validate_email(email)
+            except ValidationError:
+                return cls(errors=["Email inválido"])
+
+            try:
+                domain = email.split("@", 1)[1].lower()
+            except Exception:
+                return cls(errors=["Email inválido"])
+
+            if not domain.endswith(".gserviceaccount.com"):
+                return cls(errors=["Email de service account do GCP inválido"])
+
+            try:
+                subscription = Subscription.objects.get(id=subscription_id, admin=admin)
+            except Subscription.DoesNotExist:
+                return cls(errors=["Assinatura não encontrada ou sem permissão"])
+
+            account = Account.objects.filter(
+                Q(gcp_email__iexact=email) | Q(email__iexact=email)
+            ).first()
+
+            if not account:
+                local = email.split("@")[0]
+                base = re.sub(r"[^0-9a-zA-Z_-]", "_", local)
+                if not base:
+                    base = "service"
+
+                username_candidate = base
+                email_candidate = f"{username_candidate}@service-account.local"
+
+                suffix = 0
+                while True:
+                    try:
+                        with transaction.atomic():
+                            account = Account(
+                                gcp_email=email,
+                                username=username_candidate,
+                                first_name=username_candidate.replace("-", " ")
+                                .replace("_", " ")
+                                .title(),
+                                is_active=False,
+                                email=email_candidate,
+                            )
+                            account.save()
+                        break
+                    except IntegrityError:
+                        suffix += 1
+                        if suffix > 50:
+                            logger.exception(
+                                "Failed to generate unique username for service account"
+                            )
+                            return cls(
+                                errors=["Falha ao criar account de service; tente outro email"]
+                            )
+                        username_candidate = f"{base}{suffix}"
+                        email_candidate = f"{username_candidate}@service-account.local"
+
+            active_subs = list(account.subscription_set.filter(is_active=True)) + list(
+                account.internal_subscription.filter(is_active=True)
+            )
+            if active_subs:
+                return cls(errors=["Service account já possui assinatura ativa"])
+
+            try:
+                add_user(account.gcp_email, account=account)
+                subscription.subscribers.add(account)
+            except Exception as e:
+                logger.exception(
+                    "Error adding service account to external systems or subscription: %s", e
+                )
+                return cls(errors=["Erro ao adicionar service account em sistema externo"])
+
+            return cls(ok=True, account_id=account.id)
+        except Exception as e:
+            logger.exception("Unexpected error adding service account: %s", e)
+            return cls(errors=["Erro interno do sistema"])
+
+
 class StripeSubscriptionRemoveMemberMutation(Mutation):
     """Remove account from subscription"""
 
@@ -588,6 +690,7 @@ class Mutation(ObjectType):
     delete_stripe_subscription = StripeSubscriptionDeleteMutation.Field()
     delete_stripe_subscription_immediately = StripeSubscriptionDeleteImmediatelyMutation.Field()
     add_stripe_subscription_member = StripeSubscriptionAddMemberMutation.Field()
+    add_stripe_subscription_service_account = StripeSubscriptionAddServiceAccountMutation.Field()
     remove_stripe_subscription_member = StripeSubscriptionRemoveMemberMutation.Field()
     remove_all_stripe_subscription_members = StripeSubscriptionRemoveAllMembersMutation.Field()
     validate_stripe_coupon = StripeCouponValidationMutation.Field()
