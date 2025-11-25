@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Q
 from djstripe import webhooks
 from djstripe.models import Event
 from djstripe.models import Subscription as DJStripeSubscription
@@ -9,14 +11,13 @@ from googleapiclient.errors import HttpError
 from loguru import logger
 from stripe import Customer as StripeCustomer
 from stripe import Subscription as StripeSubscription
-from django.db.models import Q
-from django.core.exceptions import ObjectDoesNotExist
 
 from backend.apps.account.models import Account, Subscription
 from backend.custom.client import send_discord_message as send
-from backend.custom.environment import get_backend_url, is_dev, is_stg
+from backend.custom.environment import get_backend_url, is_dev
 
 logger = logger.bind(module="payment")
+
 
 def _normalize_plus(email: str) -> str:
     """Normaliza: trim, lower e remove +alias antes do @."""
@@ -25,6 +26,7 @@ def _normalize_plus(email: str) -> str:
     if "+" in local:
         local = local.split("+", 1)[0]
     return f"{local}@{domain}"
+
 
 def get_subscription(event: Event) -> Subscription:
     """Get internal subscription model, mirror of stripe"""
@@ -67,16 +69,18 @@ def get_service() -> Resource:
 
 def add_user(email: str, account: Account = None, group_key: str = None, role: str = "MEMBER"):
     """Add user to google group"""
-    if is_dev() or is_stg():
+    if is_dev():
         if account is None:
             try:
                 normalized_email = _normalize_plus(email)
-                account = Account.objects.get(Q(email__iexact=email) | Q(email__iexact=normalized_email))
+                account = Account.objects.get(
+                    Q(email__iexact=email) | Q(email__iexact=normalized_email)
+                )
             except Account.DoesNotExist:
                 account = None
 
         if not (account and account.is_admin):
-            logger.info(f"Ignorando adição do usuário '{email}' em ambiente de dev/staging pois não é admin.")
+            logger.info(f"Ignorando adição do usuário '{email}'em dev/staging.")
             return
 
     if not group_key:
@@ -96,6 +100,7 @@ def add_user(email: str, account: Account = None, group_key: str = None, role: s
             logger.error(e)
             raise e
 
+
 def remove_user(email: str, group_key: str = None) -> None:
     """Remove user from Google Group"""
     if not email or "@" not in email:
@@ -107,10 +112,10 @@ def remove_user(email: str, group_key: str = None) -> None:
 
     try:
         user = Account.objects.get(
-            Q(email__iexact=raw_email) |
-            Q(email__iexact=base_email) |
-            Q(gcp_email__iexact=raw_email) |
-            Q(gcp_email__iexact=base_email)
+            Q(email__iexact=raw_email)
+            | Q(email__iexact=base_email)
+            | Q(gcp_email__iexact=raw_email)
+            | Q(gcp_email__iexact=base_email)
         )
     except ObjectDoesNotExist:
         logger.warning(f"Usuário {raw_email} não encontrado no banco. Prosseguindo com remoção.")
