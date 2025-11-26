@@ -545,8 +545,17 @@ class StripeSubscriptionRemoveMemberMutation(Mutation):
             account = Account.objects.get(id=account_id)
             subscription = Subscription.objects.get(id=subscription_id)
             assert admin.id == subscription.admin.id
-            remove_user(account.gcp_email or account.email)
-            subscription.subscribers.remove(account)
+            try:
+                remove_user(account.gcp_email or account.email)
+            except Exception as e:
+                logger.warning(f"Falha ao remover {account.email} do Google Group: {e}")
+
+            try:
+                subscription.subscribers.remove(account)
+            except Exception as e:
+                logger.error(e)
+                return cls(errors=[str(e)])
+
             return cls(ok=True)
         except Exception as e:
             logger.error(e)
