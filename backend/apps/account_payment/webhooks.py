@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 from django.conf import settings
+from django.core.exceptions import ObjectDoesNotExist
+from django.db.models import Q
 from djstripe import webhooks
 from djstripe.models import Event
 from djstripe.models import Subscription as DJStripeSubscription
@@ -9,14 +11,13 @@ from googleapiclient.errors import HttpError
 from loguru import logger
 from stripe import Customer as StripeCustomer
 from stripe import Subscription as StripeSubscription
-from django.db.models import Q
-from django.core.exceptions import ObjectDoesNotExist
 
 from backend.apps.account.models import Account, Subscription
 from backend.custom.client import send_discord_message as send
 from backend.custom.environment import get_backend_url, is_dev, is_stg
 
 logger = logger.bind(module="payment")
+
 
 def _normalize_plus(email: str) -> str:
     """Normaliza: trim, lower e remove +alias antes do @."""
@@ -25,6 +26,7 @@ def _normalize_plus(email: str) -> str:
     if "+" in local:
         local = local.split("+", 1)[0]
     return f"{local}@{domain}"
+
 
 def get_subscription(event: Event) -> Subscription:
     """Get internal subscription model, mirror of stripe"""
@@ -71,12 +73,14 @@ def add_user(email: str, account: Account = None, group_key: str = None, role: s
         if account is None:
             try:
                 normalized_email = _normalize_plus(email)
-                account = Account.objects.get(Q(email__iexact=email) | Q(email__iexact=normalized_email))
+                account = Account.objects.get(
+                    Q(email__iexact=email) | Q(email__iexact=normalized_email)
+                )
             except Account.DoesNotExist:
                 account = None
 
         if not (account and account.is_admin):
-            logger.info(f"Ignorando adição do usuário '{email}' em ambiente de dev/staging pois não é admin.")
+            logger.info(f"Ignorando adição do usuário '{email}'em dev/staging.")
             return
 
     if not group_key:
@@ -96,6 +100,7 @@ def add_user(email: str, account: Account = None, group_key: str = None, role: s
             logger.error(e)
             raise e
 
+
 def remove_user(email: str, group_key: str = None) -> None:
     """Remove user from Google Group"""
     if not email or "@" not in email:
@@ -107,14 +112,16 @@ def remove_user(email: str, group_key: str = None) -> None:
 
     try:
         user = Account.objects.get(
-            Q(email__iexact=raw_email) |
-            Q(email__iexact=base_email) |
-            Q(gcp_email__iexact=raw_email) |
-            Q(gcp_email__iexact=base_email)
+            Q(email__iexact=raw_email)
+            | Q(email__iexact=base_email)
+            | Q(gcp_email__iexact=raw_email)
+            | Q(gcp_email__iexact=base_email)
         )
     except ObjectDoesNotExist:
-        logger.warning(f"Usuário {raw_email} não encontrado no banco. Prosseguindo com remoção.")
-        return
+        logger.warning(
+            f"Usuário {raw_email} não encontrado no banco. Tentando remoção direta do Google Group."
+        )
+        user = None
 
     if user and user.is_admin:
         logger.warning(f"Bloqueado: {raw_email} é admin. Não removido do Google Groups.")
@@ -129,12 +136,20 @@ def remove_user(email: str, group_key: str = None) -> None:
             memberKey=base_email,
         ).execute()
     except HttpError as e:
-        if e.resp.status == 404:
-            logger.warning(f"{base_email} já foi removido do Google Groups")
-        else:
-            send(f"Verifique o erro ao remover '{base_email}' do Google Groups: {e}")
-            logger.error(e)
-            raise
+        try:
+            status_code = int(getattr(e.resp, "status", None) or 0)
+        except Exception:
+            status_code = 0
+
+        if status_code == 404 or status_code == 400:
+            logger.warning(
+                f"{base_email} não encontrado no Google Groups (já removido ou chave inválida)"
+            )
+            return
+
+        send(f"Verifique o erro ao remover '{base_email}' do Google Groups: {e}")
+        logger.error(e)
+        raise
     except Exception:
         logger.exception(f"Erro inesperado ao remover {base_email} do Google Groups")
         raise
