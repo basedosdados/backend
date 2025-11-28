@@ -50,9 +50,7 @@ services:
       dockerfile: Dockerfile
     container_name: api
     env_file: [.env.docker]
-    volumes:
-      - .:/app
-      - $HOME/.basedosdados/credentials:$HOME/.basedosdados/credentials
+    volumes: [.:/app, $HOME/.basedosdados/credentials:/app/credentials:ro]
     ports:
       - 8000:8000  # Porta da api
       - 5678:5678  # Porta de debug
