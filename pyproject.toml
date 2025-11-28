@@ -54,6 +54,7 @@ pre-commit = "^3.3.3"
 ruff = "^0.2.0"
 yamlfix = "^1.16.0"
 shandy-sqlfmt = "^0.20.0"
+ipykernel = "^7.1.0"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^7.2.1"
