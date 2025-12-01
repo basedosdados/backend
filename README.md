@@ -63,7 +63,7 @@ cp .env.example .env
 > 
 > Caso vá utilizar a funcionalidade do chatbot, a conta de serviço deve ser armazenada localmente em `~/.basedosdados/credentials`.
 
-## Execução da API
+## Execução do Backend
 Você pode executar a API localmente utilizando o [Docker](https://docs.docker.com/engine/install/) (recomendado) ou o ambiente virtual.
 
 ### Docker (recomendado):
