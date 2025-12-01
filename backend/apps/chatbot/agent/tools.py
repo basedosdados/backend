@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import inspect
 import json
 from collections.abc import Callable
 from functools import wraps
@@ -7,6 +8,7 @@ from typing import Any, Literal, Self
 import httpx
 from google.api_core.exceptions import GoogleAPICallError
 from google.cloud import bigquery as bq
+from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import BaseTool, tool
 from pydantic import BaseModel, model_validator
 
@@ -35,7 +37,7 @@ BASE_USAGE_GUIDE_URL = "https://raw.githubusercontent.com/basedosdados/website/r
 
 # GraphQL query for fetching dataset details
 DATASET_DETAILS_QUERY = """
-query GetDatasetOverview($id: ID!) {
+query getDatasetDetails($id: ID!) {
     allDataset(id: $id, first: 1) {
         edges {
             node {
@@ -440,7 +442,7 @@ def get_dataset_details(dataset_id: str) -> str:
         GoogleAPIError.BYTES_BILLED_LIMIT_EXCEEDED: "Add WHERE filters or select fewer columns."
     }
 )
-def execute_bigquery_sql(sql_query: str) -> str:
+def execute_bigquery_sql(sql_query: str, config: RunnableConfig) -> str:
     """Execute a SQL query against BigQuery tables from the Base dos Dados database.
 
     Use AFTER identifying the right datasets and understanding tables structure.
@@ -475,7 +477,13 @@ def execute_bigquery_sql(sql_query: str) -> str:
             instructions="Your access is strictly read-only. Use only SELECT statements.",
         )
 
-    job_config = bq.QueryJobConfig(maximum_bytes_billed=LIMIT_BIGQUERY_QUERY)
+    labels = {
+        "thread_id": config.get("configurable", {}).get("thread_id", "unknown"),
+        "user_id": config.get("configurable", {}).get("user_id", "unknown"),
+        "tool_name": inspect.currentframe().f_code.co_name,
+    }
+
+    job_config = bq.QueryJobConfig(maximum_bytes_billed=LIMIT_BIGQUERY_QUERY, labels=labels)
     query_job = client.query(sql_query, job_config=job_config)
 
     rows = query_job.result()
@@ -489,7 +497,11 @@ def execute_bigquery_sql(sql_query: str) -> str:
 @handle_tool_errors(
     instructions={GoogleAPIError.NOT_FOUND: ("Dictionary table not found for this dataset.")}
 )
-def decode_table_values(table_gcp_id: str, column_name: str | None = None) -> str:
+def decode_table_values(
+    table_gcp_id: str,
+    config: RunnableConfig,
+    column_name: str | None = None,
+) -> str:
     """Decode coded values from a table.
 
     Use when column values appear to be codes (e.g., 1,2,3 or A,B,C).
@@ -530,7 +542,16 @@ def decode_table_values(table_gcp_id: str, column_name: str | None = None) -> st
 
     search_query += "ORDER BY nome_coluna, chave"
 
-    rows = client.query(search_query).result()
+    labels = {
+        "thread_id": config.get("configurable", {}).get("thread_id", "unknown"),
+        "user_id": config.get("configurable", {}).get("user_id", "unknown"),
+        "tool_name": inspect.currentframe().f_code.co_name,
+    }
+
+    job_config = bq.QueryJobConfig(labels=labels)
+    query_job = client.query(search_query, job_config=job_config)
+
+    rows = query_job.result()
     results = [dict(row) for row in rows]
 
     tool_output = ToolOutput(status="success", results=results).model_dump(exclude_none=True)

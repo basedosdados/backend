@@ -251,9 +251,7 @@ class MessageListView(APIView):
         config = ConfigDict(
             run_id=run_id,
             recursion_limit=32,
-            configurable={
-                "thread_id": str(thread.id),
-            },
+            configurable={"thread_id": str(thread.id), "user_id": str(thread.account.uuid)},
         )
 
         serializer = _validate(request, UserMessageSerializer)
