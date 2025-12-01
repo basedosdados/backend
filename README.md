@@ -1,60 +1,90 @@
-# Base dos Dados API
+<div align="center">
+    <a href="https://basedosdados.org">
+        <img src="https://storage.googleapis.com/basedosdados-website/logos/bd_minilogo.png" width="240" alt="Base dos Dados">
+    </a>
+</div>
 
-## Configuração de ambiente para desenvolvimento
+# Base dos Dados
 
-### Requisitos
+Backend da [Base dos Dados](https://basedosdados.org), a maior plataforma pública de dados do Brasil.
 
-- Um editor de texto (recomendado VS Code)
-- Python 3.11
-- `pip`
-- (Opcional, mas recomendado) Um ambiente virtual para desenvolvimento (`miniconda`, `virtualenv` ou similares)
+## Tecnologias Utilizadas
 
-### Procedimentos
+#### Core
+- [Django](https://www.djangoproject.com/) como framework web
+- [PostgreSQL](https://www.postgresql.org/) como banco de dados relacional
+- [huey](https://huey.readthedocs.io/en/latest/) + [Redis](https://redis.io/) para agendamento de tarefas
+- [Elasticsearch](https://www.elastic.co/) como motor de busca
 
-- Clonar esse repositório
+#### API de Dados
+- [GraphQL](https://graphql.org/) (via [Graphene-Django](https://docs.graphene-python.org/projects/django/en/latest/)) para a API de dados
+- [Google Cloud Storage](https://cloud.google.com/storage) para armazenamento de mídia e acesso aos dados brutos
+- [Google BigQuery](https://cloud.google.com/bigquery) para acesso aos dados tratados
 
-  ```
-  git clone https://github.com/basedosdados/backend.git
-  ```
+#### Chatbot
+- [Django REST Framework](https://www.django-rest-framework.org/) para a API do chatbot
+- [LangChain](https://docs.langchain.com/oss/python/langchain/overview) / [LangGraph](https://langchain-ai.github.io/langgraph/) para desenvolvimento de agentes de IA
+- [Google BigQuery](https://cloud.google.com/bigquery) para acesso aos dados tratados
+- [Vertex AI](https://cloud.google.com/vertex-ai) para acesso a LLMs
 
-- Abrí-lo no seu editor de texto
+#### Pagamentos
+- [Stripe](https://stripe.com/) / [dj-stripe](https://dj-stripe.dev/) para o processamento de pagamentos
 
-- No seu ambiente de desenvolvimento, instalar [poetry](https://python-poetry.org/) para gerenciamento de dependências
+#### Ferramentas de Desenvolvimento
+- [Poetry](https://python-poetry.org/) para gerenciamento de dependências
+- [Docker](https://www.docker.com/) para conteinerização
+- [Pre-commit](https://pre-commit.com/) para gerenciamento de hooks de pre-commit
+- [Ruff](https://docs.astral.sh/ruff/) para formatação
 
-    ```
-    pip3 install poetry
-    ```
+## Configuração do Ambiente de Desenvolvimento
+Para começar a desenvolver, configure o ambiente de desenvolvimento seguindo as instruções abaixo:
 
-- Instalar as dependências para desenvolvimento
-
-    ```
-    poetry install
-    ```
-
-- Instalar os hooks de pré-commit (ver https://pre-commit.com/ para entendimento dos hooks)
-
-    ```
-    pre-commit install
-    ```
-
-- Pronto! Seu ambiente está configurado para desenvolvimento.
-
-* OBS1: É possível realizar a execução do servidor django um dos alias
-```sh
-    python manage.py makemigrations
-    python manage.py migrate
-    make run_docker
+1\. Clone o repositório e abra-o no seu editor de texto
+```bash
+git clone https://github.com/basedosdados/backend.git
 ```
 
-* OBS2: É possível realizar a execução do servidor django via
-```sh
-    python manage.py migrate
-    python manage.py createsuperuser
-    python manage.py runserver 8080
+2\. Crie um ambiente virtual de desenvolvimento com o [Poetry](https://python-poetry.org/docs).
+```bash
+poetry install
 ```
 
-* OBS3: É possível realizar a load e dump de fixtures via
-```sh
-    python manage.py dumpdata > fixture.json
-    python manage.py loadfixture fixture.json
+3\. Instale os hooks de pre-commit
 ```
+pre-commit install
+```
+
+4\. Copie o arquivo `.env.example` e ajuste as variáveis conforme necessário
+```bash
+cp .env.example .env
+```
+> [!NOTE]
+> As variáveis de ambiente no arquivo `.env.example` já estão configuradas para execução com o Docker.
+> 
+> Caso vá utilizar a funcionalidade do chatbot, a conta de serviço deve ser armazenada localmente em `~/.basedosdados/credentials`.
+
+## Execução da API
+Você pode executar a API localmente utilizando o [Docker](https://docs.docker.com/engine/install/) (recomendado) ou o ambiente virtual.
+
+### Docker (recomendado):
+```bash
+docker compose up
+```
+
+> [!TIP]
+> Você também pode utilizar a flag `-d --detach` e acompanhar os logs utilizando o comando `docker logs` com a flag `-f --follow`
+> ```bash
+> docker compose up -d
+> docker compose logs api -f
+> ```
+
+Para parar o serviço:
+```
+docker compose down
+```
+
+### Python (ambiente virtual)
+TODO: adicionar instruções aqui
+
+> [!NOTE]
+> Para esta opção funcionar, você precisará ter instâncias do PostgreSQL, Redis e Elasticsearch rodando localmente e ajustar as configurações necessárias no arquivo `.env`.
