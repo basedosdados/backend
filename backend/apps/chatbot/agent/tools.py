@@ -302,7 +302,7 @@ def get_dataset_details(dataset_id: str) -> str:
             - tables: Array of all tables in the dataset with:
                 - gcp_id: Full BigQuery table reference (`project.dataset.table`)
                 - columns: All column names, types, and descriptions
-                - temporal coverage: time range information for the table data
+                - temporal coverage: Authoritative temporal coverage for the table
                 - table descriptions explaining what each table contains
             - usage_guide: Provide key information and best practices for using the dataset.
 
