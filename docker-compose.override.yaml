@@ -51,7 +51,7 @@ services:
     container_name: api
     env_file: [.env.docker]
     command: [poetry, run, /app/start-server-dev.sh]
-    volumes: [.:/app, $HOME/.config/pydata:$HOME/.config/pydata]
+    volumes: [.:/app, $HOME/.basedosdados/credentials:/app/credentials:ro]
     ports:
       - 8000:8000  # Porta da api
       - 5678:5678  # Porta de debug

@@ -27,11 +27,11 @@ def check_gcloud_env_vars(app_configs, **kwargs):
             )
         )
 
-    if not os.getenv("QUERY_PROJECT_ID"):
+    if not os.getenv("BIGQUERY_PROJECT_ID"):
         warnings.append(
             Warning(
-                "QUERY_PROJECT_ID not set - chatbot will be disabled",
-                hint="Set QUERY_PROJECT_ID=your-gcp-project-id\n",
+                "BIGQUERY_PROJECT_ID not set - chatbot will be disabled",
+                hint="Set BIGQUERY_PROJECT_ID=your-gcp-project-id\n",
                 id="chatbot.W003",
             )
         )
@@ -45,21 +45,30 @@ def check_gcloud_env_vars(app_configs, **kwargs):
             )
         )
 
-    if not os.getenv("LANGCHAIN_TRACING_V2"):
+    if not os.getenv("LANGSMITH_TRACING"):
         warnings.append(
             Warning(
-                "LANGCHAIN_TRACING_V2 not set - tracing will be disabled",
-                hint="Set LANGCHAIN_TRACING_V2=true\n",
+                "LANGSMITH_TRACING not set - tracing will be disabled",
+                hint="Set LANGSMITH_TRACING=true\n",
                 id="chatbot.W005",
             )
         )
 
-    if not os.getenv("LANGCHAIN_API_KEY"):
+    if not os.getenv("LANGSMITH_API_KEY"):
         warnings.append(
             Warning(
-                "LANGCHAIN_API_KEY not set - tracing will be disabled",
-                hint="Set LANGCHAIN_API_KEY=your-langsmith-api-key\n",
+                "LANGSMITH_API_KEY not set - tracing will be disabled",
+                hint="Set LANGSMITH_API_KEY=your-langsmith-api-key\n",
                 id="chatbot.W006",
+            )
+        )
+
+    if not os.getenv("LANGSMITH_PROJECT"):
+        warnings.append(
+            Warning(
+                "LANGSMITH_PROJECT not set - project 'default' will be used",
+                hint="Set LANGSMITH_PROJECT=your-project-name\n",
+                id="chatbot.W007",
             )
         )
 

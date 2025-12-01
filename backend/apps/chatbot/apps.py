@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from django.apps import AppConfig
-from loguru import logger
 
 
 class ChatbotConfig(AppConfig):
@@ -10,7 +9,3 @@ class ChatbotConfig(AppConfig):
 
     def ready(self):
         import backend.apps.chatbot.checks  # noqa: F401
-        import chatbot
-
-        # Enable logs from the chatbot package
-        logger.enable(chatbot.__name__)
