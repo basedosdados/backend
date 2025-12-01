@@ -23,8 +23,6 @@ class MessagePair(models.Model):
     user_message = models.TextField()
     assistant_message = models.TextField(null=True)
     error_message = models.TextField(null=True)
-    generated_queries = models.JSONField(null=True, blank=True)
-    generated_chart = models.JSONField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     events = models.JSONField(null=True)
 

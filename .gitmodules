@@ -1,3 +1,0 @@
-[submodule "chatbot"]
-	path = chatbot
-	url = git@github.com:basedosdados/chatbot.git
