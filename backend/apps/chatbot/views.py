@@ -25,7 +25,7 @@ from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from backend.apps.chatbot.agent.prompts import SQL_AGENT_SYSTEM_PROMPT_V2
+from backend.apps.chatbot.agent.prompts import SQL_AGENT_SYSTEM_PROMPT
 from backend.apps.chatbot.agent.react_agent import ReActAgent
 from backend.apps.chatbot.agent.tools import get_tools
 from backend.apps.chatbot.agent.types import StateT
@@ -368,7 +368,7 @@ def _get_sql_agent() -> Generator[ReActAgent]:
             model=model,
             tools=get_tools(),
             start_hook=start_hook,
-            prompt=SQL_AGENT_SYSTEM_PROMPT_V2,
+            prompt=SQL_AGENT_SYSTEM_PROMPT,
             checkpointer=checkpointer,
         )
 
