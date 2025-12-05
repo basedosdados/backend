@@ -15,4 +15,4 @@ echo "> Running Huey"
 (cd /app; python manage.py run_huey &)
 
 echo "> Running Gunicorn"
-(cd /app; gunicorn backend.wsgi --user www-data --bind 0.0.0.0:8000 --workers 3 --timeout 180) & nginx -g "daemon off;"
+(cd /app; gunicorn backend.wsgi --user www-data --bind 0.0.0.0:8000 --workers 3 --worker-class gevent --timeout 180) & nginx -g "daemon off;"
