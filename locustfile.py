@@ -16,7 +16,7 @@ class RegularUser(HttpUser):
 
     @task
     def search(self):
-        self.client.get("/search")
+        self.client.get("/search/")
 
 
 class ChatbotUser(HttpUser):
