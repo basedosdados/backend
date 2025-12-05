@@ -30,6 +30,7 @@ from backend.apps.chatbot.agent.react_agent import ReActAgent
 from backend.apps.chatbot.agent.tools import get_tools
 from backend.apps.chatbot.agent.types import StateT
 from backend.apps.chatbot.feedback_sender import LangSmithFeedbackSender
+from backend.apps.chatbot.mock import allow_agent_mock
 from backend.apps.chatbot.models import Feedback, MessagePair, Thread
 from backend.apps.chatbot.serializers import (
     FeedbackCreateSerializer,
@@ -43,7 +44,6 @@ from backend.apps.chatbot.utils.gcloud import get_chatbot_credentials
 from backend.apps.chatbot.utils.stream import EventData, StreamEvent, process_chunk
 
 ModelSerializer = TypeVar("ModelSerializer", bound=Serializer)
-
 
 # Model name/URI. Refer to the LangChain docs for valid names/URIs
 # https://python.langchain.com/api_reference/langchain/chat_models/langchain.chat_models.base.init_chat_model.html
@@ -375,16 +375,17 @@ def _get_sql_agent() -> Generator[ReActAgent]:
         yield sql_agent
 
 
+@allow_agent_mock
 def _stream_sql_agent_response(message: str, config: ConfigDict, thread: Thread) -> Iterator[str]:
     """Stream agent's execution progress.
 
     Args:
         message (str): User's input message.
-        config (ConfigDict): Configuration for the agent's execution.
-        thread (Thread): Unique identifier for the conversation thread.
+        config (ConfigDict): Configuration for agent execution.
+        thread (Thread): Conversation thread.
 
     Yields:
-        Iterator[str]: JSON string containing the streaming status and the current step data.
+        Iterator[str]: SSE-formatted event.
     """
     events = []
     agent_state = None
