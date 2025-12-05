@@ -6,7 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("account", "0024_account_google_sub"),
+        ("account", "0025_account_google_sub"),
     ]
 
     operations = [
