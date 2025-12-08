@@ -10,24 +10,25 @@
   display: block;
   margin: 0 auto;
   width: 100%;
-  max-width: 600px;
+  max-width: 650px;
+  font-family: 'Lato',sans-serif;
   padding: 0 28px;
   box-sizing: content-box;
 ">
+
   <a href="https://basedosdados.org" target="_blank" style="display: flex; width: 100%; margin: 20px 0;">
     <img alt="logo" style="width: 75px; margin: 0 auto;" src="https://imgur.com/xoiXjjm.png">
   </a>
 
-  <h1 style="width: 100%; padding-top: 32px; margin: 0 0 16px; border-top: 1px solid #DEDFE0; color: #252A32; font-family: Arial; font-size: 14px; font-style: normal; font-weight: 700; line-height: 24px;">Olá, {{ name }}</h1>
+  <h1 style="width: 100%; padding-top: 32px; margin: 0 0 16px; border-top: 1px solid #DEDFE0; color: #252A32; font-family: Arial; font-size: 14px; font-style: normal; font-weight: 700; line-height: 24px;">Olá,</h1>
 
   <div style="display: block; width: 100%; margin: 16px 0;">
-    <p style="width: 100%; margin: 0; color: #252A32; font-family: Arial; font-size: 14px; font-style: normal; font-weight: 400; line-height: 22px; margin-bottom: 8px;">Obrigado por assinar nosso produto! Ficamos felizes em informar que uma conta já foi criada para você em nossa plataforma.</p>
-    <p style="width: 100%; margin: 0; color: #252A32; font-family: Arial; font-size: 14px; font-style: normal; font-weight: 400; line-height: 22px; margin-bottom: 8px;">Utilizando o seu email e nome de usuário associados à assinatura.</p>
-    <p style="width: 100%; margin: 0; color: #252A32; font-family: Arial; font-size: 14px; font-style: normal; font-weight: 400; line-height: 22px;">Para acessar sua conta, basta definir uma senha.</p>
+    <p style="width: 100%; margin: 0; color: #252A32; font-family: Arial; font-size: 14px; font-style: normal; font-weight: 400; line-height: 22px; margin-bottom: 8px;">A tabela {{ table_name }} do conjunto de dados {{ dataset_name }} foi atualizada pela Base dos Dados.</p>
+    <p style="width: 100%; margin: 0; color: #252A32; font-family: Arial; font-size: 14px; font-style: normal; font-weight: 400; line-height: 22px;">Você pode conferir a atualização diretamente na plataforma.</p>
   </div>
 
   <a
-    href="http://{{ domain }}/reset_password/{{ uid }}/{{ token }}/"
+    href="https://{{ domain }}/dataset/{{ dataset_id }}?table={{ table_id }}"
     style="
       color: #FFF;
       background-color: #2B8C4D;
@@ -43,11 +44,18 @@
       line-height: 24px;
       letter-spacing: 0.2px;
       font-family: Arial;
-    ">Definir Senha</a>
+  ">Ver tabela atualizada</a>
 
   <span style="display: block; width: 100%; margin: 32px 0; border-top: 1px solid #DEDFE0;"></span>
 
-  <p style="color: #6F6F6F; text-align: center; font-family: Arial; font-size: 13px; font-weight: 400; line-height: 18px; letter-spacing: 0.2px; margin: 0;">Se você tiver alguma dúvida ou precisar de assistência, não hesite em nos contatar. Estamos aqui para ajudar!</p>
+  <div style="display: block; width: 100%; margin: 0 auto;">
+    <p style="color: #6F6F6F; text-align: center; font-family: Arial; font-size: 13px; font-weight: 400; line-height: 18px; letter-spacing: 0.2px; margin: 0;">
+      Se não quiser mais receber estes avisos, você pode desativar as notificações diretamente nas páginas de tabelas ou entrar em contato pelo e-mail
+    </p>
+    <p style="width: 100%; text-align: center; color: #6F6F6F; margin: 0; font-family: Arial; font-size: 13px; font-weight: 400; line-height: 18px; letter-spacing: 0.2px; margin: 0; text-decoration: none;">
+      contato@basedosdados.org
+    </p>
+  </div>
 
   <span style="display: block; width: 100%; margin: 32px 0; border-top: 1px solid #DEDFE0;"></span>
 
@@ -65,5 +73,4 @@
     }
   </style>
 </body>
-
 </html>
