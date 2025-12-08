@@ -7,7 +7,24 @@ from dotenv import load_dotenv
 from locust import HttpUser, between, task
 from loguru import logger
 
-load_dotenv()
+load_dotenv(".env.docker")
+
+if os.getenv("MOCK_AGENT", "false").lower() != "true":
+    raise ValueError(
+        "MOCK_AGENT must be set to 'true' in .env.docker to run load tests. "
+        "This ensures the chatbot uses mock responses instead of making real API calls."
+    )
+
+chatbot_user_email = os.getenv("CHATBOT_USER_EMAIL")
+chatbot_user_password = os.getenv("CHATBOT_USER_PASSWORD")
+
+if not chatbot_user_email or not chatbot_user_password:
+    raise ValueError(
+        "Add CHATBOT_USER_EMAIL and CHATBOT_USER_PASSWORD "
+        "to .env.docker with valid chatbot user credentials."
+    )
+
+MOCK_MESSAGE = "Qual a proporção de mulheres no mercador de trabalho formal?"
 
 
 class RegularUser(HttpUser):
@@ -28,8 +45,8 @@ class ChatbotUser(HttpUser):
         response = self.client.post(
             url="/chatbot/token/",
             data={
-                "email": os.getenv("CHATBOT_USER_EMAIL"),
-                "password": os.getenv("CHATBOT_USER_PASSWORD"),
+                "email": chatbot_user_email,
+                "password": chatbot_user_password,
             },
         )
 
@@ -58,8 +75,6 @@ class ChatbotUser(HttpUser):
         if thread_id is None:
             logger.warning("[START_THREAD] Thread ID is None")
 
-        message = "Qual a proporção de mulheres no mercador de trabalho formal?"
-
         start_time = time.perf_counter()
 
         try:
@@ -67,7 +82,7 @@ class ChatbotUser(HttpUser):
             response = self.client.post(
                 url=f"/chatbot/threads/{thread_id}/messages/",
                 headers={"Authorization": f"Bearer {self.access_token}"},
-                json={"id": str(uuid.uuid4()), "content": message},
+                json={"id": str(uuid.uuid4()), "content": MOCK_MESSAGE},
                 stream=True,
                 timeout=60,
                 name="TTFB",
