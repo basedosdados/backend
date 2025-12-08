@@ -48,7 +48,6 @@ langgraph = "0.6.11"
 langgraph-checkpoint-postgres = "3.0.1"
 langchain-google-vertexai = "2.1.2"
 httpx = "^0.28.1"
-python-dotenv = "^1.2.1"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.3.3"
@@ -57,9 +56,10 @@ yamlfix = "^1.16.0"
 shandy-sqlfmt = "^0.28.2"
 ipykernel = "^7.1.0"
 locust = "^2.42.6"
+python-dotenv = "^1.2.1"
 
 [tool.poetry.group.test.dependencies]
-pytest = "^9.0.1"
+pytest = "^9.0.2"
 pytest-cov = "^4.1.0"
 pytest-django = "^4.5.2"
 
