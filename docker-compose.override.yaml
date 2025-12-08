@@ -49,6 +49,14 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: api
+    deploy:
+      resources:
+        reservations:
+          cpus: '1.0'
+          memory: 1.5G
+        limits:
+          cpus: '2.0'
+          memory: 4G
     env_file: [.env.docker]
     command: [poetry, run, /app/start-server-dev.sh]
     volumes: [.:/app, $HOME/.basedosdados/credentials:/app/credentials:ro]
