@@ -24,7 +24,7 @@ if not chatbot_user_email or not chatbot_user_password:
         "to .env.docker with valid chatbot user credentials."
     )
 
-MOCK_MESSAGE = "Qual a proporção de mulheres no mercador de trabalho formal?"
+MOCK_MESSAGE = "Qual a proporção de mulheres no mercado de trabalho formal?"
 
 
 class RegularUser(HttpUser):
