@@ -25,14 +25,14 @@ class MockReActAgent:
         ...
 
     def stream(self, *args, **kwargs):
-        yield "updates", {"agent": AIMessage("mock response")}
+        yield "updates", {"agent": {"messages": [AIMessage("mock response")]}}
 
     def clear_thread(self, *args, **kwargs):
         ...
 
 
-def mock_create_react_agent():
-    return MockReActAgent()
+def mock_get_sql_agent():
+    yield MockReActAgent()
 
 
 @pytest.fixture
@@ -276,7 +276,7 @@ def test_message_list_view_get_order_invalid(auth_client: APIClient, auth_user: 
 
 @pytest.mark.django_db
 def test_message_list_view_post(monkeypatch, auth_client: APIClient, auth_user: Account):
-    monkeypatch.setattr(views, "create_react_agent", mock_create_react_agent)
+    monkeypatch.setattr(views, "_get_sql_agent", mock_get_sql_agent)
 
     thread = Thread.objects.create(account=auth_user)
 
