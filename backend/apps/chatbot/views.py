@@ -187,17 +187,17 @@ class ThreadDetailView(APIView):
         """
         thread = _get_thread_by_id(thread_id)
 
-        logger.info(f"Deleting thread {thread_id}")
+        logger.info(f"[CHATBOT] Deleting thread {thread_id}")
 
         try:
             thread.deleted = True
             thread.save()
             with _get_sql_agent() as agent:
                 agent.clear_thread(str(thread.id))
-            logger.success(f"Thread {thread.id} deleted successfully")
+            logger.success(f"[CHATBOT] Thread {thread.id} deleted successfully")
             return Response({"detail": "Thread deleted successfully"})
         except Exception:
-            logger.exception(f"Error deleting thread {thread.id}:")
+            logger.exception(f"[CHATBOT] Error deleting thread {thread.id}:")
             return Response(
                 {"detail": "Error deleting thread"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
@@ -338,7 +338,12 @@ def _get_sql_agent() -> Generator[ReActAgent]:
 
     credentials = get_chatbot_credentials()
 
-    model = init_chat_model(MODEL_URI, temperature=0.2, credentials=credentials)
+    model = init_chat_model(
+        MODEL_URI,
+        api_transport="rest",  # gRPC (the default for ChatVertexAI) is not compatible with gevent
+        temperature=0.2,
+        credentials=credentials,
+    )
 
     def start_hook(state: StateT):
         messages = state["messages"]
@@ -391,7 +396,7 @@ def _stream_sql_agent_response(message: str, config: ConfigDict, thread: Thread)
     agent_state = None
 
     try:
-        logger.info("Calling SQL Agent")
+        logger.info("[CHATBOT] Calling SQL Agent")
         with _get_sql_agent() as agent:
             for mode, chunk in agent.stream(
                 message=message,
@@ -413,11 +418,11 @@ def _stream_sql_agent_response(message: str, config: ConfigDict, thread: Thread)
 
         # The last event always contains the agent's final answer,
         # so we use it to save the message pair in the database
-        logger.success("SQL Agent called successfully")
+        logger.success("[CHATBOT] SQL Agent called successfully")
     except GraphRecursionError:
-        logger.exception(f"Graph recursion error for message {config['run_id']}:")
+        logger.exception(f"[CHATBOT] Graph recursion error for message {config['run_id']}:")
     except google_api_exceptions.InvalidArgument:
-        logger.exception("Agent execution failed with Google API InvalidArgument error:")
+        logger.exception("[CHATBOT] Agent execution failed with Google API InvalidArgument error:")
 
         assistant_message = None
         error_message = ERROR_MESSAGE_UNEXPECTED
@@ -437,7 +442,7 @@ def _stream_sql_agent_response(message: str, config: ConfigDict, thread: Thread)
             type="error", data=EventData(error_details={"message": error_message})
         ).to_sse()
     except Exception:
-        logger.exception(f"Unexpected error responding message {config['run_id']}:")
+        logger.exception(f"[CHATBOT] Unexpected error responding message {config['run_id']}:")
         assistant_message = None
         error_message = ERROR_MESSAGE_UNEXPECTED
 
@@ -454,7 +459,7 @@ def _stream_sql_agent_response(message: str, config: ConfigDict, thread: Thread)
         error_message=error_message,
         events=events,
     )
-    logger.success(f"Message pair {message_pair.id} saved successfully")
+    logger.success(f"[CHATBOT] Message pair {message_pair.id} saved successfully")
 
     yield StreamEvent(type="complete", data=EventData(run_id=message_pair.id)).to_sse()
 

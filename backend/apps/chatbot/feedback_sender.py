@@ -38,13 +38,13 @@ class LangSmithFeedbackSender:
                 comment=feedback.comment,
             )
             logger.info(
-                f"Successfully created feedback {feedback.id} "
+                f"[CHATBOT] Successfully created feedback {feedback.id} "
                 f"for run {feedback.message_pair.id} on LangSmith"
             )
             return True
         except Exception:
             logger.exception(
-                f"Failed to create feedback {feedback.id} "
+                f"[CHATBOT] Failed to create feedback {feedback.id} "
                 f"for run {feedback.message_pair.id} on LangSmith"
             )
             return False
@@ -63,13 +63,13 @@ class LangSmithFeedbackSender:
                 feedback_id=feedback.id, score=feedback.rating, comment=feedback.comment
             )
             logger.info(
-                f"Successfully updated feedback {feedback.id} "
+                f"[CHATBOT] Successfully updated feedback {feedback.id} "
                 f"for run {feedback.message_pair.id} on LangSmith"
             )
             return True
         except Exception:
             logger.exception(
-                f"Failed to update feedback {feedback.id} "
+                f"[CHATBOT] Failed to update feedback {feedback.id} "
                 f"for run {feedback.message_pair.id} on LangSmith"
             )
             return False
@@ -107,6 +107,6 @@ class LangSmithFeedbackSender:
         except Full:
             operation = "create" if created else "update"
             logger.warning(
-                f"LangSmith feedbacks queue is full - could not {operation} "
+                f"[CHATBOT] LangSmith feedbacks queue is full - could not {operation} "
                 f"feedback {feedback.id} on LangSmith"
             )
