@@ -3,9 +3,11 @@
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.core.management.base import BaseCommand
+from django.template.loader import render_to_string
 from django.utils import timezone as dj_timezone
 
 from backend.apps.user_notifications.models import TableUpdateSubscription
+from backend.custom.environment import get_frontend_url
 
 
 def check_for_updates(subscription: TableUpdateSubscription) -> TableUpdateSubscription | bool:
@@ -18,6 +20,9 @@ def check_for_updates(subscription: TableUpdateSubscription) -> TableUpdateSubsc
 
 def send_update_notification_email(subscription: TableUpdateSubscription, date_today: dj_timezone):
     user = subscription.user
+    table = subscription.table
+    dataset = table.dataset
+
     from_email = settings.EMAIL_HOST_USER
     recipient_list = [user.email]
 
@@ -26,16 +31,20 @@ def send_update_notification_email(subscription: TableUpdateSubscription, date_t
         f"Olá {user.username}, \n\nHá atualizações disponíveis para uma das tabelas que você segue."
     )
 
-    # content = render_to_string(
-    #     "account/activation_email.html",
-    #     {
-    #         "name": user.get_full_name(),
-    #         "domain": get_frontend_url(),
-    #     },
-    # )
+    content = render_to_string(
+        "account/update_table_notification.html",
+        {
+            "name": user.get_full_name(),
+            "domain": get_frontend_url(),
+            "table_name": table.name,
+            "table_id": table.id,
+            "dataset_name": dataset.name,
+            "dataset_id": dataset.id,
+        },
+    )
 
     msg = EmailMultiAlternatives(subject, message, from_email, recipient_list)
-    # msg.attach_alternative(content, "text/html")
+    msg.attach_alternative(content, "text/html")
     msg.send()
 
     subscription.last_notification = date_today
