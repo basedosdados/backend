@@ -53,7 +53,7 @@ services:
       resources:
         reservations:
           cpus: '1.0'
-          memory: 1.5G
+          memory: 2G
         limits:
           cpus: '2.0'
           memory: 4G
