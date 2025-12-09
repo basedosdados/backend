@@ -52,17 +52,17 @@ services:
     deploy:
       resources:
         reservations:
-          cpus: '1.0'
+          cpus: '0.5'
           memory: 2G
         limits:
-          cpus: '2.0'
+          cpus: '1.0'
           memory: 4G
     env_file: [.env]
     command: [poetry, run, /app/start-server-dev.sh]
     volumes: [.:/app, $HOME/.basedosdados/credentials:/app/credentials:ro]
     ports:
-      - 8000:8000  # Porta da api
-      - 5678:5678  # Porta de debug
+      - 8000:8000  # API port
+      - 5678:5678  # Debug port
     depends_on:
       index:
         condition: service_healthy
