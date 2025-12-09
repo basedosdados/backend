@@ -64,9 +64,8 @@ cp .env.example .env
 > Caso vá utilizar a funcionalidade do chatbot, a conta de serviço deve ser armazenada localmente em `~/.basedosdados/credentials`.
 
 ## Execução do Backend
-Você pode executar a API localmente utilizando o [Docker](https://docs.docker.com/engine/install/) (recomendado) ou o ambiente virtual.
+Utilize o [Docker](https://docs.docker.com/engine/install/) para executar o backend localmente:
 
-### Docker (recomendado):
 ```bash
 docker compose up
 ```
@@ -77,14 +76,7 @@ docker compose up
 > docker compose up -d
 > docker compose logs api -f
 > ```
-
-Para parar o serviço:
-```
-docker compose down
-```
-
-### Python (ambiente virtual)
-TODO: adicionar instruções aqui
-
-> [!NOTE]
-> Para esta opção funcionar, você precisará ter instâncias do PostgreSQL, Redis e Elasticsearch rodando localmente e ajustar as configurações necessárias no arquivo `.env`.
+> Para parar o serviço:
+> ```
+> docker compose down
+> ```
