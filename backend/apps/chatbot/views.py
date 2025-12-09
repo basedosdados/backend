@@ -338,7 +338,12 @@ def _get_sql_agent() -> Generator[ReActAgent]:
 
     credentials = get_chatbot_credentials()
 
-    model = init_chat_model(MODEL_URI, temperature=0.2, credentials=credentials)
+    model = init_chat_model(
+        MODEL_URI,
+        api_transport="rest",  # gRPC (the default for ChatVertexAI) is not compatible with gevent
+        temperature=0.2,
+        credentials=credentials,
+    )
 
     def start_hook(state: StateT):
         messages = state["messages"]
