@@ -138,7 +138,7 @@ def process_chunk(chunk: dict[str, Any]) -> StreamEvent | None:
         # The content of an AIMessage can sometimes be a list, which is not the expected behavior.
         # In that case, we just log a warning and cast it to string to keep processing consistent.
         if isinstance(message.content, list):
-            logger.warning("Message content is of type 'list', casting to string")
+            logger.warning("[CHATBOT] Message content is of type 'list', casting to string")
             content = "".join(str(part) for part in message.content)
         else:
             content = message.content

@@ -82,7 +82,7 @@ class ReActAgent(Generic[StateT]):
         response: AIMessage = self.model_runnable.invoke(messages, config)
 
         if not response.content and not response.tool_calls:
-            logger.warning("Empty model response, skipping message list update")
+            logger.warning("[CHATBOT] Empty model response, skipping message list update")
             return {"messages": []}
 
         if is_last_step and response.tool_calls or remaining_steps < 2 and response.tool_calls:
@@ -119,7 +119,7 @@ class ReActAgent(Generic[StateT]):
         response: AIMessage = await self.model_runnable.ainvoke(messages, config)
 
         if not response.content and not response.tool_calls:
-            logger.warning("Empty model response, skipping message list update")
+            logger.warning("[CHATBOT] Empty model response, skipping message list update")
             return {"messages": []}
 
         if is_last_step and response.tool_calls or remaining_steps < 2 and response.tool_calls:
