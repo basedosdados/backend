@@ -13,7 +13,7 @@ def check_gcloud_env_vars(app_configs, **kwargs):
     if not sa_file:
         warnings.append(
             Warning(
-                "CHATBOT_CREDENTIALS not set - chatbot will be disabled",
+                "CHATBOT_CREDENTIALS not set - chatbot will not work properly",
                 hint="Set CHATBOT_CREDENTIALS=/path/to/service-account.json\n",
                 id="chatbot.W001",
             )
@@ -21,7 +21,7 @@ def check_gcloud_env_vars(app_configs, **kwargs):
     elif not os.path.exists(sa_file):
         warnings.append(
             Warning(
-                f"Service account file {sa_file} not found - chatbot will be disabled",
+                f"Service account file {sa_file} not found - chatbot will not work properly",
                 hint="Ensure the file exists at the specified path\n",
                 id="chatbot.W002",
             )
@@ -30,17 +30,20 @@ def check_gcloud_env_vars(app_configs, **kwargs):
     if not os.getenv("BIGQUERY_PROJECT_ID"):
         warnings.append(
             Warning(
-                "BIGQUERY_PROJECT_ID not set - chatbot will be disabled",
+                "BIGQUERY_PROJECT_ID not set - chatbot will not work properly",
                 hint="Set BIGQUERY_PROJECT_ID=your-gcp-project-id\n",
                 id="chatbot.W003",
             )
         )
 
-    if not os.getenv("MODEL_URI"):
+    if not os.getenv("BACKEND_BASE_URL"):
         warnings.append(
             Warning(
-                "MODEL_URI not set - chatbot will be disabled",
-                hint="Set a valid model uri like 'google_vertexai:gemini-2.5-flash'\n",
+                "BACKEND_BASE_URL not set - defaulting to http://localhost:8000",
+                hint=(
+                    "Default http://localhost:8000 works for same-server deployments. "
+                    "Override only if you need an external backend, e.g., https://backend.basedosdados.org\n"
+                ),
                 id="chatbot.W004",
             )
         )
