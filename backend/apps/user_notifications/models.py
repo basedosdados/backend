@@ -2,6 +2,7 @@
 # Create your models here.
 # -*- coding: utf-8 -*-
 import logging
+from uuid import uuid4
 
 from django.db import models
 
@@ -13,6 +14,10 @@ logger = logging.getLogger("django.request")
 
 
 class TableUpdateSubscription(BaseModel):
+
+    """ "Table Update Subscription"""
+
+    id = models.UUIDField(primary_key=True, default=uuid4)
     table = models.ForeignKey(Table, on_delete=models.CASCADE)
     user = models.ForeignKey(Account, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)

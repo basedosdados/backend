@@ -23,28 +23,19 @@
   <h1 style="width: 100%; padding-top: 32px; margin: 0 0 16px; border-top: 1px solid #DEDFE0; color: #252A32; font-family: Arial; font-size: 14px; font-style: normal; font-weight: 700; line-height: 24px;">Olá,</h1>
 
   <div style="display: block; width: 100%; margin: 16px 0;">
-    <p style="width: 100%; margin: 0; color: #252A32; font-family: Arial; font-size: 14px; font-style: normal; font-weight: 400; line-height: 22px; margin-bottom: 8px;">A tabela {{ table_name }} do conjunto de dados {{ dataset_name }} foi atualizada pela Base dos Dados.</p>
-    <p style="width: 100%; margin: 0; color: #252A32; font-family: Arial; font-size: 14px; font-style: normal; font-weight: 400; line-height: 22px;">Você pode conferir a atualização diretamente na plataforma.</p>
+    <p style="width: 100%; margin: 0; color: #252A32; font-family: Arial; font-size: 14px; font-style: normal; font-weight: 400; line-height: 22px;">Você pode conferir a atualização diretamente na plataforma das seguintes tabelas:</p>
   </div>
-
-  <a
-    href="https://{{ domain }}/dataset/{{ dataset_id }}?table={{ table_id }}"
-    style="
-      color: #FFF;
-      background-color: #2B8C4D;
-      border-radius: 8px;
-      text-decoration: none;
-      display: block;
-      text-align: center;
-      width: 160px;
-      padding: 8px 16px;
-      margin: 0 auto;
-      font-size: 14px;
-      font-weight: 700;
-      line-height: 24px;
-      letter-spacing: 0.2px;
-      font-family: Arial;
-  ">Ver tabela atualizada</a>
+  <ul style="width: 100%; padding-left: 20px; margin-top: 16px;">
+    {% for subscription in subscriptions %}
+      <li style="margin-bottom: 10px;">
+        <a href="https://{{ domain }}/dataset/{{ subscription.dataset.id }}?table={{ subscription.table.id }}" style="color: #2B8C4D; text-decoration: none; font-weight: 700;">
+          Tabela: {{ subscription.table.name }} (Dataset: {{ subscription.table.dataset.name }})
+        </a>
+      </li>
+    {% empty %}
+      <li style="color: #252A32;">Não há atualizações para suas tabelas no momento.</li>
+    {% endfor %}
+  </ul>
 
   <span style="display: block; width: 100%; margin: 32px 0; border-top: 1px solid #DEDFE0;"></span>
 

@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 
+from collections import defaultdict
+
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.core.management.base import BaseCommand
 from django.template.loader import render_to_string
 from django.utils import timezone as dj_timezone
 
-from backend.apps.user_notifications.models import TableUpdateSubscription
+from backend.apps.user_notifications.models import Account, TableUpdateSubscription
 from backend.custom.environment import get_frontend_url
 
 
@@ -18,11 +20,7 @@ def check_for_updates(subscription: TableUpdateSubscription) -> TableUpdateSubsc
     return False
 
 
-def send_update_notification_email(subscription: TableUpdateSubscription, date_today: dj_timezone):
-    user = subscription.user
-    table = subscription.table
-    dataset = table.dataset
-
+def send_update_notification_email(user: Account, subscriptions: list, date_today: dj_timezone):
     from_email = settings.EMAIL_HOST_USER
     recipient_list = [user.email]
 
@@ -32,24 +30,18 @@ def send_update_notification_email(subscription: TableUpdateSubscription, date_t
     )
 
     content = render_to_string(
-        "account/update_table_notification.html",
-        {
-            "name": user.get_full_name(),
-            "domain": get_frontend_url(),
-            "table_name": table.name,
-            "table_id": table.id,
-            "dataset_name": dataset.name,
-            "dataset_id": dataset.id,
-        },
+        "notification/update_table_notification.html",
+        {"domain": get_frontend_url(), "subscriptions": subscriptions},
     )
 
     msg = EmailMultiAlternatives(subject, message, from_email, recipient_list)
     msg.attach_alternative(content, "text/html")
     msg.send()
 
-    subscription.last_notification = date_today
-    subscription.updated_at = subscription.table.last_updated_at
-    subscription.save()
+    for subscription in subscriptions:
+        subscription.last_notification = date_today
+        subscription.updated_at = subscription.table.last_updated_at
+        subscription.save()
 
 
 class Command(BaseCommand):
@@ -64,18 +56,20 @@ class Command(BaseCommand):
     def check_for_updates_and_send_emails(self):
         # Pega todas as inscrições ativas
         subscriptions = TableUpdateSubscription.objects.filter(status=True)
-
         # Pega a data atual
         date_today = dj_timezone.now()
 
-        # Lista de usuários que precisam receber o email
-        subscriptions = [check_for_updates(subscription) for subscription in subscriptions]
+        users_to_notify = defaultdict(list)
+        # Lista de usuários que precisam receber o email e agrupada eles
 
-        users_to_notify = [subscription for subscription in subscriptions if subscription]
-        # Envia e-mail para cada usuário que precisa ser notificado
-        self.stdout.write(
-            self.style.SUCCESS(f"Serão enviados um total de {len(users_to_notify)} emails")
-        )
         for subscription in subscriptions:
-            if subscription:
-                send_update_notification_email(subscription, date_today)
+            if check_for_updates(subscription):
+                users_to_notify[subscription.user].append(subscription)
+
+        self.stdout.write(
+            self.style.SUCCESS(f"Serão enviados um total de {len(users_to_notify.keys())} emails")
+        )
+
+        # Envia e-mail para cada usuário que precisa ser notificado
+        for user, subscriptions_for_user in users_to_notify.items():
+            send_update_notification_email(user, subscriptions_for_user, date_today)
