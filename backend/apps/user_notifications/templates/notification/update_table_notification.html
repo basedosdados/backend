@@ -28,7 +28,7 @@
   <ul style="width: 100%; padding-left: 20px; margin-top: 16px;">
     {% for subscription in subscriptions %}
       <li style="margin-bottom: 10px;">
-        <a href="https://{{ domain }}/dataset/{{ subscription.dataset.id }}?table={{ subscription.table.id }}" style="color: #2B8C4D; text-decoration: none; font-weight: 700;">
+        <a href="https://{{ domain }}/dataset/{{ subscription.table.dataset.id }}?table={{ subscription.table.id }}" style="color: #2B8C4D; text-decoration: none; font-weight: 700;">
           Tabela: {{ subscription.table.name }} (Dataset: {{ subscription.table.dataset.name }})
         </a>
       </li>
