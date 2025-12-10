@@ -13,6 +13,9 @@ logger = logging.getLogger("django.request")
 
 
 class TableUpdateSubscription(BaseModel):
+
+    """ "Table Update Subscription"""
+
     table = models.ForeignKey(Table, on_delete=models.CASCADE)
     user = models.ForeignKey(Account, on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
