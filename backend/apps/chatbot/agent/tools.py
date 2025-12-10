@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import inspect
 import json
+import os
 from collections.abc import Callable
 from functools import wraps
 from typing import Any, Literal, Self
@@ -26,11 +27,14 @@ PAGE_SIZE = 10
 # 10GB limit for other queries
 LIMIT_BIGQUERY_QUERY = 10 * 10**9
 
+# Base backend URL
+BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")
+
 # URL for searching datasets
-SEARCH_URL = "https://backend.basedosdados.org/search/"
+SEARCH_URL = f"{BACKEND_BASE_URL}/search/"
 
 # URL for fetching dataset details
-GRAPHQL_URL = "https://backend.basedosdados.org/graphql"
+GRAPHQL_URL = f"{BACKEND_BASE_URL}/graphql"
 
 # URL for fetching usage guides
 BASE_USAGE_GUIDE_URL = "https://raw.githubusercontent.com/basedosdados/website/refs/heads/main/next/content/userGuide/pt"
