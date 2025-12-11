@@ -34,7 +34,7 @@ services:
     image: pgvector/pgvector:pg14
     container_name: database
     environment: [POSTGRES_USER=postgres, POSTGRES_HOST_AUTH_METHOD=trust]
-    env_file: [.env.docker]
+    env_file: [.env]
     ports: [5432:5432]
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
@@ -49,11 +49,20 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: api
-    env_file: [.env.docker]
+    deploy:
+      resources:
+        reservations:
+          cpus: '0.5'
+          memory: 2G
+        limits:
+          cpus: '1.0'
+          memory: 4G
+    env_file: [.env]
+    command: [poetry, run, /app/start-server-dev.sh]
     volumes: [.:/app, $HOME/.basedosdados/credentials:/app/credentials:ro]
     ports:
-      - 8000:8000  # Porta da api
-      - 5678:5678  # Porta de debug
+      - 8000:8000  # API port
+      - 5678:5678  # Debug port
     depends_on:
       index:
         condition: service_healthy
@@ -62,7 +71,7 @@ services:
       database:
         condition: service_healthy
     healthcheck:
-      test: [CMD, curl, -f, http://localhost/healthcheck/]
+      test: [CMD, curl, -f, http://localhost:8000/healthcheck/]
       interval: 1m
       timeout: 30s
       retries: 5

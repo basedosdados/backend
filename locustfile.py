@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 from locust import HttpUser, between, task
 from loguru import logger
 
-load_dotenv(".env.docker")
+load_dotenv()
 
 if os.getenv("MOCK_AGENT", "false").lower() != "true":
     raise ValueError(
