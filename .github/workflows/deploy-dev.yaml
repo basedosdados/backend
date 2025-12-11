@@ -85,7 +85,7 @@ jobs:
         run: |-
           helm upgrade \
             --wait \
-            --timeout 15m \
+            --timeout 10m \
             --install \
             --namespace website \
             --values values.yaml \
