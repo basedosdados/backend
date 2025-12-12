@@ -8,7 +8,6 @@ from typing import Any, Iterator, Type, TypedDict, TypeVar
 
 from django.http import StreamingHttpResponse
 from google.api_core import exceptions as google_api_exceptions
-from graphql_jwt.shortcuts import get_user_by_token
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import RemoveMessage
 from langchain_core.messages.utils import count_tokens_approximately, trim_messages
@@ -18,12 +17,11 @@ from langgraph.graph.message import REMOVE_ALL_MESSAGES
 from loguru import logger
 from rest_framework import exceptions, status
 from rest_framework.parsers import JSONParser
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.serializers import Serializer
 from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken
 
 from backend.apps.chatbot.agent.prompts import SQL_AGENT_SYSTEM_PROMPT
 from backend.apps.chatbot.agent.react_agent import ReActAgent
@@ -66,62 +64,6 @@ class ConfigDict(TypedDict):
     run_id: str
     recursion_limit: int
     configurable: dict[str, Any]
-
-
-class TokenBridgeView(APIView):
-    """Token bridging endpoint to convert main website JWT tokens to chatbot tokens."""
-
-    permission_classes = [AllowAny]
-
-    def post(self, request: Request) -> Response:
-        """Convert main website JWT token to chatbot token.
-
-        Args:
-            request (Request): Contains main_token in request body
-
-        Returns:
-            Response: Chatbot access token if conversion successful
-        """
-        try:
-            main_token = request.data.get("main_token")
-            if not main_token:
-                return Response(
-                    {"detail": "main_token is required"}, status=status.HTTP_400_BAD_REQUEST
-                )
-
-            # Validate the main website's JWT token
-            try:
-                user = get_user_by_token(main_token)
-            except Exception:
-                return Response(
-                    {"detail": "Invalid main token"}, status=status.HTTP_401_UNAUTHORIZED
-                )
-
-            # Check if user has chatbot access
-            if not user.has_chatbot_access:
-                return Response(
-                    {"detail": "User does not have chatbot access"},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-
-            # Generate chatbot-compatible token
-            refresh = RefreshToken.for_user(user)
-            access_token = str(refresh.access_token)
-
-            return Response(
-                {
-                    "access": access_token,
-                    "refresh": str(refresh),
-                    "user_id": user.id,
-                    "email": user.email,
-                }
-            )
-
-        except Exception as e:
-            logger.error(f"Token bridge error: {str(e)}")
-            return Response(
-                {"detail": "Internal server error"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
-            )
 
 
 class ThreadListView(APIView):
