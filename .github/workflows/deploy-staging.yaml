@@ -54,10 +54,10 @@ jobs:
             resources:
               limits:
                 cpu: 500m
-                memory: 1Gi
+                memory: 2Gi
               requests:
                 cpu: 250m
-                memory: 500Mi
+                memory: 1.5Gi
             envFrom:
               - secretRef:
                   name: api-staging-secrets
@@ -85,6 +85,7 @@ jobs:
         run: |-
           helm upgrade \
             --wait \
+            --timeout 10m \
             --install \
             --namespace website \
             --values values.yaml \

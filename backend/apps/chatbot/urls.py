@@ -7,13 +7,11 @@ from .views import (
     MessageListView,
     ThreadDetailView,
     ThreadListView,
-    TokenBridgeView,
 )
 
 urlpatterns = [
     path("chatbot/token/", TokenObtainPairView.as_view()),
     path("chatbot/token/refresh/", TokenRefreshView.as_view()),
-    path("chatbot/token-from-main/", TokenBridgeView.as_view()),
     path("chatbot/threads/", ThreadListView.as_view()),
     path("chatbot/threads/<uuid:thread_id>/", ThreadDetailView.as_view()),
     path("chatbot/threads/<uuid:thread_id>/messages/", MessageListView.as_view()),
