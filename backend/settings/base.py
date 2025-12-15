@@ -317,7 +317,7 @@ HUEY = {
 }
 
 # URLs
-BACKEND_URL = getenv("BASE_URL_BACKEND", "https://localhost:8080")
+BACKEND_URL = getenv("BASE_URL_BACKEND", "https://localhost:8000")
 FRONTEND_URL = getenv("BASE_URL_FRONTEND", "https://localhost:3000")
 
 # Discord

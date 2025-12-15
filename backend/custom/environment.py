@@ -3,7 +3,7 @@ from functools import wraps
 from os import getenv
 
 SETTINGS = getenv("DJANGO_SETTINGS_MODULE", "backend.settings")
-BACKEND_URL = getenv("BASE_URL_BACKEND", "https://localhost:8080")
+BACKEND_URL = getenv("BASE_URL_BACKEND", "https://localhost:8000")
 
 
 def is_remote():
@@ -43,7 +43,7 @@ def get_backend_url():
         return "staging.backend.basedosdados.org"
     if is_dev():
         return "development.backend.basedosdados.org"
-    return "localhost:8080"
+    return "localhost:8000"
 
 
 def get_frontend_url():
