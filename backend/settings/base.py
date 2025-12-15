@@ -317,8 +317,8 @@ HUEY = {
 }
 
 # URLs
-BACKEND_URL = getenv("BASE_URL_BACKEND", "https://localhost:8000")
-FRONTEND_URL = getenv("BASE_URL_FRONTEND", "https://localhost:3000")
+BACKEND_URL = getenv("BASE_URL_BACKEND", "http://localhost:8000")
+FRONTEND_URL = getenv("BASE_URL_FRONTEND", "http://localhost:3000")
 
 # Discord
 DISCORD_BACKEND_WEBHOOK_URL = getenv("DISCORD_BACKEND_WEBHOOK_URL")
