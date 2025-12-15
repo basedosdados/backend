@@ -7,6 +7,7 @@ from functools import wraps
 from typing import Any, Literal, Self
 
 import httpx
+from django.conf import settings
 from google.api_core.exceptions import GoogleAPICallError
 from google.cloud import bigquery as bq
 from langchain_core.runnables import RunnableConfig
@@ -31,10 +32,10 @@ LIMIT_BIGQUERY_QUERY = 10 * 10**9
 BACKEND_BASE_URL = os.getenv("BACKEND_BASE_URL", "http://localhost:8000")
 
 # URL for searching datasets
-SEARCH_URL = f"{BACKEND_BASE_URL}/search/"
+SEARCH_URL = f"{settings.BACKEND_URL}/search/"
 
 # URL for fetching dataset details
-GRAPHQL_URL = f"{BACKEND_BASE_URL}/graphql"
+GRAPHQL_URL = f"{settings.BACKEND_URL}/graphql"
 
 # URL for fetching usage guides
 BASE_USAGE_GUIDE_URL = "https://raw.githubusercontent.com/basedosdados/website/refs/heads/main/next/content/userGuide/pt"

@@ -63,10 +63,10 @@ def check_gcloud_env_vars(app_configs, **kwargs):
             )
         )
 
-    if not os.getenv("BACKEND_BASE_URL"):
+    if not os.getenv("BASE_URL_BACKEND"):
         checks.append(
             Info(
-                "BACKEND_BASE_URL not set - defaulting to http://localhost:8000",
+                "BASE_URL_BACKEND not set - defaulting to http://localhost:8000",
                 hint=(
                     "Default http://localhost:8000 works for same-server deployments. "
                     "Override only if you need an external backend, e.g., https://backend.basedosdados.org\n"
