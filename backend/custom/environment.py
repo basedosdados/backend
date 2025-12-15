@@ -43,7 +43,7 @@ def get_backend_url():
         return "staging.backend.basedosdados.org"
     if is_dev():
         return "development.backend.basedosdados.org"
-    return "localhost:8080"
+    return "localhost:8000"
 
 
 def get_frontend_url():
