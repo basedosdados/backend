@@ -2,6 +2,9 @@ ARG PYTHON_VERSION=3.11-slim
 
 FROM python:$PYTHON_VERSION
 
+# Set shell with pipefail for safer pipe operations
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 # Define where Poetry virtual environments will be stored
 ARG POETRY_VIRTUALENVS_PATH=/opt/pypoetry/virtualenvs
 
