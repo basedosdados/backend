@@ -25,7 +25,7 @@ COPY nginx.conf /etc/nginx/nginx.conf
 
 # Install Poetry and add it to PATH so its commands can be executed
 # from anywhere, without specifying the full path to its executable.
-RUN curl -sSL https://install.python-poetry.org | python3 - --version 2.1.3
+RUN set -o pipefail && curl -sSL https://install.python-poetry.org | python3 - --version 2.1.3
 ENV PATH="/root/.local/bin:$PATH"
 
 # Create the folder where Poetry virtual environments will be stored and make it
