@@ -51,7 +51,7 @@ httpx = "^0.28.1"
 
 [tool.poetry.group.dev.dependencies]
 pre-commit = "^3.3.3"
-ruff = "^0.2.0"
+ruff = "^0.14.9"
 yamlfix = "^1.16.0"
 shandy-sqlfmt = "^0.28.2"
 ipykernel = "^7.1.0"
