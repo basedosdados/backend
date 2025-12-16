@@ -21,6 +21,3 @@ from backend.apps.api.v1.models import (
     DateTimeRange as DT,
     Table as T,
 )
-
-
-...

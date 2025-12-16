@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 
 # -*- coding: utf-8 -*-
 import json
@@ -101,20 +102,23 @@ class Command(BaseCommand):
                     )
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f"Restrição NOT NULL reabilitada para a coluna {column_name} na tabela {table_name}."
+                            "Restrição NOT NULL reabilitada "
+                            f"para a coluna {column_name} na tabela {table_name}."
                         )
                     )
                 else:
                     self.stdout.write(
                         self.style.WARNING(
-                            f"A coluna {column_name} na tabela {table_name} possui {null_count} valores nulos. "
-                            f"A restrição NOT NULL não foi reativada."
+                            f"A coluna {column_name} na tabela {table_name} "
+                            f"possui {null_count} valores nulos. "
+                            "A restrição NOT NULL não foi reativada."
                         )
                     )
             else:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"A coluna {column_name} na tabela {table_name} já possui restrição NOT NULL ou não existe."
+                        f"A coluna {column_name} na tabela {table_name} "
+                        "já possui restrição NOT NULL ou não existe."
                     )
                 )
 
@@ -126,7 +130,8 @@ class Command(BaseCommand):
         if column_name.lower() == "id":
             self.stdout.write(
                 self.style.WARNING(
-                    f"A coluna {column_name} na tabela {table_name} é 'ID'. A restrição NOT NULL será mantida."
+                    f"A coluna {column_name} na tabela {table_name} é 'ID'. "
+                    "A restrição NOT NULL será mantida."
                 )
             )
             return  # Não faz nada para colunas com o nome 'ID'
@@ -153,13 +158,15 @@ class Command(BaseCommand):
                 )
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f"Restrição NOT NULL desabilitada para a coluna {column_name} na tabela {table_name}."
+                        "Restrição NOT NULL desabilitada "
+                        f"para a coluna {column_name} na tabela {table_name}."
                     )
                 )
             else:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"A coluna {column_name} na tabela {table_name} não possui restrição NOT NULL ou não existe."
+                        f"A coluna {column_name} na tabela {table_name} "
+                        "não possui restrição NOT NULL ou não existe."
                     )
                 )
 
@@ -171,15 +178,18 @@ class Command(BaseCommand):
             if isinstance(item, str):  # É um nome de tabela (sem modelo)
                 # Para tabelas sem modelo, precisamos obter as colunas NOT NULL do banco de dados
                 with connection.cursor() as cursor:
-                    cursor.execute("""
-                        SELECT column_name 
-                        FROM information_schema.columns 
-                        WHERE table_name = %s 
+                    cursor.execute(
+                        """
+                        SELECT column_name
+                        FROM information_schema.columns
+                        WHERE table_name = %s
                         AND is_nullable = 'NO'
                         AND column_name != 'id'
-                    """, [item])
+                        """,
+                        [item],
+                    )
                     not_null_columns = [row[0] for row in cursor.fetchall()]
-                    
+
                     for column in not_null_columns:
                         self.disable_not_null_if_exists(item, column)
             else:  # É um modelo Django
@@ -188,7 +198,6 @@ class Command(BaseCommand):
                     if isinstance(field, models.Field) and field.null is False:
                         self.disable_not_null_if_exists(table_name, field.column)
 
-
     def enable_constraints(self, items):
         """
         Habilita constraints NOT NULL para uma lista de modelos ou nomes de tabelas
@@ -196,12 +205,15 @@ class Command(BaseCommand):
         for item in items:
             if isinstance(item, str):  # É um nome de tabela (sem modelo)
                 with connection.cursor() as cursor:
-                    cursor.execute("""
-                        SELECT column_name 
-                        FROM information_schema.columns 
-                        WHERE table_name = %s 
+                    cursor.execute(
+                        """
+                        SELECT column_name
+                        FROM information_schema.columns
+                        WHERE table_name = %s
                         AND is_nullable = 'YES'
-                    """, [item])
+                        """,
+                        [item],
+                    )
                     nullable_columns = [row[0] for row in cursor.fetchall()]
 
                     for column in nullable_columns:
@@ -318,7 +330,9 @@ class Command(BaseCommand):
                             except Exception:
                                 # Fallback to DELETE if TRUNCATE fails
                                 cursor.execute(f'DELETE FROM "{item}";')
-                                self.stdout.write(self.style.SUCCESS(f"Cleared table {item} (using DELETE)"))
+                                self.stdout.write(
+                                    self.style.SUCCESS(f"Cleared table {item} (using DELETE)")
+                                )
                     else:  # It's a Django model
                         item.objects.all().delete()
                         self.stdout.write(self.style.SUCCESS(f"Cleared model {item.__name__}"))
@@ -357,7 +371,8 @@ class Command(BaseCommand):
                             field, models.ManyToManyField
                         ):
                             if not field_name.endswith("_id"):
-                                field_name = f"{field_name}_id"  # Adiciona o sufixo '_id' para ForeignKey ou ManyToMany
+                                # Adiciona o sufixo '_id' para ForeignKey ou ManyToMany
+                                field_name = f"{field_name}_id"
                     except Exception:
                         pass  # Ignora campos que não existem no modelo
 
@@ -369,7 +384,10 @@ class Command(BaseCommand):
         if fields:  # Verifica se há campos para inserir
             fields_str = ", ".join(fields)  # Colunas (ex: "field1, field2, ...")
             placeholders_str = ", ".join(placeholders)  # Placeholders (ex: "%s, %s, ...")
-            query = f"""INSERT INTO {table_name} ({fields_str}) VALUES ({placeholders_str}) RETURNING id;"""
+            query = (
+                f"INSERT INTO {table_name} ({fields_str}) "
+                f"VALUES ({placeholders_str}) RETURNING id;"
+            )
 
             # Executa a query usando cursor.execute
             with connection.cursor() as cursor:
@@ -410,9 +428,16 @@ class Command(BaseCommand):
 
         # Remove as tabelas que já têm modelos da lista de tabelas sem modelos
         tables_with_models = [model._meta.db_table for model in models_to_populate]
-        tables_without_models = [table for table in tables_from_files if table not in tables_with_models]
+        tables_without_models = [
+            table for table in tables_from_files if table not in tables_with_models
+        ]
 
-        self.stdout.write(self.style.SUCCESS(f"Will populate {len(models_to_populate)} models and {len(tables_without_models)} tables without models."))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Will populate {len(models_to_populate)} models "
+                f"and {len(tables_without_models)} tables without models."
+            )
+        )
 
         # Popula os modelos correspondentes
         if models_to_populate:

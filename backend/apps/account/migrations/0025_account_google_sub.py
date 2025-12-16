@@ -18,7 +18,11 @@ class Migration(migrations.Migration):
                     model_name="account",
                     name="google_sub",
                     field=models.CharField(
-                        blank=True, max_length=255, null=True, unique=True, verbose_name="Google Sub"
+                        blank=True,
+                        max_length=255,
+                        null=True,
+                        unique=True,
+                        verbose_name="Google Sub",
                     ),
                 ),
             ],
