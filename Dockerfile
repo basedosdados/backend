@@ -2,6 +2,9 @@ ARG PYTHON_VERSION=3.11-slim
 
 FROM python:$PYTHON_VERSION
 
+# Set shell with pipefail for safer pipe operations
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
 # Define where Poetry virtual environments will be stored
 ARG POETRY_VIRTUALENVS_PATH=/opt/pypoetry/virtualenvs
 
@@ -25,7 +28,7 @@ COPY nginx.conf /etc/nginx/nginx.conf
 
 # Install Poetry and add it to PATH so its commands can be executed
 # from anywhere, without specifying the full path to its executable.
-RUN set -o pipefail && curl -sSL https://install.python-poetry.org | python3 - --version 2.1.3
+RUN curl -sSL https://install.python-poetry.org | python3 - --version 2.1.3
 ENV PATH="/root/.local/bin:$PATH"
 
 # Create the folder where Poetry virtual environments will be stored and make it
