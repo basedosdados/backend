@@ -11,7 +11,7 @@ load_dotenv()
 
 if os.getenv("MOCK_AGENT", "false").lower() != "true":
     raise ValueError(
-        "MOCK_AGENT must be set to 'true' in .env.docker to run load tests. "
+        "MOCK_AGENT must be set to 'true' in .env file to run load tests. "
         "This ensures the chatbot uses mock responses instead of making real API calls."
     )
 
@@ -21,7 +21,7 @@ chatbot_user_password = os.getenv("CHATBOT_USER_PASSWORD")
 if not chatbot_user_email or not chatbot_user_password:
     raise ValueError(
         "Add CHATBOT_USER_EMAIL and CHATBOT_USER_PASSWORD "
-        "to .env.docker with valid chatbot user credentials."
+        "to .env file with valid chatbot user credentials."
     )
 
 MOCK_MESSAGE = "Qual a proporção de mulheres no mercado de trabalho formal?"
