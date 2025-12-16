@@ -6,7 +6,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("account", "0024_role_description_en_role_description_es_and_more"),
+        ("account", "0026_role_description_en_role_description_es_and_more"),
     ]
 
     operations = [
