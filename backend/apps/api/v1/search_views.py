@@ -388,7 +388,7 @@ class DatasetFacetValuesView(View):
         if self.facet_name not in self.facet_fields:
             return JsonResponse(
                 {
-                    "error": f"Facet '{self.facet_name}' not available. Choose from: {self.facet_fields}"
+                    "error": f"Facet '{self.facet_name}' not available. Choose from: {self.facet_fields}"  # noqa: E501
                 },
                 status=400,
             )

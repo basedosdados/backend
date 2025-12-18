@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Area Slug Update Script
 
@@ -92,7 +93,7 @@ def main():
     print("Setting parent reference for Brazilian states...")
     cursor.execute(
         """
-        UPDATE area 
+        UPDATE area
         SET parent_id = %s,
             entity_id = %s
         WHERE slug LIKE 'br_%%'
@@ -106,9 +107,9 @@ def main():
     # First, let's check what we're working with
     cursor.execute(
         """
-        SELECT slug 
-        FROM area 
-        WHERE slug LIKE 'br\_%%\_%%' 
+        SELECT slug
+        FROM area
+        WHERE slug LIKE 'br\_%%\_%%'
         LIMIT 5;
     """
     )
@@ -116,9 +117,9 @@ def main():
 
     cursor.execute(
         """
-        SELECT slug 
-        FROM area 
-        WHERE slug LIKE 'br\_%%' 
+        SELECT slug
+        FROM area
+        WHERE slug LIKE 'br\_%%'
         AND slug NOT LIKE 'br\_%%\_%%'
         LIMIT 5;
     """
@@ -138,7 +139,7 @@ def main():
         WHERE municipality.slug LIKE 'br\_%%\_%%'  -- Matches municipality pattern (2 underscores)
         AND state.slug = split_part(municipality.slug, '_', 1) || '_' || split_part(municipality.slug, '_', 2)  -- Gets state slug (e.g., 'br_sp')
         AND municipality.slug NOT LIKE '%%\_%%\_%%\_%%'  -- Ensures exactly 2 underscores
-    """,
+    """,  # noqa: E501
         (municipality_entity_id,),
     )
 

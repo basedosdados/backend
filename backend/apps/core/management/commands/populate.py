@@ -100,20 +100,23 @@ class Command(BaseCommand):
                     )
                     self.stdout.write(
                         self.style.SUCCESS(
-                            f"Restrição NOT NULL reabilitada para a coluna {column_name} na tabela {table_name}."
+                            "Restrição NOT NULL reabilitada "
+                            f"para a coluna {column_name} na tabela {table_name}."
                         )
                     )
                 else:
                     self.stdout.write(
                         self.style.WARNING(
-                            f"A coluna {column_name} na tabela {table_name} possui {null_count} valores nulos. "
-                            f"A restrição NOT NULL não foi reativada."
+                            f"A coluna {column_name} na tabela {table_name} "
+                            f"possui {null_count} valores nulos. "
+                            "A restrição NOT NULL não foi reativada."
                         )
                     )
             else:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"A coluna {column_name} na tabela {table_name} já possui restrição NOT NULL ou não existe."
+                        f"A coluna {column_name} na tabela {table_name} "
+                        "já possui restrição NOT NULL ou não existe."
                     )
                 )
 
@@ -125,7 +128,8 @@ class Command(BaseCommand):
         if column_name.lower() == "id":
             self.stdout.write(
                 self.style.WARNING(
-                    f"A coluna {column_name} na tabela {table_name} é 'ID'. A restrição NOT NULL será mantida."
+                    f"A coluna {column_name} na tabela {table_name} é 'ID'. "
+                    "A restrição NOT NULL será mantida."
                 )
             )
             return  # Não faz nada para colunas com o nome 'ID'
@@ -152,13 +156,15 @@ class Command(BaseCommand):
                 )
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f"Restrição NOT NULL desabilitada para a coluna {column_name} na tabela {table_name}."
+                        "Restrição NOT NULL desabilitada "
+                        f"para a coluna {column_name} na tabela {table_name}."
                     )
                 )
             else:
                 self.stdout.write(
                     self.style.WARNING(
-                        f"A coluna {column_name} na tabela {table_name} não possui restrição NOT NULL ou não existe."
+                        f"A coluna {column_name} na tabela {table_name} "
+                        "não possui restrição NOT NULL ou não existe."
                     )
                 )
 
@@ -172,9 +178,9 @@ class Command(BaseCommand):
                 with connection.cursor() as cursor:
                     cursor.execute(
                         """
-                        SELECT column_name 
-                        FROM information_schema.columns 
-                        WHERE table_name = %s 
+                        SELECT column_name
+                        FROM information_schema.columns
+                        WHERE table_name = %s
                         AND is_nullable = 'NO'
                         AND column_name != 'id'
                     """,
@@ -199,9 +205,9 @@ class Command(BaseCommand):
                 with connection.cursor() as cursor:
                     cursor.execute(
                         """
-                        SELECT column_name 
-                        FROM information_schema.columns 
-                        WHERE table_name = %s 
+                        SELECT column_name
+                        FROM information_schema.columns
+                        WHERE table_name = %s
                         AND is_nullable = 'YES'
                     """,
                         [item],
@@ -363,7 +369,8 @@ class Command(BaseCommand):
                             field, models.ManyToManyField
                         ):
                             if not field_name.endswith("_id"):
-                                field_name = f"{field_name}_id"  # Adiciona o sufixo '_id' para ForeignKey ou ManyToMany
+                                # Adiciona o sufixo '_id' para ForeignKey ou ManyToMany
+                                field_name = f"{field_name}_id"
                     except Exception:
                         pass  # Ignora campos que não existem no modelo
 
@@ -375,7 +382,10 @@ class Command(BaseCommand):
         if fields:  # Verifica se há campos para inserir
             fields_str = ", ".join(fields)  # Colunas (ex: "field1, field2, ...")
             placeholders_str = ", ".join(placeholders)  # Placeholders (ex: "%s, %s, ...")
-            query = f"""INSERT INTO {table_name} ({fields_str}) VALUES ({placeholders_str}) RETURNING id;"""
+            query = (
+                f"INSERT INTO {table_name} ({fields_str}) "
+                f"VALUES ({placeholders_str}) RETURNING id;"
+            )
 
             # Executa a query usando cursor.execute
             with connection.cursor() as cursor:
@@ -422,7 +432,8 @@ class Command(BaseCommand):
 
         self.stdout.write(
             self.style.SUCCESS(
-                f"Will populate {len(models_to_populate)} models and {len(tables_without_models)} tables without models."
+                f"Will populate {len(models_to_populate)} models "
+                f"and {len(tables_without_models)} tables without models."
             )
         )
 

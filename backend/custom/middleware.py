@@ -12,10 +12,11 @@ class LoggerMiddleware(MiddlewareMixin):
         try:
             errors = []
             context = response.context_data
-            if "errors" in context:
-                errors = context["errors"]
-            elif "form" in context:
-                errors = context["form"].errors
+            if context:
+                if "errors" in context:
+                    errors = context["errors"]
+                elif "form" in context:
+                    errors = context["form"].errors
             if errors:
                 user = request.user
                 endpoint = request.get_full_path()
@@ -26,7 +27,7 @@ class LoggerMiddleware(MiddlewareMixin):
                     endpoint=endpoint,
                     type="validation",
                 )
-        except Exception as e:
-            logger.error(e)
+        except Exception:
+            logger.exception("Error processing template response in LoggerMiddleware:")
         finally:
             return response

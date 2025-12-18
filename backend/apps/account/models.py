@@ -212,7 +212,9 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
 
     email = models.EmailField("Email", unique=True)
     gcp_email = models.EmailField("GCP email", null=True, blank=True)  # Google Cloud Platform email
-    google_sub = models.CharField("Google Sub", max_length=255, null=True, blank=True, unique=True)  # Google OAuth subject identifier
+    google_sub = models.CharField(
+        "Google Sub", max_length=255, null=True, blank=True, unique=True
+    )  # Google OAuth subject identifier
     username = models.CharField("Username", max_length=40, blank=True, null=True, unique=True)
 
     first_name = models.CharField("Nome", max_length=40, blank=True)
@@ -251,6 +253,11 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
     )
     is_email_visible = models.BooleanField(
         "Email é visível", default=False, help_text="Indica se o email do usuário é público"
+    )
+    has_chatbot_access = models.BooleanField(
+        "Tem acesso ao chatbot",
+        default=False,
+        help_text="Indica se o usuário tem acesso ao chatbot",
     )
 
     profile = models.IntegerField(
