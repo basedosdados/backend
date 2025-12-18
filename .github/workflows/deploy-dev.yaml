@@ -54,10 +54,10 @@ jobs:
             resources:
               limits:
                 cpu: 500m
-                memory: 4096Mi
+                memory: 2Gi
               requests:
                 cpu: 250m
-                memory: 1536Mi
+                memory: 1.5Gi
             envFrom:
               - secretRef:
                   name: api-development-secrets
@@ -85,8 +85,8 @@ jobs:
         run: |-
           helm upgrade \
             --wait \
-            --timeout 15m \
             --install \
+            --timeout 10m \
             --namespace website \
             --values values.yaml \
             api-dev charts/basedosdados-api/.
