@@ -1,7 +1,7 @@
 ---
 services:
   index:
-    image: elasticsearch:8.17.2  # TODO : upgrade prod to elasticsearch:8.17.2
+    image: elasticsearch:7.17.3
     container_name: index
     environment:
       - cluster.name=docker-cluster
@@ -61,7 +61,7 @@ services:
     command: [poetry, run, /app/start-server-dev.sh]
     volumes: [.:/app, $HOME/.basedosdados/credentials:/app/credentials:ro]
     ports:
-      - 8000:8000  # API port
+      - 8080:80  # API port
       - 5678:5678  # Debug port
     depends_on:
       index:

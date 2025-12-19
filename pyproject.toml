@@ -9,54 +9,54 @@ repository = "https://github.com/basedosdados/backend"
 
 [tool.poetry.dependencies]
 python = ">=3.10,<3.13"
+dj-stripe = "^2.8.3"
 Django = "^4.1.3"
-psycopg2-binary = "^2.9.5"
+django-admin-inline-paginator-plus = "^0.1.4"
 django-cors-headers = "^3.13.0"
-gunicorn = {extras = ["gevent"], version = "^23.0.0"}
-django-health-check = "^3.17.0"
-graphene-django = "3.0.0"
+django-extensions = "^3.2.1"
 django-filter = "^22.1"
 django-graphql-jwt = "^0.3.4"
-django-modeltranslation = "^0.18.8"
-pillow = "^9.4.0"
-graphene-file-upload = "1.3.0"
 django-haystack = {extras = ["elasticsearch"], version = "^3.2.1"}
-graphene = "3.2.1"
-django-storages = {extras = ["google"], version = "^1.13.2"}
-google-api-python-client = "^2.83.0"
+django-health-check = "^3.17.0"
 django-jazzmin = "^2.6.0"
-django-extensions = "^3.2.1"
+django-modeltranslation = "^0.18.8"
 django-ordered-model = "^3.7.4"
-google-cloud-bigquery = "^3.11.3"
-faker = "^19.6.1"
-loguru = "^0.7.2"
-huey = "^2.5.0"
-redis = "^5.0.1"
-pandas = "^2.1.1"
-pandas-gbq = "^0.19.2"
-google-cloud-storage = "^2.11.0"
-stripe = "^4.2.0"
-dj-stripe = "^2.8.3"
-pydantic = "^2.5.3"
-requests = "^2.31.0"
-tqdm = "^4.66.4"
-django-admin-inline-paginator-plus = "^0.1.4"
+django-storages = {extras = ["google"], version = "^1.13.2"}
 djangorestframework = "^3.16.0"
 djangorestframework-simplejwt = "^5.5.0"
+faker = "^19.6.1"
+google-api-python-client = "^2.83.0"
+google-cloud-bigquery = "^3.11.3"
+google-cloud-storage = "^2.11.0"
+graphene = "3.2.1"
+graphene-django = "3.0.0"
+graphene-file-upload = "1.3.0"
+gunicorn = {extras = ["gevent"], version = "^23.0.0"}
+httpx = "^0.28.1"
+huey = "^2.5.0"
 langchain = "0.3.27"
+langchain-google-vertexai = "2.1.2"
 langgraph = "0.6.11"
 langgraph-checkpoint-postgres = "3.0.1"
-langchain-google-vertexai = "2.1.2"
-httpx = "^0.28.1"
+loguru = "^0.7.2"
+pandas = "^2.1.1"
+pandas-gbq = "^0.19.2"
+pillow = "^9.4.0"
+psycopg2-binary = "^2.9.5"
+pydantic = "^2.5.3"
+redis = "^5.0.1"
+requests = "^2.31.0"
+stripe = "^4.2.0"
+tqdm = "^4.66.4"
 
 [tool.poetry.group.dev.dependencies]
-pre-commit = "^3.3.3"
-ruff = "^0.2.0"
-yamlfix = "^1.16.0"
-shandy-sqlfmt = "^0.28.2"
 ipykernel = "^7.1.0"
 locust = "^2.42.6"
+pre-commit = "^3.3.3"
 python-dotenv = "^1.2.1"
+ruff = "^0.14.9"
+shandy-sqlfmt = "^0.28.2"
+yamlfix = "^1.16.0"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^9.0.2"
@@ -73,6 +73,9 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
+
+[tool.yamlfix]
+preserve_quotes = true
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

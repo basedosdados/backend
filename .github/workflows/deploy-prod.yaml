@@ -85,8 +85,8 @@ jobs:
         run: |-
           helm upgrade \
             --wait \
-            --timeout 10m \
             --install \
+            --timeout 10m \
             --namespace website \
             --values values.yaml \
             api-prod charts/basedosdados-api/.
