@@ -249,8 +249,8 @@ fabric.properties
 .DS_Store
 /backend/media/
 /backend/notebooks/
+/backend/static/
 /backend/staticfiles/
-backend/static/
 
 # Fixture
 fixtures*
