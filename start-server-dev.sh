@@ -5,7 +5,7 @@
 # which overwrites the static files collected during image build.
 # So we need to collect the static files again at runtime.
 echo "> Collecting static files"
-python manage.py collectstatic --no-input --settings=backend.settings.base
+(cd /app; python manage.py collectstatic --no-input --settings=backend.settings.base)
 
 echo "> Making migrations"
 (cd /app; python manage.py makemigrations)
