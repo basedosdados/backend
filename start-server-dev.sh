@@ -1,9 +1,16 @@
 #!/usr/bin/env bash
 # start-server-dev.sh
+
+# The compose.yaml file mounts our repository as a volume in the /app folder,
+# which overwrites the static files collected during image build.
+# So we need to collect the static files again at runtime.
+echo "> Collecting static files"
+python manage.py collectstatic --no-input --settings=backend.settings.base
+
 echo "> Making migrations"
 (cd /app; python manage.py makemigrations)
 
-echo "> Migrating"
+echo "> Applying migrations"
 (cd /app; python manage.py migrate)
 
 echo "> Installing debugpy"

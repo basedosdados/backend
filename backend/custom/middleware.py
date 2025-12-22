@@ -18,15 +18,8 @@ class LoggerMiddleware(MiddlewareMixin):
                 elif "form" in context:
                     errors = context["form"].errors
             if errors:
-                user = request.user
                 endpoint = request.get_full_path()
-                logger.warning(
-                    f"{repr(errors)}",
-                    user=user,
-                    errors=errors,
-                    endpoint=endpoint,
-                    type="validation",
-                )
+                logger.info(f"Validation errors on {request.method} {endpoint}: {repr(errors)}")
         except Exception:
             logger.exception("Error processing template response in LoggerMiddleware:")
         finally:

@@ -250,6 +250,7 @@ fabric.properties
 /backend/media/
 /backend/notebooks/
 /backend/staticfiles/
+backend/static/
 
 # Fixture
 fixtures*

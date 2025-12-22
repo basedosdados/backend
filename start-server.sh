@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # start-server.sh
+
 echo "> Making migrations"
 (cd /app; python manage.py makemigrations)
 
-echo "> Migrating"
+echo "> Applying migrations"
 (cd /app; python manage.py migrate)
 
 echo "> Creating superuser"
