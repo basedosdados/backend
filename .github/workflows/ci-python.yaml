@@ -11,7 +11,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Lint source code
-        uses: chartboost/ruff-action@v1
+        uses: astral-sh/ruff-action@v3
+        with:
+          version: "0.14.9"
   test:
     name: Test python
     runs-on: ubuntu-latest
