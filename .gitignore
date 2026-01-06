@@ -249,6 +249,7 @@ fabric.properties
 .DS_Store
 /backend/media/
 /backend/notebooks/
+/backend/static/
 /backend/staticfiles/
 
 # Fixture
@@ -256,3 +257,6 @@ fixtures*
 
 # Version manager
 .tool-versions
+
+# fetch_metabase script
+metabase_data

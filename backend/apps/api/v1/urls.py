@@ -7,8 +7,8 @@ from graphene_file_upload.django import FileUploadGraphQLView
 from backend.apps.api.v1.search_views import DatasetFacetValuesView, DatasetSearchView
 from backend.apps.api.v1.views import (
     DatasetRedirectView,
-    table_stats,
     columns_view,
+    table_stats,
     upload_columns,
 )
 

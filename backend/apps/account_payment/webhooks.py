@@ -80,7 +80,10 @@ def add_user(email: str, account: Account = None, group_key: str = None, role: s
                 account = None
 
         if not (account and account.is_admin):
-            logger.info(f"Ignorando adição do usuário '{email}'em dev/staging.")
+            logger.info(
+                f"Ignorando adição do usuário '{email}' "
+                "em ambiente de dev/staging pois não é admin."
+            )
             return
 
     if not group_key:
