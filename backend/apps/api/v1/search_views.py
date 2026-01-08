@@ -147,7 +147,7 @@ class DatasetSearchView(FacetedSearchView):
             }
         )
 
-    def get_facets(self, sqs: SearchQuerySet, facet_size=6):
+    def get_facets(self, sqs: SearchQuerySet, facet_size: int = 6):
         sqs = sqs.facet("theme_slug", size=facet_size)
         sqs = sqs.facet("organization_slug", size=facet_size)
         # sqs = sqs.facet("spatial_coverage", size=facet_size)
@@ -240,17 +240,33 @@ class DatasetSearchView(FacetedSearchView):
         return facets
 
     def get_results(self, sqs: SearchQuerySet):
-        def key(r):
-            return (r.contains_tables, r.score, r.updated_at)
+        # Sort at Elasticsearch level and paginate there (avoids loading all results)
+        sqs = sqs.order_by("-contains_tables", "-_score", "-updated_at")
 
-        until = self.page * self.page_size
-        since = (self.page - 1) * self.page_size
+        start = (self.page - 1) * self.page_size
+        end = start + self.page_size
+        results = list(sqs[start:end])
 
-        results = sorted(sqs.all(), key=key, reverse=True)
-        return [as_search_result(r, self.locale) for r in results[since:until]]
+        # Pre-fetch all Area objects to avoid N+1 queries
+        all_coverages = set()
+        for r in results:
+            if hasattr(r, "spatial_coverage") and r.spatial_coverage:
+                all_coverages.update(r.spatial_coverage)
+
+        area_cache = {}
+        if all_coverages:
+            areas = Area.objects.filter(slug__in=all_coverages).values(
+                "slug", f"name_{self.locale}", "name"
+            )
+            area_cache = {
+                area["slug"]: area[f"name_{self.locale}"] or area["name"] or area["slug"]
+                for area in areas
+            }
+
+        return [as_search_result(r, self.locale, area_cache) for r in results]
 
 
-def as_search_result(result: SearchResult, locale="pt"):
+def as_search_result(result: SearchResult, locale: str = "pt", area_cache: dict[str, str] = {}):
     themes = []
     for slug, name in zip(result.theme_slug or [], getattr(result, f"theme_name_{locale}") or []):
         themes.append(
@@ -298,19 +314,11 @@ def as_search_result(result: SearchResult, locale="pt"):
             }
         )
 
-    # Add spatial coverage translations
+    # Add spatial coverage translations (using pre-fetched cache)
     spatial_coverages = []
     for coverage in result.spatial_coverage or []:
-        area = Area.objects.filter(slug=coverage).first()
-        if area:
-            spatial_coverages.append(
-                {
-                    "slug": coverage,
-                    "name": getattr(area, f"name_{locale}") or area.name or coverage,
-                }
-            )
-        else:
-            spatial_coverages.append({"slug": coverage, "name": coverage})
+        name = area_cache.get(coverage, coverage)
+        spatial_coverages.append({"slug": coverage, "name": name})
 
     return {
         "updated_at": result.updated_at,
