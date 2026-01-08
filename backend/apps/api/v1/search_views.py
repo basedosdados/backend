@@ -241,6 +241,7 @@ class DatasetSearchView(FacetedSearchView):
 
     def get_results(self, sqs: SearchQuerySet):
         # Sort and paginate at Elasticsearch level
+        # NOTE: _score is the relevance score from Elasticsearch
         sqs = sqs.order_by("-contains_tables", "-_score", "-updated_at")
 
         start = (self.page - 1) * self.page_size
