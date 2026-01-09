@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from typing import Any
 
 from django.core.files.storage import default_storage as storage
 from django.http import JsonResponse
@@ -78,7 +79,7 @@ class DatasetSearchForm(FacetedSearchForm):
                         coverage_queries.append(f"({patterns})")
 
             # Combine all coverage queries with AND
-            query = f'_exists_:spatial_coverage_exact AND {" AND ".join(coverage_queries)}'
+            query = f"_exists_:spatial_coverage_exact AND {' AND '.join(coverage_queries)}"
             sqs = sqs.raw_search(query)
 
         return sqs
@@ -147,110 +148,98 @@ class DatasetSearchView(FacetedSearchView):
             }
         )
 
-    def get_facets(self, sqs: SearchQuerySet, facet_size=6):
+    def get_facets(self, sqs: SearchQuerySet, facet_size: int = 6) -> dict[str, list]:
+        # Request facets from Elasticsearch
         sqs = sqs.facet("theme_slug", size=facet_size)
         sqs = sqs.facet("organization_slug", size=facet_size)
-        # sqs = sqs.facet("spatial_coverage", size=facet_size)
         sqs = sqs.facet("tag_slug", size=facet_size)
         sqs = sqs.facet("entity_slug", size=facet_size)
 
+        # Parse facet counts from Elasticsearch response
         facets = {}
-        facet_counts = sqs.facet_counts()
-        facet_counts = facet_counts.get("fields", {}).items()
-        for key, values in facet_counts:
-            facets[key] = []
-            for value in values:
-                if not value[0]:
-                    continue
-                facets[key].append(
-                    {
-                        "key": value[0],
-                        "count": value[1],
-                    }
-                )
+        for field_name, values in sqs.facet_counts().get("fields", {}).items():
+            facets[field_name] = [
+                {"key": value[0], "count": value[1]}
+                for value in values
+                if value[0]  # Skip empty keys
+            ]
 
-        for key_back, key_front, model in [
+        # Translate facet slugs to localized names
+        # Maps: (elasticsearch_field, api_response_field, django_model)
+        facet_mappings = [
             ("theme_slug", "themes", Theme),
             ("organization_slug", "organizations", Organization),
             ("tag_slug", "tags", Tag),
             ("entity_slug", "observation_levels", Entity),
-        ]:
-            to_name = model.objects.values("slug", f"name_{self.locale}", "name")
-            to_name = {
-                e["slug"]: {
-                    "name": e[f"name_{self.locale}"] or e["name"] or e["slug"],
-                    "fallback": e[f"name_{self.locale}"] is None,
-                }
-                for e in to_name.all()
-            }
-            facets[key_front] = facets.pop(key_back, None)
-            for field in facets[key_front] or []:
-                translated_name = to_name.get(field["key"], {})
-                field["name"] = translated_name.get("name", field["key"])
-                field["fallback"] = translated_name.get("fallback", True)
+        ]
 
-        # Special handling for spatial coverage
-        if "spatial_coverage" in facets:
-            spatial_coverages = []
-            coverage_counts = {}  # Dictionary to track counts per slug
-            coverage_data = {}  # Dictionary to store the full data per slug
+        for es_field, api_field, model in facet_mappings:
+            facet_items = facets.pop(es_field, [])
 
-            for field in facets.pop("spatial_coverage") or []:
-                coverage = field["key"]
-                areas = Area.objects.filter(slug=coverage, administrative_level=0)
+            slugs = [item["key"] for item in facet_items]
 
-                if coverage == "world":
-                    field["name"] = "World"
-                    field["fallback"] = False
+            # Fetch translations only for slugs present in facet results
+            translations: dict[str, dict] = {}
+            if slugs:
+                for record in model.objects.filter(slug__in=slugs).values(
+                    "slug",
+                    "name",
+                    f"name_{self.locale}",
+                ):
+                    slug = record["slug"]
+                    default_name = record["name"]
+                    localized_name = record[f"name_{self.locale}"]
 
-                    # Add all top-level areas (administrative_level = 0)
-                    top_level_areas = Area.objects.filter(administrative_level=0)
-                    for child_area in top_level_areas:
-                        slug = child_area.slug
-                        coverage_counts[slug] = coverage_counts.get(slug, 0) + field["count"]
-                        coverage_data[slug] = {
-                            "key": slug,
-                            "name": getattr(child_area, f"name_{self.locale}")
-                            or child_area.name
-                            or slug,
-                            "fallback": getattr(child_area, f"name_{self.locale}") is None,
-                        }
-                elif areas.exists():
-                    for area in areas:
-                        slug = area.slug
-                        coverage_counts[slug] = coverage_counts.get(slug, 0) + field["count"]
-                        coverage_data[slug] = {
-                            "key": slug,
-                            "name": getattr(area, f"name_{self.locale}") or area.name or coverage,
-                            "fallback": getattr(area, f"name_{self.locale}") is None,
-                        }
+                    translations[slug] = {
+                        "name": localized_name or default_name or slug,
+                        "fallback": localized_name is None,
+                    }
 
-            # Create final list with collapsed counts and sort by count
-            spatial_coverages = []
-            for slug, count in coverage_counts.items():
-                entry = coverage_data[slug].copy()
-                entry["count"] = count
-                spatial_coverages.append(entry)
+            # Apply translations to facet items
+            for item in facet_items:
+                slug = item["key"]
+                translation = translations.get(slug, {})
+                item["name"] = translation.get("name", slug)
+                item["fallback"] = translation.get("fallback", True)
 
-            # Sort by count in descending order
-            spatial_coverages.sort(key=lambda x: x["count"], reverse=True)
-
-            facets["spatial_coverages"] = spatial_coverages
+            facets[api_field] = facet_items
 
         return facets
 
-    def get_results(self, sqs: SearchQuerySet):
-        def key(r):
-            return (r.contains_tables, r.score, r.updated_at)
+    def get_results(self, sqs: SearchQuerySet) -> list[dict[str, Any]]:
+        # Sort and paginate at Elasticsearch level
+        # NOTE: _score is the relevance score from Elasticsearch
+        sqs = sqs.order_by("-contains_tables", "-_score", "-updated_at")
 
-        until = self.page * self.page_size
-        since = (self.page - 1) * self.page_size
+        start = (self.page - 1) * self.page_size
+        end = start + self.page_size
+        results = list(sqs[start:end])
 
-        results = sorted(sqs.all(), key=key, reverse=True)
-        return [as_search_result(r, self.locale) for r in results[since:until]]
+        # Pre-fetch all Area objects and cache spatial coverage translations
+        all_coverage_slugs = set()
+        for r in results:
+            if hasattr(r, "spatial_coverage") and r.spatial_coverage:
+                all_coverage_slugs.update(r.spatial_coverage)
+
+        spatial_coverage_translations = {}
+        if all_coverage_slugs:
+            for record in Area.objects.filter(slug__in=all_coverage_slugs).values(
+                "slug",
+                "name",
+                f"name_{self.locale}",
+            ):
+                slug = record["slug"]
+                default_name = record["name"]
+                localized_name = record[f"name_{self.locale}"]
+
+                spatial_coverage_translations[slug] = localized_name or default_name or slug
+
+        return [as_search_result(r, self.locale, spatial_coverage_translations) for r in results]
 
 
-def as_search_result(result: SearchResult, locale="pt"):
+def as_search_result(
+    result: SearchResult, locale: str = "pt", spatial_coverage_translations: dict[str, str] = {}
+) -> dict[str, Any]:
     themes = []
     for slug, name in zip(result.theme_slug or [], getattr(result, f"theme_name_{locale}") or []):
         themes.append(
@@ -298,19 +287,11 @@ def as_search_result(result: SearchResult, locale="pt"):
             }
         )
 
-    # Add spatial coverage translations
+    # Add spatial coverage translations using pre-fetched cache
     spatial_coverages = []
-    for coverage in result.spatial_coverage or []:
-        area = Area.objects.filter(slug=coverage).first()
-        if area:
-            spatial_coverages.append(
-                {
-                    "slug": coverage,
-                    "name": getattr(area, f"name_{locale}") or area.name or coverage,
-                }
-            )
-        else:
-            spatial_coverages.append({"slug": coverage, "name": coverage})
+    for coverage_slug in result.spatial_coverage or []:
+        name = spatial_coverage_translations.get(coverage_slug, coverage_slug)
+        spatial_coverages.append({"slug": coverage_slug, "name": name})
 
     return {
         "updated_at": result.updated_at,
