@@ -11,6 +11,7 @@ from backend.apps.api.v1.views import (
     table_stats,
     upload_columns,
 )
+from backend.apps.api.v1.views_export import ExportTablesView
 
 
 def redirect_to_graphql(request):
@@ -35,4 +36,5 @@ urlpatterns = [
     path("columns/", columns_view),
     path("tables/<uuid:table_id>/columns/", columns_view),
     path("columns/<uuid:column_id>/", columns_view),
+    path("export/catalog/", ExportTablesView.as_view(), name="export-catalog"),
 ]
