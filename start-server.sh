@@ -22,8 +22,7 @@ echo "> Running Gunicorn"
     --user www-data \
     --bind 0.0.0.0:8000 \
     --workers 3 \
-    --worker-class gevent \
-    --worker-connections 100 \
+    --threads 4 \
     --timeout 180
 ) &
 nginx -g "daemon off;"
