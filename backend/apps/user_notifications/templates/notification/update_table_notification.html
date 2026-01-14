@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+
+<body style="
+  display: block;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 650px;
+  font-family: 'Lato',sans-serif;
+  padding: 0 28px;
+  box-sizing: content-box;
+">
+
+  <a href="https://basedosdados.org" target="_blank" style="display: flex; width: 100%; margin: 20px 0;">
+    <img alt="logo" style="width: 75px; margin: 0 auto;" src="https://imgur.com/xoiXjjm.png">
+  </a>
+
+  <h1 style="width: 100%; padding-top: 32px; margin: 0 0 16px; border-top: 1px solid #DEDFE0; color: #252A32; font-family: Arial; font-size: 14px; font-style: normal; font-weight: 700; line-height: 24px;">Olá,</h1>
+
+  <div style="display: block; width: 100%; margin: 16px 0;">
+    <p style="width: 100%; margin: 0; color: #252A32; font-family: Arial; font-size: 14px; font-style: normal; font-weight: 400; line-height: 22px;">Você pode conferir a atualização diretamente na plataforma das seguintes tabelas:</p>
+  </div>
+  <ul style="width: 100%; padding-left: 20px; margin-top: 16px; list-style: none;"></ul>
+    {% for subscription in subscriptions %}
+      <li style="margin-bottom: 10px; list-style: none;">
+        <a
+          href="https://{{ domain }}/dataset/{{ subscription.table.dataset.id }}?table={{ subscription.table.id }}"
+          target="_blank"
+          rel="noopener noreferrer"
+          style="color: #252A32; text-decoration: none; font-weight: 500;"
+        >
+          Tabela:
+          <span style="color: #2B8C4D;">
+            {{ subscription.table.name }}
+          </span>
+        </a>
+        <a
+          href="https://{{ domain }}/dataset/{{ subscription.table.dataset.id }}"
+          target="_blank"
+          rel="noopener noreferrer"
+          style="color: #252A32; text-decoration: none; font-weight: 500;"
+        >
+          Dataset:
+          <span style="color: #2B8C4D;">
+            {{ subscription.table.dataset.name }}
+          </span>
+        </a>
+      </li>
+    {% empty %}
+      <li style="color: #252A32; list-style: none;">Não há atualizações para suas tabelas no momento.</li>
+    {% endfor %}
+  </ul>
+
+  <span style="display: block; width: 100%; margin: 32px 0; border-top: 1px solid #DEDFE0;"></span>
+
+  <div style="display: block; width: 100%; margin: 0 auto;">
+    <p style="color: #6F6F6F; text-align: center; font-family: Arial; font-size: 13px; font-weight: 400; line-height: 18px; letter-spacing: 0.2px; margin: 0;">
+      Se não quiser mais receber estes avisos, você pode desativar as notificações diretamente nas páginas de tabelas ou entrar em contato pelo e-mail
+    </p>
+    <p style="width: 100%; text-align: center; color: #6F6F6F; margin: 0; font-family: Arial; font-size: 13px; font-weight: 400; line-height: 18px; letter-spacing: 0.2px; margin: 0; text-decoration: none;">
+      contato@basedosdados.org
+    </p>
+  </div>
+
+  <span style="display: block; width: 100%; margin: 32px 0; border-top: 1px solid #DEDFE0;"></span>
+
+  <div style="display: block; width: 100%; margin: 0 auto;">
+    <p style="text-align: center; color: #A3A3A3; font-family: Arial; font-size: 12px; font-weight: 400; line-height: 18px; letter-spacing: 0.2px; margin: 0;">Esta mensagem foi enviada pela</p>
+    <p style="text-align: center; color: #A3A3A3; font-family: Arial; font-size: 12px; font-weight: 400; line-height: 18px; letter-spacing: 0.2px; text-decoration: none; margin: 0;">Base dos Dados</p>
+  </div>
+
+  <style>
+    @media (max-width: 600px) {
+      body {
+        max-width: 100%;
+        padding: 0 28px;
+      }
+    }
+
+    .link_dataset_table:hover {
+      color: #2B8C4D !important;
+    }
+  </style>
+</body>
+</html>
