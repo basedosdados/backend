@@ -17,7 +17,7 @@ def check_for_updates(subscription: TableUpdateSubscription) -> TableUpdateSubsc
 
     if subscription.updated_at < table.last_updated_at:
         return subscription
-    return subscription
+    return False
 
 
 def send_update_notification_email(user: Account, subscriptions: list, date_today: dj_timezone):
