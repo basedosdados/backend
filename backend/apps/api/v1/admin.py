@@ -102,7 +102,7 @@ class ColumnInline(OrderedStackedInline, StackedInlinePaginated):
     show_change_link = True
     show_full_result_count = True
 
-    per_page = 20
+    per_page = 10
 
     fields = ColumnInlineForm.Meta.fields + [
         "order",
@@ -206,9 +206,11 @@ class TableInline(OrderedStackedInline, StackedInlinePaginated):
     per_page = 5
     show_change_link = True
     fields = [
+        "id",
+        "slug",
         "order",
         "move_up_down_links",
-    ] + TableInlineForm.Meta.fields
+    ]
     readonly_fields = [
         "order",
         "move_up_down_links",
@@ -224,12 +226,8 @@ class RawDataSourceInline(OrderedTranslatedInline):
     show_change_link = True
     fields = [
         "order",
-        "move_up_down_links",
         "id",
         "name",
-        "description",
-        "availability",
-        "url",
     ]
     readonly_fields = [
         "order",
@@ -612,7 +610,6 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "id",
         "full_slug",
         "spatial_coverage",
-        "temporal_coverage",
         "page_views",
         "created_at",
         "updated_at",
@@ -626,9 +623,8 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
     list_display = [
         "name",
         "get_organizations",
-        "temporal_coverage",
-        "related_tables",
-        "related_raw_data_sources",
+        # "related_tables",
+        # "related_raw_data_sources",
         "updated_at",
     ]
     ordering = ["-updated_at"]
