@@ -58,7 +58,7 @@ class ExportTablesView(View):
 
         status_map = {
             "pt": {
-                "closed": "Parcialmente ou totalmente pagos",
+                "closed": "Parcialmente ou totalmente pago",
                 "open": "Totalmente grátis",
                 "to": " a ",
             },
