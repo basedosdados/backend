@@ -44,6 +44,7 @@ services:
       retries: 5
       start_period: 1m
     restart: unless-stopped
+    networks: [default, db_network]
   api:
     build:
       context: .
@@ -80,3 +81,7 @@ services:
 volumes:
   esdata:
   pgdata:
+# External network used for database access by other services (e.g., chatbot API)
+networks:
+  db_network:
+    name: db_network
