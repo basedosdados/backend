@@ -24,7 +24,7 @@ class ExportTablesView(View):
                 "Descrição do Conjunto de Dados",
                 "Nome Tabela",
                 "Descrição Tabela",
-                "Dados Mais Recentes Fechados",
+                "Disponibilidade dos dados",
                 "Número de linhas da tabela",
                 "Cobertura temporal (anos e meses que temos dados disponíveis)",
             ],
@@ -33,7 +33,7 @@ class ExportTablesView(View):
                 "Dataset Description",
                 "Table Name",
                 "Table Description",
-                "Most Recent Closed Data",
+                "Data Availability",
                 "Number of rows in the table",
                 "Temporal coverage (years and months for which data is available)",
             ],
@@ -42,7 +42,7 @@ class ExportTablesView(View):
                 "Descripción del Conjunto de Datos",
                 "Nombre de la Tabla",
                 "Descripción de la Tabla",
-                "Datos Más Recientes Cerrados",
+                "Disponibilidad de los datos",
                 "Número de filas de la tabla",
                 "Cobertura temporal (años y meses para los cuales hay datos disponibles)",
             ],
@@ -58,18 +58,18 @@ class ExportTablesView(View):
 
         status_map = {
             "pt": {
-                "closed": "Dados Parcialmente Fechados",
-                "open": "Dados 100% Abertos",
+                "closed": "Parcialmente ou totalmente pago",
+                "open": "Totalmente grátis",
                 "to": " a ",
             },
             "en": {
-                "closed": "Partially Closed Data",
-                "open": "100% Open Data",
+                "closed": "Partially or totally paid",
+                "open": "Totally free",
                 "to": " to ",
             },
             "es": {
-                "closed": "Datos Parcialmente Cerrados",
-                "open": "Datos 100% Abiertos",
+                "closed": "Parcial o totalmente de pago",
+                "open": "Totalmente gratis",
                 "to": " a ",
             },
         }
