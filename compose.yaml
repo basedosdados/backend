@@ -13,8 +13,8 @@ services:
       memlock:
         soft: -1
         hard: -1
-    volumes: [esdata:/usr/share/elasticsearch/data]
     ports: [9200:9200, 9300:9300]
+    volumes: [esdata:/usr/share/elasticsearch/data]
     healthcheck:
       test: [CMD-SHELL, curl -s http://localhost:9200 >/dev/null || exit 1]
       interval: 1m
@@ -37,6 +37,7 @@ services:
     env_file: [.env]
     ports: [5432:5432]
     volumes: [pgdata:/var/lib/postgresql/data]
+    networks: [default, db_network]
     healthcheck:
       test: [CMD, pg_isready, -U, postgres]
       interval: 1m
@@ -44,7 +45,6 @@ services:
       retries: 5
       start_period: 1m
     restart: unless-stopped
-    networks: [default, db_network]
   api:
     build:
       context: .
@@ -60,10 +60,11 @@ services:
           memory: 4G
     env_file: [.env]
     command: [poetry, run, /app/start-server-dev.sh]
-    volumes: [.:/app, $HOME/.basedosdados/credentials:/app/credentials:ro]
     ports:
       - 8080:80  # API port
       - 5678:5678  # Debug port
+    volumes: [.:/app, $HOME/.basedosdados/credentials:/app/credentials:ro]
+    networks: [default, db_network]
     depends_on:
       index:
         condition: service_healthy
