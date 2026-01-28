@@ -81,6 +81,7 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
+    "ALGORITHM": getenv("DJANGO_JWT_ALGORITHM"),
     "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "USER_AUTHENTICATION_RULE": "backend.apps.chatbot.authentication.authentication_rule",
@@ -195,6 +196,7 @@ AUTH_USER_MODEL = "account.Account"
 # GraphQL JWT configurations
 GRAPHQL_JWT = {
     "JWT_AUTH_HEADER_PREFIX": "Bearer",
+    "JWT_ALGORITHM": getenv("DJANGO_JWT_ALGORITHM"),
     "JWT_VERIFY_EXPIRATION": True,
     "JWT_EXPIRATION_DELTA": timedelta(days=7),
     "JWT_REFRESH_EXPIRATION_DELTA": timedelta(days=14),
