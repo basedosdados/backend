@@ -28,7 +28,7 @@ class Querys(Enum):
     flow_run(
     where: {
     flow_id: { _eq: $flow_id }
-    state: { _in: ["Success", "Failed"] }
+    state: { _in: ["Failed"] }
     }
     order_by: { start_time: desc }
     limit: 2
@@ -39,7 +39,7 @@ class Querys(Enum):
     state
     task_runs(
     where: {
-    state: { _in: ["Success", "Failed"] }
+    state: { _in: ["Failed"] }
     }
     order_by: { start_time: desc }
     limit: 1) {
