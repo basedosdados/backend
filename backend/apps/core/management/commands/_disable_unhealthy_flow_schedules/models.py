@@ -43,7 +43,9 @@ class FlowRun:
         self.name = name
         self.start_time = parse_datetime(start_time)
         self.state = state
-        self.task_runs = TaskRun(**task_runs[0])
+        self.task_runs = (
+            TaskRun(**task_runs[0]) if task_runs else None
+        )  # Caso não tenha segundo Run
 
 
 class FlowDisable:
@@ -58,7 +60,9 @@ class FlowDisable:
         return [FlowRun(**run) for run in response["flow_run"]]
 
     def validate(self) -> bool:
-        last_run, next_last = self.runs
+        last_run = self.runs[0]
+        next_last = self.runs[1] if len(self.runs) == 2 else None
+
         failed = Constants.FLOW_FAILED_STATE.value
 
         dbt_failed_after_created = (
@@ -68,10 +72,11 @@ class FlowDisable:
             and last_run.task_runs.state_message not in Constants.STATE_MESSAGE_IGNORE.value
         )
 
-        any_failed_after_created = (
-            last_run.state == failed
+        consecutive_failed_after_created = (
+            next_last
+            and last_run.state == failed
             and next_last.state == failed
             and max(last_run.start_time, next_last.start_time) >= self.created
         )
 
-        return dbt_failed_after_created or any_failed_after_created
+        return bool(dbt_failed_after_created or consecutive_failed_after_created)
