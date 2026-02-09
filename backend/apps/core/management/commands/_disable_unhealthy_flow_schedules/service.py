@@ -67,37 +67,16 @@ class FlowService:
 
         return self.client.query.execute(gql(query), variable_values=variables)
 
-    def disable_unhealthy_flow_schedules(self, dry_run: bool = False) -> None:
+    def disable_unhealthy_flow_schedules(self) -> None:
         flows_data = self.flows_failed_last_week()
 
         flows = [FlowDisable(**flow, service=self) for flow in flows_data]
 
         flows_to_disable = [flow for flow in flows if flow.validate()]
 
-        logger.info("Flows para ficar em alerta:")
-
-        for flow in flows:
-            logger.info(
-                Constants.TEXT_FLOW_FORMAT.value.format(
-                    task_name=flow.runs[0].task_runs.task.name,
-                    run_name=flow.runs[0].name,
-                    link=Constants.PREFECT_URL_FLOW.value + flow.id,
-                )
-            )
-
-        if flows_to_disable and not dry_run:
-            logger.info("Flows desativados:")
-
+        if flows_to_disable:
             for flow in flows_to_disable:
                 self.set_flow_schedule(flow_id=flow.id, active=False)
-
-                logger.info(
-                    Constants.TEXT_FLOW_FORMAT.value.format(
-                        task_name=flow.runs[0].task_runs.task.name,
-                        run_name=flow.runs[0].name,
-                        link=Constants.PREFECT_URL_FLOW.value + flow.id,
-                    )
-                )
 
             message_parts = [
                 self.format_flows("🚨 Flows em alerta", flows),
