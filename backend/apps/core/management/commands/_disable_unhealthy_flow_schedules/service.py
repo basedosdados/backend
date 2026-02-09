@@ -96,11 +96,13 @@ class FlowService:
         lines = [f"**{title}**"]
         for flow in flows:
             link = Constants.PREFECT_URL_FLOW.value + flow.id
-            lines.append(
-                Constants.TEXT_FLOW_FORMAT.value.format(
-                    task_name=flow.runs[0].task_runs.task.name,
-                    run_name=flow.runs[0].name,
-                    link=link,
+            last_run = flow.runs[0]
+            if last_run.task_runs:
+                lines.append(
+                    Constants.TEXT_FLOW_FORMAT.value.format(
+                        task_name=last_run.task_runs.task.name,
+                        run_name=last_run.name,
+                        link=link,
+                    )
                 )
-            )
         return "\n".join(lines)
