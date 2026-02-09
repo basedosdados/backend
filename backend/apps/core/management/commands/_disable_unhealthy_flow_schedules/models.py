@@ -64,11 +64,10 @@ class FlowDisable:
         next_last = self.runs[1] if len(self.runs) == 2 else None
 
         failed = Constants.FLOW_FAILED_STATE.value
-
         dbt_failed_after_created = (
-            last_run.task_runs.task.name in Constants.TASKS_NAME_DISABLE.value
+            last_run.state == failed
+            and last_run.task_runs.task.name in Constants.TASKS_NAME_DISABLE.value
             and last_run.start_time >= self.created
-            and last_run.state == failed
             and last_run.task_runs.state_message not in Constants.STATE_MESSAGE_IGNORE.value
         )
 
