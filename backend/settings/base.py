@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     "backend.apps.account_auth",
     "backend.apps.account_payment.apps.PaymentConfig",
     "backend.apps.api.v1",
+    "backend.apps.user_notifications",
     "backend.apps.core",
     "backend.apps.chatbot",
 ]
