@@ -200,6 +200,7 @@ GRAPHQL_JWT = {
     "JWT_EXPIRATION_DELTA": timedelta(days=7),
     "JWT_REFRESH_EXPIRATION_DELTA": timedelta(days=14),
     "JWT_ALLOW_ANY_HANDLER": "backend.custom.graphql_jwt.allow_any",
+    "JWT_PAYLOAD_HANDLER": "backend.custom.graphql_jwt.jwt_payload_with_uuid",
 }
 
 # Translations
