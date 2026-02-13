@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from functools import wraps
 from re import findall
+from typing import Any
 
 from django.db.models import Q
 from graphene import Field, ObjectType, String
@@ -9,6 +10,22 @@ from graphql_jwt.compat import get_operation_name
 from graphql_jwt.decorators import context
 from graphql_jwt.relay import JSONWebTokenMutation
 from graphql_jwt.settings import jwt_settings
+from graphql_jwt.utils import jwt_payload
+
+
+def jwt_payload_with_uuid(user, context=None) -> dict[str, Any]:
+    """Custom JWT payload handler that adds the user's UUID to the token payload.
+
+    Args:
+        user (Account): An instance of backend.apps.account.models.Account
+        context (Any, optional): Django request context. Defaults to None.
+
+    Returns:
+        dict[str, Any]: JWT token payload with the user's UUID included.
+    """
+    payload = jwt_payload(user, context)
+    payload["uuid"] = str(user.uuid)
+    return payload
 
 
 class User(ObjectType):
