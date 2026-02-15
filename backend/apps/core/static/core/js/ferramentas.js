@@ -1,57 +1,69 @@
-const modal = document.getElementById('dadosModal');
-const closeButton = document.querySelector('.close-button');
-const dadosForm = document.getElementById('dadosForm');
+import { formularios } from './forms.js';
+
+const modal = document.getElementById('ferramentasModal');
+const closeButton = modal.querySelector('.close-button');
+const toolButtons = modal.querySelectorAll('.tool-btn');
+const toolContent = document.getElementById('toolContent');
 const loadingOverlay = document.getElementById('loadingOverlay');
 
-function mostrarCarregamento() {
-loadingOverlay.style.display = 'block';
-}
-
-// Função para esconder a animação de carregamento
-function esconderCarregamento() {
-loadingOverlay.style.display = 'none';
-}
-
-// Função para abrir a modal
 function abrirModal() {
-modal.style.display = 'block';
+  modal.style.display = 'flex';
 }
 
-// Função para fechar a modal
 function fecharModal() {
-modal.style.display = 'none';
+  modal.style.display = 'none';
 }
 
-// Adicionar botão para abrir a modal
-// Event listeners
 closeButton.onclick = fecharModal;
 window.onclick = function(event) {
-if (event.target === modal) {
+  if (event.target === modal) {
     fecharModal();
+  }
 }
-}
 
-function processar() {
+toolButtons.forEach(btn => {
+  btn.addEventListener('click', () => {
 
-const formData = new FormData(dadosForm);
-mostrarCarregamento();
+    toolButtons.forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
 
-fetch('/upload_columns/', {
-    method: 'POST',
-    body: formData,
-    headers: {
-        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+    const tool = btn.dataset.tool;
+
+    if (formularios[tool]) {
+      toolContent.innerHTML = formularios[tool]();
+    } else {
+      toolContent.innerHTML = "<p>Ferramenta não encontrada.</p>";
     }
-})
-.then(response => response.json())
-.then(data => {
-    alert('Dados enviados com sucesso!' + data);
-    fecharModal();
-})
-.catch(error => {
-    alert('Erro ao enviar dados: ' + error);
-})
-.finally(() => {
-esconderCarregamento(); // Esconde o carregamento independente do resultado
+
+  });
 });
-};
+
+// Funções de loading
+function mostrarCarregamento() { loadingOverlay.style.display = 'block'; }
+function esconderCarregamento() { loadingOverlay.style.display = 'none'; }
+
+// Processar formulário dinâmico
+function processar(formId) {
+  const form = document.getElementById(formId);
+  const formData = new FormData(form);
+  mostrarCarregamento();
+
+  fetch('/upload_columns/', {
+      method: 'POST',
+      body: formData,
+      headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value }
+  })
+  .then(response => response.json())
+  .then(data => {
+      alert('Dados enviados com sucesso!');
+      fecharModal();
+  })
+  .catch(error => {
+      alert('Erro ao enviar dados: ' + error);
+  })
+  .finally(() => esconderCarregamento());
+}
+
+
+window.abrirModal = abrirModal;
+window.fecharModal = fecharModal;

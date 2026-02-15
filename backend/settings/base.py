@@ -254,9 +254,14 @@ JAZZMIN_SETTINGS = {
         {"name": "Metadados", "app": "v1"},
         {"model": "v1.dataset"},
         {"model": "v1.table"},
+        {"name": "Backend API", "url": "https://backend.basedosdados.org/graphql"},
         {"name": "Metabase", "url": "https://perguntas.basedosdados.org"},
         {"name": "Prefect", "url": "https://prefect.basedosdados.org"},
         {"name": "Grafana", "url": "https://grafana.basedosdados.org"},
+        {
+            "name": "Elementary Report",
+            "url": "https://storage.googleapis.com/basedosdados-dev/elementary_report.html#/report/dashboard",
+        },
     ],
     "show_ui_builder": True,
 }

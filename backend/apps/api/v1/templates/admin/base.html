@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block nav_buttons %}
+{{ block.super }}
+
+<li class="nav-item">
+    <a class="nav-link" href="/minha-rota/" title="Notificações">
+        <i class="fas fa-bell"></i>
+    </a>
+</li>
+
+<li class="nav-item">
+    <a class="nav-link text-success" href="/dataset/novo/" title="Novo Dataset">
+        <i class="fas fa-plus-circle"></i>
+    </a>
+</li>
+
+{% endblock %}
