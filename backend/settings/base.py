@@ -73,6 +73,7 @@ INSTALLED_APPS = [
     "backend.apps.user_notifications",
     "backend.apps.core",
     "backend.apps.chatbot",
+    "backend.apps.admin_data_tools",
 ]
 
 REST_FRAMEWORK = {
