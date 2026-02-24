@@ -208,7 +208,7 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
         (COLABORADOR, "Colaborador"),
     )
 
-    uuid = models.UUIDField(primary_key=False, default=uuid4)
+    uuid = models.UUIDField(primary_key=False, default=uuid4, unique=True)
 
     email = models.EmailField("Email", unique=True)
     gcp_email = models.EmailField("GCP email", null=True, blank=True)  # Google Cloud Platform email
