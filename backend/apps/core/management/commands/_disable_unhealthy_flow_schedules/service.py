@@ -76,7 +76,8 @@ class FlowService:
 
         if flows_to_disable:
             for flow in flows_to_disable:
-                self.set_flow_schedule(flow_id=flow.id, active=False)
+                for _ in range(2):  # Existe um bug onde o Flow não desativa com apenas uma query
+                    self.set_flow_schedule(flow_id=flow.id, active=False)
 
             message_parts = [
                 self.format_flows("🚨 Flows em alerta", flows),
