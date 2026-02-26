@@ -14,10 +14,13 @@ from backend.custom.environment import get_frontend_url
 
 def check_for_updates(subscription: TableUpdateSubscription) -> TableUpdateSubscription | bool:
     table = subscription.table
-
-    if subscription.updated_at < table.last_updated_at:
-        return subscription
-    return False
+    try:
+        if subscription.updated_at < table.last_updated_at:
+            return subscription
+        return False
+    except Exception:
+        print(f"Tabela: {table.dataset.name}{table.name} está com erro")
+        return False
 
 
 def send_update_notification_email(user: Account, subscriptions: list, date_today: dj_timezone):
