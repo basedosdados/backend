@@ -170,6 +170,7 @@ class CustomVerify(Verify):
                 {
                     "pro_subscription_status": user.pro_subscription_status,
                     "is_subscription_active": is_subscription_active,
+                    "has_chatbot_access": user.has_chatbot_access,
                 }
             )
         return response
