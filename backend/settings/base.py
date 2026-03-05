@@ -63,30 +63,13 @@ INSTALLED_APPS = [
     "django_extensions",
     "huey.contrib.djhuey",
     #
-    "rest_framework",
-    "rest_framework_simplejwt",
-    #
     "backend.apps.account",
     "backend.apps.account_auth",
     "backend.apps.account_payment.apps.PaymentConfig",
     "backend.apps.api.v1",
     "backend.apps.user_notifications",
     "backend.apps.core",
-    "backend.apps.chatbot",
 ]
-
-REST_FRAMEWORK = {
-    "DEFAULT_AUTHENTICATION_CLASSES": (
-        "rest_framework_simplejwt.authentication.JWTAuthentication",
-    ),
-}
-
-SIMPLE_JWT = {
-    "ALGORITHM": getenv("DJANGO_JWT_ALGORITHM"),
-    "ACCESS_TOKEN_LIFETIME": timedelta(hours=1),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
-    "USER_AUTHENTICATION_RULE": "backend.apps.chatbot.authentication.authentication_rule",
-}
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
