@@ -26,4 +26,4 @@ echo "> Running Huey"
 
 # Start server in development mode with django
 echo "> Running server in development mode"
-(cd /app; python -m debugpy --listen 0.0.0.0:5678 manage.py runserver 0.0.0.0:8000) & nginx -g "daemon off;"
+(cd /app; opentelemetry-instrument python -m debugpy --listen 0.0.0.0:5678 manage.py runserver 0.0.0.0:8000 --noreload) & nginx -g "daemon off;"
