@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 from django.conf import settings
-from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import Q
 from djstripe import webhooks
 from djstripe.models import Event
@@ -28,18 +27,28 @@ def _normalize_plus(email: str) -> str:
     return f"{local}@{domain}"
 
 
-def get_subscription(event: Event) -> Subscription:
+def get_subscription(event: Event, event_context: str = None) -> Subscription:
     """Get internal subscription model, mirror of stripe"""
-    logger.info(f"Procurando inscrição interna do cliente {event.customer.email}")
-    subscription = DJStripeSubscription.objects.get(id=event.data["object"]["id"])
+    ctx = f"[{event_context}] " if event_context else ""
+    subscription_id = event.data.get("object", {}).get("id")
+    if not subscription_id:
+        return None
+
+    logger.info(f"{ctx}Procurando inscrição interna do cliente {event.customer.email}")
+
+    try:
+        subscription = DJStripeSubscription.objects.get(id=subscription_id)
+    except DJStripeSubscription.DoesNotExist:
+        return None
+
     internal_subscription = Subscription.objects.filter(subscription=subscription).first()
 
     if internal_subscription:
-        logger.info(f"Retornando inscrição interna do cliente {event.customer.email}")
+        logger.info(f"{ctx}Retornando inscrição interna do cliente {event.customer.email}")
         return internal_subscription
     else:
-        if event.customer.subscriber:
-            logger.info(f"Criando inscrição interna do cliente {event.customer.email}")
+        if getattr(event.customer, "subscriber", None):
+            logger.info(f"{ctx}Criando inscrição interna do cliente {event.customer.email}")
             return Subscription.objects.create(
                 subscription=subscription,
                 admin=event.customer.subscriber,
@@ -67,21 +76,25 @@ def get_service() -> Resource:
     return build("admin", "directory_v1", credentials=credentials)
 
 
-def add_user(email: str, account: Account = None, group_key: str = None, role: str = "MEMBER"):
+def add_user(
+    email: str,
+    account: Account = None,
+    group_key: str = None,
+    role: str = "MEMBER",
+    event_context: str = None,
+):
     """Add user to google group"""
+    ctx = f"[{event_context}] " if event_context else ""
     if is_dev() or is_stg():
         if account is None:
-            try:
-                normalized_email = _normalize_plus(email)
-                account = Account.objects.get(
-                    Q(email__iexact=email) | Q(email__iexact=normalized_email)
-                )
-            except Account.DoesNotExist:
-                account = None
+            normalized_email = _normalize_plus(email)
+            account = Account.objects.filter(
+                Q(email__iexact=email) | Q(email__iexact=normalized_email)
+            ).first()
 
         if not (account and account.is_admin):
             logger.info(
-                f"Ignorando adição do usuário '{email}' "
+                f"{ctx}Ignorando adição do usuário '{email}' "
                 "em ambiente de dev/staging pois não é admin."
             )
             return
@@ -97,38 +110,54 @@ def add_user(email: str, account: Account = None, group_key: str = None, role: s
         ).execute()
     except HttpError as e:
         if e.resp.status == 409:
-            logger.warning(f"{email} já existe no google groups")
+            logger.warning(f"{ctx}{email} já existe no google groups")
         else:
             send(f"Verifique o erro ao adicionar o usuário ao google groups: {e}")
-            logger.error(e)
+            logger.error(f"{ctx}{e}")
             raise e
 
 
-def remove_user(email: str, group_key: str = None) -> None:
+def remove_user(email: str, group_key: str = None, event_context: str = None) -> None:
     """Remove user from Google Group"""
+    ctx = f"[{event_context}] " if event_context else ""
     if not email or "@" not in email:
-        logger.error(f"E-mail inválido fornecido: {email!r}")
+        logger.error(f"{ctx}E-mail inválido fornecido: {email!r}")
         return
 
     raw_email = email.strip().lower()
     base_email = _normalize_plus(raw_email)
 
-    try:
-        user = Account.objects.get(
-            Q(email__iexact=raw_email)
-            | Q(email__iexact=base_email)
-            | Q(gcp_email__iexact=raw_email)
-            | Q(gcp_email__iexact=base_email)
-        )
-    except ObjectDoesNotExist:
-        logger.warning(
-            f"Usuário {raw_email} não encontrado no banco. Tentando remoção direta do Google Group."
-        )
-        user = None
+    user = Account.objects.filter(
+        Q(email__iexact=raw_email)
+        | Q(email__iexact=base_email)
+        | Q(gcp_email__iexact=raw_email)
+        | Q(gcp_email__iexact=base_email)
+    ).first()
 
-    if user and user.is_admin:
-        logger.warning(f"Bloqueado: {raw_email} é admin. Não removido do Google Groups.")
-        return
+    if not user:
+        logger.warning(
+            f"{ctx}Usuário {raw_email} não encontrado no banco. "
+            "Tentando remoção direta do Google Group."
+        )
+
+    if user:
+        if user.is_admin:
+            logger.warning(f"{ctx}Bloqueado: {raw_email} é admin. Não removido do Google Groups.")
+            return
+
+        has_active_sub = (
+            getattr(user, "is_subscriber", False)
+            or DJStripeSubscription.objects.filter(
+                customer__subscriber=user, status__in=["active", "trialing"]
+            ).exists()
+        )
+
+        if has_active_sub:
+            logger.warning(
+                f"{ctx}Bloqueado: {raw_email} possui uma assinatura ativa. "
+                "Não removido do Google Groups."
+            )
+            return
 
     group_key = group_key or settings.GOOGLE_DIRECTORY_GROUP_KEY
 
@@ -146,15 +175,15 @@ def remove_user(email: str, group_key: str = None) -> None:
 
         if status_code == 404 or status_code == 400:
             logger.warning(
-                f"{base_email} não encontrado no Google Groups (já removido ou chave inválida)"
+                f"{ctx}{base_email} não encontrado no Google Groups (já removido ou chave inválida)"
             )
             return
 
         send(f"Verifique o erro ao remover '{base_email}' do Google Groups: {e}")
-        logger.error(e)
+        logger.error(f"{ctx}{e}")
         raise
-    except Exception:
-        logger.exception(f"Erro inesperado ao remover {base_email} do Google Groups")
+    except Exception as e:
+        logger.exception(f"{ctx}Erro inesperado ao remover {base_email} do Google Groups: {e}")
         raise
 
 
@@ -174,8 +203,8 @@ def is_email_in_group(email: str, group_key: str = None) -> bool:
     """Check if a user is in a Google group."""
     if not group_key:
         group_key = settings.GOOGLE_DIRECTORY_GROUP_KEY
-    if "+" in email and email.index("+") < email.index("@"):
-        email = email.split("+")[0] + "@" + email.split("@")[1]
+
+    email = _normalize_plus(email)
 
     try:
         service = get_service()
@@ -204,42 +233,62 @@ def is_email_in_group(email: str, group_key: str = None) -> bool:
 @webhooks.handler("customer.updated")
 def update_customer(event: Event, **kwargs):
     """Propagate customer email update if exists"""
+    if not getattr(event, "customer", None):
+        return
+
     account = event.customer.subscriber
-    if account and account.email != event.data["object"]["email"]:
-        logger.info(f"Atualizando o email do cliente {event.customer.email}")
-        account.email = event.data["object"]["email"]
+    new_email = event.data.get("object", {}).get("email")
+    if account and new_email and account.email != new_email:
+        logger.info(
+            f"[Webhook: {event.type} | Event ID: {event.id}] "
+            f"Atualizando o email do cliente {event.customer.email}"
+        )
+        account.email = new_email
         account.save(update_fields=["email"])
 
 
 def handle_subscription(event: Event):
     """Handle subscription status"""
-    subscription = get_subscription(event)
+    if not getattr(event, "customer", None) or not getattr(event.customer, "email", None):
+        logger.warning(f"Webhook {event.type} abortado: cliente ou e-mail ausente.")
+        return
+
+    event_context = f"Webhook: {event.type} | Event ID: {event.id}"
+    ctx = f"[{event_context}] "
+
+    subscription = get_subscription(event, event_context=event_context)
     account = Account.objects.filter(email=event.customer.email).first()
 
-    if event.data["object"]["status"] in ["trialing", "active"]:
+    status = event.data.get("object", {}).get("status")
+    if status in ["trialing", "active"]:
         if subscription:
-            logger.info(f"Adicionando a inscrição do cliente {event.customer.email}")
+            logger.info(f"{ctx}Adicionando a inscrição do cliente {event.customer.email}")
             subscription.is_active = True
             subscription.save()
 
         # Add user to google group if subscription exists or not
         if account:
-            add_user(account.gcp_email or account.email, account=account)
+            add_user(
+                account.gcp_email or account.email, account=account, event_context=event_context
+            )
         else:
-            add_user(event.customer.email, account=None)
+            add_user(event.customer.email, account=None, event_context=event_context)
     else:
         if subscription:
-            logger.info(f"Removendo a inscrição do cliente {event.customer.email}")
+            logger.info(
+                f"{ctx}Removendo a inscrição do cliente {event.customer.email} "
+                f"(Status via Stripe: {status})"
+            )
             subscription.is_active = False
             subscription.save()
         # Remove user from google group if subscription exists or not
         try:
             if account:
-                remove_user(account.gcp_email or account.email)
+                remove_user(account.gcp_email or account.email, event_context=event_context)
             else:
-                remove_user(event.customer.email)
+                remove_user(event.customer.email, event_context=event_context)
         except Exception as e:
-            logger.error(e)
+            logger.error(f"{ctx}{e}")
 
 
 @webhooks.handler("customer.subscription.updated")
@@ -257,8 +306,14 @@ def subscribe(event: Event, **kwargs):
 @webhooks.handler("customer.subscription.deleted")
 def unsubscribe(event: Event, **kwargs):
     """Remove customer from allowed google groups"""
-    if subscription := get_subscription(event):
-        logger.info(f"Removendo a inscrição do cliente {event.customer.email}")
+    if not getattr(event, "customer", None) or not getattr(event.customer, "email", None):
+        return
+
+    event_context = f"Webhook: {event.type} | Event ID: {event.id}"
+    ctx = f"[{event_context}] "
+
+    if subscription := get_subscription(event, event_context=event_context):
+        logger.info(f"{ctx}Removendo a inscrição do cliente {event.customer.email}")
         subscription.is_active = False
         subscription.save()
 
@@ -266,73 +321,93 @@ def unsubscribe(event: Event, **kwargs):
     # Remove user from google group if subscription exists or not
     try:
         if account:
-            remove_user(account.gcp_email or account.email)
+            remove_user(account.gcp_email or account.email, event_context=event_context)
         else:
-            remove_user(event.customer.email)
+            remove_user(event.customer.email, event_context=event_context)
     except Exception as e:
-        logger.error(e)
+        logger.error(f"{ctx}{e}")
 
 
 @webhooks.handler("customer.subscription.paused")
 def pause_subscription(event: Event, **kwargs):
     """Pause customer subscription"""
+    if not getattr(event, "customer", None) or not getattr(event.customer, "email", None):
+        return
+
+    event_context = f"Webhook: {event.type} | Event ID: {event.id}"
+    ctx = f"[{event_context}] "
+
     account = Account.objects.filter(email=event.customer.email).first()
 
-    if subscription := get_subscription(event):
-        logger.info(f"Pausando a inscrição do cliente {event.customer.email}")
+    if subscription := get_subscription(event, event_context=event_context):
+        logger.info(f"{ctx}Pausando a inscrição do cliente {event.customer.email}")
         subscription.is_active = False
         subscription.save()
 
     try:
         if account:
-            remove_user(account.gcp_email or account.email)
+            remove_user(account.gcp_email or account.email, event_context=event_context)
         else:
-            remove_user(event.customer.email)
+            remove_user(event.customer.email, event_context=event_context)
     except Exception as e:
-        logger.error(e)
+        logger.error(f"{ctx}{e}")
 
 
 @webhooks.handler("customer.subscription.resumed")
 def resume_subscription(event: Event, **kwargs):
     """Resume customer subscription"""
+    if not getattr(event, "customer", None) or not getattr(event.customer, "email", None):
+        return
+
+    event_context = f"Webhook: {event.type} | Event ID: {event.id}"
+    ctx = f"[{event_context}] "
+
     account = Account.objects.filter(email=event.customer.email).first()
 
-    if subscription := get_subscription(event):
-        logger.info(f"Resumindo a inscrição do cliente {event.customer.email}")
+    if subscription := get_subscription(event, event_context=event_context):
+        logger.info(f"{ctx}Resumindo a inscrição do cliente {event.customer.email}")
         subscription.is_active = True
         subscription.save()
 
     try:
         if account:
-            add_user(account.gcp_email or account.email, account=account)
+            add_user(
+                account.gcp_email or account.email, account=account, event_context=event_context
+            )
         else:
-            add_user(event.customer.email, account=None)
+            add_user(event.customer.email, account=None, event_context=event_context)
     except Exception as e:
-        logger.error(e)
+        logger.error(f"{ctx}{e}")
 
 
 @webhooks.handler("setup_intent.succeeded")
 def setup_intent_succeeded(event: Event, **kwargs):
     """Update customer default payment method and subscribe to plan with trial"""
-    logger.info(f"Setup intent updated {event.customer.email}")
+    if not getattr(event, "customer", None):
+        return
+
+    ctx = f"[Webhook: {event.type} | Event ID: {event.id}] "
+    logger.info(f"{ctx}Setup intent updated {event.customer.email}")
 
     customer = event.customer
-    setup_intent = event.data["object"]
-    metadata = setup_intent.get("metadata")
+    setup_intent = event.data.get("object", {})
+    metadata = setup_intent.get("metadata", {})
     price_id = metadata.get("price_id")
     promotion_code = metadata.get("promotion_code")
     backend_url = metadata.get("backend_url")
 
     if not backend_url == get_backend_url():
-        return logger.info(f"Ignore setup intent from {backend_url}")
+        return logger.info(f"{ctx}Ignore setup intent from {backend_url}")
 
-    StripeCustomer.modify(
-        customer.id,
-        invoice_settings={"default_payment_method": setup_intent.get("payment_method")},
-    )
+    payment_method = setup_intent.get("payment_method")
+    if payment_method:
+        StripeCustomer.modify(
+            customer.id,
+            invoice_settings={"default_payment_method": payment_method},
+        )
 
     subscriptions = StripeSubscription.list(customer=customer.id)
-    has_subscription = len(subscriptions.get("data")) > 0
+    has_subscription = len(subscriptions.get("data", [])) > 0
 
     if promotion_code:
         discounts = [{"promotion_code": promotion_code}]
@@ -340,7 +415,7 @@ def setup_intent_succeeded(event: Event, **kwargs):
         discounts = []
 
     if not has_subscription and price_id:
-        logger.info(f"Add subscription to user {event.customer.email}")
+        logger.info(f"{ctx}Add subscription to user {event.customer.email}")
         customer.subscribe(price=price_id, trial_period_days=7, discounts=discounts)
 
 
