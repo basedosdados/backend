@@ -431,9 +431,9 @@ class CreateUpdateMutation(DjangoModelFormMutation):
 
     @classmethod
     def perform_mutate(cls, form, info):
-        obj = form.save()
-        if hasattr(form, "save_m2m"):
-            form.save_m2m()
+        obj = form.save(commit=False)
+        obj.save()
+        form.save_m2m()
         return cls(errors=[], **{cls._meta.return_field_name: obj})
 
     @classmethod
