@@ -430,6 +430,13 @@ class CreateUpdateMutation(DjangoModelFormMutation):
         )
 
     @classmethod
+    def perform_mutate(cls, form, info):
+        obj = form.save(commit=False)
+        obj.save()
+        form.save_m2m()
+        return cls(errors=[], **{cls._meta.return_field_name: obj})
+
+    @classmethod
     def get_form_kwargs(cls, root, info, **input):
         # Get file data
         file_fields = [
