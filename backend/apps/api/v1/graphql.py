@@ -1,9 +1,9 @@
 # -*- coding: utf-8 -*-
 
-from graphene import UUID, Boolean, Float, List, ObjectType, String
+from graphene import UUID, Boolean, Float, List, Mutation, ObjectType, String
 from graphene_django import DjangoObjectType
 
-from backend.apps.api.v1.models import Table, TableNeighbor
+from backend.apps.api.v1.models import ObservationLevel, Table, TableNeighbor
 from backend.apps.api.v1.sql_generator import OneBigTableQueryGenerator
 from backend.custom.graphql_base import PlainTextNode
 
@@ -39,6 +39,42 @@ class TableNeighborNode(DjangoObjectType):
         return root.score
 
 
+class ReorderTables(Mutation):
+    """Set display order for tables within a dataset.
+    ids: ordered list of table UUIDs (index 0 = first)."""
+
+    class Arguments:
+        ids = List(UUID, required=True)
+
+    ok = Boolean()
+    errors = List(String)
+
+    def mutate(root, info, ids):
+        if not info.context.user.is_staff:
+            return ReorderTables(ok=False, errors=["Permission denied"])
+        for i, table_id in enumerate(ids):
+            Table.objects.filter(pk=table_id).update(order=i)
+        return ReorderTables(ok=True, errors=[])
+
+
+class ReorderObservationLevels(Mutation):
+    """Set display order for observation levels within a table.
+    ids: ordered list of ObservationLevel UUIDs (index 0 = first)."""
+
+    class Arguments:
+        ids = List(UUID, required=True)
+
+    ok = Boolean()
+    errors = List(String)
+
+    def mutate(root, info, ids):
+        if not info.context.user.is_staff:
+            return ReorderObservationLevels(ok=False, errors=["Permission denied"])
+        for i, ol_id in enumerate(ids):
+            ObservationLevel.objects.filter(pk=ol_id).update(order=i)
+        return ReorderObservationLevels(ok=True, errors=[])
+
+
 class Query(ObjectType):
     get_table_neighbor = List(
         TableNeighborNode,
@@ -63,3 +99,8 @@ class Query(ObjectType):
                 table, columns, include_table_translation
             )
             return sql_query
+
+
+class APIMutation:
+    reorder_tables = ReorderTables.Field()
+    reorder_observation_levels = ReorderObservationLevels.Field()
