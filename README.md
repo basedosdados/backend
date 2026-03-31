@@ -21,12 +21,6 @@ Backend da [Base dos Dados](https://basedosdados.org), a maior plataforma públi
 - [Google Cloud Storage](https://cloud.google.com/storage) para armazenamento de mídia e acesso aos dados brutos.
 - [Google BigQuery](https://cloud.google.com/bigquery) para acesso aos dados tratados.
 
-#### Chatbot
-- [Django REST Framework](https://www.django-rest-framework.org/) para a API do chatbot.
-- [LangChain](https://docs.langchain.com/oss/python/langchain/overview) / [LangGraph](https://langchain-ai.github.io/langgraph/) para desenvolvimento de agentes de IA.
-- [Google BigQuery](https://cloud.google.com/bigquery) para acesso aos dados tratados.
-- [Vertex AI](https://cloud.google.com/vertex-ai) para acesso a LLMs.
-
 #### Pagamentos
 - [Stripe](https://stripe.com/) / [dj-stripe](https://dj-stripe.dev/) para o processamento de pagamentos.
 
@@ -60,8 +54,6 @@ cp .env.example .env
 ```
 > [!NOTE]
 > As variáveis de ambiente no arquivo `.env.example` já estão configuradas para execução com o Docker.
->
-> Caso vá utilizar a funcionalidade do chatbot, a conta de serviço deve ser armazenada localmente em `~/.basedosdados/credentials`.
 
 ## Execução do Backend
 Utilize o [Docker](https://docs.docker.com/engine/install/) para executar o backend localmente:

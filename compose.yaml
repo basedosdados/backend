@@ -62,7 +62,7 @@ services:
     ports:
       - 8080:80  # API port
       - 5678:5678  # Debug port
-    volumes: [.:/app, $HOME/.basedosdados/credentials:/app/credentials:ro]
+    volumes: [.:/app]
     networks: [default, api_network]
     depends_on:
       index:
