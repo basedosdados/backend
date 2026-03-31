@@ -2,6 +2,7 @@
 from backend.apps.account.graphql import AccountMutation
 from backend.apps.account_payment.graphql import Mutation as PaymentMutation
 from backend.apps.account_payment.graphql import Query as PaymentQuery
+from backend.apps.api.v1.graphql import APIMutation
 from backend.apps.api.v1.graphql import Query as APIQuery
 from backend.apps.user_notifications.graphql import (
     DeactivateAllTableUpdateNotification,
@@ -16,6 +17,7 @@ schema = build_schema(
     extra_queries=[APIQuery, PaymentQuery, UserNotificationQuery],
     extra_mutations=[
         AccountMutation,
+        APIMutation,
         PaymentMutation,
         TableUpdateNotification,
         DeactivateTableUpdateNotification,
