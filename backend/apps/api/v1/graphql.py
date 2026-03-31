@@ -3,7 +3,7 @@
 from graphene import UUID, Boolean, Float, List, Mutation, ObjectType, String
 from graphene_django import DjangoObjectType
 
-from backend.apps.api.v1.models import ObservationLevel, Table, TableNeighbor
+from backend.apps.api.v1.models import Column, ObservationLevel, Table, TableNeighbor
 from backend.apps.api.v1.sql_generator import OneBigTableQueryGenerator
 from backend.custom.graphql_base import PlainTextNode
 
@@ -101,6 +101,25 @@ class Query(ObjectType):
             return sql_query
 
 
+class ReorderColumns(Mutation):
+    """Set display order for columns within a table.
+    ids: ordered list of Column UUIDs (index 0 = first)."""
+
+    class Arguments:
+        ids = List(UUID, required=True)
+
+    ok = Boolean()
+    errors = List(String)
+
+    def mutate(root, info, ids):
+        if not info.context.user.is_staff:
+            return ReorderColumns(ok=False, errors=["Permission denied"])
+        for i, col_id in enumerate(ids):
+            Column.objects.filter(pk=col_id).update(order=i)
+        return ReorderColumns(ok=True, errors=[])
+
+
 class APIMutation:
     reorder_tables = ReorderTables.Field()
     reorder_observation_levels = ReorderObservationLevels.Field()
+    reorder_columns = ReorderColumns.Field()
