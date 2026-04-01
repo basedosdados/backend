@@ -12,7 +12,7 @@ from typing import Iterable, Optional, get_type_hints
 from django.apps import apps
 from django.core.exceptions import ValidationError
 from django.db import models
-from django.forms import ModelForm, modelform_factory
+from django.forms import ModelForm, ModelMultipleChoiceField, modelform_factory
 from django.forms import fields as forms_fields
 from graphene import (
     ID,
@@ -502,3 +502,8 @@ def generate_form_fields(model: BaseModel):
 @convert_django_field.register(models.FileField)
 def convert_file_to_url(field, registry=None):
     return FileFieldScalar(description=field.help_text, required=not field.null)
+
+
+@convert_form_field.register(ModelMultipleChoiceField)
+def convert_form_field_to_list_of_id(field):
+    return List(ID, description=field.help_text, required=field.required)
