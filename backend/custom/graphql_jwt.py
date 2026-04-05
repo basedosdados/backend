@@ -166,9 +166,8 @@ def require_scope(scope: str):
         @wraps(f)
         @context(f)
         def wrapper(ctx, *args, **kwargs):
-            if not ctx.user.is_authenticated:
-                raise exceptions.PermissionDenied()
-            # JWT-authenticated users have all scopes implicitly.
+            # Only enforce scopes for BackendToken-authenticated requests.
+            # Anonymous and JWT-authenticated requests pass through unchanged.
             if not hasattr(ctx, "_backend_token"):
                 return f(*args, **kwargs)
             token_scopes = ctx._backend_token.scopes
