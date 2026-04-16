@@ -23,6 +23,21 @@ class Querys(Enum):
     }
     """
 
+    ACTIVE_FLOWS_BY_NAMES = """
+    query($names: [String!]!) {
+    flow(
+    where: {
+    name: { _in: $names }
+    is_schedule_active: { _eq: true }
+    archived: { _eq: false }
+    }
+    ) {
+    id
+    name
+    }
+    }
+    """
+
     LAST_COMPLETED_RUNS_TASKS = """
     query LastTwoCompletedRunsWithTasks($flow_id: uuid!) {
     flow_run(
