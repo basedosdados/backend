@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     "backend.apps.api.v1",
     "backend.apps.user_notifications",
     "backend.apps.core",
+    "backend.apps.admin_data_tools",
 ]
 
 MIDDLEWARE = [
