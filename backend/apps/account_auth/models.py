@@ -6,6 +6,21 @@ from django.db import models
 
 USER_MODEL = settings.AUTH_USER_MODEL
 
+SCOPE_CHOICES = [
+    "datasets:read",
+    "datasets:write",
+    "tables:read",
+    "tables:write",
+    "organizations:read",
+    "organizations:write",
+    "accounts:read",
+    "accounts:write",
+    "subscriptions:read",
+    "admin",
+]
+
+STAFF_ONLY_SCOPES = {"accounts:read", "accounts:write", "admin"}
+
 
 class Domain(models.Model):
     name = models.CharField(max_length=255)
@@ -35,6 +50,21 @@ class Token(models.Model):
     def save(self):
         self.token = self.generate_token()
         super().save()
+
+
+class BackendToken(models.Model):
+    user = models.ForeignKey(USER_MODEL, on_delete=models.CASCADE, related_name="backend_tokens")
+    name = models.CharField(max_length=255)
+    prefix = models.CharField(max_length=8, editable=False)
+    hashed_key = models.CharField(max_length=64, unique=True, editable=False)
+    scopes = models.JSONField(default=list)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    is_active = models.BooleanField(default=True)
+
+    def __str__(self):
+        return f"{self.user.email} — {self.name} [{self.prefix}...]"
 
 
 class Access(models.Model):
