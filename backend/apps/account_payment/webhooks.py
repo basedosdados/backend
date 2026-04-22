@@ -1,4 +1,8 @@
 # -*- coding: utf-8 -*-
+from __future__ import annotations
+
+from typing import NamedTuple
+
 from django.conf import settings
 from django.db.models import Q
 from djstripe import webhooks
@@ -19,7 +23,7 @@ logger = logger.bind(module="payment")
 
 
 def _normalize_plus(email: str) -> str:
-    """Normaliza: trim, lower e remove +alias antes do @."""
+    """Normalize: trim, lower and remove +alias before @."""
     email = email.strip().lower()
     local, _, domain = email.partition("@")
     if "+" in local:
@@ -27,7 +31,7 @@ def _normalize_plus(email: str) -> str:
     return f"{local}@{domain}"
 
 
-def get_subscription(event: Event, event_context: str = None) -> Subscription:
+def get_subscription(event: Event, event_context: str = None) -> Subscription | None:
     """Get internal subscription model, mirror of stripe"""
     ctx = f"[{event_context}] " if event_context else ""
     subscription_id = event.data.get("object", {}).get("id")
@@ -53,6 +57,89 @@ def get_subscription(event: Event, event_context: str = None) -> Subscription:
                 subscription=subscription,
                 admin=event.customer.subscriber,
             )
+
+
+def get_product_slug(subscription_model=None, event=None, event_context: str = None) -> str:
+    ctx = f"[{event_context}] " if event_context else ""
+    try:
+        djstripe_sub = None
+        if subscription_model and getattr(subscription_model, "subscription", None):
+            djstripe_sub = subscription_model.subscription
+        elif event:
+            sub_id = event.data.get("object", {}).get("id")
+            if sub_id:
+                djstripe_sub = DJStripeSubscription.objects.filter(id=sub_id).first()
+
+        if djstripe_sub:
+            if getattr(djstripe_sub, "plan", None) and getattr(djstripe_sub.plan, "product", None):
+                return djstripe_sub.plan.product.metadata.get("code", "")
+            elif hasattr(djstripe_sub, "items") and djstripe_sub.items.first():
+                item = djstripe_sub.items.first()
+                if getattr(item, "price", None) and getattr(item.price, "product", None):
+                    return item.price.product.metadata.get("code", "")
+    except Exception as e:
+        logger.error(f"{ctx}Erro ao recuperar product slug da assinatura: {e}")
+    return ""
+
+
+class WebhookContext(NamedTuple):
+    """Common context validated once per Stripe event (customer + email + log strings)."""
+
+    event: Event
+    event_context: str
+    ctx: str
+    customer_email: str
+
+
+def require_webhook_customer_context(
+    event: Event,
+    *,
+    log_if_invalid: bool = False,
+) -> WebhookContext | None:
+    """
+    Ensures the event has a Stripe customer with an email.
+    Centralizes the repeated validation in the handlers and avoids scattered checks.
+    """
+    customer = getattr(event, "customer", None)
+    email = getattr(customer, "email", None) if customer else None
+    if not customer or not email:
+        if log_if_invalid:
+            logger.warning(f"Webhook {event.type} abortado: cliente ou e-mail ausente.")
+        return None
+    event_context = f"Webhook: {event.type} | Event ID: {event.id}"
+    ctx = f"[{event_context}] "
+    return WebhookContext(
+        event=event,
+        event_context=event_context,
+        ctx=ctx,
+        customer_email=email,
+    )
+
+
+def get_account_for_stripe_customer(event: Event) -> Account | None:
+    return Account.objects.filter(email=event.customer.email).first()
+
+
+def subscription_product_is_chatbot(
+    subscription: Subscription | None,
+    event: Event,
+    event_context: str,
+) -> bool:
+    return get_product_slug(subscription, event, event_context=event_context) == "chatbot"
+
+
+def _set_account_chatbot_access(
+    account: Account,
+    enabled: bool,
+    wc: WebhookContext,
+    log_message: str,
+) -> None:
+    try:
+        logger.info(f"{wc.ctx}{log_message}")
+        account.has_chatbot_access = enabled
+        account.save(update_fields=["has_chatbot_access"])
+    except Exception as e:
+        logger.error(f"{wc.ctx}{e}")
 
 
 def get_credentials(scopes: list[str] = None, impersonate: str = None):
@@ -187,6 +274,74 @@ def remove_user(email: str, group_key: str = None, event_context: str = None) ->
         raise
 
 
+def apply_active_subscription_entitlements(
+    wc: WebhookContext,
+    subscription: Subscription | None,
+    account: Account | None,
+    *,
+    chatbot_grant_message: str | None = None,
+) -> None:
+    """
+    Active/trial/resumed subscription: grants chatbot access or adds to
+    Google Group according to the product.
+    """
+    is_chat = subscription_product_is_chatbot(subscription, wc.event, wc.event_context)
+    grant_msg = (
+        chatbot_grant_message or f"Liberando acesso ao chatbot para o cliente {wc.customer_email}"
+    )
+    if account:
+        if is_chat:
+            _set_account_chatbot_access(account, True, wc, grant_msg)
+        else:
+            try:
+                add_user(
+                    account.gcp_email or account.email,
+                    account=account,
+                    event_context=wc.event_context,
+                )
+            except Exception as e:
+                logger.error(f"{wc.ctx}{e}")
+    elif not is_chat:
+        try:
+            add_user(
+                wc.customer_email,
+                account=None,
+                event_context=wc.event_context,
+            )
+        except Exception as e:
+            logger.error(f"{wc.ctx}{e}")
+
+
+def apply_inactive_subscription_entitlements(
+    wc: WebhookContext,
+    subscription: Subscription | None,
+    account: Account | None,
+    *,
+    chatbot_revoke_message: str | None = None,
+) -> None:
+    """
+    Inactive/deleted/paused subscription: revokes chatbot access or removes from
+    Google Group according to the product.
+    """
+    is_chat = subscription_product_is_chatbot(subscription, wc.event, wc.event_context)
+    revoke_msg = (
+        chatbot_revoke_message or f"Removendo acesso ao chatbot para o cliente {wc.customer_email}"
+    )
+    if is_chat and account:
+        _set_account_chatbot_access(account, False, wc, revoke_msg)
+    elif not is_chat:
+        try:
+            if account:
+                remove_user(
+                    account.gcp_email or account.email,
+                    event_context=wc.event_context,
+                )
+            else:
+                remove_user(wc.customer_email, event_context=wc.event_context)
+        except Exception as e:
+            logger.error(f"{wc.ctx}{e}")
+
+
 def list_user(group_key: str = None):
     """List users from google group"""
     if not group_key:
@@ -249,46 +404,32 @@ def update_customer(event: Event, **kwargs):
 
 def handle_subscription(event: Event):
     """Handle subscription status"""
-    if not getattr(event, "customer", None) or not getattr(event.customer, "email", None):
-        logger.warning(f"Webhook {event.type} abortado: cliente ou e-mail ausente.")
+    wc = require_webhook_customer_context(event, log_if_invalid=True)
+    if not wc:
         return
 
-    event_context = f"Webhook: {event.type} | Event ID: {event.id}"
-    ctx = f"[{event_context}] "
-
-    subscription = get_subscription(event, event_context=event_context)
-    account = Account.objects.filter(email=event.customer.email).first()
+    subscription = get_subscription(event, event_context=wc.event_context)
+    account = get_account_for_stripe_customer(event)
 
     status = event.data.get("object", {}).get("status")
+
     if status in ["trialing", "active"]:
         if subscription:
-            logger.info(f"{ctx}Adicionando a inscrição do cliente {event.customer.email}")
+            logger.info(f"{wc.ctx}Adicionando a inscrição do cliente {wc.customer_email}")
             subscription.is_active = True
             subscription.save()
 
-        # Add user to google group if subscription exists or not
-        if account:
-            add_user(
-                account.gcp_email or account.email, account=account, event_context=event_context
-            )
-        else:
-            add_user(event.customer.email, account=None, event_context=event_context)
+        apply_active_subscription_entitlements(wc, subscription, account)
     else:
         if subscription:
             logger.info(
-                f"{ctx}Removendo a inscrição do cliente {event.customer.email} "
+                f"{wc.ctx}Removendo a inscrição do cliente {wc.customer_email} "
                 f"(Status via Stripe: {status})"
             )
             subscription.is_active = False
             subscription.save()
-        # Remove user from google group if subscription exists or not
-        try:
-            if account:
-                remove_user(account.gcp_email or account.email, event_context=event_context)
-            else:
-                remove_user(event.customer.email, event_context=event_context)
-        except Exception as e:
-            logger.error(f"{ctx}{e}")
+
+        apply_inactive_subscription_entitlements(wc, subscription, account)
 
 
 @webhooks.handler("customer.subscription.updated")
@@ -306,78 +447,68 @@ def subscribe(event: Event, **kwargs):
 @webhooks.handler("customer.subscription.deleted")
 def unsubscribe(event: Event, **kwargs):
     """Remove customer from allowed google groups"""
-    if not getattr(event, "customer", None) or not getattr(event.customer, "email", None):
+    wc = require_webhook_customer_context(event, log_if_invalid=False)
+    if not wc:
         return
 
-    event_context = f"Webhook: {event.type} | Event ID: {event.id}"
-    ctx = f"[{event_context}] "
-
-    if subscription := get_subscription(event, event_context=event_context):
-        logger.info(f"{ctx}Removendo a inscrição do cliente {event.customer.email}")
+    subscription = get_subscription(event, event_context=wc.event_context)
+    if subscription:
+        logger.info(f"{wc.ctx}Removendo a inscrição do cliente {wc.customer_email}")
         subscription.is_active = False
         subscription.save()
 
-    account = Account.objects.filter(email=event.customer.email).first()
-    # Remove user from google group if subscription exists or not
-    try:
-        if account:
-            remove_user(account.gcp_email or account.email, event_context=event_context)
-        else:
-            remove_user(event.customer.email, event_context=event_context)
-    except Exception as e:
-        logger.error(f"{ctx}{e}")
+    account = get_account_for_stripe_customer(event)
+    apply_inactive_subscription_entitlements(wc, subscription, account)
 
 
 @webhooks.handler("customer.subscription.paused")
 def pause_subscription(event: Event, **kwargs):
     """Pause customer subscription"""
-    if not getattr(event, "customer", None) or not getattr(event.customer, "email", None):
+    wc = require_webhook_customer_context(event, log_if_invalid=False)
+    if not wc:
         return
 
-    event_context = f"Webhook: {event.type} | Event ID: {event.id}"
-    ctx = f"[{event_context}] "
+    account = get_account_for_stripe_customer(event)
 
-    account = Account.objects.filter(email=event.customer.email).first()
-
-    if subscription := get_subscription(event, event_context=event_context):
-        logger.info(f"{ctx}Pausando a inscrição do cliente {event.customer.email}")
+    subscription = get_subscription(event, event_context=wc.event_context)
+    if subscription:
+        logger.info(f"{wc.ctx}Pausando a inscrição do cliente {wc.customer_email}")
         subscription.is_active = False
         subscription.save()
 
-    try:
-        if account:
-            remove_user(account.gcp_email or account.email, event_context=event_context)
-        else:
-            remove_user(event.customer.email, event_context=event_context)
-    except Exception as e:
-        logger.error(f"{ctx}{e}")
+    apply_inactive_subscription_entitlements(
+        wc,
+        subscription,
+        account,
+        chatbot_revoke_message=(
+            f"Removendo acesso ao chatbot para o cliente {wc.customer_email} (Pausado)"
+        ),
+    )
 
 
 @webhooks.handler("customer.subscription.resumed")
 def resume_subscription(event: Event, **kwargs):
     """Resume customer subscription"""
-    if not getattr(event, "customer", None) or not getattr(event.customer, "email", None):
+    wc = require_webhook_customer_context(event, log_if_invalid=False)
+    if not wc:
         return
 
-    event_context = f"Webhook: {event.type} | Event ID: {event.id}"
-    ctx = f"[{event_context}] "
+    account = get_account_for_stripe_customer(event)
 
-    account = Account.objects.filter(email=event.customer.email).first()
-
-    if subscription := get_subscription(event, event_context=event_context):
-        logger.info(f"{ctx}Resumindo a inscrição do cliente {event.customer.email}")
+    subscription = get_subscription(event, event_context=wc.event_context)
+    if subscription:
+        logger.info(f"{wc.ctx}Resumindo a inscrição do cliente {wc.customer_email}")
         subscription.is_active = True
         subscription.save()
 
-    try:
-        if account:
-            add_user(
-                account.gcp_email or account.email, account=account, event_context=event_context
-            )
-        else:
-            add_user(event.customer.email, account=None, event_context=event_context)
-    except Exception as e:
-        logger.error(f"{ctx}{e}")
+    apply_active_subscription_entitlements(
+        wc,
+        subscription,
+        account,
+        chatbot_grant_message=(
+            f"Liberando acesso ao chatbot para o cliente {wc.customer_email} (Resumido)"
+        ),
+    )
 
 
 @webhooks.handler("setup_intent.succeeded")
