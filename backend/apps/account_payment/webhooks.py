@@ -55,6 +55,29 @@ def get_subscription(event: Event, event_context: str = None) -> Subscription:
             )
 
 
+def get_product_slug(subscription_model=None, event=None, event_context: str = None) -> str:
+    ctx = f"[{event_context}] " if event_context else ""
+    try:
+        djstripe_sub = None
+        if subscription_model and getattr(subscription_model, "subscription", None):
+            djstripe_sub = subscription_model.subscription
+        elif event:
+            sub_id = event.data.get("object", {}).get("id")
+            if sub_id:
+                djstripe_sub = DJStripeSubscription.objects.filter(id=sub_id).first()
+
+        if djstripe_sub:
+            if getattr(djstripe_sub, "plan", None) and getattr(djstripe_sub.plan, "product", None):
+                return djstripe_sub.plan.product.metadata.get("code", "")
+            elif hasattr(djstripe_sub, "items") and djstripe_sub.items.first():
+                item = djstripe_sub.items.first()
+                if getattr(item, "price", None) and getattr(item.price, "product", None):
+                    return item.price.product.metadata.get("code", "")
+    except Exception as e:
+        logger.error(f"{ctx}Erro ao recuperar product slug da assinatura: {e}")
+    return ""
+
+
 def get_credentials(scopes: list[str] = None, impersonate: str = None):
     """Get google credentials with scope or subject"""
     cred = Credentials.from_service_account_file(
@@ -260,6 +283,10 @@ def handle_subscription(event: Event):
     account = Account.objects.filter(email=event.customer.email).first()
 
     status = event.data.get("object", {}).get("status")
+    is_chatbot_plan = (
+        get_product_slug(subscription, event, event_context=event_context) == "chatbot"
+    )
+
     if status in ["trialing", "active"]:
         if subscription:
             logger.info(f"{ctx}Adicionando a inscrição do cliente {event.customer.email}")
@@ -268,11 +295,22 @@ def handle_subscription(event: Event):
 
         # Add user to google group if subscription exists or not
         if account:
-            add_user(
-                account.gcp_email or account.email, account=account, event_context=event_context
-            )
+            if is_chatbot_plan:
+                try:
+                    logger.info(
+                        f"{ctx}Liberando acesso ao chatbot para o cliente {event.customer.email}"
+                    )
+                    account.has_chatbot_access = True
+                    account.save(update_fields=["has_chatbot_access"])
+                except Exception as e:
+                    logger.error(f"{ctx}{e}")
+            else:
+                add_user(
+                    account.gcp_email or account.email, account=account, event_context=event_context
+                )
         else:
-            add_user(event.customer.email, account=None, event_context=event_context)
+            if not is_chatbot_plan:
+                add_user(event.customer.email, account=None, event_context=event_context)
     else:
         if subscription:
             logger.info(
@@ -282,13 +320,23 @@ def handle_subscription(event: Event):
             subscription.is_active = False
             subscription.save()
         # Remove user from google group if subscription exists or not
-        try:
-            if account:
-                remove_user(account.gcp_email or account.email, event_context=event_context)
-            else:
-                remove_user(event.customer.email, event_context=event_context)
-        except Exception as e:
-            logger.error(f"{ctx}{e}")
+        if is_chatbot_plan and account:
+            try:
+                logger.info(
+                    f"{ctx}Removendo acesso ao chatbot para o cliente {event.customer.email}"
+                )
+                account.has_chatbot_access = False
+                account.save(update_fields=["has_chatbot_access"])
+            except Exception as e:
+                logger.error(f"{ctx}{e}")
+        elif not is_chatbot_plan:
+            try:
+                if account:
+                    remove_user(account.gcp_email or account.email, event_context=event_context)
+                else:
+                    remove_user(event.customer.email, event_context=event_context)
+            except Exception as e:
+                logger.error(f"{ctx}{e}")
 
 
 @webhooks.handler("customer.subscription.updated")
@@ -318,14 +366,26 @@ def unsubscribe(event: Event, **kwargs):
         subscription.save()
 
     account = Account.objects.filter(email=event.customer.email).first()
-    # Remove user from google group if subscription exists or not
-    try:
-        if account:
-            remove_user(account.gcp_email or account.email, event_context=event_context)
-        else:
-            remove_user(event.customer.email, event_context=event_context)
-    except Exception as e:
-        logger.error(f"{ctx}{e}")
+    is_chatbot_plan = (
+        get_product_slug(subscription, event, event_context=event_context) == "chatbot"
+    )
+
+    if is_chatbot_plan and account:
+        try:
+            logger.info(f"{ctx}Removendo acesso ao chatbot para o cliente {event.customer.email}")
+            account.has_chatbot_access = False
+            account.save(update_fields=["has_chatbot_access"])
+        except Exception as e:
+            logger.error(f"{ctx}{e}")
+    elif not is_chatbot_plan:
+        # Remove user from google group if subscription exists or not
+        try:
+            if account:
+                remove_user(account.gcp_email or account.email, event_context=event_context)
+            else:
+                remove_user(event.customer.email, event_context=event_context)
+        except Exception as e:
+            logger.error(f"{ctx}{e}")
 
 
 @webhooks.handler("customer.subscription.paused")
@@ -344,13 +404,27 @@ def pause_subscription(event: Event, **kwargs):
         subscription.is_active = False
         subscription.save()
 
-    try:
-        if account:
-            remove_user(account.gcp_email or account.email, event_context=event_context)
-        else:
-            remove_user(event.customer.email, event_context=event_context)
-    except Exception as e:
-        logger.error(f"{ctx}{e}")
+    is_chatbot_plan = (
+        get_product_slug(subscription, event, event_context=event_context) == "chatbot"
+    )
+
+    if is_chatbot_plan and account:
+        try:
+            logger.info(
+                f"{ctx}Removendo acesso ao chatbot para o cliente {event.customer.email} (Pausado)"
+            )
+            account.has_chatbot_access = False
+            account.save(update_fields=["has_chatbot_access"])
+        except Exception as e:
+            logger.error(f"{ctx}{e}")
+    elif not is_chatbot_plan:
+        try:
+            if account:
+                remove_user(account.gcp_email or account.email, event_context=event_context)
+            else:
+                remove_user(event.customer.email, event_context=event_context)
+        except Exception as e:
+            logger.error(f"{ctx}{e}")
 
 
 @webhooks.handler("customer.subscription.resumed")
@@ -369,15 +443,29 @@ def resume_subscription(event: Event, **kwargs):
         subscription.is_active = True
         subscription.save()
 
-    try:
-        if account:
-            add_user(
-                account.gcp_email or account.email, account=account, event_context=event_context
+    is_chatbot_plan = (
+        get_product_slug(subscription, event, event_context=event_context) == "chatbot"
+    )
+
+    if is_chatbot_plan and account:
+        try:
+            logger.info(
+                f"{ctx}Liberando acesso ao chatbot para o cliente {event.customer.email} (Resumido)"
             )
-        else:
-            add_user(event.customer.email, account=None, event_context=event_context)
-    except Exception as e:
-        logger.error(f"{ctx}{e}")
+            account.has_chatbot_access = True
+            account.save(update_fields=["has_chatbot_access"])
+        except Exception as e:
+            logger.error(f"{ctx}{e}")
+    elif not is_chatbot_plan:
+        try:
+            if account:
+                add_user(
+                    account.gcp_email or account.email, account=account, event_context=event_context
+                )
+            else:
+                add_user(event.customer.email, account=None, event_context=event_context)
+        except Exception as e:
+            logger.error(f"{ctx}{e}")
 
 
 @webhooks.handler("setup_intent.succeeded")
