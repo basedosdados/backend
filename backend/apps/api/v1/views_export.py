@@ -53,6 +53,8 @@ class ExportTablesView(View):
         tables = (
             Table.objects.select_related("dataset")
             .prefetch_related("coverages", "columns", "columns__coverages")
+            .exclude(status__slug__in=["under_review", "excluded"])
+            .exclude(dataset__status__slug__in=["under_review", "excluded"])
             .order_by("dataset__name")
         )
 
