@@ -216,14 +216,25 @@ class StripeSubscribeMutation(Mutation):
             admin = info.context.user
             internal_subscriptions = admin.internal_subscription.all()
 
+            price = DJStripePrice.objects.get(djstripe_id=price_id)
+            new_product_code = price.product.metadata.get("code", "")
+            is_new_chatbot = "chatbot" in new_product_code.lower()
+
             for s in [
                 *admin.subscription_set.all(),
                 *internal_subscriptions,
             ]:
                 if s.is_active:
-                    return cls(errors=["Conta possui inscrição ativa"])
+                    try:
+                        existing_product_code = s.stripe_subscription
+                    except Exception:
+                        existing_product_code = ""
 
-            price = DJStripePrice.objects.get(djstripe_id=price_id)
+                    is_existing_chatbot = "chatbot" in existing_product_code.lower()
+
+                    if is_new_chatbot == is_existing_chatbot:
+                        return cls(errors=["Conta possui inscrição ativa para este tipo de plano"])
+
             is_trial_active = len(internal_subscriptions) == 0
             promotion_code = None
 
