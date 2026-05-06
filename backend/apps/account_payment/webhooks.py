@@ -128,6 +128,33 @@ def subscription_product_is_chatbot(
     return get_product_slug(subscription, event, event_context=event_context) == "chatbot"
 
 
+def _djstripe_subscription_is_chatbot(dj_sub: DJStripeSubscription) -> bool:
+    try:
+        if getattr(dj_sub, "plan", None) and getattr(dj_sub.plan, "product", None):
+            return dj_sub.plan.product.metadata.get("code", "") == "chatbot"
+        if hasattr(dj_sub, "items") and dj_sub.items.first():
+            item = dj_sub.items.first()
+            if getattr(item, "price", None) and getattr(item.price, "product", None):
+                return item.price.product.metadata.get("code", "") == "chatbot"
+    except Exception:
+        pass
+    return False
+
+
+def _account_has_other_active_chatbot_subscription(
+    account: Account,
+    exclude_stripe_subscription_id: str | None,
+) -> bool:
+    """True if the customer still has another active/trialing Stripe sub for the chatbot product."""
+    qs = DJStripeSubscription.objects.filter(
+        customer__subscriber=account,
+        status__in=["active", "trialing"],
+    )
+    if exclude_stripe_subscription_id:
+        qs = qs.exclude(id=exclude_stripe_subscription_id)
+    return any(_djstripe_subscription_is_chatbot(s) for s in qs.iterator(chunk_size=20))
+
+
 def _set_account_chatbot_access(
     account: Account,
     enabled: bool,
@@ -328,7 +355,15 @@ def apply_inactive_subscription_entitlements(
         chatbot_revoke_message or f"Removendo acesso ao chatbot para o cliente {wc.customer_email}"
     )
     if is_chat and account:
-        _set_account_chatbot_access(account, False, wc, revoke_msg)
+        ev_sub_id = wc.event.data.get("object", {}).get("id")
+        if _account_has_other_active_chatbot_subscription(account, ev_sub_id):
+            logger.info(
+                f"{wc.ctx}Acesso ao chatbot mantido para {wc.customer_email}: "
+                f"outra assinatura ativa/trial do chatbot no cliente Stripe "
+                f"(evento trata da assinatura {ev_sub_id})."
+            )
+        else:
+            _set_account_chatbot_access(account, False, wc, revoke_msg)
     elif not is_chat:
         try:
             if account:
@@ -420,6 +455,15 @@ def handle_subscription(event: Event):
             subscription.save()
 
         apply_active_subscription_entitlements(wc, subscription, account)
+    elif status == "incomplete":
+        if subscription:
+            logger.info(
+                f"{wc.ctx}Assinatura incompleta (checkout em andamento) para "
+                f"{wc.customer_email}; atualizando apenas o registro interno."
+            )
+            subscription.is_active = False
+            subscription.save()
+        return
     else:
         if subscription:
             logger.info(
