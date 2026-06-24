@@ -162,6 +162,11 @@ def _set_account_chatbot_access(
     log_message: str,
 ) -> None:
     try:
+        if not enabled and account.is_admin:
+            logger.warning(
+                f"{wc.ctx}Bloqueado: {account.email} é admin. Acesso ao chatbot não removido."
+            )
+            return
         logger.info(f"{wc.ctx}{log_message}")
         account.has_chatbot_access = enabled
         account.save(update_fields=["has_chatbot_access"])
