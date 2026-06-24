@@ -7,13 +7,13 @@ from django.conf import settings
 from django.db.models import Q
 from djstripe import webhooks
 from djstripe.models import Event
+from djstripe.models import Price as DJStripePrice
 from djstripe.models import Subscription as DJStripeSubscription
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 from loguru import logger
 from stripe import Customer as StripeCustomer
-from stripe import Subscription as StripeSubscription
 
 from backend.apps.account.models import Account, Subscription
 from backend.custom.client import send_discord_message as send
@@ -155,6 +155,34 @@ def _account_has_other_active_chatbot_subscription(
     return any(_djstripe_subscription_is_chatbot(s) for s in qs.iterator(chunk_size=20))
 
 
+def _account_has_active_non_chatbot_subscription(account: Account) -> bool:
+    qs = DJStripeSubscription.objects.filter(
+        customer__subscriber=account,
+        status__in=["active", "trialing"],
+    )
+    return any(not _djstripe_subscription_is_chatbot(s) for s in qs.iterator(chunk_size=20))
+
+
+def _price_is_chatbot(price_id: str) -> bool | None:
+    price = (
+        DJStripePrice.objects.filter(id=price_id).first()
+        or DJStripePrice.objects.filter(djstripe_id=price_id).first()
+    )
+    if not price or not getattr(price, "product", None):
+        return None
+    return "chatbot" in price.product.metadata.get("code", "").lower()
+
+
+def _customer_has_active_subscription_of_type(customer, is_chatbot: bool) -> bool:
+    qs = DJStripeSubscription.objects.filter(
+        customer=customer,
+        status__in=["active", "trialing"],
+    )
+    return any(
+        _djstripe_subscription_is_chatbot(s) == is_chatbot for s in qs.iterator(chunk_size=20)
+    )
+
+
 def _set_account_chatbot_access(
     account: Account,
     enabled: bool,
@@ -264,12 +292,9 @@ def remove_user(email: str, group_key: str = None, event_context: str = None) ->
             logger.warning(f"{ctx}Bloqueado: {raw_email} é admin. Não removido do Google Groups.")
             return
 
-        has_active_sub = (
-            getattr(user, "is_subscriber", False)
-            or DJStripeSubscription.objects.filter(
-                customer__subscriber=user, status__in=["active", "trialing"]
-            ).exists()
-        )
+        has_active_sub = getattr(
+            user, "is_subscriber", False
+        ) or _account_has_active_non_chatbot_subscription(user)
 
         if has_active_sub:
             logger.warning(
@@ -586,17 +611,28 @@ def setup_intent_succeeded(event: Event, **kwargs):
             invoice_settings={"default_payment_method": payment_method},
         )
 
-    subscriptions = StripeSubscription.list(customer=customer.id)
-    has_subscription = len(subscriptions.get("data", [])) > 0
+    if not price_id:
+        return
+
+    is_chatbot_price = _price_is_chatbot(price_id)
+    if is_chatbot_price is None:
+        logger.warning(f"{ctx}Price {price_id!r} não encontrado; assinatura não criada.")
+        return
+
+    if _customer_has_active_subscription_of_type(customer, is_chatbot_price):
+        product_label = "chatbot" if is_chatbot_price else "bd_pro"
+        return logger.info(
+            f"{ctx}Cliente {event.customer.email} já possui assinatura ativa/trial "
+            f"do tipo {product_label}; assinatura não criada."
+        )
 
     if promotion_code:
         discounts = [{"promotion_code": promotion_code}]
     else:
         discounts = []
 
-    if not has_subscription and price_id:
-        logger.info(f"{ctx}Add subscription to user {event.customer.email}")
-        customer.subscribe(price=price_id, trial_period_days=7, discounts=discounts)
+    logger.info(f"{ctx}Add subscription to user {event.customer.email}")
+    customer.subscribe(price=price_id, trial_period_days=7, discounts=discounts)
 
 
 # Reference
