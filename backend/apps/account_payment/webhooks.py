@@ -16,6 +16,12 @@ from loguru import logger
 from stripe import Customer as StripeCustomer
 
 from backend.apps.account.models import Account, Subscription
+from backend.apps.account_payment.trials import (
+    account_eligible_for_bdpro_stripe_trial,
+    account_eligible_for_chatbot_stripe_trial,
+    account_has_active_chatbot_stripe_subscription,
+    djstripe_subscription_is_chatbot,
+)
 from backend.custom.client import send_discord_message as send
 from backend.custom.environment import get_backend_url, is_dev, is_stg
 
@@ -214,57 +220,18 @@ def subscription_product_is_chatbot(
 
 
 def _djstripe_subscription_is_chatbot(dj_sub: DJStripeSubscription) -> bool:
-    """Check whether a DJStripeSubscription's product is the chatbot product.
-
-    Walks the subscription's plan/price to the Stripe Product metadata,
-    mirroring `get_product_slug`'s traversal but operating directly on a
-    `DJStripeSubscription` instance instead of an event or internal model.
-
-    Args:
-        dj_sub: The dj-stripe `Subscription` instance to inspect.
-
-    Returns:
-        `True` if the product's `code` metadata is exactly `"chatbot"`.
-        `False` if it can't be resolved or any lookup raises.
-    """
-    try:
-        if getattr(dj_sub, "plan", None) and getattr(dj_sub.plan, "product", None):
-            return dj_sub.plan.product.metadata.get("code", "") == "chatbot"
-        if hasattr(dj_sub, "items") and dj_sub.items.first():
-            item = dj_sub.items.first()
-            if getattr(item, "price", None) and getattr(item.price, "product", None):
-                return item.price.product.metadata.get("code", "") == "chatbot"
-    except Exception:
-        pass
-    return False
+    return djstripe_subscription_is_chatbot(dj_sub)
 
 
 def _account_has_other_active_chatbot_subscription(
     account: Account,
     exclude_stripe_subscription_id: str | None,
 ) -> bool:
-    """Check if an account has another active/trialing chatbot subscription.
-
-    Used when revoking chatbot access, to avoid removing it if the customer
-    still has a second active or trialing chatbot subscription (e.g. after
-    switching plans).
-
-    Args:
-        account: The account whose Stripe subscriptions to check.
-        exclude_stripe_subscription_id: Stripe subscription id to exclude
-            from the check (typically the one the current event is about).
-
-    Returns:
-        `True` if at least one other active/trialing chatbot subscription
-        exists for the account's Stripe customer.
-    """
-    qs = DJStripeSubscription.objects.filter(
-        customer__subscriber=account,
-        status__in=["active", "trialing"],
+    """True if the customer still has another active/trialing Stripe sub for the chatbot product."""
+    return account_has_active_chatbot_stripe_subscription(
+        account,
+        exclude_stripe_subscription_id=exclude_stripe_subscription_id,
     )
-    if exclude_stripe_subscription_id:
-        qs = qs.exclude(id=exclude_stripe_subscription_id)
-    return any(_djstripe_subscription_is_chatbot(s) for s in qs.iterator(chunk_size=20))
 
 
 def _account_has_active_non_chatbot_subscription(account: Account) -> bool:
@@ -959,8 +926,28 @@ def setup_intent_succeeded(event: Event, **kwargs):
     else:
         discounts = []
 
-    logger.info(f"{ctx}Add subscription to user {event.customer.email}")
-    customer.subscribe(price=price_id, trial_period_days=7, discounts=discounts)
+    account = getattr(customer, "subscriber", None) or get_account_for_stripe_customer(event)
+    subscribe_kwargs = {"price": price_id, "discounts": discounts}
+
+    skip_trial = False
+    if is_chatbot_price:
+        skip_trial = bool(account and not account_eligible_for_chatbot_stripe_trial(account))
+    else:
+        skip_trial = bool(account and not account_eligible_for_bdpro_stripe_trial(account))
+
+    if not skip_trial:
+        subscribe_kwargs["trial_period_days"] = 7
+
+    if skip_trial:
+        product_label = "chatbot" if is_chatbot_price else "bd_pro"
+        logger.info(
+            f"{ctx}Cliente {event.customer.email} não elegível a trial do {product_label}; "
+            "assinatura criada sem período de trial."
+        )
+    else:
+        logger.info(f"{ctx}Add subscription to user {event.customer.email}")
+
+    customer.subscribe(**subscribe_kwargs)
 
 
 # Reference
