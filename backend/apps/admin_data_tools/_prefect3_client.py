@@ -38,7 +38,8 @@ class Prefect3Client:
             method=method,
         )
         with urllib.request.urlopen(req) as r:
-            return json.load(r)
+            raw = r.read()
+            return json.loads(raw) if raw else None
 
     def iter_deployments(self, page_size: int = 200) -> Iterator[dict]:
         """Yield every deployment registered in Prefect 3, paginated.
