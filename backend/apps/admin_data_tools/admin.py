@@ -2,10 +2,7 @@
 from django.contrib import admin
 from django.utils import timezone
 
-from backend.apps.admin_data_tools.management.commands._disable_unhealthy_flow_schedules.service import (  # noqa: E501
-    FlowService,
-)
-
+from ._prefect3_client import Prefect3Client
 from .models import DisabledFlowSchedule
 
 
@@ -24,12 +21,12 @@ class DisabledFlowScheduleAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         if change and "is_schedule_active" in form.changed_data:
-            service = FlowService()
+            client = Prefect3Client()
             if obj.is_schedule_active:
                 obj.reactivated_at = timezone.now()
-                service.set_flow_schedule(deployment_id=obj.deployment_id, active=True)
+                client.set_paused(obj.deployment_id, paused=False)
             else:
                 obj.reactivated_at = None
-                service.disable_flow_schedule(deployment_id=obj.deployment_id)
+                client.set_paused(obj.deployment_id, paused=True)
 
         super().save_model(request, obj, form, change)
