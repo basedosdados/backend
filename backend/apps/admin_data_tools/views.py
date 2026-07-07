@@ -258,7 +258,8 @@ class FlowFailedWebhookView(View):
             client.set_paused(deployment_id, paused=True)
             record.is_schedule_active = False
             record.reactivated_at = None
-            record.save(update_fields=["is_schedule_active", "reactivated_at"])
+            record.disabled_at = datetime.now(tz=timezone.utc)
+            record.save(update_fields=["is_schedule_active", "reactivated_at", "disabled_at"])
             logger.info(f"Disabled {record.flow_name} after failure")
             return JsonResponse({"status": "ok", "action": "disabled"})
 
