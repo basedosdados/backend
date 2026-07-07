@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 import re
+from datetime import timedelta
 
 import stripe
 from django.conf import settings
@@ -7,12 +8,14 @@ from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
 from django.db import IntegrityError, transaction
 from django.db.models import Q
+from django.utils import timezone
 from djstripe.models import Customer as DJStripeCustomer
 from djstripe.models import Price as DJStripePrice
 from djstripe.models import Subscription as DJStripeSubscription
 from graphene import (
     ID,
     Boolean,
+    DateTime,
     Field,
     Float,
     InputObjectType,
@@ -30,6 +33,10 @@ from stripe import Customer as StripeCustomer
 from stripe import SetupIntent
 
 from backend.apps.account.models import Account, Subscription
+from backend.apps.account_payment.trials import (
+    account_eligible_for_bdpro_stripe_trial,
+    account_eligible_for_chatbot_stripe_trial,
+)
 from backend.apps.account_payment.webhooks import add_user, is_email_in_group, remove_user
 from backend.custom.environment import get_backend_url
 from backend.custom.graphql_base import CountableConnection, PlainTextNode
@@ -214,7 +221,6 @@ class StripeSubscribeMutation(Mutation):
     def mutate(cls, root, info, price_id, coupon=None):
         try:
             admin = info.context.user
-            internal_subscriptions = admin.internal_subscription.all()
 
             price = DJStripePrice.objects.get(djstripe_id=price_id)
             new_product_code = price.product.metadata.get("code", "")
@@ -222,7 +228,7 @@ class StripeSubscribeMutation(Mutation):
 
             for s in [
                 *admin.subscription_set.all(),
-                *internal_subscriptions,
+                *admin.internal_subscription.all(),
             ]:
                 if s.is_active:
                     try:
@@ -235,7 +241,10 @@ class StripeSubscribeMutation(Mutation):
                     if is_new_chatbot == is_existing_chatbot:
                         return cls(errors=["Conta possui inscrição ativa para este tipo de plano"])
 
-            is_trial_active = len(internal_subscriptions) == 0
+            if is_new_chatbot:
+                is_trial_active = account_eligible_for_chatbot_stripe_trial(admin)
+            else:
+                is_trial_active = account_eligible_for_bdpro_stripe_trial(admin)
             promotion_code = None
 
             try:
@@ -277,6 +286,43 @@ class StripeSubscribeMutation(Mutation):
                 return cls(client_secret=payment_intent.client_secret)
 
             return cls(client_secret=setup_intent.client_secret)
+        except Exception as e:
+            logger.error(e)
+            return cls(errors=[str(e)])
+
+
+class StartChatbotTrialMutation(Mutation):
+    """Start a card-free 7-day chatbot trial via a Stripe
+    subscription that auto-cancels at trial end."""
+
+    chatbot_trial_ends_at = DateTime()
+    errors = List(String)
+
+    class Arguments:
+        price_id = ID(required=True)
+
+    @classmethod
+    @login_required
+    def mutate(cls, root, info, price_id):
+        try:
+            account = info.context.user
+            price = DJStripePrice.objects.get(djstripe_id=price_id)
+
+            if "chatbot" not in price.product.metadata.get("code", "").lower():
+                return cls(errors=["[Chatbot] Este preço não pertence ao produto chatbot."])
+
+            if not account_eligible_for_chatbot_stripe_trial(account):
+                return cls(errors=["[Chatbot] Trial do chatbot indisponível para esta conta."])
+
+            customer, _ = DJStripeCustomer.get_or_create(account)
+
+            trial_end = timezone.now() + timedelta(days=7)
+            customer.subscribe(
+                price=price.id,
+                trial_end=int(trial_end.timestamp()),
+                cancel_at=int(trial_end.timestamp()),
+            )
+            return cls(chatbot_trial_ends_at=trial_end)
         except Exception as e:
             logger.error(e)
             return cls(errors=[str(e)])
@@ -696,6 +742,7 @@ class Mutation(ObjectType):
     create_stripe_customer = StripeCustomerCreateMutation.Field()
     update_stripe_customer = StripeCustomerUpdateMutation.Field()
     create_stripe_subscription = StripeSubscribeMutation.Field()
+    start_chatbot_trial = StartChatbotTrialMutation.Field()
     delete_stripe_subscription = StripeSubscriptionDeleteMutation.Field()
     delete_stripe_subscription_immediately = StripeSubscriptionDeleteImmediatelyMutation.Field()
     add_stripe_subscription_member = StripeSubscriptionAddMemberMutation.Field()
