@@ -22,6 +22,11 @@ _STATE_MESSAGES_IGNORE = {
 }
 
 
+def _is_dbt_task(name: str) -> bool:
+    # Prefect 3 appends a short hash suffix to task names (e.g. run_dbt-9da)
+    return any(name == n or name.startswith(f"{n}-") for n in _DBT_TASK_NAMES)
+
+
 def _after_reactivation(start_time_iso: str, reactivated_at) -> bool:
     """Return True if start_time_iso is strictly after reactivated_at.
 
@@ -54,8 +59,7 @@ def _is_dbt_failure(task_runs: list[dict], run_start_time: str, reactivated_at) 
     if not _after_reactivation(run_start_time, reactivated_at):
         return False
     return any(
-        t.get("name") in _DBT_TASK_NAMES
-        and t.get("state_message", "") not in _STATE_MESSAGES_IGNORE
+        _is_dbt_task(t.get("name", "")) and t.get("state_message", "") not in _STATE_MESSAGES_IGNORE
         for t in task_runs
     )
 
