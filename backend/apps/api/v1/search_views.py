@@ -154,6 +154,7 @@ class DatasetSearchView(FacetedSearchView):
         sqs = sqs.facet("organization_slug", size=facet_size)
         sqs = sqs.facet("tag_slug", size=facet_size)
         sqs = sqs.facet("entity_slug", size=facet_size)
+        sqs = sqs.facet("spatial_coverage", size=facet_size)
 
         # Parse facet counts from Elasticsearch response
         facets = {}
@@ -171,6 +172,7 @@ class DatasetSearchView(FacetedSearchView):
             ("organization_slug", "organizations", Organization),
             ("tag_slug", "tags", Tag),
             ("entity_slug", "observation_levels", Entity),
+            ("spatial_coverage", "spatial_coverages", Area),
         ]
 
         for es_field, api_field, model in facet_mappings:
