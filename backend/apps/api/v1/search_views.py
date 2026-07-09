@@ -71,10 +71,12 @@ class DatasetSearchForm(FacetedSearchForm):
                         coverage_patterns = ["_".join(parts[:i]) for i in range(1, len(parts))]
                         coverage_patterns.append(coverage)  # Add the full coverage too
 
-                        # Build OR condition for all valid levels, including world
+                        # Build OR condition for the selected area and its ancestors
+                        # (broader coverage that contains it). World is intentionally
+                        # excluded: global datasets are counted only under the
+                        # International bucket, not under every lower-level area.
                         patterns = " OR ".join(
-                            f'spatial_coverage_exact:"{pattern}"'
-                            for pattern in coverage_patterns + ["world"]
+                            f'spatial_coverage_exact:"{pattern}"' for pattern in coverage_patterns
                         )
                         coverage_queries.append(f"({patterns})")
 
@@ -154,6 +156,7 @@ class DatasetSearchView(FacetedSearchView):
         sqs = sqs.facet("organization_slug", size=facet_size)
         sqs = sqs.facet("tag_slug", size=facet_size)
         sqs = sqs.facet("entity_slug", size=facet_size)
+        sqs = sqs.facet("spatial_coverage", size=facet_size)
 
         # Parse facet counts from Elasticsearch response
         facets = {}
@@ -171,6 +174,7 @@ class DatasetSearchView(FacetedSearchView):
             ("organization_slug", "organizations", Organization),
             ("tag_slug", "tags", Tag),
             ("entity_slug", "observation_levels", Entity),
+            ("spatial_coverage", "spatial_coverages", Area),
         ]
 
         for es_field, api_field, model in facet_mappings:
