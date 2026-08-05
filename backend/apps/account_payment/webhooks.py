@@ -14,8 +14,13 @@ from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
 from loguru import logger
 from stripe import Customer as StripeCustomer
+from stripe import PaymentMethod as StripePaymentMethod
 
 from backend.apps.account.models import Account, Subscription
+from backend.apps.account_payment.regional_pricing import (
+    country_to_region,
+    resolve_regional_price_id,
+)
 from backend.apps.account_payment.trials import (
     account_eligible_for_bdpro_stripe_trial,
     account_eligible_for_chatbot_stripe_trial,
@@ -863,6 +868,60 @@ def resume_subscription(event: Event, **kwargs):
     )
 
 
+def _card_country(payment_method_id: str) -> str | None:
+    """Return the ISO country of the card behind a Stripe PaymentMethod.
+
+    Args:
+        payment_method_id: The `pm_...` id attached to the checkout.
+
+    Returns:
+        The card's two-letter country code, or `None` if the payment method has
+        no card (e.g. a non-card method) or Stripe omits the country.
+    """
+    payment_method = StripePaymentMethod.retrieve(payment_method_id)
+    card = payment_method.get("card") or {}
+    return card.get("country")
+
+
+def _regional_price_id(original_price_id: str, payment_method, ctx: str) -> str:
+    """Swap in the region-correct price for the card's country (arbitrage guard).
+
+    Reads the country of the card attached to the checkout and, when a price for
+    that region exists for the same product and interval, returns it in place of
+    `original_price_id`. Any failure — no card on the intent, a Stripe lookup
+    error, or no regional sibling — leaves `original_price_id` untouched, so this
+    never blocks a subscription from being created.
+
+    Args:
+        original_price_id: The Stripe price id encoded in the SetupIntent.
+        payment_method: The `pm_...` id from the SetupIntent, or a falsy value.
+        ctx: Logging prefix identifying the webhook event.
+
+    Returns:
+        The Stripe price id to charge.
+    """
+    if not payment_method:
+        return original_price_id
+
+    try:
+        country = _card_country(payment_method)
+    except Exception as e:  # noqa: BLE001 — never block checkout on a Stripe/network error.
+        logger.opt(exception=e).warning(
+            f"{ctx}Could not read card country for {payment_method!r}; "
+            "charging the price as checked out."
+        )
+        return original_price_id
+
+    region = country_to_region(country)
+    chosen = resolve_regional_price_id(DJStripePrice.objects.all(), original_price_id, region)
+    if chosen != original_price_id:
+        logger.info(
+            f"{ctx}Card country {country!r} maps to region {region!r}; "
+            f"charging {chosen} instead of {original_price_id}."
+        )
+    return chosen
+
+
 @webhooks.handler("setup_intent.succeeded")
 def setup_intent_succeeded(event: Event, **kwargs):
     """Finish checkout: save the payment method and start the subscription.
@@ -908,6 +967,13 @@ def setup_intent_succeeded(event: Event, **kwargs):
 
     if not price_id:
         return
+
+    # Arbitrage guard: charge in the currency of the card's country, not the
+    # currency of the storefront the customer happened to check out from. Swaps
+    # to the region-matching price when one exists, and keeps the original on any
+    # uncertainty (see _regional_price_id). The product type is preserved, so the
+    # chatbot/bd_pro logic below is unaffected by the swap.
+    price_id = _regional_price_id(price_id, payment_method, ctx)
 
     is_chatbot_price = _price_is_chatbot(price_id)
     if is_chatbot_price is None:
