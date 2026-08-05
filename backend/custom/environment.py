@@ -58,6 +58,31 @@ def get_frontend_url():
     return "localhost:3000"
 
 
+# The three sibling frontends, one locale per domain (see the website's
+# next-i18next.config.js): pt -> basedosdados.org, en -> data-basis.org,
+# es -> basedelosdatos.org.
+FRONTEND_DOMAINS = ("basedosdados.org", "data-basis.org", "basedelosdatos.org")
+
+
+def get_allowed_frontend_origins():
+    """Allowed post-login redirect origins (scheme + host), by environment.
+
+    Google OAuth must return the user to the same domain they started on. The
+    callback picks the redirect target from this allowlist using the
+    `redirect_origin` the login page sends; anything off the list falls back to
+    the single static FRONTEND_URL. The allowlist is what makes honoring an
+    arbitrary redirect origin safe (a JWT rides in the redirect URL, so an
+    unvalidated origin would be an open redirect that leaks tokens).
+    """
+    if is_prd():
+        return {f"https://{d}" for d in FRONTEND_DOMAINS}
+    if is_stg():
+        return {f"https://staging.{d}" for d in FRONTEND_DOMAINS}
+    if is_dev():
+        return {f"https://development.{d}" for d in FRONTEND_DOMAINS}
+    return {"http://localhost:3000"}
+
+
 def production_task(func):
     """Decorator that avoids function call if it isn't production"""
 
