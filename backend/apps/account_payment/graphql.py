@@ -49,6 +49,7 @@ else:
 
 class StripePriceNode(DjangoObjectType):
     _id = ID(name="_id")
+    stripe_price_id = String()
     amount = Float()
     interval = String()
     trial_period_days = String()
@@ -69,6 +70,12 @@ class StripePriceNode(DjangoObjectType):
 
     def resolve__id(root, info):
         return root.djstripe_id
+
+    def resolve_stripe_price_id(root, info):
+        # The Stripe price id (e.g. "price_..."), stable and verifiable in the Stripe
+        # dashboard, unlike the environment-specific djstripe PK exposed as `_id`. Lets the
+        # website select exactly which prices to sell instead of guessing by amount.
+        return root.id
 
     def resolve_amount(root, info):
         if root.unit_amount:
