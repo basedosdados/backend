@@ -22,7 +22,19 @@ from loguru import logger
 
 from backend.apps.account.signals import send_activation_email
 from backend.apps.account.token import token_generator
-from backend.custom.environment import get_frontend_url
+from backend.custom.environment import get_allowed_frontend_origins, get_frontend_url
+
+
+def _safe_frontend_origin(candidate):
+    """Return `candidate` only if it is an allowed frontend origin, else None.
+
+    Guards the Google OAuth redirect against open-redirect abuse: the success
+    URL carries a JWT, so the target origin must be on the per-environment
+    allowlist before it is trusted.
+    """
+    if candidate and candidate in get_allowed_frontend_origins():
+        return candidate
+    return None
 
 
 class AccountActivateView(View):
@@ -157,6 +169,16 @@ class GoogleAuthView(View):
             state = secrets.token_urlsafe(32)
             request.session["oauth_state"] = state
 
+            # Remember which frontend domain the login started on, so the
+            # callback returns the user there (pt/en/es live on sibling
+            # domains). Validated against the allowlist; unknown values are
+            # dropped and the callback falls back to settings.FRONTEND_URL.
+            redirect_origin = _safe_frontend_origin(request.GET.get("redirect_origin"))
+            if redirect_origin:
+                request.session["frontend_origin"] = redirect_origin
+            else:
+                request.session.pop("frontend_origin", None)
+
             auth_url = (
                 "https://accounts.google.com/o/oauth2/v2/auth?"
                 f"client_id={settings.GOOGLE_OAUTH_CLIENT_ID}&"
@@ -202,27 +224,37 @@ class GoogleCallbackView(View):
             if "oauth_state" in request.session:
                 del request.session["oauth_state"]
 
+            # Return the user to the domain they logged in from (set in
+            # GoogleAuthView); fall back to the static frontend if absent or
+            # no longer allowlisted.
+            frontend_base = (
+                _safe_frontend_origin(request.session.pop("frontend_origin", None))
+                or settings.FRONTEND_URL
+            )
+
             token_data = self._exchange_code_for_token(auth_code)
             if not token_data:
                 logger.error("Falha ao trocar código por token")
-                error_url = f"{settings.FRONTEND_URL}/user/login?error=auth_failed"
+                error_url = f"{frontend_base}/user/login?error=auth_failed"
                 return HttpResponseRedirect(error_url)
 
             user_info = self._get_user_info(token_data["access_token"])
             if not user_info:
                 logger.error("Não foi possível obter informações do usuário")
-                error_url = f"{settings.FRONTEND_URL}/user/login?error=user_info_failed"
+                error_url = f"{frontend_base}/user/login?error=user_info_failed"
                 return HttpResponseRedirect(error_url)
 
             account = self._create_or_update_account(user_info, token_data.get("id_token"))
 
             if account:
                 jwt_token = get_token(account)
-                frontend_url = f"{settings.FRONTEND_URL}/user/login?login=success&token={jwt_token}&id={account.id}"  # noqa: E501
+                frontend_url = (
+                    f"{frontend_base}/user/login?login=success&token={jwt_token}&id={account.id}"  # noqa: E501
+                )
                 return HttpResponseRedirect(frontend_url)
             else:
                 logger.error("Erro ao criar/atualizar conta")
-                error_url = f"{settings.FRONTEND_URL}/user/login?error=account_creation_failed"
+                error_url = f"{frontend_base}/user/login?error=account_creation_failed"
                 return HttpResponseRedirect(error_url)
 
         except Exception as e:
