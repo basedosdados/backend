@@ -495,11 +495,9 @@ class Role(BaseModel):
 class Career(BaseModel):
     id = models.UUIDField(primary_key=True, default=uuid4)
     account = models.ForeignKey(Account, on_delete=models.DO_NOTHING, related_name="careers")
-    team_old = models.CharField("Team (old)", max_length=40, blank=True)
     team = models.ForeignKey(
         Team, on_delete=models.DO_NOTHING, related_name="careers", null=True, blank=True
     )
-    role_old = models.CharField("Role (old)", max_length=40, blank=True)
     role = models.ForeignKey(
         Role, on_delete=models.DO_NOTHING, related_name="careers", null=True, blank=True
     )
