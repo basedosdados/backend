@@ -6,31 +6,32 @@
 Canonical reference: https://github.com/basedosdados/backend/wiki/Boas-Pr%C3%A1ticas#segue-o-fluxo
 
 ### The environment branches — never commit or push directly
-- `main` — production.
+- `main` — production. Source of truth: resets flow *from* `main`.
 - `staging` — pre-production / QA.
-- `dev` — integration / testing. First target for new work.
+- `dev` — integration / testing.
 
-These three are **parallel, independently maintained** branches, not a linear chain.
-Their histories have diverged, so you never merge one environment branch into another to
-move a feature — that would drag the whole environment forward. Each feature is promoted
-into each environment **selectively**, via its own PR carrying only that feature.
+### How work flows
+Cut every feature off `main`, then merge the **same commits** into `dev`, `staging`, and
+`main` — one PR per target. The three branches are meant to hold identical history for each
+feature. They drift apart as changes land at different times, so the team periodically
+**resets `staging` and `dev` back to `main`** to re-align them. Because resets flow from
+`main`, a change must reach `main` to survive — anything living only on `staging` or `dev`
+is discarded at the next reset.
 
-### Feature workflow — promote the feature, not the environment
-1. Cut your feature branch off `dev` (the branch you integrate and test in first).
-   Name it by intent: `feat/…`, `fix/…`, `chore/…`, `docs/…`, `refactor/…`.
-   Keep one logical change per branch, with tidy commits — you will cherry-pick them.
-2. Open a PR from that branch into `dev`.
-3. To promote the same feature to `staging`, cut a new branch off `staging` and
-   cherry-pick only this feature's commit(s) onto it, then open a PR into `staging`.
-4. To promote to `main`, repeat: cut a branch off `main`, cherry-pick the same commit(s),
-   open a PR into `main`.
-5. Result: one clean PR per environment, each carrying only this feature.
+### Feature workflow — same commits into every branch
+1. Cut your feature branch off `main` (ideally just after a reset, when the branches are aligned).
+   Name it by intent: `feat/…`, `fix/…`, `chore/…`, `docs/…`, `refactor/…`. One logical change per branch.
+2. Open a PR from that branch into each target branch: `dev`, `staging`, and `main`.
+3. Merge with a **merge commit or fast-forward — never squash, never cherry-pick** — so the
+   identical commit SHA lands on all three branches.
+4. If a target has drifted far from `main`, realign it via the periodic reset rather than
+   forcing a noisy cross-branch merge.
 
 ### Rules for agents working in this repo
-- Never commit or push to `main`, `staging`, or `dev` directly.
-- Move a feature between environments by cherry-picking it onto a branch cut off the
-  target — never by merging `dev → staging` or `staging → main`.
-- Each promotion branch is cut off its own target, so the PR diff is only this feature.
-- One logical change per branch; one PR at a time per target; keep commits clean for cherry-picking.
+- Never commit or push to `main`, `staging`, or `dev` directly — always a feature branch + PR.
+- Cut features off `main` so the same commit can enter every environment.
+- Merge as merge-commit/FF, **never squash** (squash mints a new SHA per branch) and
+  **never cherry-pick** (also a new SHA) — both break the "same commits everywhere" rule.
+- Never merge one environment branch into another to promote a feature.
 - Before committing, verify you are on a feature branch: `git branch --show-current`.
 - Do not push without explicit permission.
