@@ -545,7 +545,9 @@ def send_chatbot_trial_ended_email(account: Account, event_context: str = None) 
         msg.send()
         logger.info(f"{ctx}E-mail de fim de trial do chatbot enviado para {account.email}")
     except Exception as e:
-        logger.error(f"{ctx}Erro ao enviar e-mail de fim de trial do chatbot para {account.email}: {e}")
+        logger.error(
+            f"{ctx}Erro ao enviar e-mail de fim de trial do chatbot para {account.email}: {e}"
+        )
 
 
 def apply_active_subscription_entitlements(
