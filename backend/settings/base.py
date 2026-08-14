@@ -241,9 +241,9 @@ JAZZMIN_SETTINGS = {
         {"name": "Metadados", "app": "v1"},
         {"model": "v1.dataset"},
         {"model": "v1.table"},
-        {"name": "Metabase", "url": "https://perguntas.basedosdados.org"},
-        {"name": "Prefect", "url": "https://prefect.basedosdados.org"},
-        {"name": "Grafana", "url": "https://grafana.basedosdados.org"},
+        {"name": "Metabase", "url": "https://perguntas.basedosdados.org", "new_window": True},
+        {"name": "Prefect", "url": "https://prefect3.basedosdados.org", "new_window": True},
+        {"name": "Grafana", "url": "https://grafana.basedosdados.org", "new_window": True},
     ],
     "show_ui_builder": True,
 }
