@@ -12,7 +12,7 @@ from pandas import read_gbq
 from requests import get
 
 from backend.apps.api.v1.models import Dataset, RawDataSource, Table, TableNeighbor
-from backend.custom.client import Messenger, get_gbq_client, get_gcs_client
+from backend.custom.client import Messenger, get_gbq_client, get_gcs_client, send_discord_message
 from backend.custom.environment import production_task
 
 logger = logger.bind(module="api.v1")
@@ -66,6 +66,10 @@ def update_table_metadata_task(table_pks: list[str] = None):
 
         if bq_table.table_type == "VIEW":
             try:
+                # `basedosdados` is a requester pays bucket, so listing it requires a
+                # billing project. `Client.bucket` only builds a handle: no request is
+                # made until `list_blobs` runs, inside this try.
+                cs_bucket = cs_client.bucket("basedosdados", user_project=cs_client.project)
                 file_size: int = 0
                 for blob in cs_bucket.list_blobs(prefix=table.gcs_slug):
                     file_size += blob.size
@@ -73,9 +77,14 @@ def update_table_metadata_task(table_pks: list[str] = None):
             except Exception as exc:
                 logger.warning(exc)
 
-    bq_client = get_gbq_client()
-    cs_client = get_gcs_client()
-    cs_bucket = cs_client.get_bucket("basedosdados")
+    try:
+        bq_client = get_gbq_client()
+        cs_client = get_gcs_client()
+    except Exception as exc:
+        # Nothing below has run yet, so `messenger` would have no lines to send and the
+        # failure would be silent. Report it before re-raising.
+        send_discord_message(f"`update_table_metadata_task` falhou ao iniciar: `{exc}`")
+        raise
 
     messenger = Messenger("Verifique os metadados dos conjuntos:")
 
