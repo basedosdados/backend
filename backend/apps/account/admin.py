@@ -20,6 +20,8 @@ from backend.apps.account.models import (
     Team,
 )
 from backend.apps.account.tasks import sync_subscription_task
+from backend.apps.account_auth.admin import BackendTokenAdminForm
+from backend.apps.account_auth.models import BackendToken
 
 
 def sync_subscription(modeladmin: ModelAdmin, request: HttpRequest, queryset: QuerySet):
@@ -125,6 +127,15 @@ class AccountChangeForm(forms.ModelForm):
         user_permissions = self.fields.get("user_permissions")
         if user_permissions:
             user_permissions.queryset = user_permissions.queryset.select_related("content_type")
+
+
+class BackendTokenInline(admin.TabularInline):
+    model = BackendToken
+    form = BackendTokenAdminForm
+    extra = 0
+    fields = ("name", "scopes", "expires_at", "is_active", "prefix", "created_at", "last_used_at")
+    readonly_fields = ("prefix", "created_at", "last_used_at")
+    show_change_link = True
 
 
 class CareerInline(admin.StackedInline):
@@ -301,8 +312,32 @@ class AccountAdmin(BaseAccountAdmin):
     )
     search_fields = ("email", "full_name")
     ordering = ["-created_at"]
-    inlines = (CareerInline, SubscriptionInline)
+    inlines = (CareerInline, SubscriptionInline, BackendTokenInline)
     filter_horizontal = ()
+
+    def save_formset(self, request, form, formset, change):
+        if formset.model is not BackendToken:
+            return super().save_formset(request, form, formset, change)
+
+        from django.contrib import messages as dj_messages
+
+        from backend.apps.account_auth.mutations import _generate_raw_token, _hash_token
+
+        instances = formset.save(commit=False)
+        for obj in instances:
+            if not obj.pk:
+                raw = _generate_raw_token()
+                obj.prefix = raw[len("bdtoken_") : len("bdtoken_") + 8]
+                obj.hashed_key = _hash_token(raw)
+                obj.save()
+                self.message_user(
+                    request,
+                    f"Token '{obj.name}' created: {raw} — copy now, it will not be shown again.",
+                    level=dj_messages.WARNING,
+                )
+            else:
+                obj.save()
+        formset.save_m2m()
 
     def is_subscriber(self, instance):
         return bool(instance.is_subscriber)
