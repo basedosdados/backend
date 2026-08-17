@@ -4,7 +4,9 @@ from __future__ import annotations
 from typing import NamedTuple
 
 from django.conf import settings
+from django.core.mail import EmailMultiAlternatives
 from django.db.models import Q
+from django.template.loader import render_to_string
 from djstripe import webhooks
 from djstripe.models import Event
 from djstripe.models import Price as DJStripePrice
@@ -28,7 +30,7 @@ from backend.apps.account_payment.trials import (
     djstripe_subscription_is_chatbot,
 )
 from backend.custom.client import send_discord_message as send
-from backend.custom.environment import get_backend_url, is_dev, is_stg
+from backend.custom.environment import get_backend_url, get_frontend_url, is_dev, is_stg
 
 logger = logger.bind(module="payment")
 
@@ -516,6 +518,43 @@ def remove_user(email: str, group_key: str = None, event_context: str = None) ->
         raise
 
 
+def send_chatbot_trial_ended_email(account: Account, event_context: str = None) -> None:
+    """Send the "your chatbot trial ended" email.
+
+    Best-effort: logs and swallows any error instead of failing the webhook,
+    since the entitlement revocation that triggers this must still succeed
+    even if the email can't be sent.
+
+    Args:
+        account: The account whose chatbot trial just ended.
+        event_context: Human-readable context prefixed to log messages.
+    """
+    ctx = f"[{event_context}] " if event_context else ""
+    if not account or not account.email:
+        return
+    try:
+        content = render_to_string(
+            "account/end_trial_chatbot.html",
+            {
+                "name": account.get_full_name(),
+                "domain": get_frontend_url(),
+            },
+        )
+        msg = EmailMultiAlternatives(
+            "Seu período de teste do chatbot chegou ao fim. Vamos continuar?",
+            "",
+            settings.EMAIL_HOST_USER,
+            [account.email],
+        )
+        msg.attach_alternative(content, "text/html")
+        msg.send()
+        logger.info(f"{ctx}E-mail de fim de trial do chatbot enviado para {account.email}")
+    except Exception as e:
+        logger.error(
+            f"{ctx}Erro ao enviar e-mail de fim de trial do chatbot para {account.email}: {e}"
+        )
+
+
 def apply_active_subscription_entitlements(
     wc: WebhookContext,
     subscription: Subscription | None,
@@ -730,6 +769,7 @@ def handle_subscription(event: Event):
     account = get_account_for_stripe_customer(event)
 
     status = event.data.get("object", {}).get("status")
+    previous_status = event.data.get("previous_attributes", {}).get("status")
 
     if status in ["trialing", "active"]:
         if subscription:
@@ -756,7 +796,18 @@ def handle_subscription(event: Event):
             subscription.is_active = False
             subscription.save()
 
+        trial_just_ended = previous_status == "trialing" and account
+        had_chatbot_access = bool(account and account.has_chatbot_access)
+
         apply_inactive_subscription_entitlements(wc, subscription, account)
+
+        if (
+            trial_just_ended
+            and had_chatbot_access
+            and not account.has_chatbot_access
+            and subscription_product_is_chatbot(subscription, wc.event, wc.event_context)
+        ):
+            send_chatbot_trial_ended_email(account, event_context=wc.event_context)
 
 
 @webhooks.handler("customer.subscription.updated")
