@@ -400,7 +400,17 @@ class StripeCouponValidationMutation(Mutation):
 
 
 class StripeSubscriptionDeleteMutation(Mutation):
-    """Delete stripe subscription"""
+    """Schedule stripe subscription cancellation for the end of the current period.
+
+    Uses the Stripe update endpoint (`cancel_at_period_end=True`) directly
+    instead of djstripe's `Subscription.cancel()` helper: that helper
+    silently overrides `at_period_end` to `False` whenever the subscription
+    is still trialing (to avoid an unexpected charge), which cancels the
+    subscription immediately and revokes access mid-trial. Scheduling via
+    `cancel_at_period_end` doesn't trigger a charge either way, so the
+    override isn't needed here and access is kept until the trial/period
+    actually ends.
+    """
 
     subscription = Field(StripeSubscriptionNode)
     errors = List(String)
@@ -414,7 +424,10 @@ class StripeSubscriptionDeleteMutation(Mutation):
         try:
             subscription = Subscription.objects.get(id=subscription_id)
             stripe_subscription = subscription.subscription
-            stripe_subscription.cancel(at_period_end=True)
+            updated = stripe_subscription._api_update(cancel_at_period_end=True)
+            DJStripeSubscription.sync_from_stripe_data(
+                updated, api_key=stripe_subscription.default_api_key
+            )
             return None
         except Exception as e:
             logger.error(e)
