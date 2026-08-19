@@ -264,3 +264,109 @@ class FlowFailedWebhookView(View):
             return JsonResponse({"status": "ok", "action": "disabled"})
 
         return JsonResponse({"status": "ok", "action": "no_action"})
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class SetScheduleActiveView(View):
+    """Arm or disarm a flow schedule, programmatically.
+
+    Called via ``POST /admin-tools/set-schedule-active/``. This is the API
+    equivalent of ticking ``is_schedule_active`` in the Django admin, and it
+    performs the same three steps as ``DisabledFlowScheduleAdmin.save_model``:
+    it updates the stored state, stamps ``reactivated_at``, and pauses or
+    unpauses the deployment in Prefect 3.
+
+    All three matter. Flipping only Prefect would be undone by the next
+    ``SyncDeploymentsView`` run — which CI triggers on every merge to main —
+    because sync enforces the stored ``is_schedule_active`` state.
+
+    Expected JSON payload::
+
+        {"flow_name": "<deployment name>", "is_schedule_active": true}
+
+    Setting the state a flow is already in is a safe no-op: it returns
+    ``action="no_change"`` without calling Prefect, mirroring the admin form,
+    which only acts when the field actually changes.
+    """
+
+    def post(self, request):
+        """Handle the set-schedule-active request.
+
+        Args:
+            request: Incoming Django HTTP request. Must carry a valid bearer
+                token in the ``Authorization`` header.
+
+        Returns:
+            ``JsonResponse`` describing the resulting state, with ``action``
+            one of ``activated``, ``disabled`` or ``no_change``.
+            Returns 400 if the payload is missing or malformed, 401 if the
+            bearer token is invalid, and 404 if the flow is unknown.
+        """
+        if not _check_bearer_token(request):
+            return JsonResponse({"error": "Unauthorized"}, status=401)
+
+        try:
+            payload = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError):
+            return JsonResponse({"error": "Invalid JSON"}, status=400)
+
+        flow_name = payload.get("flow_name")
+        desired = payload.get("is_schedule_active")
+
+        if not flow_name or not isinstance(desired, bool):
+            return JsonResponse(
+                {"error": "flow_name (str) and is_schedule_active (bool) are required"},
+                status=400,
+            )
+
+        try:
+            record = DisabledFlowSchedule.objects.get(flow_name=flow_name)
+        except DisabledFlowSchedule.DoesNotExist:
+            return JsonResponse(
+                {
+                    "error": (
+                        f"Unknown flow {flow_name!r}. Deployments are registered by "
+                        "POST /admin-tools/sync-deployments/, which CI runs after "
+                        "each deploy to main."
+                    )
+                },
+                status=404,
+            )
+
+        if record.is_schedule_active == desired:
+            return JsonResponse(
+                {
+                    "flow_name": record.flow_name,
+                    "deployment_id": record.deployment_id,
+                    "is_schedule_active": record.is_schedule_active,
+                    "reactivated_at": (
+                        record.reactivated_at.isoformat() if record.reactivated_at else None
+                    ),
+                    "action": "no_change",
+                }
+            )
+
+        # Prefect first, then the database — same order as the admin form, so a
+        # Prefect failure leaves the stored state untouched rather than claiming
+        # a change that never reached the scheduler.
+        client = Prefect3Client()
+        client.set_paused(record.deployment_id, paused=not desired)
+
+        record.is_schedule_active = desired
+        record.reactivated_at = datetime.now(tz=timezone.utc) if desired else None
+        record.save(update_fields=["is_schedule_active", "reactivated_at"])
+
+        action = "activated" if desired else "disabled"
+        logger.info(f"{action} {record.flow_name} via set-schedule-active")
+
+        return JsonResponse(
+            {
+                "flow_name": record.flow_name,
+                "deployment_id": record.deployment_id,
+                "is_schedule_active": record.is_schedule_active,
+                "reactivated_at": (
+                    record.reactivated_at.isoformat() if record.reactivated_at else None
+                ),
+                "action": action,
+            }
+        )
