@@ -16,6 +16,7 @@ class DisabledFlowScheduleAdmin(admin.ModelAdmin):
         "reactivated_at",
     ]
     list_filter = ["is_schedule_active"]
+    search_fields = ["flow_name"]
     readonly_fields = ["flow_name", "deployment_id", "disabled_at", "reactivated_at"]
     fields = ["flow_name", "deployment_id", "disabled_at", "is_schedule_active", "reactivated_at"]
 
