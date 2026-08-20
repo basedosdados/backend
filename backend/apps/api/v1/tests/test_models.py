@@ -2,7 +2,6 @@
 """
 Pytest Django models tests.
 """
-import json
 
 import pytest
 from django.core.exceptions import ValidationError
@@ -130,13 +129,14 @@ def test_table_create(tabela_bairros):
 def test_table_with_empty_coverage(tabela_bairros, coverage_tabela_open, datetime_range_empty):
     """
     Test for Table with Coverage containing no DateTimeRange.
-    Coverage must be empty string.
+    Temporal coverage must be unset.
     """
     tabela_bairros.save()
     coverage_tabela_open.save()
     datetime_range_empty.coverage = coverage_tabela_open
     datetime_range_empty.save()
-    assert tabela_bairros.dataset.coverage == ""
+    assert tabela_bairros.full_temporal_coverage is None
+    assert tabela_bairros.temporal_coverage == {"start": None, "end": None}
 
 
 @pytest.mark.django_db
@@ -253,13 +253,14 @@ def test_table_with_multiple_coverages(
     tabela_bairros.coverages.add(coverage_tabela_open, coverage_tabela_closed)
     tabela_bairros.save()
 
-    table_expected_coverage = [
-        {"year": "2021", "month": "06", "day": None, "type": "open"},
-        {"year": "2023", "month": "06", "day": None, "type": "open"},
-        {"year": "2026", "month": "06", "day": None, "type": "closed"},
+    # The free range ends where the paid range begins, so the middle step is the
+    # start of the closed range (2023-07), not the end of the open one.
+    assert tabela_bairros.full_temporal_coverage == [
+        {"date": "2021-06", "type": "open"},
+        {"date": "2023-07", "type": "open"},
+        {"date": "2026-06", "type": "closed"},
     ]
-
-    assert tabela_bairros.full_coverage == json.dumps(table_expected_coverage)
+    assert tabela_bairros.temporal_coverage == {"start": "2021-06", "end": "2026-06"}
 
 
 @pytest.mark.django_db
@@ -276,12 +277,12 @@ def test_table_with_open_coverages(
     tabela_bairros.coverages.add(coverage_tabela_open)
     tabela_bairros.save()
 
-    table_expected_coverage = [
-        {"year": "2021", "month": "06", "day": None, "type": "open"},
-        {"year": "2023", "month": "06", "day": None, "type": "open"},
+    assert tabela_bairros.full_temporal_coverage == [
+        {"date": "2021-06", "type": "open"},
+        {"date": "2023-06", "type": "open"},
     ]
-
-    assert tabela_bairros.full_coverage == json.dumps(table_expected_coverage)
+    assert tabela_bairros.contains_temporalcoverage_free is True
+    assert tabela_bairros.contains_temporalcoverage_paid is False
 
 
 @pytest.mark.django_db
@@ -298,9 +299,9 @@ def test_table_with_closed_coverages(
     tabela_bairros.coverages.add(coverage_tabela_closed)
     tabela_bairros.save()
 
-    table_expected_coverage = [
-        {"year": "2023", "month": "07", "day": None, "type": "closed"},
-        {"year": "2026", "month": "06", "day": None, "type": "closed"},
+    assert tabela_bairros.full_temporal_coverage == [
+        {"date": "2023-07", "type": "closed"},
+        {"date": "2026-06", "type": "closed"},
     ]
-
-    assert tabela_bairros.full_coverage == json.dumps(table_expected_coverage)
+    assert tabela_bairros.contains_temporalcoverage_free is False
+    assert tabela_bairros.contains_temporalcoverage_paid is True

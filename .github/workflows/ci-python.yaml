@@ -17,6 +17,25 @@ jobs:
   test:
     name: Test python
     runs-on: ubuntu-latest
+    services:
+      database:
+        image: postgres:14
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DB_HOST: localhost
+      DB_PORT: '5432'
+      DB_NAME: postgres
+      DB_USER: postgres
+      DB_PASSWORD: postgres
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,14 +48,20 @@ jobs:
           architecture: x64
           python-version: '3.11'
       - name: Install requirements
-        run: poetry install --only=test
+        # `--only=test` installed pytest without Django, so pytest aborted with
+        # ModuleNotFoundError on every run. The suite imports Django and the
+        # project's own apps, so the main group is required too.
+        run: poetry install --only main,test
       - name: Test
+        # `shell: bash` sets pipefail, so a pytest failure is not swallowed by tee.
+        shell: bash
         run: |
           poetry run pytest \
             --junitxml=pytest.xml \
             --cov-report=term-missing:skip-covered \
             --cov=backend backend | tee pytest-coverage.txt
       - name: Report coverage
+        if: always()
         uses: MishaKav/pytest-coverage-comment@main
         with:
           hide-report: true

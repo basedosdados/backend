@@ -20,8 +20,9 @@ def test_account_create():
 
 
 @pytest.mark.django_db
+@patch("backend.apps.account.signals.is_prd", return_value=True)
 @patch("backend.apps.account.signals.EmailMultiAlternatives")
-def test_activate_account_signal(mock: MagicMock):
+def test_activate_account_signal(mock: MagicMock, _is_prd: MagicMock):
     Account.objects.create(
         username="john.doe",
         email="john.doe@email.com",
@@ -32,8 +33,9 @@ def test_activate_account_signal(mock: MagicMock):
 
 
 @pytest.mark.django_db
+@patch("backend.apps.account.signals.is_prd", return_value=True)
 @patch("backend.apps.account.signals.render_to_string")
-def test_activate_account_confirmation(mock: MagicMock, client: Client):
+def test_activate_account_confirmation(mock: MagicMock, _is_prd: MagicMock, client: Client):
     account = Account.objects.create(
         username="john.doe",
         email="john.doe@email.com",
@@ -70,9 +72,12 @@ def test_password_reset_request(mock: MagicMock, client: Client):
 
 
 @pytest.mark.django_db
+@patch("backend.apps.account.signals.is_prd", return_value=True)
 @patch("backend.apps.account.views.render_to_string")
 @patch("backend.apps.account.signals.render_to_string")
-def test_password_reset_confirmation(mock_signal: MagicMock, mock_view: MagicMock, client: Client):
+def test_password_reset_confirmation(
+    mock_signal: MagicMock, mock_view: MagicMock, _is_prd: MagicMock, client: Client
+):
     # Create account
     account = Account.objects.create(
         username="john.doe",
