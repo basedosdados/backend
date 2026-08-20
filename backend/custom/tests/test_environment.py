@@ -146,3 +146,52 @@ def test_decorators_preserve_metadata(monkeypatch):
 
     assert documented_task.__name__ == "documented_task"
     assert documented_task.__doc__ == "A docstring worth keeping."
+
+
+@pytest.mark.parametrize(
+    "config,expected",
+    [
+        (LOCAL, {"http://localhost:3000"}),
+        (
+            DEV,
+            {
+                "https://development.basedosdados.org",
+                "https://development.data-basis.org",
+                "https://development.basedelosdatos.org",
+            },
+        ),
+        (
+            STG,
+            {
+                "https://staging.basedosdados.org",
+                "https://staging.data-basis.org",
+                "https://staging.basedelosdatos.org",
+            },
+        ),
+        (
+            PRD,
+            {
+                "https://basedosdados.org",
+                "https://data-basis.org",
+                "https://basedelosdatos.org",
+            },
+        ),
+    ],
+    ids=["local", "development", "staging", "production"],
+)
+def test_allowed_frontend_origins_by_environment(monkeypatch, config, expected):
+    """The post-login redirect allowlist. A JWT rides in that redirect, so an
+    origin leaking onto this list is a token disclosure, not a cosmetic bug."""
+    env = configure(monkeypatch, *config)
+    assert env.get_allowed_frontend_origins() == expected
+
+
+def test_production_origins_are_not_allowed_locally(monkeypatch):
+    env = configure(monkeypatch, *LOCAL)
+    assert "https://basedosdados.org" not in env.get_allowed_frontend_origins()
+
+
+def test_every_allowed_origin_is_https_when_remote(monkeypatch):
+    for config in (DEV, STG, PRD):
+        env = configure(monkeypatch, *config)
+        assert all(o.startswith("https://") for o in env.get_allowed_frontend_origins())

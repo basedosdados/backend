@@ -32,9 +32,9 @@ class Token(models.Model):
     def generate_token(self):
         return str(uuid4())
 
-    def save(self):
+    def save(self, *args, **kwargs):
         self.token = self.generate_token()
-        super().save()
+        super().save(*args, **kwargs)
 
 
 class Access(models.Model):
