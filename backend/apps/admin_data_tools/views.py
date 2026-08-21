@@ -11,6 +11,7 @@ from loguru import logger
 
 from backend.apps.api.v1.models import Table
 from backend.custom.client import get_gbq_client
+from backend.custom.environment import is_prd
 
 from ._prefect3_client import Prefect3Client
 from .models import DisabledFlowSchedule
@@ -282,6 +283,12 @@ class CheckMetadadosView(View):
     Chamada de dentro do admin autenticado (não machine-to-machine como as
     demais views deste módulo), então mantém a proteção de CSRF padrão do
     Django em vez do bearer token usado acima.
+
+    Compara sempre contra o projeto do BigQuery correspondente ao ambiente do
+    próprio admin (``is_prd()``): em staging/dev contra ``basedosdados-dev``
+    — onde os flows escrevem antes de promover pra prod —, em prod contra
+    ``basedosdados``. Sem isso, staging acabaria comparando contra dados que
+    ainda nem foram promovidos.
     """
 
     def post(self, request):
@@ -297,7 +304,8 @@ class CheckMetadadosView(View):
         table_id = request.POST.get("table_id")
         selected_table = Table.objects.get(id=table_id)
 
-        if not selected_table.gbq_slug:
+        cloud_table = selected_table.cloud_tables.first()
+        if not cloud_table:
             return JsonResponse(
                 {
                     "status": "erro",
@@ -307,9 +315,12 @@ class CheckMetadadosView(View):
                 }
             )
 
+        gcp_project_id = "basedosdados" if is_prd() else "basedosdados-dev"
+        gbq_slug = f"{gcp_project_id}.{cloud_table.gcp_dataset_id}.{cloud_table.gcp_table_id}"
+
         try:
             bq_client = get_gbq_client()
-            bq_table = bq_client.get_table(selected_table.gbq_slug)
+            bq_table = bq_client.get_table(gbq_slug)
         except Exception as exc:
             return JsonResponse(
                 {"status": "erro", "mensagem": f"Falha ao consultar o BigQuery: {exc}"}
