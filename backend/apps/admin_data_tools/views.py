@@ -9,6 +9,10 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from loguru import logger
 
+from backend.apps.api.v1.models import Table
+from backend.custom.client import get_gbq_client
+from backend.custom.environment import is_prd
+
 from ._prefect3_client import Prefect3Client
 from .models import DisabledFlowSchedule
 
@@ -264,3 +268,102 @@ class FlowFailedWebhookView(View):
             return JsonResponse({"status": "ok", "action": "disabled"})
 
         return JsonResponse({"status": "ok", "action": "no_action"})
+
+
+class CheckMetadadosView(View):
+    """Compara o schema real da tabela no BigQuery com as colunas cadastradas na API.
+
+    Acionada pelo botão "Checar Metadados" na página de admin de uma `Table`
+    (``backend/templates/admin/change_form.html``) via
+    ``POST /admin-tools/check-metadados/``. Mesma checagem do
+    ``.github/workflows/scripts/check_metadata.py`` (repo pipelines), mas lendo
+    ``bq_client.get_table(...).schema`` em vez de consultar `INFORMATION_SCHEMA`
+    — é metadado da tabela, não uma query faturada.
+
+    Chamada de dentro do admin autenticado (não machine-to-machine como as
+    demais views deste módulo), então mantém a proteção de CSRF padrão do
+    Django em vez do bearer token usado acima.
+
+    Compara sempre contra o projeto do BigQuery correspondente ao ambiente do
+    próprio admin (``is_prd()``): em staging/dev contra ``basedosdados-dev``
+    — onde os flows escrevem antes de promover pra prod —, em prod contra
+    ``basedosdados``. Sem isso, staging acabaria comparando contra dados que
+    ainda nem foram promovidos.
+    """
+
+    def post(self, request):
+        """Handle the check-metadados request.
+
+        Args:
+            request: Incoming Django HTTP request, com ``table_id`` no POST.
+
+        Returns:
+            ``JsonResponse`` com ``status`` ("sucesso" ou "erro") e ``mensagem``
+            listando as discrepâncias encontradas (ou confirmando consistência).
+        """
+        table_id = request.POST.get("table_id")
+        selected_table = Table.objects.get(id=table_id)
+
+        cloud_table = selected_table.cloud_tables.first()
+        if not cloud_table:
+            return JsonResponse(
+                {
+                    "status": "erro",
+                    "mensagem": (
+                        "Tabela sem CloudTable vinculada — não é possível checar o BigQuery."
+                    ),
+                }
+            )
+
+        gcp_project_id = "basedosdados" if is_prd() else "basedosdados-dev"
+        gbq_slug = f"{gcp_project_id}.{cloud_table.gcp_dataset_id}.{cloud_table.gcp_table_id}"
+
+        try:
+            bq_client = get_gbq_client()
+            bq_table = bq_client.get_table(gbq_slug)
+        except Exception as exc:
+            return JsonResponse(
+                {"status": "erro", "mensagem": f"Falha ao consultar o BigQuery: {exc}"}
+            )
+
+        bq_columns = {field.name.lower(): field for field in bq_table.schema}
+        db_columns = {column.name.lower(): column for column in selected_table.columns.all()}
+
+        discrepancias: list[str] = []
+
+        for name, field in bq_columns.items():
+            column = db_columns.get(name)
+            if column is None:
+                discrepancias.append(
+                    f"Coluna `{field.name}`: existe no BigQuery, não existe na API"
+                )
+                continue
+
+            bq_type = (field.field_type or "").upper()
+            api_type = (column.bigquery_type.name if column.bigquery_type else "").upper()
+            if bq_type != api_type:
+                discrepancias.append(
+                    f"Coluna `{field.name}`: tipo diferente "
+                    f"(BigQuery=`{bq_type}`, API=`{api_type}`)"
+                )
+
+            bq_desc = field.description or ""
+            api_desc = column.description or ""
+            if bq_desc != api_desc:
+                discrepancias.append(
+                    f"Coluna `{field.name}`: descrição diferente "
+                    f"(BigQuery=`{bq_desc}`, API=`{api_desc}`)"
+                )
+
+        for name, column in db_columns.items():
+            if name not in bq_columns:
+                discrepancias.append(
+                    f"Coluna `{column.name}`: existe na API, não existe no BigQuery"
+                )
+
+        if discrepancias:
+            return JsonResponse({"status": "erro", "mensagem": "\n".join(discrepancias)})
+
+        return JsonResponse(
+            {"status": "sucesso", "mensagem": "Metadados consistentes com o BigQuery."}
+        )

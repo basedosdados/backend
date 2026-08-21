@@ -55,3 +55,28 @@ fetch('/upload_columns/', {
 esconderCarregamento(); // Esconde o carregamento independente do resultado
 });
 };
+
+function checarMetadados() {
+
+const formData = new FormData();
+formData.append('table_id', document.getElementById('table_id').value);
+mostrarCarregamento();
+
+fetch('/admin-tools/check-metadados/', {
+    method: 'POST',
+    body: formData,
+    headers: {
+        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+    }
+})
+.then(response => response.json())
+.then(data => {
+    alert(data.mensagem);
+})
+.catch(error => {
+    alert('Erro ao checar metadados: ' + error);
+})
+.finally(() => {
+esconderCarregamento();
+});
+};
