@@ -18,6 +18,23 @@ from .models import DisabledFlowSchedule
 
 logger = logger.bind(module="admin_data_tools")
 
+# BigQuery's `field.field_type` reports legacy SQL names (INTEGER, FLOAT,
+# RECORD, ...), while the API's `bigquery_type` catalog uses standard SQL
+# names (INT64, FLOAT64, STRUCT, ...). Same aliases as pipelines'
+# .github/workflows/scripts/check_metadata.py, so a same-type column doesn't
+# show up as a false-positive discrepancy.
+_BQ_TYPE_ALIASES: dict[str, str] = {
+    "boolean": "bool",
+    "integer": "int64",
+    "int": "int64",
+    "float": "float64",
+    "record": "struct",
+}
+
+
+def _normalize_bq_type(type_name: str) -> str:
+    return _BQ_TYPE_ALIASES.get(type_name.lower(), type_name.lower())
+
 
 _FAILED_STATES = {"Failed", "Crashed"}
 _DBT_TASK_NAMES = {"run_dbt"}
@@ -341,7 +358,7 @@ class CheckMetadadosView(View):
 
             bq_type = (field.field_type or "").upper()
             api_type = (column.bigquery_type.name if column.bigquery_type else "").upper()
-            if bq_type != api_type:
+            if _normalize_bq_type(bq_type) != _normalize_bq_type(api_type):
                 discrepancias.append(
                     f"Coluna `{field.name}`: tipo diferente "
                     f"(BigQuery=`{bq_type}`, API=`{api_type}`)"
