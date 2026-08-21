@@ -18,22 +18,23 @@ from .models import DisabledFlowSchedule
 
 logger = logger.bind(module="admin_data_tools")
 
-# BigQuery's `field.field_type` reports legacy SQL names (INTEGER, FLOAT,
-# RECORD, ...), while the API's `bigquery_type` catalog uses standard SQL
-# names (INT64, FLOAT64, STRUCT, ...). Same aliases as pipelines'
-# .github/workflows/scripts/check_metadata.py, so a same-type column doesn't
-# show up as a false-positive discrepancy.
-_BQ_TYPE_ALIASES: dict[str, str] = {
-    "boolean": "bool",
+# field.field_type (BigQuery client) reports legacy SQL names (INTEGER,
+# FLOAT, RECORD, ...); the API's `bigquery_type` catalog uses standard SQL
+# names (INT64, FLOAT64, STRUCT, BOOLEAN, ...) — only these three actually
+# differ, everything else (STRING, BOOLEAN, DATE, TIMESTAMP, ...) is spelled
+# the same on both sides.
+_BQ_LEGACY_TYPE_ALIASES: dict[str, str] = {
     "integer": "int64",
-    "int": "int64",
     "float": "float64",
     "record": "struct",
 }
 
 
-def _normalize_bq_type(type_name: str) -> str:
-    return _BQ_TYPE_ALIASES.get(type_name.lower(), type_name.lower())
+def _bq_type_to_api_type(field_type: str) -> str:
+    """Translate a BigQuery `field.field_type` (legacy name) to the standard
+    SQL name used by the API's `bigquery_type` catalog."""
+    field_type = field_type.lower()
+    return _BQ_LEGACY_TYPE_ALIASES.get(field_type, field_type)
 
 
 _FAILED_STATES = {"Failed", "Crashed"}
@@ -358,7 +359,7 @@ class CheckMetadadosView(View):
 
             bq_type = (field.field_type or "").upper()
             api_type = (column.bigquery_type.name if column.bigquery_type else "").upper()
-            if _normalize_bq_type(bq_type) != _normalize_bq_type(api_type):
+            if _bq_type_to_api_type(bq_type) != api_type.lower():
                 discrepancias.append(
                     f"Coluna `{field.name}`: tipo diferente "
                     f"(BigQuery=`{bq_type}`, API=`{api_type}`)"
