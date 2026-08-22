@@ -7,6 +7,10 @@
     Importar Colunas
 </button>
 
+<button type="button" onclick="checarMetadados()" class="btn btn-block {{ jazzmin_ui.button_classes.secondary }} btn-sm">
+    Checar Metadados
+</button>
+
 {% endif %}
 {% endblock %}
 {% block content %}
@@ -40,6 +44,28 @@
         </div>
     </div>
 </div>
+</div>
+</div>
+<div id="metadadosModal" class="modal" style="display: none;">
+<div class="modal-content modal-content--wide">
+    <div class="modal-header">
+        <h2>Checar Metadados</h2>
+        <span class="close-button" id="metadadosCloseButton">&times;</span>
+    </div>
+    <div class="modal-body">
+        <div id="metadadosResultado"></div>
+    </div>
+</div>
+</div>
+<div id="syncUpdateModal" class="modal" style="display: none;">
+<div class="modal-content">
+    <div class="modal-header">
+        <h2>Sincronizar com o BigQuery</h2>
+        <span class="close-button" id="syncUpdateCloseButton">&times;</span>
+    </div>
+    <div class="modal-body">
+        <div id="syncUpdateResultado"></div>
+    </div>
 </div>
 </div>
 <script src="{% static 'core/js/ferramentas.js' %}"></script>
