@@ -12,8 +12,8 @@ class DisabledFlowSchedule(models.Model):
 
     class Meta:
         ordering = ["-disabled_at"]
-        verbose_name = "Disabled Flow Schedule"
-        verbose_name_plural = "Disabled Flow Schedules"
+        verbose_name = "Flow Schedule"
+        verbose_name_plural = "Flow Schedules"
 
     def __str__(self):
         return self.flow_name
