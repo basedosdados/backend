@@ -931,7 +931,16 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
                 raw_data_source_update_html + "<br>" + poll_raw_data_source_html
             )
 
-        return format_html(update_html + "<br>" + raw_data_source_html)
+        sync_button_html = ""
+        if table_obj.updates.count() == 1:
+            sync_button_html = format_html(
+                ' — <button type="button" onclick="syncUpdateLatest(\'{}\', this)" '
+                'class="btn btn-secondary btn-sm update-sync-button">'
+                "Sincronizar com o BigQuery</button>",
+                str(table_obj.pk),
+            )
+
+        return format_html("{}{}<br>{}", update_html, sync_button_html, raw_data_source_html)
 
     get_update_display.short_description = "Update and Poll Info"
 
