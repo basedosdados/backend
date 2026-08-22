@@ -1,0 +1,83 @@
+---
+name: Sync staging with main
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+concurrency:
+  group: sync-staging
+  cancel-in-progress: false
+jobs:
+  sync:
+    name: Sync staging with main
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout staging
+        uses: actions/checkout@v4
+        with:
+          ref: staging
+          fetch-depth: 0
+      - name: Configure git identity
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Check for commits in main not yet in staging
+        id: diff
+        run: |
+          git fetch origin main
+          if [ -z "$(git log staging..origin/main --oneline)" ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Merge main into the sync branch
+        if: steps.diff.outputs.has_changes == 'true'
+        run: |
+          git checkout -B chore/main_to_staging staging
+          git merge origin/main -X ours -m "chore: sync staging and main"
+          git push --force -u origin chore/main_to_staging
+      - name: List PRs brought in from main
+        if: steps.diff.outputs.has_changes == 'true'
+        id: prs
+        run: |
+          PRS=$(git log staging..origin/main --format=%s | python3 -c "
+          import re, sys
+          seen = []
+          for line in sys.stdin:
+              for m in re.findall(r'#(\d+)', line):
+                  if m not in seen:
+                      seen.append(m)
+          print(', '.join(f'#{n}' for n in seen))
+          ")
+          echo "prs=$PRS" >> "$GITHUB_OUTPUT"
+      - name: Open (or reuse) the PR to staging
+        if: steps.diff.outputs.has_changes == 'true'
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PRS="${{ steps.prs.outputs.prs }}"
+          if [ -n "$PRS" ]; then
+            TITLE="chore: sync staging and main - (PRs: $PRS)"
+          else
+            TITLE="chore: sync staging and main"
+          fi
+          BODY=$(printf 'Sincronização automática de `main` em `staging` (merge com `-X ours`, sem conflito real).\n\nPRs trazidos de `main`: %s' "${PRS:-nenhum commit referenciando PR}")
+          EXISTING_PR=$(gh pr list --head chore/main_to_staging --base staging --state open --json number -q '.[0].number')
+          if [ -n "$EXISTING_PR" ]; then
+            gh pr edit "$EXISTING_PR" --title "$TITLE" --body "$BODY"
+            echo "number=$EXISTING_PR" >> "$GITHUB_OUTPUT"
+          else
+            gh pr create --base staging --head chore/main_to_staging --title "$TITLE" --body "$BODY"
+            NEW_PR=$(gh pr list --head chore/main_to_staging --base staging --state open --json number -q '.[0].number')
+            echo "number=$NEW_PR" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Merge the sync PR automatically
+        if: steps.diff.outputs.has_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |-
+          gh pr merge "${{ steps.pr.outputs.number }}" --merge --delete-branch
