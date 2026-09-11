@@ -2422,19 +2422,10 @@ def get_spatial_coverage_name(resources: list, locale: str = "pt") -> list:
     - If areas = [br_mg_3100104, br_sp_3500105] -> returns [Belo Horizonte, São Paulo]
     - If areas = [br_mg, us_ny, us] -> returns [Minas Gerais, United States] (en)
                                       returns [Minas Gerais, Estados Unidos] (pt)
-    - If areas = [br_mg, world, us] -> returns [World] (en)
-                                      returns [Mundo] (pt)
+    - If areas = [br_mg, world, us] -> returns [International] (en)
+                                      returns [Internacional] (pt)
     - If resources have no areas -> returns empty list
     """
-    # Translation mapping for special cases
-    translations = {
-        "world": {
-            "pt": "Mundo",
-            "en": "World",
-            "es": "Mundo",
-        }
-    }
-
     # Collect all unique areas (both slug and name) across resources
     all_areas = {}
     for resource in resources:
@@ -2449,9 +2440,12 @@ def get_spatial_coverage_name(resources: list, locale: str = "pt") -> list:
     if not all_areas:
         return []
 
-    # If 'world' is present, it encompasses everything
+    # If 'world' is present, it encompasses everything. Use the Area's own
+    # localized name rather than a hardcoded string: the record is named
+    # "Internacional"/"International", and a literal here silently overrode it
+    # so every dataset covering the world displayed "Mundo"/"World" instead.
     if "world" in all_areas:
-        return [translations["world"].get(locale, translations["world"]["pt"])]
+        return [all_areas["world"]]
 
     # Filter out areas that have a parent in the set
     filtered_areas = set()
