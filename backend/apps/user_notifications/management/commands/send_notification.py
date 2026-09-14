@@ -29,7 +29,8 @@ def send_update_notification_email(user: Account, subscriptions: list, date_toda
 
     subject = "Atualização disponível para sua tabela de interesse"
     message = (
-        f"Olá {user.username}, \n\nHá atualizações disponíveis para uma das tabelas que você segue."
+        f"Olá {user.get_full_name()}, \n\n"
+        "Há atualizações disponíveis para uma das tabelas que você segue."
     )
 
     content = render_to_string(

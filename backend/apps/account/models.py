@@ -10,6 +10,7 @@ from django.contrib.auth.models import (
     Permission,
     PermissionsMixin,
 )
+from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models.query import QuerySet
 from django.utils import timezone
@@ -174,13 +175,11 @@ class AccountManager(BaseUserManager):
     def create_user(self, email, password=None, profile=2, **kwargs):
         if not email:
             raise ValueError("Users must have a valid email address.")
-        if not kwargs.get("username"):
-            raise ValueError("Users must have a valid username.")
         account = self.model(
             email=self.normalize_email(email),
-            username=kwargs.get("username"),
             first_name=kwargs.get("first_name"),
             last_name=kwargs.get("last_name"),
+            phone=kwargs.get("phone"),
             profile=profile,
             is_superuser=False,
         )
@@ -215,7 +214,20 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
     google_sub = models.CharField(
         "Google Sub", max_length=255, null=True, blank=True, unique=True
     )  # Google OAuth subject identifier
-    username = models.CharField("Username", max_length=40, blank=True, null=True, unique=True)
+    phone = models.CharField(
+        "Celular",
+        max_length=20,
+        blank=True,
+        null=True,
+        unique=True,
+        validators=[
+            RegexValidator(
+                regex=r"^\+[1-9]\d{7,14}$",
+                message="Informe o celular em E.164, por exemplo +5511999999999.",
+            )
+        ],
+        help_text="Número em E.164, por exemplo +5511999999999",
+    )
 
     first_name = models.CharField("Nome", max_length=40, blank=True)
     last_name = models.CharField("Sobrenome", max_length=40, blank=True)
@@ -343,12 +355,12 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
         *BaseModel.graphql_fields_blacklist,
     ]
     graphql_filter_fields_blacklist = ["internal_subscription"]
-    graphql_nested_filter_fields_whitelist = ["email", "username"]
+    graphql_nested_filter_fields_whitelist = ["email", "phone"]
     graphql_query_decorator = owner_required(allow_anonymous=False)
     graphql_mutation_decorator = owner_required(allow_anonymous=True)
 
     USERNAME_FIELD = "email"
-    REQUIRED_FIELDS = ["username", "first_name", "last_name"]
+    REQUIRED_FIELDS = ["first_name", "last_name"]
 
     class Meta:
         db_table = "account"
@@ -430,7 +442,7 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
             return f"{self.first_name} {self.last_name}"
         if self.first_name:
             return self.first_name
-        return self.username
+        return self.email
 
     get_full_name.short_description = "nome completo"
 
@@ -439,7 +451,14 @@ class Account(BaseModel, AbstractBaseUser, PermissionsMixin):
 
     get_organization.short_description = "organização"
 
+    @staticmethod
+    def _normalize_phone(value: str | None) -> str | None:
+        if not value:
+            return None
+        return value.strip().replace(" ", "").replace("-", "") or None
+
     def save(self, *args, **kwargs) -> None:
+        self.phone = self._normalize_phone(self.phone)
         # If self._password is set and check_password(self._password, self.password) is True, then
         # just save the model without changing the password.
         if self._password and check_password(self._password, self.password):
