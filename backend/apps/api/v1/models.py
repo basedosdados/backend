@@ -77,9 +77,9 @@ class Area(BaseModel):
 
         if self.parent and self.parent.slug != "world":
             if self.administrative_level is None:
-                errors[
-                    "administrative_level"
-                ] = "Administrative level is required when parent is set"
+                errors["administrative_level"] = (
+                    "Administrative level is required when parent is set"
+                )
             elif self.parent.administrative_level is None:
                 errors["parent"] = "Parent must have an administrative level"
             elif self.parent.administrative_level != self.administrative_level - 1:
@@ -1029,7 +1029,7 @@ class Poll(BaseModel):
         errors = {}
         if bool(self.raw_data_source) == bool(self.information_request):
             raise ValidationError(
-                "One and only one of 'raw_data_source'," " or 'information_request' must be set."
+                "One and only one of 'raw_data_source', or 'information_request' must be set."
             )
         if self.entity and self.entity.category.slug != "datetime":
             errors["entity"] = 'Entity must have category "datetime"'
@@ -1675,13 +1675,13 @@ class Column(BaseModel, OrderedModel):
         """Clean method for Column model"""
         errors = {}
         if self.observation_level and self.observation_level.table != self.table:
-            errors[
-                "observation_level"
-            ] = "Observation level is not in the same table as the column."
+            errors["observation_level"] = (
+                "Observation level is not in the same table as the column."
+            )
         if self.directory_primary_key and self.directory_primary_key.table.is_directory is False:
-            errors[
-                "directory_primary_key"
-            ] = "Column indicated as a directory's primary key is not in a directory."
+            errors["directory_primary_key"] = (
+                "Column indicated as a directory's primary key is not in a directory."
+            )
         if errors:
             raise ValidationError(errors)
         return super().clean()
@@ -1767,7 +1767,7 @@ class CloudTable(BaseModel):
         errors = {}
         if self.gcp_project_id and not check_kebab_case(self.gcp_project_id):
             errors["gcp_project_id"] = "gcp_project_id must be in kebab-case."
-        if self.gcp_project_id and not check_snake_case(self.gcp_dataset_id):
+        if self.gcp_dataset_id and not check_snake_case(self.gcp_dataset_id):
             errors["gcp_dataset_id"] = "gcp_dataset_id must be in snake_case."
         if self.gcp_table_id and not check_snake_case(self.gcp_table_id):
             errors["gcp_table_id"] = "gcp_table_id must be in snake_case."
