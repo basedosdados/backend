@@ -4,6 +4,7 @@ from django.urls import path
 from .views import (
     CheckMetadadosView,
     FlowFailedWebhookView,
+    SetScheduleActiveView,
     SyncDeploymentsView,
     SyncUpdateLatestView,
 )
@@ -16,5 +17,10 @@ urlpatterns = [
         "admin-tools/sync-update-latest/",
         SyncUpdateLatestView.as_view(),
         name="sync-update-latest",
+    ),
+    path(
+        "admin-tools/set-schedule-active/",
+        SetScheduleActiveView.as_view(),
+        name="set-schedule-active",
     ),
 ]
