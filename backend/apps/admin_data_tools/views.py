@@ -3,38 +3,30 @@ import json
 import os
 from datetime import datetime, timezone
 
+from django.conf import settings
 from django.http import JsonResponse
+from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from loguru import logger
 
 from backend.apps.api.v1.models import Table
-from backend.custom.client import get_gbq_client
+from backend.custom.client import get_gbq_client, send_discord_message
 from backend.custom.environment import is_prd
 
 from ._prefect3_client import Prefect3Client
+from .constants import BQ_LEGACY_TYPE_ALIASES, DBT_TASK_NAMES, FAILED_STATES, STATE_MESSAGES_IGNORE
 from .models import DisabledFlowSchedule
 
 logger = logger.bind(module="admin_data_tools")
-
-# field.field_type (BigQuery client) reports legacy SQL names (INTEGER,
-# FLOAT, RECORD, ...); the API's `bigquery_type` catalog uses standard SQL
-# names (INT64, FLOAT64, STRUCT, BOOLEAN, ...) — only these three actually
-# differ, everything else (STRING, BOOLEAN, DATE, TIMESTAMP, ...) is spelled
-# the same on both sides.
-_BQ_LEGACY_TYPE_ALIASES: dict[str, str] = {
-    "integer": "int64",
-    "float": "float64",
-    "record": "struct",
-}
 
 
 def _bq_type_to_api_type(field_type: str) -> str:
     """Translate a BigQuery `field.field_type` (legacy name) to the standard
     SQL name used by the API's `bigquery_type` catalog."""
     field_type = field_type.lower()
-    return _BQ_LEGACY_TYPE_ALIASES.get(field_type, field_type)
+    return BQ_LEGACY_TYPE_ALIASES.get(field_type, field_type)
 
 
 def _gbq_slug_for_table(cloud_table) -> str:
@@ -46,16 +38,9 @@ def _gbq_slug_for_table(cloud_table) -> str:
     return f"{gcp_project_id}.{cloud_table.gcp_dataset_id}.{cloud_table.gcp_table_id}"
 
 
-_FAILED_STATES = {"Failed", "Crashed"}
-_DBT_TASK_NAMES = {"run_dbt"}
-_STATE_MESSAGES_IGNORE = {
-    "No heartbeat detected from the remote task; marking the run as failed.",
-}
-
-
 def _is_dbt_task(name: str) -> bool:
     # Prefect 3 appends a short hash suffix to task names (e.g. run_dbt-9da)
-    return any(name == n or name.startswith(f"{n}-") for n in _DBT_TASK_NAMES)
+    return any(name == n or name.startswith(f"{n}-") for n in DBT_TASK_NAMES)
 
 
 def _after_reactivation(start_time_iso: str, reactivated_at) -> bool:
@@ -90,7 +75,7 @@ def _is_dbt_failure(task_runs: list[dict], run_start_time: str, reactivated_at) 
     if not _after_reactivation(run_start_time, reactivated_at):
         return False
     return any(
-        _is_dbt_task(t.get("name", "")) and t.get("state_message", "") not in _STATE_MESSAGES_IGNORE
+        _is_dbt_task(t.get("name", "")) and t.get("state_message", "") not in STATE_MESSAGES_IGNORE
         for t in task_runs
     )
 
@@ -115,7 +100,7 @@ def _is_consecutive_failure(runs: list[dict], reactivated_at) -> bool:
 
     last, prev = runs[0], runs[1]
 
-    if last["state_name"] not in _FAILED_STATES or prev["state_name"] not in _FAILED_STATES:
+    if last["state_name"] not in FAILED_STATES or prev["state_name"] not in FAILED_STATES:
         return False
 
     return _after_reactivation(last["start_time"], reactivated_at)
@@ -230,8 +215,8 @@ class FlowFailedWebhookView(View):
             "flow_run_name": "{{ flow_run.name }}"
         }
 
-    The disable logic (validation of consecutive failures and pausing the
-    deployment) will be implemented in block 5 and wired here.
+    Validates consecutive failures / dbt task failures, pauses the deployment
+    in Prefect 3, and posts a message to Discord with the cause.
     """
 
     def post(self, request):
@@ -280,21 +265,56 @@ class FlowFailedWebhookView(View):
         task_runs = client.get_failed_task_runs(flow_run_id)
 
         current_run_start = runs[0]["start_time"] if runs else None
-        should_disable = _is_consecutive_failure(runs, record.reactivated_at) or (
+        consecutive_failure = _is_consecutive_failure(runs, record.reactivated_at)
+        dbt_failure = bool(
             current_run_start
             and _is_dbt_failure(task_runs, current_run_start, record.reactivated_at)
         )
 
-        if should_disable:
+        if consecutive_failure or dbt_failure:
             client.set_paused(deployment_id, paused=True)
             record.is_schedule_active = False
             record.reactivated_at = None
             record.disabled_at = datetime.now(tz=timezone.utc)
             record.save(update_fields=["is_schedule_active", "reactivated_at", "disabled_at"])
             logger.info(f"Disabled {record.flow_name} after failure")
+            self._notify_disabled(record, consecutive_failure, dbt_failure)
             return JsonResponse({"status": "ok", "action": "disabled"})
 
         return JsonResponse({"status": "ok", "action": "no_action"})
+
+    @staticmethod
+    def _notify_disabled(
+        record: DisabledFlowSchedule, consecutive_failure: bool, dbt_failure: bool
+    ) -> None:
+        """Post a Discord message with the flow name and the cause of the disable.
+
+        Args:
+            record: The ``DisabledFlowSchedule`` just paused.
+            consecutive_failure: Whether the last two completed runs both failed.
+            dbt_failure: Whether a ``run_dbt`` task failed in the triggering run.
+        """
+        if consecutive_failure and dbt_failure:
+            cause = "2 execuções consecutivas falharam, incluindo uma falha de task dbt"
+        elif consecutive_failure:
+            cause = "2 execuções consecutivas falharam"
+        else:
+            cause = "uma task dbt (`run_dbt`) falhou"
+
+        change_url = settings.BACKEND_URL + reverse(
+            "admin:admin_data_tools_disabledflowschedule_change", args=[record.pk]
+        )
+        prefect_ui_url = settings.PREFECT3_API_URL.removesuffix("/api")
+        deployment_url = (
+            f"{prefect_ui_url}/v2/deployments/deployment/{record.deployment_id}?tab=Runs"
+        )
+
+        send_discord_message(
+            f"<@&{settings.DISCORD_DADOS_TEAM_ROLE_ID}>\n"
+            f"🔴 Pipeline desativada automaticamente: **{record.flow_name}**\n"
+            f"Motivo: {cause}\n"
+            f"[Ver no admin]({change_url}) · [Ver no Prefect]({deployment_url})"
+        )
 
 
 class CheckMetadadosView(View):
