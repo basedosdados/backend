@@ -1,6 +1,7 @@
 const modal = document.getElementById('dadosModal');
-const closeButton = document.querySelector('.close-button');
+const closeButton = document.getElementById('dadosCloseButton');
 const dadosForm = document.getElementById('dadosForm');
+const dadosResultado = document.getElementById('dadosResultado');
 const loadingOverlay = document.getElementById('loadingOverlay');
 
 function mostrarCarregamento() {
@@ -14,6 +15,7 @@ loadingOverlay.style.display = 'none';
 
 // Função para abrir a modal
 function abrirModal() {
+dadosResultado.innerHTML = '';
 modal.style.display = 'block';
 }
 
@@ -37,6 +39,38 @@ if (event.target === syncUpdateModal) {
 }
 }
 
+function mostrarResultadoDados(sucesso, mensagem, coluna) {
+    dadosResultado.innerHTML = '';
+
+    if (sucesso || !coluna) {
+        const p = document.createElement('p');
+        p.className = sucesso ? 'metadados-sucesso' : 'metadados-erro-geral';
+        p.textContent = mensagem;
+        dadosResultado.appendChild(p);
+        return;
+    }
+
+    const linha = document.createElement('div');
+    linha.className = 'metadados-linha';
+
+    const badge = document.createElement('span');
+    badge.className = 'metadados-badge metadados-badge--erro_colunas';
+    badge.textContent = 'Erro';
+    linha.appendChild(badge);
+
+    const codigo = document.createElement('code');
+    codigo.className = 'metadados-coluna';
+    codigo.textContent = coluna;
+    linha.appendChild(codigo);
+
+    const detalhe = document.createElement('span');
+    detalhe.className = 'metadados-detalhe';
+    detalhe.textContent = mensagem;
+    linha.appendChild(detalhe);
+
+    dadosResultado.appendChild(linha);
+}
+
 function processar() {
 
 const formData = new FormData(dadosForm);
@@ -51,11 +85,10 @@ fetch('/upload_columns/', {
 })
 .then(response => response.json())
 .then(data => {
-    alert('Dados enviados com sucesso!' + data);
-    fecharModal();
+    mostrarResultadoDados(data.status === 'sucesso', data.mensagem || data.erro, data.coluna);
 })
 .catch(error => {
-    alert('Erro ao enviar dados: ' + error);
+    mostrarResultadoDados(false, 'Erro ao enviar dados: ' + error);
 })
 .finally(() => {
 esconderCarregamento(); // Esconde o carregamento independente do resultado
