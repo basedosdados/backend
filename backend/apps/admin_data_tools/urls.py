@@ -1,13 +1,9 @@
 # -*- coding: utf-8 -*-
 from django.urls import path
 
-from .views import (
-    CheckMetadadosView,
-    FlowFailedWebhookView,
-    SyncDeploymentsView,
-    SyncUpdateLatestView,
-    UploadColumnsView,
-)
+from .bigquery_sync import CheckMetadadosView, SyncUpdateLatestView
+from .column_import import UploadColumnsView
+from .flow_monitoring import FlowFailedWebhookView, SyncDeploymentsView
 
 urlpatterns = [
     path("admin-tools/sync-deployments/", SyncDeploymentsView.as_view(), name="sync-deployments"),
