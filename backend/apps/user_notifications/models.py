@@ -26,7 +26,7 @@ class TableUpdateSubscription(BaseModel):
     status = models.BooleanField(default=True)
 
     def __str__(self):
-        return f"Subscription {self.id} - Table: {self.table.name}, User: {self.user.username}"
+        return f"Subscription {self.id} - Table: {self.table.name}, User: {self.user.email}"
 
     class Meta:
         verbose_name = "Table Update Subscription"

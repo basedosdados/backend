@@ -38,7 +38,7 @@ def empty():
         "picture": "",
         "twitter": None,
         "updated_at": ts,
-        "username": fake.unique.user_name(),
+        "phone": None,
         "uuid": fake.uuid4(),
         "website": None,
     }

@@ -22,7 +22,6 @@ GRAPHQL_URL = "/api/graphql/"
 def account():
     return Account.objects.create(
         is_active=True,
-        username="john.doe",
         password="12345678",
         email="john.doe@email.com",
     )
