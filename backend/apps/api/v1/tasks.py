@@ -185,7 +185,13 @@ def update_page_views_task(backfill: bool = False):
             dataset.save()
 
 
-@db_periodic_task(crontab(day_of_week="1-5", hour="8", minute="0"))
+# Desativada (issue #1088): os erros reportados (403/405/406, conexão resetada)
+# são sintomas de proteção anti-bot das fontes, não links quebrados de verdade —
+# a task faz um GET sem headers (sem User-Agent/Accept), exatamente o tipo de
+# requisição que esses mecanismos costumam rejeitar mesmo com o link funcionando
+# normalmente num navegador. Virava ruído recorrente no Discord sem trazer
+# informação nova/acionável. Função mantida (sem @db_periodic_task) pra facilitar
+# reativar depois de revisar a estratégia de request (headers, retry, etc.).
 @production_task
 def check_links_task():
     messenger = Messenger("Revise os seguintes links:")
