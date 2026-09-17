@@ -6,6 +6,7 @@ from .views import (
     FlowFailedWebhookView,
     SyncDeploymentsView,
     SyncUpdateLatestView,
+    UploadColumnsView,
 )
 
 urlpatterns = [
@@ -17,4 +18,5 @@ urlpatterns = [
         SyncUpdateLatestView.as_view(),
         name="sync-update-latest",
     ),
+    path("admin-tools/upload-columns/", UploadColumnsView.as_view(), name="upload-columns"),
 ]

@@ -76,7 +76,7 @@ function processar() {
 const formData = new FormData(dadosForm);
 mostrarCarregamento();
 
-fetch('/upload_columns/', {
+fetch('/admin-tools/upload-columns/', {
     method: 'POST',
     body: formData,
     headers: {
