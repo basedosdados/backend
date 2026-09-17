@@ -1,0 +1,27 @@
+---
+name: Label PR by target branch
+on:
+  pull_request:
+    types: [opened]
+permissions:
+  pull-requests: write
+jobs:
+  label:
+    name: Label PR by target branch
+    runs-on: ubuntu-latest
+    steps:
+      - name: Add label matching the base branch
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |-
+          case "$BASE_REF" in
+            main) LABEL=prod ;;
+            staging) LABEL=staging ;;
+            dev) LABEL=dev ;;
+            *) LABEL="" ;;
+          esac
+          if [ -n "$LABEL" ]; then
+            gh pr edit "$PR_NUMBER" --add-label "$LABEL"
+          fi
