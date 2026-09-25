@@ -2,6 +2,7 @@
 """
 Pytest conftest
 """
+
 import uuid
 
 import pytest
@@ -374,15 +375,16 @@ def fixture_dataset_dados_mestres(
     organizacao_bd,
     status_em_processamento,
 ):
-    """Test for Dataset."""
-    return Dataset.objects.create(
-        organization=organizacao_bd,
+    """Fixture for Dataset."""
+    dataset = Dataset.objects.create(
         slug="dados_mestres",
         name="Dados Mestres",
         description="Descrição dos dados mestres",
         status=status_em_processamento,
         version=1,
     )
+    dataset.organizations.add(organizacao_bd)
+    return dataset
 
 
 #############################################################################################
@@ -442,7 +444,6 @@ def fixture_tabela_pro(
         is_directory=False,
         data_cleaning_description="Descrição da limpeza de dados",
         data_cleaning_code_url="http://cleaning.com/pro_table",
-        raw_data_url="http://raw.com/pro_table",
         auxiliary_files_url="http://aux.com/pro_table",
         architecture_url="http://arch.com/pro_table",
         source_bucket_name="basedosdados-dev",
@@ -475,7 +476,6 @@ def fixture_tabela_diretorios_brasil_uf(
         is_directory=True,
         data_cleaning_description="Descrição da limpeza de dados",
         data_cleaning_code_url="http://cleaning.com/brasil_uf",
-        raw_data_url="http://raw.com/brasil_uf",
         auxiliary_files_url="http://aux.com/brasil_uf",
         architecture_url="http://arch.com/brasil_uf",
         source_bucket_name="basedosdados-dev",

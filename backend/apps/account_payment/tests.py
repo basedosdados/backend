@@ -15,17 +15,23 @@ QUERY = (
     .with_name("tests.gql")
     .read_text()
 )  # fmt: skip
-GRAPHQL_URL = "/api/graphql/"
+GRAPHQL_URL = "/api/v1/graphql"
 
 
 @pytest.fixture
 def account():
-    return Account.objects.create(
-        is_active=True,
+    # create_user hashes the password; Account.objects.create would store it verbatim
+    # and the login mutation below would never authenticate.
+    account = Account.objects.create_user(
         username="john.doe",
         password="12345678",
         email="john.doe@email.com",
+        first_name="John",
+        last_name="Doe",
     )
+    account.is_active = True
+    account.save()
+    return account
 
 
 @pytest.fixture
@@ -75,8 +81,8 @@ def test_all_stripe_price_call(query):
 
 
 @pytest.mark.django_db
-@patch("backend.apps.payment.graphql.StripeCustomer")
-@patch("backend.apps.payment.graphql.DJStripeCustomer")
+@patch("backend.apps.account_payment.graphql.StripeCustomer")
+@patch("backend.apps.account_payment.graphql.DJStripeCustomer")
 def test_create_stripe_customer_call(
     djst_customer: MagicMock, strp_customer: MagicMock, query, account
 ):
@@ -86,7 +92,7 @@ def test_create_stripe_customer_call(
 
 
 @pytest.mark.django_db
-@patch("backend.apps.payment.graphql.StripeCustomer")
+@patch("backend.apps.account_payment.graphql.StripeCustomer")
 def test_update_stripe_customer_call(strp_customer: MagicMock, query, account, customer):
     query("UpdateStripeCustomer")
     strp_customer.modify.assert_called_once()
