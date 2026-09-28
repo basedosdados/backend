@@ -596,7 +596,6 @@ def fixture_raw_data_source(
 def fixture_usuario_inicio():
     """Fixture for User."""
     return Account.objects.create(
-        username="usuario_inicio",
         email="usuario@usuario.com",
         first_name="Usuario",
         last_name="Inicio",

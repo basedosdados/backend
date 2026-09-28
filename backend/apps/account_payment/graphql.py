@@ -556,8 +556,8 @@ class StripeSubscriptionAddServiceAccountMutation(Mutation):
                 if not base:
                     base = "service"
 
-                username_candidate = base
-                email_candidate = f"{username_candidate}@service-account.local"
+                local_part = base
+                email_candidate = f"{local_part}@service-account.local"
 
                 suffix = 0
                 while True:
@@ -565,10 +565,7 @@ class StripeSubscriptionAddServiceAccountMutation(Mutation):
                         with transaction.atomic():
                             account = Account(
                                 gcp_email=email,
-                                username=username_candidate,
-                                first_name=username_candidate.replace("-", " ")
-                                .replace("_", " ")
-                                .title(),
+                                first_name=local_part.replace("-", " ").replace("_", " ").title(),
                                 is_active=False,
                                 email=email_candidate,
                             )
@@ -577,14 +574,12 @@ class StripeSubscriptionAddServiceAccountMutation(Mutation):
                     except IntegrityError:
                         suffix += 1
                         if suffix > 50:
-                            logger.exception(
-                                "Failed to generate unique username for service account"
-                            )
+                            logger.exception("Failed to generate unique email for service account")
                             return cls(
                                 errors=["Falha ao criar account de service; tente outro email"]
                             )
-                        username_candidate = f"{base}{suffix}"
-                        email_candidate = f"{username_candidate}@service-account.local"
+                        local_part = f"{base}{suffix}"
+                        email_candidate = f"{local_part}@service-account.local"
 
             active_subs = list(account.subscription_set.filter(is_active=True)) + list(
                 account.internal_subscription.filter(is_active=True)
