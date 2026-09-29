@@ -40,7 +40,6 @@ def sync_subscription_task():
                     last_name=last_name,
                     first_name=first_name,
                     email=subscription.customer.email,
-                    username=subscription.customer.email.split("@")[0],
                 )
                 subscription.customer.subscriber = admin
                 subscription.customer.save()

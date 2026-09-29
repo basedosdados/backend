@@ -22,7 +22,7 @@ class TableUpdateSubscriptionAdmin(admin.ModelAdmin):
     list_filter = ("status", "table", "user")
 
     # Campos que podem ser pesquisados diretamente
-    search_fields = ("table__name", "user__username")
+    search_fields = ("table__name", "user__email")
 
     # Campos que serão editáveis diretamente na lista (inline)
     list_editable = ("status",)

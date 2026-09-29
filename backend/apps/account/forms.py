@@ -27,16 +27,6 @@ class RegisterForm(AccountCreationForm):
             }
         ),
     )
-    username = forms.CharField(
-        max_length=100,
-        required=True,
-        widget=forms.TextInput(
-            attrs={
-                "placeholder": "Username",
-                "class": "form-control",
-            }
-        ),
-    )
     email = forms.EmailField(
         required=True,
         widget=forms.TextInput(
@@ -73,4 +63,4 @@ class RegisterForm(AccountCreationForm):
 
     class Meta:
         model = get_user_model()
-        fields = ["first_name", "last_name", "username", "email", "password1", "password2"]
+        fields = ["first_name", "last_name", "email", "password1", "password2"]

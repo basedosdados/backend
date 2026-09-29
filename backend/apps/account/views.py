@@ -322,17 +322,9 @@ class GoogleCallbackView(View):
             first_name = name_parts[0] if name_parts else ""
             last_name = name_parts[1] if len(name_parts) > 1 else ""
 
-            username = email.split("@")[0]
-            counter = 1
-            original_username = username
-            while user_model.objects.filter(username=username).exists():
-                username = f"{original_username}{counter}"
-                counter += 1
-
             account, created = user_model.objects.get_or_create(
                 email=email,
                 defaults={
-                    "username": username,
                     "first_name": first_name,
                     "last_name": last_name,
                     "google_sub": google_sub,
