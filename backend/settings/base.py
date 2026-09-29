@@ -68,6 +68,7 @@ INSTALLED_APPS = [
     "backend.apps.account_payment.apps.PaymentConfig",
     "backend.apps.api.v1",
     "backend.apps.user_notifications",
+    "backend.apps.data_api",
     "backend.apps.core",
     "backend.apps.admin_data_tools",
 ]
