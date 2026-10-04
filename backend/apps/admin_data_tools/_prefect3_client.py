@@ -63,8 +63,9 @@ class Prefect3Client:
     def get_recent_completed_runs(self, deployment_id: str, limit: int = 2) -> list[dict]:
         """Fetch the most recent completed runs for a deployment.
 
-        Only terminal states are returned (Failed, Crashed, Completed, Cancelled)
-        so pending or running flow runs are excluded from the consecutive-failure check.
+        Only terminal states are returned (Failed, Crashed, TimedOut, Completed,
+        Cancelled) so pending or running flow runs are excluded from the
+        consecutive-failure check.
 
         Args:
             deployment_id: Prefect 3 deployment UUID.
@@ -80,7 +81,11 @@ class Prefect3Client:
             {
                 "flow_runs": {
                     "deployment_id": {"any_": [deployment_id]},
-                    "state": {"name": {"any_": ["Failed", "Crashed", "Completed", "Cancelled"]}},
+                    "state": {
+                        "name": {
+                            "any_": ["Failed", "Crashed", "TimedOut", "Completed", "Cancelled"]
+                        }
+                    },
                 },
                 "sort": "START_TIME_DESC",
                 "limit": limit,
@@ -103,7 +108,7 @@ class Prefect3Client:
             {
                 "task_runs": {
                     "flow_run_id": {"any_": [flow_run_id]},
-                    "state": {"name": {"any_": ["Failed", "Crashed"]}},
+                    "state": {"name": {"any_": ["Failed", "Crashed", "TimedOut"]}},
                 }
             },
         )
