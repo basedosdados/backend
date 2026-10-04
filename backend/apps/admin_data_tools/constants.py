@@ -12,7 +12,7 @@ BQ_LEGACY_TYPE_ALIASES: dict[str, str] = {
     "record": "struct",
 }
 
-FAILED_STATES = {"Failed", "Crashed"}
+FAILED_STATES = {"Failed", "Crashed", "TimedOut"}
 DBT_TASK_NAMES = {"run_dbt"}
 STATE_MESSAGES_IGNORE = {
     "No heartbeat detected from the remote task; marking the run as failed.",
