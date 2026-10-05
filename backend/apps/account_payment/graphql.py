@@ -215,12 +215,14 @@ class StripeSubscribeMutation(Mutation):
     class Arguments:
         price_id = ID(required=True)
         coupon = String(required=False)
+        skip_trial = Boolean(required=False)
 
     @classmethod
     @login_required
-    def mutate(cls, root, info, price_id, coupon=None):
+    def mutate(cls, root, info, price_id, coupon=None, skip_trial=False):
         try:
             admin = info.context.user
+            skip_trial = bool(skip_trial)
 
             price = DJStripePrice.objects.get(djstripe_id=price_id)
             new_product_code = price.product.metadata.get("code", "")
@@ -241,7 +243,9 @@ class StripeSubscribeMutation(Mutation):
                     if is_new_chatbot == is_existing_chatbot:
                         return cls(errors=["Conta possui inscrição ativa para este tipo de plano"])
 
-            if is_new_chatbot:
+            if skip_trial:
+                is_trial_active = False
+            elif is_new_chatbot:
                 is_trial_active = account_eligible_for_chatbot_stripe_trial(admin)
             else:
                 is_trial_active = account_eligible_for_bdpro_stripe_trial(admin)
@@ -274,12 +278,15 @@ class StripeSubscribeMutation(Mutation):
                     },
                 )
             else:
-                subscription: DJStripeSubscription = customer.subscribe(
-                    price=price_id,
-                    payment_behavior="default_incomplete",
-                    payment_settings={"save_default_payment_method": "on_subscription"},
-                    discounts=discounts,
-                )
+                subscribe_kwargs = {
+                    "price": price_id,
+                    "payment_behavior": "default_incomplete",
+                    "payment_settings": {"save_default_payment_method": "on_subscription"},
+                    "discounts": discounts,
+                }
+                if skip_trial:
+                    subscribe_kwargs["trial_end"] = "now"
+                subscription: DJStripeSubscription = customer.subscribe(**subscribe_kwargs)
 
             if subscription:
                 payment_intent = subscription.latest_invoice.payment_intent
@@ -535,8 +542,8 @@ class StripeSubscriptionAddServiceAccountMutation(Mutation):
                 if not base:
                     base = "service"
 
-                username_candidate = base
-                email_candidate = f"{username_candidate}@service-account.local"
+                local_part = base
+                email_candidate = f"{local_part}@service-account.local"
 
                 suffix = 0
                 while True:
@@ -544,10 +551,7 @@ class StripeSubscriptionAddServiceAccountMutation(Mutation):
                         with transaction.atomic():
                             account = Account(
                                 gcp_email=email,
-                                username=username_candidate,
-                                first_name=username_candidate.replace("-", " ")
-                                .replace("_", " ")
-                                .title(),
+                                first_name=local_part.replace("-", " ").replace("_", " ").title(),
                                 is_active=False,
                                 email=email_candidate,
                             )
@@ -556,14 +560,12 @@ class StripeSubscriptionAddServiceAccountMutation(Mutation):
                     except IntegrityError:
                         suffix += 1
                         if suffix > 50:
-                            logger.exception(
-                                "Failed to generate unique username for service account"
-                            )
+                            logger.exception("Failed to generate unique email for service account")
                             return cls(
                                 errors=["Falha ao criar account de service; tente outro email"]
                             )
-                        username_candidate = f"{base}{suffix}"
-                        email_candidate = f"{username_candidate}@service-account.local"
+                        local_part = f"{base}{suffix}"
+                        email_candidate = f"{local_part}@service-account.local"
 
             active_subs = list(account.subscription_set.filter(is_active=True)) + list(
                 account.internal_subscription.filter(is_active=True)

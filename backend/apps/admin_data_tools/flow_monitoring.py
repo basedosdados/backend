@@ -3,59 +3,26 @@ import json
 import os
 from datetime import datetime, timezone
 
+from django.conf import settings
 from django.http import JsonResponse
+from django.urls import reverse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from loguru import logger
 
-from backend.apps.api.v1.models import Table
-from backend.custom.client import get_gbq_client
-from backend.custom.environment import is_prd
+from backend.custom.client import send_discord_message
 
 from ._prefect3_client import Prefect3Client
+from .constants import DBT_TASK_NAMES, FAILED_STATES, STATE_MESSAGES_IGNORE
 from .models import DisabledFlowSchedule
 
-logger = logger.bind(module="admin_data_tools")
-
-# field.field_type (BigQuery client) reports legacy SQL names (INTEGER,
-# FLOAT, RECORD, ...); the API's `bigquery_type` catalog uses standard SQL
-# names (INT64, FLOAT64, STRUCT, BOOLEAN, ...) — only these three actually
-# differ, everything else (STRING, BOOLEAN, DATE, TIMESTAMP, ...) is spelled
-# the same on both sides.
-_BQ_LEGACY_TYPE_ALIASES: dict[str, str] = {
-    "integer": "int64",
-    "float": "float64",
-    "record": "struct",
-}
-
-
-def _bq_type_to_api_type(field_type: str) -> str:
-    """Translate a BigQuery `field.field_type` (legacy name) to the standard
-    SQL name used by the API's `bigquery_type` catalog."""
-    field_type = field_type.lower()
-    return _BQ_LEGACY_TYPE_ALIASES.get(field_type, field_type)
-
-
-def _gbq_slug_for_table(cloud_table) -> str:
-    """Full `project.dataset.table` slug for a CloudTable, in the BigQuery
-    project matching the current admin environment: `basedosdados` in prod,
-    `basedosdados-dev` everywhere else (staging/dev/local) — where the flows
-    write before promoting to prod."""
-    gcp_project_id = "basedosdados" if is_prd() else "basedosdados-dev"
-    return f"{gcp_project_id}.{cloud_table.gcp_dataset_id}.{cloud_table.gcp_table_id}"
-
-
-_FAILED_STATES = {"Failed", "Crashed"}
-_DBT_TASK_NAMES = {"run_dbt"}
-_STATE_MESSAGES_IGNORE = {
-    "No heartbeat detected from the remote task; marking the run as failed.",
-}
+logger = logger.bind(module="admin_data_tools.flow_monitoring")
 
 
 def _is_dbt_task(name: str) -> bool:
     # Prefect 3 appends a short hash suffix to task names (e.g. run_dbt-9da)
-    return any(name == n or name.startswith(f"{n}-") for n in _DBT_TASK_NAMES)
+    return any(name == n or name.startswith(f"{n}-") for n in DBT_TASK_NAMES)
 
 
 def _after_reactivation(start_time_iso: str, reactivated_at) -> bool:
@@ -90,7 +57,7 @@ def _is_dbt_failure(task_runs: list[dict], run_start_time: str, reactivated_at) 
     if not _after_reactivation(run_start_time, reactivated_at):
         return False
     return any(
-        _is_dbt_task(t.get("name", "")) and t.get("state_message", "") not in _STATE_MESSAGES_IGNORE
+        _is_dbt_task(t.get("name", "")) and t.get("state_message", "") not in STATE_MESSAGES_IGNORE
         for t in task_runs
     )
 
@@ -115,7 +82,7 @@ def _is_consecutive_failure(runs: list[dict], reactivated_at) -> bool:
 
     last, prev = runs[0], runs[1]
 
-    if last["state_name"] not in _FAILED_STATES or prev["state_name"] not in _FAILED_STATES:
+    if last["state_name"] not in FAILED_STATES or prev["state_name"] not in FAILED_STATES:
         return False
 
     return _after_reactivation(last["start_time"], reactivated_at)
@@ -230,8 +197,8 @@ class FlowFailedWebhookView(View):
             "flow_run_name": "{{ flow_run.name }}"
         }
 
-    The disable logic (validation of consecutive failures and pausing the
-    deployment) will be implemented in block 5 and wired here.
+    Validates consecutive failures / dbt task failures, pauses the deployment
+    in Prefect 3, and posts a message to Discord with the cause.
     """
 
     def post(self, request):
@@ -280,185 +247,55 @@ class FlowFailedWebhookView(View):
         task_runs = client.get_failed_task_runs(flow_run_id)
 
         current_run_start = runs[0]["start_time"] if runs else None
-        should_disable = _is_consecutive_failure(runs, record.reactivated_at) or (
+        consecutive_failure = _is_consecutive_failure(runs, record.reactivated_at)
+        dbt_failure = bool(
             current_run_start
             and _is_dbt_failure(task_runs, current_run_start, record.reactivated_at)
         )
 
-        if should_disable:
+        if consecutive_failure or dbt_failure:
             client.set_paused(deployment_id, paused=True)
             record.is_schedule_active = False
             record.reactivated_at = None
             record.disabled_at = datetime.now(tz=timezone.utc)
             record.save(update_fields=["is_schedule_active", "reactivated_at", "disabled_at"])
             logger.info(f"Disabled {record.flow_name} after failure")
+            self._notify_disabled(record, consecutive_failure, dbt_failure)
             return JsonResponse({"status": "ok", "action": "disabled"})
 
         return JsonResponse({"status": "ok", "action": "no_action"})
 
-
-class CheckMetadadosView(View):
-    """Compara o schema real da tabela no BigQuery com as colunas cadastradas na API.
-
-    Acionada pelo botão "Checar Metadados" na página de admin de uma `Table`
-    (``backend/templates/admin/change_form.html``) via
-    ``POST /admin-tools/check-metadados/``. Mesma checagem do
-    ``.github/workflows/scripts/check_metadata.py`` (repo pipelines), mas lendo
-    ``bq_client.get_table(...).schema`` em vez de consultar `INFORMATION_SCHEMA`
-    — é metadado da tabela, não uma query faturada.
-
-    Chamada de dentro do admin autenticado (não machine-to-machine como as
-    demais views deste módulo), então mantém a proteção de CSRF padrão do
-    Django em vez do bearer token usado acima.
-
-    Compara sempre contra o projeto do BigQuery correspondente ao ambiente do
-    próprio admin (``is_prd()``): em staging/dev contra ``basedosdados-dev``
-    — onde os flows escrevem antes de promover pra prod —, em prod contra
-    ``basedosdados``. Sem isso, staging acabaria comparando contra dados que
-    ainda nem foram promovidos.
-    """
-
-    def post(self, request):
-        """Handle the check-metadados request.
+    @staticmethod
+    def _notify_disabled(
+        record: DisabledFlowSchedule, consecutive_failure: bool, dbt_failure: bool
+    ) -> None:
+        """Post a Discord message with the flow name and the cause of the disable.
 
         Args:
-            request: Incoming Django HTTP request, com ``table_id`` no POST.
-
-        Returns:
-            ``JsonResponse`` com ``status`` ("sucesso" ou "erro") e
-            ``discrepancias``, uma lista de objetos ``{coluna, tipo, ...}`` —
-            ``tipo`` é um de ``somente_bigquery``, ``somente_api``,
-            ``tipo_diferente`` ou ``descricao_diferente``; os dois últimos
-            também trazem ``bigquery``/``api`` com os valores comparados.
+            record: The ``DisabledFlowSchedule`` just paused.
+            consecutive_failure: Whether the last two completed runs both failed.
+            dbt_failure: Whether a ``run_dbt`` task failed in the triggering run.
         """
-        table_id = request.POST.get("table_id")
-        selected_table = Table.objects.get(id=table_id)
+        if consecutive_failure and dbt_failure:
+            cause = "2 execuções consecutivas falharam, incluindo uma falha de task dbt"
+        elif consecutive_failure:
+            cause = "2 execuções consecutivas falharam"
+        else:
+            cause = "uma task dbt (`run_dbt`) falhou"
 
-        cloud_table = selected_table.cloud_tables.first()
-        if not cloud_table:
-            return JsonResponse(
-                {
-                    "status": "erro",
-                    "erro": "Tabela sem CloudTable vinculada — não é possível checar o BigQuery.",
-                }
-            )
+        change_url = settings.BACKEND_URL + reverse(
+            "admin:admin_data_tools_disabledflowschedule_change", args=[record.pk]
+        )
+        prefect_ui_url = settings.PREFECT3_API_URL.removesuffix("/api")
+        deployment_url = (
+            f"{prefect_ui_url}/v2/deployments/deployment/{record.deployment_id}?tab=Runs"
+        )
 
-        gbq_slug = _gbq_slug_for_table(cloud_table)
-
-        try:
-            bq_client = get_gbq_client()
-            bq_table = bq_client.get_table(gbq_slug)
-        except Exception as exc:
-            return JsonResponse({"status": "erro", "erro": f"Falha ao consultar o BigQuery: {exc}"})
-
-        bq_columns = {field.name.lower(): field for field in bq_table.schema}
-        db_columns = {column.name.lower(): column for column in selected_table.columns.all()}
-
-        discrepancias: list[dict] = []
-
-        for name, field in bq_columns.items():
-            column = db_columns.get(name)
-            if column is None:
-                discrepancias.append({"coluna": field.name, "tipo": "somente_bigquery"})
-                continue
-
-            bq_type = (field.field_type or "").upper()
-            api_type = (column.bigquery_type.name if column.bigquery_type else "").lower()
-            if _bq_type_to_api_type(bq_type) != api_type:
-                discrepancias.append(
-                    {
-                        "coluna": field.name,
-                        "tipo": "tipo_diferente",
-                        "bigquery": bq_type,
-                        "api": api_type.upper(),
-                    }
-                )
-
-            bq_desc = field.description or ""
-            api_desc = column.description or ""
-            if bq_desc != api_desc:
-                discrepancias.append(
-                    {
-                        "coluna": field.name,
-                        "tipo": "descricao_diferente",
-                        "bigquery": bq_desc,
-                        "api": api_desc,
-                    }
-                )
-
-        for name, column in db_columns.items():
-            if name not in bq_columns:
-                discrepancias.append({"coluna": column.name, "tipo": "somente_api"})
-
-        status = "erro" if discrepancias else "sucesso"
-        return JsonResponse({"status": status, "discrepancias": discrepancias})
-
-
-class SyncUpdateLatestView(View):
-    """Sincroniza `Update.latest` (ancorado na Table) com o `last_modified`
-    real do BigQuery.
-
-    Acionada pelo botão "Sync latest do BigQuery", ao lado do "Update and
-    Poll Info" na página de admin de uma `Table`
-    (``backend/apps/api/v1/admin.py::TableAdmin.get_update_display``). Só
-    faz sentido pro Update ancorado na própria Table — o Update do
-    RawDataSource guarda a data de competência publicada pela fonte, não
-    wall-clock, então não tem o que sincronizar contra o BigQuery ali.
-
-    Corrige na hora um `Table.Update.latest` desatualizado sem precisar
-    esperar o próximo flow rodar (mesmo problema resolvido em pipelines#1883
-    para os flows que ainda usavam `poll.py`).
-    """
-
-    def post(self, request):
-        table_id = request.POST.get("table_id")
-        selected_table = Table.objects.get(id=table_id)
-
-        cloud_table = selected_table.cloud_tables.first()
-        if not cloud_table:
-            return JsonResponse(
-                {
-                    "status": "erro",
-                    "erro": (
-                        "Tabela sem CloudTable vinculada — não é possível consultar o BigQuery."
-                    ),
-                }
-            )
-
-        updates = list(selected_table.updates.all())
-        if len(updates) != 1:
-            return JsonResponse(
-                {
-                    "status": "erro",
-                    "erro": (
-                        f"Tabela tem {len(updates)} Update(s) vinculado(s) — só sincroniza "
-                        "quando há exatamente 1. Resolva a ambiguidade na aba Updates antes."
-                    ),
-                }
-            )
-        update = updates[0]
-
-        gbq_slug = _gbq_slug_for_table(cloud_table)
-
-        try:
-            bq_client = get_gbq_client()
-            bq_table = bq_client.get_table(gbq_slug)
-        except Exception as exc:
-            return JsonResponse({"status": "erro", "erro": f"Falha ao consultar o BigQuery: {exc}"})
-
-        if not bq_table.modified:
-            return JsonResponse(
-                {"status": "erro", "erro": "BigQuery não informou last_modified para essa tabela."}
-            )
-
-        update.latest = bq_table.modified
-        update.save(update_fields=["latest"])
-
-        return JsonResponse(
-            {
-                "status": "sucesso",
-                "mensagem": f"Update.latest sincronizado: {bq_table.modified.isoformat()}",
-            }
+        send_discord_message(
+            f"<@&{settings.DISCORD_DADOS_TEAM_ROLE_ID}>\n"
+            f"🔴 Pipeline desativada automaticamente: **{record.flow_name}**\n"
+            f"Motivo: {cause}\n"
+            f"[Ver no admin]({change_url}) · [Ver no Prefect]({deployment_url})"
         )
 
 

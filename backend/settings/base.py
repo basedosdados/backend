@@ -309,6 +309,10 @@ FRONTEND_URL = getenv("BASE_URL_FRONTEND", "http://localhost:3000")
 
 # Discord
 DISCORD_BACKEND_WEBHOOK_URL = getenv("DISCORD_BACKEND_WEBHOOK_URL")
+# Role "dados" — mesmo ID usado no template de notificação de falha de flow
+# já configurado como Automation no Prefect 3. Não é segredo (só um
+# identificador de role), por isso valor direto em vez de secret/env var.
+DISCORD_DADOS_TEAM_ROLE_ID = getenv("DISCORD_DADOS_TEAM_ROLE_ID", "865034571469160458")
 
 # BetterStack
 BETTERSTACK_BEARER_TOKEN = getenv("BETTERSTACK_BEARER_TOKEN")

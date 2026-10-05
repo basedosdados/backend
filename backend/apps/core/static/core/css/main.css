@@ -68,7 +68,8 @@ z-index: 1000;
 }
 
 .metadados-badge--somente_bigquery,
-.metadados-badge--somente_api {
+.metadados-badge--somente_api,
+.metadados-badge--erro_colunas {
     background-color: #dc3545;
 }
 
@@ -92,10 +93,12 @@ z-index: 1000;
 .metadados-sucesso {
     color: #28a745;
     font-weight: bold;
+    overflow-wrap: break-word;
 }
 
 .metadados-erro-geral {
     color: #dc3545;
+    overflow-wrap: break-word;
 }
 
 .sync-loading {

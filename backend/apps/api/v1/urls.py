@@ -9,7 +9,6 @@ from backend.apps.api.v1.views import (
     DatasetRedirectView,
     columns_view,
     table_stats,
-    upload_columns,
 )
 from backend.apps.api.v1.views_export import ExportTablesView
 
@@ -32,7 +31,6 @@ urlpatterns = [
     path("dataset/", DatasetRedirectView.as_view()),
     path("dataset_redirect/", DatasetRedirectView.as_view()),
     path("tables/stats/", table_stats),
-    path("upload_columns/", upload_columns),
     path("columns/", columns_view),
     path("tables/<uuid:table_id>/columns/", columns_view),
     path("columns/<uuid:column_id>/", columns_view),

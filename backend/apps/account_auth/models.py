@@ -27,7 +27,7 @@ class Token(models.Model):
     expiry_date = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
-        return f"{self.user.username} - {self.domain} - {self.token}"
+        return f"{self.user.email} - {self.domain} - {self.token}"
 
     def generate_token(self):
         return str(uuid4())
@@ -56,5 +56,5 @@ class Access(models.Model):
         return (
             f"{self.timestamp} - {'OK' if self.success else 'ERR'} - "
             f"{self.domain if self.domain else 'NO_DOMAIN'} - "
-            f"{self.token.user.username if self.token else 'NO_TOKEN'}"
+            f"{self.token.user.email if self.token else 'NO_TOKEN'}"
         )

@@ -53,7 +53,14 @@ class AccountCreationForm(forms.ModelForm):
 
     class Meta:
         model = Account
-        fields = ("first_name", "last_name", "email", "username", "profile", "is_active")
+        fields = (
+            "first_name",
+            "last_name",
+            "email",
+            "phone",
+            "profile",
+            "is_active",
+        )
 
     def clean_password2(self):
         """Check if the two password entries match"""
@@ -91,8 +98,8 @@ class AccountChangeForm(forms.ModelForm):
     class Meta:
         model = Account
         fields = (
-            "username",
             "email",
+            "phone",
             "password",
             "first_name",
             "last_name",
@@ -206,7 +213,7 @@ class AccountAdmin(BaseAccountAdmin):
 
     list_display = (
         "email",
-        "username",
+        "phone",
         "get_full_name",
         "get_organization",
         "created_at",
@@ -227,8 +234,8 @@ class AccountAdmin(BaseAccountAdmin):
             {
                 "fields": (
                     "uuid",
-                    "username",
                     "email",
+                    "phone",
                     "password",
                     "created_at",
                     "updated_at",
@@ -289,8 +296,8 @@ class AccountAdmin(BaseAccountAdmin):
                 "fields": (
                     "first_name",
                     "last_name",
-                    "username",
                     "email",
+                    "phone",
                     "profile",
                     "password1",
                     "password2",
@@ -299,7 +306,7 @@ class AccountAdmin(BaseAccountAdmin):
             },
         ),
     )
-    search_fields = ("email", "full_name")
+    search_fields = ("email", "full_name", "phone")
     ordering = ["-created_at"]
     inlines = (CareerInline, SubscriptionInline)
     filter_horizontal = ()

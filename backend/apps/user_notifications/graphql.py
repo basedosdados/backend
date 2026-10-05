@@ -92,7 +92,7 @@ class DeactivateTableUpdateSubscription(Mutation):
             if not subscription:
                 # Se já existir, você pode retornar a assinatura existente ou lançar um erro
                 raise Exception(
-                    f"Não existe uma assinatura ativa para a tabela {table.name} e o usuário {user.username}."
+                    f"Não existe uma assinatura ativa para a tabela {table.name} e o usuário {user.email}."
                 )
 
             # Atualizando o status para False e registrando a data de desativação
@@ -132,7 +132,7 @@ class DeactivateAllTableUpdateSubscription(Mutation):
 
             if not subscriptions_qs:
                 # Se já existir, você pode retornar a assinatura existente ou lançar um erro
-                raise Exception(f"Não existe uma assinatura ativa para o usuário {user.username}.")
+                raise Exception(f"Não existe uma assinatura ativa para o usuário {user.email}.")
 
             deactivated_count = subscriptions_qs.update(status=False, deactivate_at=timezone.now())
 

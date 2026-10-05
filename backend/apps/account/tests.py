@@ -13,7 +13,6 @@ from backend.apps.account.models import Account
 @pytest.mark.django_db
 def test_account_create():
     account = Account.objects.create(
-        username="john.doe",
         email="john.doe@email.com",
     )
     assert account.is_active is False
@@ -23,7 +22,6 @@ def test_account_create():
 @patch("backend.apps.account.signals.EmailMultiAlternatives")
 def test_activate_account_signal(mock: MagicMock):
     Account.objects.create(
-        username="john.doe",
         email="john.doe@email.com",
     )
     assert mock.call_args[0][0] == "Bem Vindo à Base dos Dados!"
@@ -35,7 +33,6 @@ def test_activate_account_signal(mock: MagicMock):
 @patch("backend.apps.account.signals.render_to_string")
 def test_activate_account_confirmation(mock: MagicMock, client: Client):
     account = Account.objects.create(
-        username="john.doe",
         email="john.doe@email.com",
     )
     uid = mock.call_args[0][1]["uid"]
@@ -54,7 +51,6 @@ def test_activate_account_confirmation(mock: MagicMock, client: Client):
 @patch("backend.apps.account.views.EmailMultiAlternatives")
 def test_password_reset_request(mock: MagicMock, client: Client):
     account = Account.objects.create(
-        username="john.doe",
         email="john.doe@email.com",
     )
     uid = urlsafe_base64_encode(force_bytes(account.pk))
@@ -75,7 +71,6 @@ def test_password_reset_request(mock: MagicMock, client: Client):
 def test_password_reset_confirmation(mock_signal: MagicMock, mock_view: MagicMock, client: Client):
     # Create account
     account = Account.objects.create(
-        username="john.doe",
         email="john.doe@email.com",
     )
     password0 = account.password
@@ -95,3 +90,33 @@ def test_password_reset_confirmation(mock_signal: MagicMock, mock_view: MagicMoc
     account.refresh_from_db()
     password1 = account.password
     assert password0 != password1
+
+
+@pytest.mark.django_db
+def test_account_phone_normalization():
+    account = Account.objects.create(
+        email="phone.user@email.com",
+        phone=" +55 11 99999-9999 ",
+    )
+    assert account.phone == "+5511999999999"
+
+
+@pytest.mark.django_db
+def test_account_phone_blank_becomes_null():
+    account = Account.objects.create(
+        email="blank.phone@email.com",
+        phone="",
+    )
+    assert account.phone is None
+
+
+@pytest.mark.django_db
+def test_create_user_without_username():
+    account = Account.objects.create_user(
+        email="no.username@email.com",
+        password="12345678",
+        first_name="Jane",
+        last_name="Doe",
+    )
+    assert account.email == "no.username@email.com"
+    assert account.phone is None

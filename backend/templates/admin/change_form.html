@@ -17,10 +17,10 @@
 {{ block.super }}
 {% if opts.model_name == 'table' %}
 <div id="dadosModal" class="modal" style="display: none;">
-<div class="modal-content">
+<div class="modal-content modal-content--wide">
     <div class="modal-header">
         <h2>Importar Colunas</h2>
-        <span class="close-button">&times;</span>
+        <span class="close-button" id="dadosCloseButton">&times;</span>
     </div>
     <div class="modal-body">
         <form id="dadosForm">
@@ -37,13 +37,13 @@
                 <label for="link_arquitetura">Link Arquitetura:</label>
                 <input type="text" id="link_arquitetura" name="link_arquitetura" required>
             </div>
-            <button type="button" class="btn btn-block {{ jazzmin_ui.button_classes.secondary }} btn-sm" onclick="processar()" class="btn">Processar</button>
+            <button type="button" class="btn btn-block {{ jazzmin_ui.button_classes.secondary }} btn-sm" onclick="processar()">Processar</button>
         </form>
+        <div id="dadosResultado"></div>
         <div class="loading-overlay" id="loadingOverlay">
             <div class="loading-spinner"></div>
         </div>
     </div>
-</div>
 </div>
 </div>
 <div id="metadadosModal" class="modal" style="display: none;">
