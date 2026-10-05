@@ -108,7 +108,13 @@ class SyncDeploymentsView(View):
 
     Triggered by CI after every deploy via ``POST /admin-tools/sync-deployments/``.
 
-    For each deployment returned by the Prefect 3 API:
+    Deployments with no Prefect schedule attached (e.g. a stage only ever
+    triggered via ``run_deployment()`` from another flow, never on a cron) are
+    not arming candidates — there is nothing to pause or unpause — so they are
+    skipped entirely and never get a ``DisabledFlowSchedule`` row. Any row that
+    already exists for one (e.g. its schedule was later removed) is deleted.
+
+    For each remaining (scheduled) deployment returned by the Prefect 3 API:
 
     - If the deployment is unknown: creates a ``DisabledFlowSchedule`` record
       with ``is_schedule_active=False`` (stays paused).
@@ -125,21 +131,30 @@ class SyncDeploymentsView(View):
 
         Returns:
             ``JsonResponse`` with a summary dict containing counts for
-            ``created``, ``updated``, ``activated``, ``paused``, and ``errors``.
+            ``created``, ``updated``, ``activated``, ``paused``,
+            ``removed_no_schedule``, and ``errors``.
             Returns 401 if the bearer token is invalid.
         """
         if not _check_bearer_token(request):
             return JsonResponse({"error": "Unauthorized"}, status=401)
 
         client = Prefect3Client()
-        results = {"created": 0, "updated": 0, "activated": 0, "paused": 0, "errors": 0}
+        results = {
+            "created": 0,
+            "updated": 0,
+            "activated": 0,
+            "paused": 0,
+            "removed_no_schedule": 0,
+            "errors": 0,
+        }
 
         for dep in client.iter_deployments():
             name = dep["name"]
             dep_id = dep["id"]
             currently_paused = dep.get("paused", False)
+            has_schedule = bool(dep.get("schedules"))
             try:
-                self._sync_deployment(client, name, dep_id, currently_paused, results)
+                self._sync_deployment(client, name, dep_id, currently_paused, has_schedule, results)
             except Exception as exc:
                 logger.error(f"Error syncing deployment {name}: {exc}")
                 results["errors"] += 1
@@ -147,7 +162,7 @@ class SyncDeploymentsView(View):
         logger.info(f"Sync complete: {results}")
         return JsonResponse(results)
 
-    def _sync_deployment(self, client, name, dep_id, currently_paused, results):
+    def _sync_deployment(self, client, name, dep_id, currently_paused, has_schedule, results):
         """Sync a single deployment against the database and Prefect 3.
 
         Only calls ``set_paused`` when the current Prefect state differs from
@@ -158,8 +173,15 @@ class SyncDeploymentsView(View):
             name: Deployment name as returned by the Prefect 3 API.
             dep_id: Deployment UUID as returned by the Prefect 3 API.
             currently_paused: Current paused state of the deployment in Prefect 3.
+            has_schedule: Whether the deployment has at least one Prefect schedule.
             results: Mutable summary dict updated in place.
         """
+        if not has_schedule:
+            deleted, _ = DisabledFlowSchedule.objects.filter(flow_name=name).delete()
+            if deleted:
+                results["removed_no_schedule"] += 1
+            return
+
         try:
             record = DisabledFlowSchedule.objects.get(flow_name=name)
             if record.deployment_id != dep_id:
