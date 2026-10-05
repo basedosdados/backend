@@ -37,7 +37,7 @@ class SetScheduleActiveViewTests(TestCase):
         )
 
     @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
-    @patch("backend.apps.admin_data_tools.views.Prefect3Client")
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
     def test_arming_updates_db_and_unpauses_prefect(self, mock_client):
         resp = self._post({"flow_name": self.record.flow_name, "is_schedule_active": True}, **AUTH)
         self.assertEqual(resp.status_code, 200)
@@ -55,7 +55,7 @@ class SetScheduleActiveViewTests(TestCase):
         self.assertIsNotNone(self.record.reactivated_at)
 
     @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
-    @patch("backend.apps.admin_data_tools.views.Prefect3Client")
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
     def test_disarming_clears_reactivated_at_and_pauses_prefect(self, mock_client):
         self.record.is_schedule_active = True
         self.record.save()
@@ -73,7 +73,7 @@ class SetScheduleActiveViewTests(TestCase):
         self.assertIsNone(self.record.reactivated_at)
 
     @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
-    @patch("backend.apps.admin_data_tools.views.Prefect3Client")
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
     def test_setting_current_state_is_a_safe_noop(self, mock_client):
         """Doubles as the auth smoke test: reaches the view, touches nothing."""
         resp = self._post({"flow_name": self.record.flow_name, "is_schedule_active": False}, **AUTH)
@@ -82,7 +82,7 @@ class SetScheduleActiveViewTests(TestCase):
         mock_client.return_value.set_paused.assert_not_called()
 
     @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
-    @patch("backend.apps.admin_data_tools.views.Prefect3Client")
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
     def test_prefect_failure_leaves_stored_state_untouched(self, mock_client):
         """Prefect is called first, so a failure must not claim a change."""
         mock_client.return_value.set_paused.side_effect = RuntimeError("prefect down")
@@ -116,7 +116,7 @@ class SetScheduleActiveViewTests(TestCase):
         self.assertEqual(resp.status_code, 400)
 
     @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
-    @patch("backend.apps.admin_data_tools.views.Prefect3Client")
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
     def test_bad_token_is_rejected_before_any_write(self, mock_client):
         resp = self._post(
             {"flow_name": self.record.flow_name, "is_schedule_active": True},
