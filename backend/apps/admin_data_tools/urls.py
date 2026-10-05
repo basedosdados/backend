@@ -3,7 +3,7 @@ from django.urls import path
 
 from .bigquery_sync import CheckMetadadosView, SyncUpdateLatestView
 from .column_import import UploadColumnsView
-from .flow_monitoring import FlowFailedWebhookView, SyncDeploymentsView
+from .flow_monitoring import FlowFailedWebhookView, SetScheduleActiveView, SyncDeploymentsView
 
 urlpatterns = [
     path("admin-tools/sync-deployments/", SyncDeploymentsView.as_view(), name="sync-deployments"),
@@ -15,4 +15,9 @@ urlpatterns = [
         name="sync-update-latest",
     ),
     path("admin-tools/upload-columns/", UploadColumnsView.as_view(), name="upload-columns"),
+    path(
+        "admin-tools/set-schedule-active/",
+        SetScheduleActiveView.as_view(),
+        name="set-schedule-active",
+    ),
 ]
