@@ -14,6 +14,99 @@ AUTH = {"HTTP_AUTHORIZATION": f"Bearer {TOKEN}"}
 
 
 @override_settings(ALLOWED_HOSTS=["testserver"])
+class SyncDeploymentsViewTests(TestCase):
+    """Cover the schedule-filtering behavior of the sync endpoint.
+
+    A deployment with no Prefect schedule attached (e.g. a stage only ever
+    triggered via ``run_deployment()`` from another flow, never on a cron) is
+    not an arming candidate — there is nothing to pause or unpause — so it
+    must never show up in ``DisabledFlowSchedule``.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.url = reverse("sync-deployments")
+
+    def _post(self):
+        return self.client.post(self.url, **AUTH)
+
+    def _mock_deployments(self, mock_client, deployments):
+        mock_client.return_value.iter_deployments.return_value = iter(deployments)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_unscheduled_deployment_is_skipped_not_created(self, mock_client):
+        self._mock_deployments(
+            mock_client,
+            [{"id": "d1", "name": "extract_and_load: foo", "paused": True, "schedules": []}],
+        )
+        resp = self._post()
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.json()["created"], 0)
+        self.assertFalse(
+            DisabledFlowSchedule.objects.filter(flow_name="extract_and_load: foo").exists()
+        )
+        mock_client.return_value.set_paused.assert_not_called()
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_existing_record_removed_when_schedule_is_gone(self, mock_client):
+        DisabledFlowSchedule.objects.create(
+            flow_name="build_and_promote: foo", deployment_id="d2", is_schedule_active=True
+        )
+        self._mock_deployments(
+            mock_client,
+            [{"id": "d2", "name": "build_and_promote: foo", "paused": False, "schedules": []}],
+        )
+        resp = self._post()
+        self.assertEqual(resp.json()["removed_no_schedule"], 1)
+        self.assertFalse(
+            DisabledFlowSchedule.objects.filter(flow_name="build_and_promote: foo").exists()
+        )
+        mock_client.return_value.set_paused.assert_not_called()
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_scheduled_unknown_deployment_is_still_created(self, mock_client):
+        self._mock_deployments(
+            mock_client,
+            [
+                {
+                    "id": "d3",
+                    "name": "check_update: foo",
+                    "paused": True,
+                    "schedules": [{"id": "s1"}],
+                }
+            ],
+        )
+        resp = self._post()
+        self.assertEqual(resp.json()["created"], 1)
+        record = DisabledFlowSchedule.objects.get(flow_name="check_update: foo")
+        self.assertFalse(record.is_schedule_active)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_scheduled_known_deployment_enforces_stored_state(self, mock_client):
+        DisabledFlowSchedule.objects.create(
+            flow_name="check_update: bar", deployment_id="d4", is_schedule_active=True
+        )
+        self._mock_deployments(
+            mock_client,
+            [
+                {
+                    "id": "d4",
+                    "name": "check_update: bar",
+                    "paused": True,
+                    "schedules": [{"id": "s1"}],
+                }
+            ],
+        )
+        resp = self._post()
+        self.assertEqual(resp.json()["activated"], 1)
+        mock_client.return_value.set_paused.assert_called_once_with("d4", paused=False)
+
+
+@override_settings(ALLOWED_HOSTS=["testserver"])
 class SetScheduleActiveViewTests(TestCase):
     """Cover the programmatic arming endpoint.
 
