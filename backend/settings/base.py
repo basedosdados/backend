@@ -166,6 +166,7 @@ GRAPHENE = {
     "SCHEMA": "backend.apps.schema.schema",
     "MIDDLEWARE": [
         "graphql_jwt.middleware.JSONWebTokenMiddleware",
+        "backend.custom.backend_token_middleware.BackendTokenMiddleware",
     ],
     "RELAY_CONNECTION_MAX_LIMIT": 1500,
 }
@@ -173,6 +174,7 @@ GRAPHENE = {
 # Authentication backends
 AUTHENTICATION_BACKENDS = [
     "graphql_jwt.backends.JSONWebTokenBackend",
+    "backend.custom.backend_token_auth.BackendTokenAuthBackend",
     "django.contrib.auth.backends.ModelBackend",
 ]
 
