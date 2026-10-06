@@ -44,11 +44,12 @@ class DisabledFlowScheduleAdmin(admin.ModelAdmin):
         prefect_ui_url = settings.PREFECT3_API_URL.removesuffix("/api")
         deployment_url = f"{prefect_ui_url}/v2/deployments/deployment/{obj.deployment_id}?tab=Runs"
         return format_html(
-            '<a href="{}">{}</a> <a href="{}" target="_blank" rel="noopener" '
-            'class="btn btn-secondary btn-sm" style="padding: 1px 6px;">Prefect ↗</a>',
+            '<a href="{}" target="_blank" rel="noopener" '
+            'class="btn btn-secondary btn-sm" style="padding: 1px 6px;">Prefect ↗</a> '
+            '<a href="{}">{}</a>',
+            deployment_url,
             change_url,
             obj.flow_name,
-            deployment_url,
         )
 
     flow_name_display.short_description = "Flow Name"
