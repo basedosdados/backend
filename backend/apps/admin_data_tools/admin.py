@@ -45,7 +45,7 @@ class DisabledFlowScheduleAdmin(admin.ModelAdmin):
         deployment_url = f"{prefect_ui_url}/v2/deployments/deployment/{obj.deployment_id}?tab=Runs"
         return format_html(
             '<a href="{}" target="_blank" rel="noopener" '
-            'class="btn btn-secondary btn-sm" style="padding: 1px 6px;">Prefect ↗</a> '
+            'class="btn btn-secondary btn-sm" style="padding: 1px 6px;">Prefect ↗</a> - '
             '<a href="{}">{}</a>',
             deployment_url,
             change_url,
