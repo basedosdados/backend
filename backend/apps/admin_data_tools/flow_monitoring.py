@@ -38,68 +38,103 @@ def _single_table_candidates(name: str, tags: list[str]) -> list[str]:
     return candidates
 
 
-def _resolve_single_table(name: str, tags: list[str]) -> Table | None:
-    """Resolve the single table a deployment's name/tags point to.
+def _build_cloud_table_index() -> tuple[dict[tuple[str, str], object], dict[str, set]]:
+    """Load every ``CloudTable`` once, indexed for deployment resolution.
+
+    Loading this in a single query up front — instead of one ``CloudTable``
+    query per deployment — is what keeps a full sync (hundreds of
+    deployments) from timing out behind the nginx gateway.
+
+    Returns:
+        A tuple of:
+        - ``{(gcp_dataset_id, gcp_table_id): table_id}``, for a deployment's
+          specific dataset/table match.
+        - ``{gcp_dataset_id: {table_id, ...}}``, for the monolithic
+          dataset-wide fallback.
+    """
+    by_dataset_table = {}
+    by_dataset = {}
+    for gcp_dataset_id, gcp_table_id, table_id in CloudTable.objects.values_list(
+        "gcp_dataset_id", "gcp_table_id", "table_id"
+    ):
+        by_dataset_table[(gcp_dataset_id, gcp_table_id)] = table_id
+        by_dataset.setdefault(gcp_dataset_id, set()).add(table_id)
+    return by_dataset_table, by_dataset
+
+
+def _resolve_single_table_id(name: str, tags: list[str], by_dataset_table: dict) -> object | None:
+    """Resolve the id of the single table a deployment's name/tags point to.
 
     Args:
         name: Deployment name as returned by the Prefect 3 API.
         tags: Deployment tags as returned by the Prefect 3 API.
+        by_dataset_table: ``{(gcp_dataset_id, gcp_table_id): table_id}``, from
+            ``_build_cloud_table_index``.
 
     Returns:
-        The matching ``Table``, or ``None`` if no candidate matches a known
-        ``CloudTable``.
+        The matching ``Table.id``, or ``None`` if no candidate matches a
+        known ``CloudTable``.
     """
     for candidate in _single_table_candidates(name, tags):
         dataset_id, _, table_id = candidate.partition("__")
-        cloud_table = CloudTable.objects.filter(
-            gcp_dataset_id=dataset_id, gcp_table_id=table_id
-        ).first()
-        if cloud_table:
-            return cloud_table.table
+        match = by_dataset_table.get((dataset_id, table_id))
+        if match:
+            return match
     return None
 
 
-def _dedicated_table_ids(deployments: list[dict]) -> set:
-    """Collect every table already resolved to a specific deployment.
+def _dedicated_table_ids(deployments: list[dict], by_dataset_table: dict) -> set:
+    """Collect every table id already resolved to a specific deployment.
 
     Args:
         deployments: Deployment dicts as returned by the Prefect 3 API.
+        by_dataset_table: ``{(gcp_dataset_id, gcp_table_id): table_id}``, from
+            ``_build_cloud_table_index``.
 
     Returns:
-        Set of ``Table.id`` values resolved via ``_resolve_single_table``
+        Set of ``Table.id`` values resolved via ``_resolve_single_table_id``
         across all given deployments.
     """
     ids = set()
     for dep in deployments:
-        table = _resolve_single_table(dep["name"], dep.get("tags") or [])
-        if table:
-            ids.add(table.id)
+        table_id = _resolve_single_table_id(dep["name"], dep.get("tags") or [], by_dataset_table)
+        if table_id:
+            ids.add(table_id)
     return ids
 
 
-def _resolve_tables(name: str, tags: list[str], dedicated_table_ids: set) -> list[Table]:
-    """Resolve the table(s) a deployment feeds.
+def _resolve_table_ids(
+    name: str,
+    tags: list[str],
+    by_dataset_table: dict,
+    by_dataset: dict,
+    dedicated_table_ids: set,
+) -> list:
+    """Resolve the id(s) of the table(s) a deployment feeds.
 
     Args:
         name: Deployment name as returned by the Prefect 3 API.
         tags: Deployment tags as returned by the Prefect 3 API.
+        by_dataset_table: ``{(gcp_dataset_id, gcp_table_id): table_id}``, from
+            ``_build_cloud_table_index``.
+        by_dataset: ``{gcp_dataset_id: {table_id, ...}}``, from
+            ``_build_cloud_table_index``.
         dedicated_table_ids: ``Table.id`` values already claimed by another
             deployment's specific dataset/table match.
 
     Returns:
         A single-element list when a specific dataset/table match is found;
-        every ``Table`` under the deployment's dataset, minus
+        every table id under the deployment's dataset, minus
         ``dedicated_table_ids``, when there's no such match at all; ``[]``
         otherwise.
     """
     candidates = _single_table_candidates(name, tags)
     if candidates:
-        table = _resolve_single_table(name, tags)
-        return [table] if table else []
+        table_id = _resolve_single_table_id(name, tags, by_dataset_table)
+        return [table_id] if table_id else []
 
     dataset_id = name.removesuffix("_flow")
-    tables = Table.objects.filter(cloud_tables__gcp_dataset_id=dataset_id).distinct()
-    return [t for t in tables if t.id not in dedicated_table_ids]
+    return [tid for tid in by_dataset.get(dataset_id, ()) if tid not in dedicated_table_ids]
 
 
 def _is_dbt_task(name: str) -> bool:
@@ -204,7 +239,7 @@ class SyncDeploymentsView(View):
       re-deploy, then enforces the stored ``is_schedule_active`` state in Prefect 3.
 
     Also resolves and keeps in sync which ``Table``(s) each deployment feeds
-    (see ``_resolve_tables``), linking them via ``Table.flow_schedule`` —
+    (see ``_resolve_table_ids``), linking them via ``Table.flow_schedule`` —
     zero, one, or several, depending on what the deployment's tags/name
     resolve to. Zero is the normal case for a flow matching neither naming
     convention, not an error.
@@ -232,7 +267,11 @@ class SyncDeploymentsView(View):
         # batch, then to actually sync — order Prefect returns deployments
         # in must never affect the outcome.
         deployments = list(client.iter_deployments())
-        dedicated_table_ids = _dedicated_table_ids(deployments)
+        # One query for every CloudTable up front, instead of one per
+        # deployment — with hundreds of deployments the per-deployment
+        # queries pushed the whole sync past the nginx gateway timeout.
+        by_dataset_table, by_dataset = _build_cloud_table_index()
+        dedicated_table_ids = _dedicated_table_ids(deployments, by_dataset_table)
         results = {
             "created": 0,
             "updated": 0,
@@ -248,10 +287,12 @@ class SyncDeploymentsView(View):
             dep_id = dep["id"]
             currently_paused = dep.get("paused", False)
             has_schedule = bool(dep.get("schedules"))
-            tables = _resolve_tables(name, dep.get("tags") or [], dedicated_table_ids)
+            table_ids = _resolve_table_ids(
+                name, dep.get("tags") or [], by_dataset_table, by_dataset, dedicated_table_ids
+            )
             try:
                 self._sync_deployment(
-                    client, name, dep_id, currently_paused, has_schedule, tables, results
+                    client, name, dep_id, currently_paused, has_schedule, table_ids, results
                 )
             except Exception as exc:
                 logger.error(f"Error syncing deployment {name}: {exc}")
@@ -261,7 +302,7 @@ class SyncDeploymentsView(View):
         return JsonResponse(results)
 
     def _sync_deployment(
-        self, client, name, dep_id, currently_paused, has_schedule, tables, results
+        self, client, name, dep_id, currently_paused, has_schedule, table_ids, results
     ):
         """Sync a single deployment against the database and Prefect 3.
 
@@ -274,8 +315,8 @@ class SyncDeploymentsView(View):
             dep_id: Deployment UUID as returned by the Prefect 3 API.
             currently_paused: Current paused state of the deployment in Prefect 3.
             has_schedule: Whether the deployment has at least one Prefect schedule.
-            tables: ``Table``s this deployment feeds, from ``_resolve_tables``
-                — zero, one, or several.
+            table_ids: Ids of the ``Table``s this deployment feeds, from
+                ``_resolve_table_ids`` — zero, one, or several.
             results: Mutable summary dict updated in place.
         """
         if not has_schedule:
@@ -305,11 +346,12 @@ class SyncDeploymentsView(View):
             )
             results["created"] += 1
 
-        for table in tables:
-            if table.flow_schedule_id != record.id:
-                table.flow_schedule = record
-                table.save(update_fields=["flow_schedule"])
-                results["tables_linked"] += 1
+        if table_ids:
+            results["tables_linked"] += (
+                Table.objects.filter(id__in=table_ids)
+                .exclude(flow_schedule_id=record.id)
+                .update(flow_schedule_id=record.id)
+            )
 
 
 @method_decorator(csrf_exempt, name="dispatch")
