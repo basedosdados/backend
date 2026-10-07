@@ -1,0 +1,13 @@
+/* The list_editable "Salvar" button lives inside the changelist's
+ * `dataTables_info` bar (pagination/count row) — scoping to it keeps this
+ * from also hiding the change form's own Save button, which shares the
+ * same `name="_save"` but isn't inside that bar.
+ *
+ * Every checkbox change already confirms and submits automatically
+ * (confirm_schedule_toggle.js clicks this exact button programmatically),
+ * so a change is never left pending for someone to click Save for — the
+ * button stays in the DOM, just hidden from view.
+ */
+.dataTables_info input[type="submit"][name="_save"] {
+  display: none;
+}
