@@ -7,6 +7,7 @@ from math import log10
 from uuid import uuid4
 
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db import models
 from django.utils.functional import cached_property
 from ordered_model.models import OrderedModel
@@ -522,13 +523,22 @@ class Researcher(BaseModel):
         null=True,
         help_text="Current position, e.g. Assistant Professor",
     )
-    affiliation = models.CharField(
-        max_length=255,
+    affiliation = models.ForeignKey(
+        "Organization",
+        on_delete=models.SET_NULL,
         blank=True,
         null=True,
+        related_name="affiliated_researchers",
         help_text="University or research institute",
     )
-    phd_institution = models.CharField(max_length=255, blank=True, null=True)
+    phd_institution = models.ForeignKey(
+        "Organization",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="phd_researchers",
+        verbose_name="PhD institution",
+    )
     phd_year = models.PositiveSmallIntegerField(blank=True, null=True)
     description = models.TextField(
         blank=True,
@@ -585,6 +595,12 @@ class Researcher(BaseModel):
         """Whether the researcher has an active invited researcher term"""
         return any(term.is_active for term in self.invited_researcher_terms.all())
 
+    @property
+    def is_invited_researcher_alumni(self) -> bool:
+        """Whether the researcher had invited researcher terms, all of them finished"""
+        terms = self.invited_researcher_terms.all()
+        return bool(terms) and all(term.is_finished for term in terms)
+
 
 class InvitedResearcherTerm(BaseModel):
     """Invited Researcher Term model
@@ -601,10 +617,17 @@ class InvitedResearcherTerm(BaseModel):
         on_delete=models.CASCADE,
         related_name="invited_researcher_terms",
     )
-    cohort = models.PositiveSmallIntegerField(
+    cohort = models.CharField(
+        max_length=6,
         blank=True,
         null=True,
-        help_text="Cohort number in which the researcher entered the network",
+        validators=[
+            RegexValidator(
+                r"^\d{4}\.[12]$",
+                "Cohort must be a year and semester, e.g. 2027.1",
+            )
+        ],
+        help_text="Year and semester of the selection, e.g. 2027.1",
     )
     start_at = models.DateField(help_text="Date of entry")
     end_at = models.DateField(
@@ -642,6 +665,11 @@ class InvitedResearcherTerm(BaseModel):
         """Whether the term is ongoing today"""
         today = date.today()
         return self.start_at <= today and (self.end_at is None or today <= self.end_at)
+
+    @property
+    def is_finished(self) -> bool:
+        """Whether the term ended before today"""
+        return self.end_at is not None and self.end_at < date.today()
 
 
 class Journal(BaseModel):

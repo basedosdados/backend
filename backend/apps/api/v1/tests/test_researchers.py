@@ -22,11 +22,11 @@ GRAPHQL_URL = "/api/v1/graphql"
 
 
 @pytest.fixture(name="researcher")
-def fixture_researcher(db, tema_educacao):
+def fixture_researcher(db, tema_educacao, organizacao_bd):
     researcher = Researcher.objects.create(
         slug="maria-silva",
         name="Maria Silva",
-        affiliation="Universidade de São Paulo",
+        affiliation=organizacao_bd,
         description_pt="Pesquisadora em economia da educação.",
         description_en="Researcher in the economics of education.",
         description_es="Investigadora en economía de la educación.",
@@ -60,15 +60,27 @@ def test_is_invited_researcher(researcher):
     today = date.today()
     assert not researcher.is_invited_researcher
 
+    assert not researcher.is_invited_researcher_alumni
+
     InvitedResearcherTerm.objects.create(
         researcher=researcher,
         start_at=today - timedelta(days=900),
         end_at=today - timedelta(days=1),
     )
     assert not researcher.is_invited_researcher
+    assert researcher.is_invited_researcher_alumni
 
     InvitedResearcherTerm.objects.create(researcher=researcher, start_at=today)
     assert researcher.is_invited_researcher
+    assert not researcher.is_invited_researcher_alumni
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("cohort", ["2027", "27.1", "2027.3", "2027-1"])
+def test_cohort_must_be_year_and_semester(researcher, cohort):
+    term = InvitedResearcherTerm(researcher=researcher, cohort=cohort, start_at=date(2027, 1, 1))
+    with pytest.raises(ValidationError):
+        term.full_clean()
 
 
 @pytest.mark.django_db
@@ -92,7 +104,9 @@ def test_research_paper_doi_is_normalized(researcher):
 
 @pytest.mark.django_db
 def test_researchers_are_public_in_graphql(client, researcher):
-    InvitedResearcherTerm.objects.create(researcher=researcher, cohort=1, start_at=date.today())
+    InvitedResearcherTerm.objects.create(
+        researcher=researcher, cohort="2027.1", start_at=date.today()
+    )
     query = """
         query {
           allResearcher {
@@ -100,6 +114,7 @@ def test_researchers_are_public_in_graphql(client, researcher):
               node {
                 name
                 descriptionEn
+                affiliation { slug }
                 isInvitedResearcher
                 themes { edges { node { slug } } }
                 invitedResearcherTerms { edges { node { cohort startAt endAt } } }
@@ -117,4 +132,5 @@ def test_researchers_are_public_in_graphql(client, researcher):
     assert node["descriptionEn"] == "Researcher in the economics of education."
     assert node["isInvitedResearcher"] is True
     assert node["themes"]["edges"][0]["node"]["slug"] == "educacao"
-    assert node["invitedResearcherTerms"]["edges"][0]["node"]["cohort"] == 1
+    assert node["invitedResearcherTerms"]["edges"][0]["node"]["cohort"] == "2027.1"
+    assert node["affiliation"]["slug"] == "basedosdados"

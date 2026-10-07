@@ -1514,14 +1514,19 @@ class ResearcherPaperInline(admin.TabularInline):
 class ResearcherAdmin(TabbedTranslationAdmin):
     readonly_fields = ["id", "created_at", "updated_at"]
     list_display = ["name", "affiliation", "invited_researcher"]
-    search_fields = ["name", "slug", "affiliation", "email"]
+    search_fields = ["name", "slug", "affiliation__name", "email"]
     list_filter = ["themes"]
-    autocomplete_fields = ["account", "themes"]
+    autocomplete_fields = ["affiliation", "phd_institution", "account", "themes"]
     prepopulated_fields = {"slug": ("name",)}
     inlines = [InvitedResearcherTermInline, ResearcherPaperInline]
 
     def get_queryset(self, request):
-        return super().get_queryset(request).prefetch_related("invited_researcher_terms")
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("affiliation")
+            .prefetch_related("invited_researcher_terms")
+        )
 
     @admin.display(boolean=True, description="Invited researcher")
     def invited_researcher(self, obj):
