@@ -8,6 +8,8 @@ from django.contrib.messages.storage.fallback import FallbackStorage
 from django.test import Client, RequestFactory, TestCase, override_settings
 from django.urls import reverse
 
+from backend.apps.api.v1.models import CloudTable, Dataset, Table
+
 from .admin import DisabledFlowScheduleAdmin, activate_selected, deactivate_selected
 from .models import DisabledFlowSchedule
 
@@ -106,6 +108,194 @@ class SyncDeploymentsViewTests(TestCase):
         resp = self._post()
         self.assertEqual(resp.json()["activated"], 1)
         mock_client.return_value.set_paused.assert_called_once_with("d4", paused=False)
+
+
+@override_settings(ALLOWED_HOSTS=["testserver"])
+class SyncDeploymentsTableLinkTests(TestCase):
+    """Cover resolving which `Table`(s) a deployment feeds.
+
+    Tried in order: the deployment's own `"<dataset_id>__<table_id>"` tag
+    (`deploy_tags()`, pipelines repo — flows already migrated) or the
+    deployment NAME itself (pre-migration monolithic flows long since named
+    that way); falling that, when there's no double underscore anywhere, the
+    name minus a `"_flow"` suffix treated as a bare dataset_id, resolving to
+    every table under it — covers a monolithic flow feeding several tables
+    from one deployment (confirmed for real: `br_me_siconfi_flow`, 7
+    tables). None of these resolving is the normal case, never an error.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.url = reverse("sync-deployments")
+        self.dataset = Dataset.objects.create(slug="br_ans_beneficiario", name="ANS")
+        self.table = Table.objects.create(
+            dataset=self.dataset, slug="informacao_consolidada", name="Informação consolidada"
+        )
+        CloudTable.objects.create(
+            table=self.table,
+            gcp_project_id="basedosdados",
+            gcp_dataset_id="br_ans_beneficiario",
+            gcp_table_id="informacao_consolidada",
+        )
+
+    def _post(self):
+        return self.client.post(self.url, **AUTH)
+
+    def _mock_deployments(self, mock_client, deployments):
+        mock_client.return_value.iter_deployments.return_value = iter(deployments)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_new_deployment_links_table_from_tag(self, mock_client):
+        self._mock_deployments(
+            mock_client,
+            [
+                {
+                    "id": "d1",
+                    "name": "check_update: br_ans_beneficiario__informacao_consolidada",
+                    "paused": True,
+                    "schedules": [{"id": "s1"}],
+                    "tags": [
+                        "staged-pipeline",
+                        "check_update",
+                        "br_ans_beneficiario",
+                        "br_ans_beneficiario__informacao_consolidada",
+                    ],
+                }
+            ],
+        )
+        resp = self._post()
+        self.assertEqual(resp.json()["tables_linked"], 1)
+        self.table.refresh_from_db()
+        record = DisabledFlowSchedule.objects.get(
+            flow_name="check_update: br_ans_beneficiario__informacao_consolidada"
+        )
+        self.assertEqual(self.table.flow_schedule_id, record.id)
+        self.assertTrue(self.table.has_flow_schedule)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_legacy_deployment_links_table_from_its_own_name(self, mock_client):
+        """Pre-migration monolithic flows carry none of the new tags, but
+        are long since named "<dataset_id>__<table_id>" directly."""
+        self._mock_deployments(
+            mock_client,
+            [
+                {
+                    "id": "d2",
+                    "name": "br_ans_beneficiario__informacao_consolidada",
+                    "paused": True,
+                    "schedules": [{"id": "s1"}],
+                    "tags": ["automated-deploy", "env:prod"],
+                }
+            ],
+        )
+        self._post()
+        self.table.refresh_from_db()
+        record = DisabledFlowSchedule.objects.get(
+            flow_name="br_ans_beneficiario__informacao_consolidada"
+        )
+        self.assertEqual(self.table.flow_schedule_id, record.id)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_no_matching_signal_leaves_table_unlinked_without_error(self, mock_client):
+        self._mock_deployments(
+            mock_client,
+            [
+                {
+                    "id": "d3",
+                    "name": "br_old_monolithic_flow",
+                    "paused": True,
+                    "schedules": [{"id": "s1"}],
+                    "tags": ["automated-deploy", "dataset:br_old_monolithic_flow"],
+                }
+            ],
+        )
+        resp = self._post()
+        self.assertEqual(resp.json()["errors"], 0)
+        self.assertEqual(resp.json()["tables_linked"], 0)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_monolithic_flow_links_every_table_under_its_dataset(self, mock_client):
+        """A single deployment feeding several tables at once (e.g. the
+        real-world `br_me_siconfi_flow`, 7 tables) — no tag, no "__"
+        anywhere, just the bare dataset_id plus a "_flow" suffix."""
+        other_table = Table.objects.create(
+            dataset=self.dataset, slug="outra_tabela", name="Outra Tabela"
+        )
+        CloudTable.objects.create(
+            table=other_table,
+            gcp_project_id="basedosdados",
+            gcp_dataset_id="br_ans_beneficiario",
+            gcp_table_id="outra_tabela",
+        )
+        self._mock_deployments(
+            mock_client,
+            [
+                {
+                    "id": "d4",
+                    "name": "br_ans_beneficiario_flow",
+                    "paused": True,
+                    "schedules": [{"id": "s1"}],
+                    "tags": ["automated-deploy", "env:prod"],
+                }
+            ],
+        )
+        resp = self._post()
+        self.assertEqual(resp.json()["tables_linked"], 2)
+        record = DisabledFlowSchedule.objects.get(flow_name="br_ans_beneficiario_flow")
+        self.assertCountEqual(
+            record.tables.values_list("id", flat=True), [self.table.id, other_table.id]
+        )
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_monolithic_fallback_never_claims_a_table_with_its_own_dedicated_flow(
+        self, mock_client
+    ):
+        """Real scenario: a dataset where every table but one comes from the
+        same monolithic flow — that one table has its own dedicated
+        deployment instead. The whole-dataset fallback must skip it, no
+        matter which deployment Prefect happens to list first."""
+        dedicated_table = Table.objects.create(
+            dataset=self.dataset, slug="tabela_dedicada", name="Tabela Dedicada"
+        )
+        CloudTable.objects.create(
+            table=dedicated_table,
+            gcp_project_id="basedosdados",
+            gcp_dataset_id="br_ans_beneficiario",
+            gcp_table_id="tabela_dedicada",
+        )
+        self._mock_deployments(
+            mock_client,
+            [
+                {
+                    "id": "d5",
+                    "name": "br_ans_beneficiario_flow",
+                    "paused": True,
+                    "schedules": [{"id": "s1"}],
+                    "tags": ["automated-deploy", "env:prod"],
+                },
+                {
+                    "id": "d6",
+                    "name": "check_update: br_ans_beneficiario__tabela_dedicada",
+                    "paused": True,
+                    "schedules": [{"id": "s2"}],
+                    "tags": ["staged-pipeline", "br_ans_beneficiario__tabela_dedicada"],
+                },
+            ],
+        )
+        self._post()
+
+        monolithic = DisabledFlowSchedule.objects.get(flow_name="br_ans_beneficiario_flow")
+        dedicated = DisabledFlowSchedule.objects.get(
+            flow_name="check_update: br_ans_beneficiario__tabela_dedicada"
+        )
+        self.assertCountEqual(monolithic.tables.values_list("id", flat=True), [self.table.id])
+        dedicated_table.refresh_from_db()
+        self.assertEqual(dedicated_table.flow_schedule_id, dedicated.id)
 
 
 @override_settings(ALLOWED_HOSTS=["testserver"])

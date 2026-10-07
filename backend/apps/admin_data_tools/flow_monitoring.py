@@ -11,6 +11,7 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from loguru import logger
 
+from backend.apps.api.v1.models import CloudTable, Table
 from backend.custom.client import send_discord_message
 
 from ._prefect3_client import Prefect3Client
@@ -19,6 +20,86 @@ from .models import DisabledFlowSchedule
 from .schedule_actions import apply_schedule_state
 
 logger = logger.bind(module="admin_data_tools.flow_monitoring")
+
+
+def _single_table_candidates(name: str, tags: list[str]) -> list[str]:
+    """Build candidate dataset/table strings for a deployment.
+
+    Args:
+        name: Deployment name as returned by the Prefect 3 API.
+        tags: Deployment tags as returned by the Prefect 3 API.
+
+    Returns:
+        Every string from ``name``/``tags`` containing a double underscore.
+    """
+    candidates = [t for t in tags if "__" in t]
+    if "__" in name:
+        candidates.append(name)
+    return candidates
+
+
+def _resolve_single_table(name: str, tags: list[str]) -> Table | None:
+    """Resolve the single table a deployment's name/tags point to.
+
+    Args:
+        name: Deployment name as returned by the Prefect 3 API.
+        tags: Deployment tags as returned by the Prefect 3 API.
+
+    Returns:
+        The matching ``Table``, or ``None`` if no candidate matches a known
+        ``CloudTable``.
+    """
+    for candidate in _single_table_candidates(name, tags):
+        dataset_id, _, table_id = candidate.partition("__")
+        cloud_table = CloudTable.objects.filter(
+            gcp_dataset_id=dataset_id, gcp_table_id=table_id
+        ).first()
+        if cloud_table:
+            return cloud_table.table
+    return None
+
+
+def _dedicated_table_ids(deployments: list[dict]) -> set:
+    """Collect every table already resolved to a specific deployment.
+
+    Args:
+        deployments: Deployment dicts as returned by the Prefect 3 API.
+
+    Returns:
+        Set of ``Table.id`` values resolved via ``_resolve_single_table``
+        across all given deployments.
+    """
+    ids = set()
+    for dep in deployments:
+        table = _resolve_single_table(dep["name"], dep.get("tags") or [])
+        if table:
+            ids.add(table.id)
+    return ids
+
+
+def _resolve_tables(name: str, tags: list[str], dedicated_table_ids: set) -> list[Table]:
+    """Resolve the table(s) a deployment feeds.
+
+    Args:
+        name: Deployment name as returned by the Prefect 3 API.
+        tags: Deployment tags as returned by the Prefect 3 API.
+        dedicated_table_ids: ``Table.id`` values already claimed by another
+            deployment's specific dataset/table match.
+
+    Returns:
+        A single-element list when a specific dataset/table match is found;
+        every ``Table`` under the deployment's dataset, minus
+        ``dedicated_table_ids``, when there's no such match at all; ``[]``
+        otherwise.
+    """
+    candidates = _single_table_candidates(name, tags)
+    if candidates:
+        table = _resolve_single_table(name, tags)
+        return [table] if table else []
+
+    dataset_id = name.removesuffix("_flow")
+    tables = Table.objects.filter(cloud_tables__gcp_dataset_id=dataset_id).distinct()
+    return [t for t in tables if t.id not in dedicated_table_ids]
 
 
 def _is_dbt_task(name: str) -> bool:
@@ -121,6 +202,12 @@ class SyncDeploymentsView(View):
       with ``is_schedule_active=False`` (stays paused).
     - If the deployment is known: updates ``deployment_id`` if it changed after
       re-deploy, then enforces the stored ``is_schedule_active`` state in Prefect 3.
+
+    Also resolves and keeps in sync which ``Table``(s) each deployment feeds
+    (see ``_resolve_tables``), linking them via ``Table.flow_schedule`` —
+    zero, one, or several, depending on what the deployment's tags/name
+    resolve to. Zero is the normal case for a flow matching neither naming
+    convention, not an error.
     """
 
     def post(self, request):
@@ -133,29 +220,39 @@ class SyncDeploymentsView(View):
         Returns:
             ``JsonResponse`` with a summary dict containing counts for
             ``created``, ``updated``, ``activated``, ``paused``,
-            ``removed_no_schedule``, and ``errors``.
+            ``removed_no_schedule``, ``tables_linked``, and ``errors``.
             Returns 401 if the bearer token is invalid.
         """
         if not _check_bearer_token(request):
             return JsonResponse({"error": "Unauthorized"}, status=401)
 
         client = Prefect3Client()
+        # Materialized once (not a generator pass-through): needed twice,
+        # first to find every table with a dedicated flow across the whole
+        # batch, then to actually sync — order Prefect returns deployments
+        # in must never affect the outcome.
+        deployments = list(client.iter_deployments())
+        dedicated_table_ids = _dedicated_table_ids(deployments)
         results = {
             "created": 0,
             "updated": 0,
             "activated": 0,
             "paused": 0,
             "removed_no_schedule": 0,
+            "tables_linked": 0,
             "errors": 0,
         }
 
-        for dep in client.iter_deployments():
+        for dep in deployments:
             name = dep["name"]
             dep_id = dep["id"]
             currently_paused = dep.get("paused", False)
             has_schedule = bool(dep.get("schedules"))
+            tables = _resolve_tables(name, dep.get("tags") or [], dedicated_table_ids)
             try:
-                self._sync_deployment(client, name, dep_id, currently_paused, has_schedule, results)
+                self._sync_deployment(
+                    client, name, dep_id, currently_paused, has_schedule, tables, results
+                )
             except Exception as exc:
                 logger.error(f"Error syncing deployment {name}: {exc}")
                 results["errors"] += 1
@@ -163,7 +260,9 @@ class SyncDeploymentsView(View):
         logger.info(f"Sync complete: {results}")
         return JsonResponse(results)
 
-    def _sync_deployment(self, client, name, dep_id, currently_paused, has_schedule, results):
+    def _sync_deployment(
+        self, client, name, dep_id, currently_paused, has_schedule, tables, results
+    ):
         """Sync a single deployment against the database and Prefect 3.
 
         Only calls ``set_paused`` when the current Prefect state differs from
@@ -175,6 +274,8 @@ class SyncDeploymentsView(View):
             dep_id: Deployment UUID as returned by the Prefect 3 API.
             currently_paused: Current paused state of the deployment in Prefect 3.
             has_schedule: Whether the deployment has at least one Prefect schedule.
+            tables: ``Table``s this deployment feeds, from ``_resolve_tables``
+                — zero, one, or several.
             results: Mutable summary dict updated in place.
         """
         if not has_schedule:
@@ -197,12 +298,18 @@ class SyncDeploymentsView(View):
             else:
                 results["activated"] += 1
         except DisabledFlowSchedule.DoesNotExist:
-            DisabledFlowSchedule.objects.create(
+            record = DisabledFlowSchedule.objects.create(
                 flow_name=name,
                 deployment_id=dep_id,
                 is_schedule_active=False,
             )
             results["created"] += 1
+
+        for table in tables:
+            if table.flow_schedule_id != record.id:
+                table.flow_schedule = record
+                table.save(update_fields=["flow_schedule"])
+                results["tables_linked"] += 1
 
 
 @method_decorator(csrf_exempt, name="dispatch")
