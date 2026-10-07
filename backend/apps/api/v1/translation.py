@@ -19,6 +19,7 @@ from .models import (
     Organization,
     QualityCheck,
     RawDataSource,
+    Researcher,
     Status,
     Table,
     Tag,
@@ -103,6 +104,13 @@ class RawDataSourceTranslationOptions(TranslationOptions):
     )
 
 
+class ResearcherTranslationOptions(TranslationOptions):
+    fields = (
+        "position",
+        "description",
+    )
+
+
 class StatusTranslationOptions(TranslationOptions):
     fields = ("name",)
 
@@ -139,6 +147,7 @@ translator.register(MeasurementUnitCategory, MeasurementUnitCategoryTranslationO
 translator.register(Organization, OrganizationTranslationOptions)
 translator.register(QualityCheck, QualityCheckTranslationOptions)
 translator.register(RawDataSource, RawDataSourceTranslationOptions)
+translator.register(Researcher, ResearcherTranslationOptions)
 translator.register(Status, StatusTranslationOptions)
 translator.register(Table, TableTranslationOptions)
 translator.register(Tag, TagTranslationOptions)

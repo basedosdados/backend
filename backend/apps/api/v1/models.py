@@ -2,7 +2,7 @@
 import logging
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import date, datetime
 from math import log10
 from uuid import uuid4
 
@@ -77,9 +77,9 @@ class Area(BaseModel):
 
         if self.parent and self.parent.slug != "world":
             if self.administrative_level is None:
-                errors[
-                    "administrative_level"
-                ] = "Administrative level is required when parent is set"
+                errors["administrative_level"] = (
+                    "Administrative level is required when parent is set"
+                )
             elif self.parent.administrative_level is None:
                 errors["parent"] = "Parent must have an administrative level"
             elif self.parent.administrative_level != self.administrative_level - 1:
@@ -488,6 +488,260 @@ class Organization(BaseModel):
         if self.picture and self.picture.url:
             return True
         return False
+
+
+def add_years(start: date, years: int) -> date:
+    """Add years to a date, moving Feb 29 to Feb 28 when needed"""
+    try:
+        return start.replace(year=start.year + years)
+    except ValueError:
+        return start.replace(year=start.year + years, day=28)
+
+
+class Researcher(BaseModel):
+    """Researcher model
+
+    A researcher may be an author of research papers and/or a member of the
+    Invited Researchers network (see `InvitedResearcherTerm`)
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    slug = models.SlugField(unique=True, max_length=255)
+    name = models.CharField(max_length=255)
+    picture = models.ImageField(
+        "Imagem",
+        null=True,
+        blank=True,
+        storage=OverwriteStorage(),
+        upload_to=upload_to,
+        validators=[validate_image],
+    )
+    position = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="Current position, e.g. Assistant Professor",
+    )
+    affiliation = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True,
+        help_text="University or research institute",
+    )
+    phd_institution = models.CharField(max_length=255, blank=True, null=True)
+    phd_year = models.PositiveSmallIntegerField(blank=True, null=True)
+    description = models.TextField(
+        blank=True,
+        null=True,
+        help_text="Short blurb shown on the website",
+    )
+    email = models.EmailField(
+        blank=True,
+        null=True,
+        help_text="Public contact email. It is shown on the website",
+    )
+    website = models.URLField(blank=True, null=True, max_length=255)
+    linkedin = models.URLField(blank=True, null=True, max_length=255)
+    google_scholar = models.URLField(blank=True, null=True, max_length=255)
+    lattes = models.URLField(blank=True, null=True, max_length=255)
+    orcid = models.CharField(
+        max_length=19,
+        blank=True,
+        null=True,
+        help_text="ORCID iD, e.g. 0000-0002-1825-0097",
+    )
+    themes = models.ManyToManyField(
+        "Theme",
+        related_name="researchers",
+        blank=True,
+        help_text="Broad research fields",
+    )
+    account = models.OneToOneField(
+        Account,
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="researcher",
+        help_text="Data Basis user account, if any",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    graphql_nested_filter_fields_whitelist = ["id", "slug"]
+
+    def __str__(self):
+        return str(self.name)
+
+    class Meta:
+        """Meta definition for Researcher."""
+
+        db_table = "researcher"
+        verbose_name = "Researcher"
+        verbose_name_plural = "Researchers"
+        ordering = ["name"]
+
+    @property
+    def is_invited_researcher(self) -> bool:
+        """Whether the researcher has an active invited researcher term"""
+        return any(term.is_active for term in self.invited_researcher_terms.all())
+
+
+class InvitedResearcherTerm(BaseModel):
+    """Invited Researcher Term model
+
+    One row per term in the Invited Researchers network. Terms last
+    `TERM_YEARS` years and are indefinitely renewable; each renewal is a new row
+    """
+
+    TERM_YEARS = 2
+
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    researcher = models.ForeignKey(
+        "Researcher",
+        on_delete=models.CASCADE,
+        related_name="invited_researcher_terms",
+    )
+    cohort = models.PositiveSmallIntegerField(
+        blank=True,
+        null=True,
+        help_text="Cohort number in which the researcher entered the network",
+    )
+    start_at = models.DateField(help_text="Date of entry")
+    end_at = models.DateField(
+        blank=True,
+        null=True,
+        help_text=f"Date of exit. Defaults to {TERM_YEARS} years after the date of entry",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    graphql_nested_filter_fields_whitelist = ["id"]
+
+    def __str__(self):
+        return f"{self.researcher} ({self.start_at} - {self.end_at})"
+
+    class Meta:
+        """Meta definition for InvitedResearcherTerm."""
+
+        db_table = "invited_researcher_term"
+        verbose_name = "Invited Researcher Term"
+        verbose_name_plural = "Invited Researcher Terms"
+        ordering = ["-start_at"]
+
+    def clean(self) -> None:
+        if self.start_at and self.end_at and self.end_at < self.start_at:
+            raise ValidationError("End date must be on or after the start date")
+
+    def save(self, *args, **kwargs) -> None:
+        if self.start_at and not self.end_at:
+            self.end_at = add_years(self.start_at, self.TERM_YEARS)
+        super().save(*args, **kwargs)
+
+    @property
+    def is_active(self) -> bool:
+        """Whether the term is ongoing today"""
+        today = date.today()
+        return self.start_at <= today and (self.end_at is None or today <= self.end_at)
+
+
+class Journal(BaseModel):
+    """Journal model"""
+
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    slug = models.SlugField(unique=True, max_length=255)
+    name = models.CharField(max_length=255)
+    abbreviation = models.CharField(max_length=255, blank=True, null=True)
+    issn = models.CharField("ISSN", max_length=9, blank=True, null=True)
+    eissn = models.CharField("E-ISSN", max_length=9, blank=True, null=True)
+    publisher = models.CharField(max_length=255, blank=True, null=True)
+    website = models.URLField(blank=True, null=True, max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    graphql_nested_filter_fields_whitelist = ["id", "slug"]
+
+    def __str__(self):
+        return str(self.name)
+
+    class Meta:
+        """Meta definition for Journal."""
+
+        db_table = "journal"
+        verbose_name = "Journal"
+        verbose_name_plural = "Journals"
+        ordering = ["name"]
+
+
+class ResearchPaper(BaseModel):
+    """Research Paper model"""
+
+    class PublicationStatus(models.TextChoices):
+        PUBLISHED = "published", "Published"
+        FORTHCOMING = "forthcoming", "Forthcoming"
+        WORKING_PAPER = "working_paper", "Working paper"
+
+    id = models.UUIDField(primary_key=True, default=uuid4)
+    title = models.CharField(max_length=500)
+    authors = models.TextField(
+        help_text="Full author list as cited, e.g. Silva, A. and Souza, B.",
+    )
+    researchers = models.ManyToManyField(
+        "Researcher",
+        related_name="research_papers",
+        blank=True,
+        help_text="Authors registered as researchers",
+    )
+    journal = models.ForeignKey(
+        "Journal",
+        on_delete=models.SET_NULL,
+        blank=True,
+        null=True,
+        related_name="research_papers",
+    )
+    publication_status = models.CharField(
+        max_length=32,
+        choices=PublicationStatus.choices,
+        default=PublicationStatus.PUBLISHED,
+    )
+    year = models.PositiveSmallIntegerField(blank=True, null=True)
+    volume = models.CharField(max_length=32, blank=True, null=True)
+    issue = models.CharField(max_length=32, blank=True, null=True)
+    pages = models.CharField(max_length=32, blank=True, null=True)
+    doi = models.CharField(
+        "DOI",
+        max_length=255,
+        unique=True,
+        blank=True,
+        null=True,
+        help_text="DOI without the resolver prefix, e.g. 10.1257/aer.20190001",
+    )
+    url = models.URLField(blank=True, null=True, max_length=255)
+    google_scholar = models.URLField(blank=True, null=True, max_length=255)
+    abstract = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    graphql_nested_filter_fields_whitelist = ["id"]
+
+    def __str__(self):
+        return str(self.title)
+
+    class Meta:
+        """Meta definition for ResearchPaper."""
+
+        db_table = "research_paper"
+        verbose_name = "Research Paper"
+        verbose_name_plural = "Research Papers"
+        ordering = ["-year", "title"]
+
+    def clean(self) -> None:
+        if self.doi:
+            self.doi = self.doi.strip().removeprefix("https://doi.org/").removeprefix("doi:")
+
+    @property
+    def doi_url(self) -> str:
+        """DOI resolver URL"""
+        return f"https://doi.org/{self.doi}" if self.doi else ""
 
 
 class Status(BaseModel):
@@ -1029,7 +1283,7 @@ class Poll(BaseModel):
         errors = {}
         if bool(self.raw_data_source) == bool(self.information_request):
             raise ValidationError(
-                "One and only one of 'raw_data_source'," " or 'information_request' must be set."
+                "One and only one of 'raw_data_source', or 'information_request' must be set."
             )
         if self.entity and self.entity.category.slug != "datetime":
             errors["entity"] = 'Entity must have category "datetime"'
@@ -1675,13 +1929,13 @@ class Column(BaseModel, OrderedModel):
         """Clean method for Column model"""
         errors = {}
         if self.observation_level and self.observation_level.table != self.table:
-            errors[
-                "observation_level"
-            ] = "Observation level is not in the same table as the column."
+            errors["observation_level"] = (
+                "Observation level is not in the same table as the column."
+            )
         if self.directory_primary_key and self.directory_primary_key.table.is_directory is False:
-            errors[
-                "directory_primary_key"
-            ] = "Column indicated as a directory's primary key is not in a directory."
+            errors["directory_primary_key"] = (
+                "Column indicated as a directory's primary key is not in a directory."
+            )
         if errors:
             raise ValidationError(errors)
         return super().clean()
