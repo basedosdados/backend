@@ -1367,6 +1367,23 @@ class Table(BaseModel, OrderedModel):
         blank=True,
         null=True,
     )
+    # Resolved by SyncDeploymentsView (see _resolve_tables) from the flow's
+    # own "<dataset_id>__<table_id>" tag/name (flows already migrated to the
+    # event-driven pipeline), or by matching every CloudTable under the
+    # flow's dataset when neither resolves to a single table (pre-migration
+    # monolithic flows feeding several tables from one deployment, e.g.
+    # br_me_siconfi_flow). Null is the normal case for a flow matching
+    # neither convention, not an error. Not to be confused with `pipeline`
+    # (a manually-set GitHub URL) — this reflects the live Prefect
+    # deployment, auto-synced.
+    flow_schedule = models.ForeignKey(
+        "admin_data_tools.DisabledFlowSchedule",
+        on_delete=models.SET_NULL,
+        related_name="tables",
+        blank=True,
+        null=True,
+        verbose_name="Flow",
+    )
     is_directory = models.BooleanField(default=False, blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -1423,6 +1440,15 @@ class Table(BaseModel, OrderedModel):
     @property
     def full_slug(self):
         return self.slug
+
+    @property
+    def has_flow_schedule(self) -> bool:
+        """Whether this table has a linked Flow Schedule.
+
+        Returns:
+            True if ``flow_schedule`` is set.
+        """
+        return self.flow_schedule_id is not None
 
     @property
     def gbq_slug(self):

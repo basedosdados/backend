@@ -48,6 +48,7 @@ def _bulk_apply_schedule_state(request, queryset, active: bool) -> None:
 class DisabledFlowScheduleAdmin(admin.ModelAdmin):
     list_display = [
         "flow_name_display",
+        "tables_display",
         "deployment_id",
         "disabled_at",
         "is_schedule_active",
@@ -101,6 +102,20 @@ class DisabledFlowScheduleAdmin(admin.ModelAdmin):
 
     flow_name_display.short_description = "Flow Name"
     flow_name_display.admin_order_field = "flow_name"
+
+    def tables_display(self, obj):
+        """Render the tables this flow feeds.
+
+        Args:
+            obj: The ``DisabledFlowSchedule`` instance being displayed.
+
+        Returns:
+            Comma-separated table names, or an em dash if none are linked.
+        """
+        names = [str(table) for table in obj.tables.all()]
+        return ", ".join(names) if names else "—"
+
+    tables_display.short_description = "Tables"
 
     def save_model(self, request, obj, form, change):
         if change and "is_schedule_active" in form.changed_data:
