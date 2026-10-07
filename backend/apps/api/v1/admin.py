@@ -52,6 +52,8 @@ from backend.apps.api.v1.models import (
     Entity,
     EntityCategory,
     InformationRequest,
+    InvitedResearcherTerm,
+    Journal,
     Key,
     Language,
     License,
@@ -63,6 +65,8 @@ from backend.apps.api.v1.models import (
     Poll,
     QualityCheck,
     RawDataSource,
+    Researcher,
+    ResearchPaper,
     Status,
     Table,
     TableNeighbor,
@@ -257,6 +261,14 @@ class InformationRequestInline(OrderedTranslatedInline):
     ordering = [
         "order",
     ]
+
+
+class DatasetResearchPaperInline(admin.TabularInline):
+    model = ResearchPaper.datasets.through
+    extra = 0
+    autocomplete_fields = ["researchpaper"]
+    verbose_name = "Research Paper"
+    verbose_name_plural = "Research Papers"
 
 
 class DateTimeRangeInline(admin.StackedInline):
@@ -605,6 +617,7 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         TableInline,
         RawDataSourceInline,
         InformationRequestInline,
+        DatasetResearchPaperInline,
     ]
     readonly_fields = [
         "id",
@@ -1493,6 +1506,68 @@ class PollAdmin(admin.ModelAdmin):
     ]
 
 
+class InvitedResearcherTermInline(admin.TabularInline):
+    model = InvitedResearcherTerm
+    extra = 0
+    fields = ["cohort", "start_at", "end_at"]
+
+
+class ResearcherPaperInline(admin.TabularInline):
+    model = ResearchPaper.researchers.through
+    extra = 0
+    autocomplete_fields = ["researchpaper"]
+    verbose_name = "Research Paper"
+    verbose_name_plural = "Research Papers"
+
+
+class ResearcherAdmin(TabbedTranslationAdmin):
+    readonly_fields = ["id", "created_at", "updated_at"]
+    list_display = ["name", "affiliation_names", "invited_researcher"]
+    search_fields = ["name", "slug", "affiliations__name", "email"]
+    list_filter = ["themes"]
+    autocomplete_fields = ["affiliations", "phd_institution", "account", "themes"]
+    prepopulated_fields = {"slug": ("name",)}
+    inlines = [InvitedResearcherTermInline, ResearcherPaperInline]
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .prefetch_related("affiliations", "invited_researcher_terms")
+        )
+
+    @admin.display(description="Affiliations")
+    def affiliation_names(self, obj):
+        return ", ".join(org.name for org in obj.affiliations.all())
+
+    @admin.display(boolean=True, description="Invited researcher")
+    def invited_researcher(self, obj):
+        return obj.is_invited_researcher
+
+
+class InvitedResearcherTermAdmin(admin.ModelAdmin):
+    readonly_fields = ["id", "created_at", "updated_at"]
+    list_display = ["researcher", "cohort", "start_at", "end_at"]
+    search_fields = ["researcher__name"]
+    list_filter = ["cohort"]
+    autocomplete_fields = ["researcher"]
+
+
+class JournalAdmin(admin.ModelAdmin):
+    readonly_fields = ["id", "created_at", "updated_at"]
+    list_display = ["name", "abbreviation", "publisher"]
+    search_fields = ["name", "slug", "abbreviation", "issn", "eissn"]
+    prepopulated_fields = {"slug": ("name",)}
+
+
+class ResearchPaperAdmin(admin.ModelAdmin):
+    readonly_fields = ["id", "created_at", "updated_at"]
+    list_display = ["title", "journal", "year", "publication_status"]
+    search_fields = ["title", "authors", "doi"]
+    list_filter = ["publication_status", "year"]
+    autocomplete_fields = ["journal", "researchers", "datasets"]
+
+
 class PipelineAdmin(admin.ModelAdmin):
     readonly_fields = [
         "id",
@@ -1522,6 +1597,8 @@ admin.site.register(Dictionary)
 admin.site.register(Entity, EntityAdmin)
 admin.site.register(EntityCategory, EntityCategoryAdmin)
 admin.site.register(InformationRequest, InformationRequestAdmin)
+admin.site.register(InvitedResearcherTerm, InvitedResearcherTermAdmin)
+admin.site.register(Journal, JournalAdmin)
 admin.site.register(Key, KeyAdmin)
 admin.site.register(Language, LanguageAdmin)
 admin.site.register(License, LicenseAdmin)
@@ -1531,6 +1608,8 @@ admin.site.register(ObservationLevel, ObservationLevelAdmin)
 admin.site.register(Organization, OrganizationAdmin)
 admin.site.register(Pipeline, PipelineAdmin)
 admin.site.register(RawDataSource, RawDataSourceAdmin)
+admin.site.register(Researcher, ResearcherAdmin)
+admin.site.register(ResearchPaper, ResearchPaperAdmin)
 admin.site.register(Status, StatusAdmin)
 admin.site.register(Table, TableAdmin)
 admin.site.register(TableNeighbor, TableNeighborAdmin)
