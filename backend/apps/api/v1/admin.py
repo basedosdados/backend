@@ -701,6 +701,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
                     "published_by",
                     "data_cleaned_by",
                     "auxiliary_files_url",
+                    "flow_schedule",
                     "created_at",
                     "updated_at",
                 )
@@ -726,6 +727,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "get_table_url",
         "get_datetime_ranges_display",
         "partitions",
+        "flow_schedule",
         "created_at",
         "updated_at",
         "spatial_coverage",
