@@ -4,9 +4,11 @@
 import json
 from unittest.mock import patch
 
-from django.test import Client, TestCase, override_settings
+from django.contrib.messages.storage.fallback import FallbackStorage
+from django.test import Client, RequestFactory, TestCase, override_settings
 from django.urls import reverse
 
+from .admin import DisabledFlowScheduleAdmin, activate_selected, deactivate_selected
 from .models import DisabledFlowSchedule
 
 TOKEN = "test-token"
@@ -130,7 +132,7 @@ class SetScheduleActiveViewTests(TestCase):
         )
 
     @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
-    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    @patch("backend.apps.admin_data_tools.schedule_actions.Prefect3Client")
     def test_arming_updates_db_and_unpauses_prefect(self, mock_client):
         resp = self._post({"flow_name": self.record.flow_name, "is_schedule_active": True}, **AUTH)
         self.assertEqual(resp.status_code, 200)
@@ -148,7 +150,7 @@ class SetScheduleActiveViewTests(TestCase):
         self.assertIsNotNone(self.record.reactivated_at)
 
     @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
-    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    @patch("backend.apps.admin_data_tools.schedule_actions.Prefect3Client")
     def test_disarming_clears_reactivated_at_and_pauses_prefect(self, mock_client):
         self.record.is_schedule_active = True
         self.record.save()
@@ -166,7 +168,7 @@ class SetScheduleActiveViewTests(TestCase):
         self.assertIsNone(self.record.reactivated_at)
 
     @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
-    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    @patch("backend.apps.admin_data_tools.schedule_actions.Prefect3Client")
     def test_setting_current_state_is_a_safe_noop(self, mock_client):
         """Doubles as the auth smoke test: reaches the view, touches nothing."""
         resp = self._post({"flow_name": self.record.flow_name, "is_schedule_active": False}, **AUTH)
@@ -175,7 +177,7 @@ class SetScheduleActiveViewTests(TestCase):
         mock_client.return_value.set_paused.assert_not_called()
 
     @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
-    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    @patch("backend.apps.admin_data_tools.schedule_actions.Prefect3Client")
     def test_prefect_failure_leaves_stored_state_untouched(self, mock_client):
         """Prefect is called first, so a failure must not claim a change."""
         mock_client.return_value.set_paused.side_effect = RuntimeError("prefect down")
@@ -209,7 +211,7 @@ class SetScheduleActiveViewTests(TestCase):
         self.assertEqual(resp.status_code, 400)
 
     @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
-    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    @patch("backend.apps.admin_data_tools.schedule_actions.Prefect3Client")
     def test_bad_token_is_rejected_before_any_write(self, mock_client):
         resp = self._post(
             {"flow_name": self.record.flow_name, "is_schedule_active": True},
@@ -219,3 +221,91 @@ class SetScheduleActiveViewTests(TestCase):
         mock_client.return_value.set_paused.assert_not_called()
         self.record.refresh_from_db()
         self.assertFalse(self.record.is_schedule_active)
+
+
+class DisabledFlowScheduleAdminActionsTests(TestCase):
+    """Cover the admin's bulk actions and the list_editable checkbox path.
+
+    Both go through `apply_schedule_state` (already covered against Prefect
+    failure/no-op in `SetScheduleActiveViewTests`) — these tests focus on
+    what's specific to the admin: only touching rows that actually need to
+    change, and reporting a summary instead of raising on a partial failure.
+    """
+
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.active = DisabledFlowSchedule.objects.create(
+            flow_name="already_active_flow", deployment_id="d1", is_schedule_active=True
+        )
+        self.inactive = DisabledFlowSchedule.objects.create(
+            flow_name="already_inactive_flow", deployment_id="d2", is_schedule_active=False
+        )
+
+    def _request(self):
+        request = self.factory.post("/admin/admin_data_tools/disabledflowschedule/")
+        request.session = {}
+        request._messages = FallbackStorage(request)
+        return request
+
+    @patch("backend.apps.admin_data_tools.schedule_actions.Prefect3Client")
+    def test_activate_selected_only_arms_inactive_rows(self, mock_client):
+        queryset = DisabledFlowSchedule.objects.filter(pk__in=[self.active.pk, self.inactive.pk])
+        activate_selected(None, self._request(), queryset)
+
+        mock_client.return_value.set_paused.assert_called_once_with("d2", paused=False)
+        self.inactive.refresh_from_db()
+        self.assertTrue(self.inactive.is_schedule_active)
+        self.assertIsNotNone(self.inactive.reactivated_at)
+
+    @patch("backend.apps.admin_data_tools.schedule_actions.Prefect3Client")
+    def test_deactivate_selected_only_disarms_active_rows(self, mock_client):
+        queryset = DisabledFlowSchedule.objects.filter(pk__in=[self.active.pk, self.inactive.pk])
+        deactivate_selected(None, self._request(), queryset)
+
+        mock_client.return_value.set_paused.assert_called_once_with("d1", paused=True)
+        self.active.refresh_from_db()
+        self.assertFalse(self.active.is_schedule_active)
+        self.assertIsNone(self.active.reactivated_at)
+
+    @patch("backend.apps.admin_data_tools.schedule_actions.Prefect3Client")
+    def test_one_failure_does_not_abort_the_rest_of_the_batch(self, mock_client):
+        other_inactive = DisabledFlowSchedule.objects.create(
+            flow_name="another_inactive_flow", deployment_id="d3", is_schedule_active=False
+        )
+        mock_client.return_value.set_paused.side_effect = [RuntimeError("prefect down"), None]
+
+        queryset = DisabledFlowSchedule.objects.filter(pk__in=[self.inactive.pk, other_inactive.pk])
+        activate_selected(None, self._request(), queryset)
+
+        self.inactive.refresh_from_db()
+        other_inactive.refresh_from_db()
+        # First call failed (state untouched), second succeeded despite it.
+        self.assertFalse(self.inactive.is_schedule_active)
+        self.assertTrue(other_inactive.is_schedule_active)
+
+    @patch("backend.apps.admin_data_tools.schedule_actions.Prefect3Client")
+    def test_save_model_arms_via_list_editable_path(self, mock_client):
+        """`list_editable` saves through the same `save_model` the change
+        form uses — simulate the form reporting the field as changed."""
+        model_admin = DisabledFlowScheduleAdmin(DisabledFlowSchedule, None)
+
+        class _Form:
+            changed_data = ["is_schedule_active"]
+
+        self.inactive.is_schedule_active = True
+        model_admin.save_model(self._request(), self.inactive, _Form(), change=True)
+
+        mock_client.return_value.set_paused.assert_called_once_with("d2", paused=False)
+        self.inactive.refresh_from_db()
+        self.assertTrue(self.inactive.is_schedule_active)
+
+    @patch("backend.apps.admin_data_tools.schedule_actions.Prefect3Client")
+    def test_save_model_does_not_touch_prefect_when_field_unchanged(self, mock_client):
+        model_admin = DisabledFlowScheduleAdmin(DisabledFlowSchedule, None)
+
+        class _Form:
+            changed_data = []
+
+        model_admin.save_model(self._request(), self.inactive, _Form(), change=True)
+
+        mock_client.return_value.set_paused.assert_not_called()

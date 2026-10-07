@@ -1,12 +1,47 @@
 # -*- coding: utf-8 -*-
 from django.conf import settings
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.urls import reverse
-from django.utils import timezone
 from django.utils.html import format_html
 
-from ._prefect3_client import Prefect3Client
 from .models import DisabledFlowSchedule
+from .schedule_actions import apply_schedule_state
+
+
+@admin.action(description="Ativar agendamento selecionado(s)")
+def activate_selected(modeladmin, request, queryset):
+    _bulk_apply_schedule_state(request, queryset, active=True)
+
+
+@admin.action(description="Desativar agendamento selecionado(s)")
+def deactivate_selected(modeladmin, request, queryset):
+    _bulk_apply_schedule_state(request, queryset, active=False)
+
+
+def _bulk_apply_schedule_state(request, queryset, active: bool) -> None:
+    """Apply `apply_schedule_state` to every selected row that isn't already
+    in the desired state, and report a summary via the admin's message
+    framework. One failure (e.g. Prefect unreachable) doesn't abort the rest
+    of the batch — it's reported alongside whatever did succeed."""
+    targets = list(queryset.exclude(is_schedule_active=active).order_by("pk"))
+    skipped = queryset.count() - len(targets)
+
+    changed = 0
+    errors = []
+    for record in targets:
+        try:
+            apply_schedule_state(record, active)
+            changed += 1
+        except Exception as exc:
+            errors.append(f"{record.flow_name}: {exc}")
+
+    verb = "ativado(s)" if active else "desativado(s)"
+    if changed:
+        messages.success(request, f"{changed} flow(s) {verb}.")
+    if skipped:
+        messages.info(request, f"{skipped} já estava(m) no estado desejado — ignorado(s).")
+    if errors:
+        messages.error(request, "Falha em: " + "; ".join(errors))
 
 
 @admin.register(DisabledFlowSchedule)
@@ -22,9 +57,21 @@ class DisabledFlowScheduleAdmin(admin.ModelAdmin):
     # None, not [] — Django treats [] as "unset" and falls back to
     # auto-linking the first column, nesting an <a> around it either way.
     list_display_links = None
+    # Checkbox editable straight from the list, for a quick single/couple-row
+    # toggle without opening the change page. Goes through save_model() below,
+    # same as the change form — Prefect gets called exactly the same way.
+    # confirm_schedule_toggle.js (Media, below) asks for confirmation and
+    # auto-submits on "yes" instead of waiting for a separate "Save" click.
+    list_editable = ["is_schedule_active"]
     list_filter = ["is_schedule_active"]
     search_fields = ["flow_name"]
+    actions = [activate_selected, deactivate_selected]
     readonly_fields = ["flow_name_display", "deployment_id", "disabled_at", "reactivated_at"]
+
+    class Media:
+        js = ["admin_data_tools/js/confirm_schedule_toggle.js"]
+        css = {"all": ["admin_data_tools/css/hide_manual_save_button.css"]}
+
     fields = [
         "flow_name_display",
         "deployment_id",
@@ -57,12 +104,6 @@ class DisabledFlowScheduleAdmin(admin.ModelAdmin):
 
     def save_model(self, request, obj, form, change):
         if change and "is_schedule_active" in form.changed_data:
-            client = Prefect3Client()
-            if obj.is_schedule_active:
-                obj.reactivated_at = timezone.now()
-                client.set_paused(obj.deployment_id, paused=False)
-            else:
-                obj.reactivated_at = None
-                client.set_paused(obj.deployment_id, paused=True)
+            apply_schedule_state(obj, obj.is_schedule_active)
 
         super().save_model(request, obj, form, change)

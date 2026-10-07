@@ -16,6 +16,7 @@ from backend.custom.client import send_discord_message
 from ._prefect3_client import Prefect3Client
 from .constants import DBT_TASK_NAMES, FAILED_STATES, STATE_MESSAGES_IGNORE
 from .models import DisabledFlowSchedule
+from .schedule_actions import apply_schedule_state
 
 logger = logger.bind(module="admin_data_tools.flow_monitoring")
 
@@ -401,15 +402,7 @@ class SetScheduleActiveView(View):
                 }
             )
 
-        # Prefect first, then the database — same order as the admin form, so a
-        # Prefect failure leaves the stored state untouched rather than claiming
-        # a change that never reached the scheduler.
-        client = Prefect3Client()
-        client.set_paused(record.deployment_id, paused=not desired)
-
-        record.is_schedule_active = desired
-        record.reactivated_at = datetime.now(tz=timezone.utc) if desired else None
-        record.save(update_fields=["is_schedule_active", "reactivated_at"])
+        apply_schedule_state(record, desired)
 
         action = "activated" if desired else "disabled"
         logger.info(f"{action} {record.flow_name} via set-schedule-active")
