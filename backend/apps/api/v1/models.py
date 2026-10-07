@@ -523,13 +523,11 @@ class Researcher(BaseModel):
         null=True,
         help_text="Current position, e.g. Assistant Professor",
     )
-    affiliation = models.ForeignKey(
+    affiliations = models.ManyToManyField(
         "Organization",
-        on_delete=models.SET_NULL,
-        blank=True,
-        null=True,
         related_name="affiliated_researchers",
-        help_text="University or research institute",
+        blank=True,
+        help_text="Universities or research institutes",
     )
     phd_institution = models.ForeignKey(
         "Organization",

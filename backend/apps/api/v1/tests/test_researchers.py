@@ -27,12 +27,12 @@ def fixture_researcher(db, tema_educacao, organizacao_bd):
     researcher = Researcher.objects.create(
         slug="maria-silva",
         name="Maria Silva",
-        affiliation=organizacao_bd,
         description_pt="Pesquisadora em economia da educação.",
         description_en="Researcher in the economics of education.",
         description_es="Investigadora en economía de la educación.",
     )
     researcher.themes.add(tema_educacao)
+    researcher.affiliations.add(organizacao_bd)
     return researcher
 
 
@@ -118,7 +118,7 @@ def test_researchers_are_public_in_graphql(client, researcher):
               node {
                 name
                 descriptionEn
-                affiliation { slug }
+                affiliations { edges { node { slug } } }
                 isInvitedResearcher
                 themes { edges { node { slug } } }
                 invitedResearcherTerms { edges { node { cohort startAt endAt } } }
@@ -137,4 +137,4 @@ def test_researchers_are_public_in_graphql(client, researcher):
     assert node["isInvitedResearcher"] is True
     assert node["themes"]["edges"][0]["node"]["slug"] == "educacao"
     assert node["invitedResearcherTerms"]["edges"][0]["node"]["cohort"] == "2027.1"
-    assert node["affiliation"]["slug"] == "basedosdados"
+    assert node["affiliations"]["edges"][0]["node"]["slug"] == "basedosdados"
