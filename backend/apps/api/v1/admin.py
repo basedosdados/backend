@@ -263,6 +263,14 @@ class InformationRequestInline(OrderedTranslatedInline):
     ]
 
 
+class DatasetResearchPaperInline(admin.TabularInline):
+    model = ResearchPaper.datasets.through
+    extra = 0
+    autocomplete_fields = ["researchpaper"]
+    verbose_name = "Research Paper"
+    verbose_name_plural = "Research Papers"
+
+
 class DateTimeRangeInline(admin.StackedInline):
     model = DateTimeRange
     extra = 0
@@ -609,6 +617,7 @@ class DatasetAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         TableInline,
         RawDataSourceInline,
         InformationRequestInline,
+        DatasetResearchPaperInline,
     ]
     readonly_fields = [
         "id",
@@ -1553,7 +1562,7 @@ class ResearchPaperAdmin(admin.ModelAdmin):
     list_display = ["title", "journal", "year", "publication_status"]
     search_fields = ["title", "authors", "doi"]
     list_filter = ["publication_status", "year"]
-    autocomplete_fields = ["journal", "researchers"]
+    autocomplete_fields = ["journal", "researchers", "datasets"]
 
 
 class PipelineAdmin(admin.ModelAdmin):

@@ -719,6 +719,12 @@ class ResearchPaper(BaseModel):
         blank=True,
         help_text="Authors registered as researchers",
     )
+    datasets = models.ManyToManyField(
+        "Dataset",
+        related_name="research_papers",
+        blank=True,
+        help_text="Datasets related to the paper, e.g. built from it or using it",
+    )
     journal = models.ForeignKey(
         "Journal",
         on_delete=models.SET_NULL,

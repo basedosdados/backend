@@ -11,6 +11,7 @@ from django.core.exceptions import ValidationError
 from graphene_django.utils.testing import graphql_query
 
 from backend.apps.api.v1.models import (
+    Dataset,
     InvitedResearcherTerm,
     Journal,
     Researcher,
@@ -86,6 +87,7 @@ def test_cohort_must_be_year_and_semester(researcher, cohort):
 @pytest.mark.django_db
 def test_research_paper_doi_is_normalized(researcher):
     journal = Journal.objects.create(slug="aer", name="American Economic Review")
+    dataset = Dataset.objects.create(slug="dados", name="Dados")
     paper = ResearchPaper(
         title="A paper",
         authors="Silva, M. and Souza, J.",
@@ -96,10 +98,12 @@ def test_research_paper_doi_is_normalized(researcher):
     paper.full_clean()
     paper.save()
     paper.researchers.add(researcher)
+    paper.datasets.add(dataset)
 
     assert paper.doi == "10.1257/aer.20190001"
     assert paper.doi_url == "https://doi.org/10.1257/aer.20190001"
     assert list(researcher.research_papers.all()) == [paper]
+    assert list(dataset.research_papers.all()) == [paper]
 
 
 @pytest.mark.django_db
