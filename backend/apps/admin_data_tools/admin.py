@@ -2,7 +2,7 @@
 from django.conf import settings
 from django.contrib import admin, messages
 from django.urls import reverse
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 
 from .models import DisabledFlowSchedule
 from .schedule_actions import apply_schedule_state
@@ -67,7 +67,13 @@ class DisabledFlowScheduleAdmin(admin.ModelAdmin):
     list_filter = ["is_schedule_active"]
     search_fields = ["flow_name"]
     actions = [activate_selected, deactivate_selected]
-    readonly_fields = ["flow_name_display", "deployment_id", "disabled_at", "reactivated_at"]
+    readonly_fields = [
+        "flow_name_display",
+        "tables_display",
+        "deployment_id",
+        "disabled_at",
+        "reactivated_at",
+    ]
 
     class Media:
         js = ["admin_data_tools/js/confirm_schedule_toggle.js"]
@@ -75,6 +81,7 @@ class DisabledFlowScheduleAdmin(admin.ModelAdmin):
 
     fields = [
         "flow_name_display",
+        "tables_display",
         "deployment_id",
         "disabled_at",
         "is_schedule_active",
@@ -104,16 +111,28 @@ class DisabledFlowScheduleAdmin(admin.ModelAdmin):
     flow_name_display.admin_order_field = "flow_name"
 
     def tables_display(self, obj):
-        """Render the tables this flow feeds.
+        """Render the tables this flow feeds, each linking to its change page.
 
         Args:
             obj: The ``DisabledFlowSchedule`` instance being displayed.
 
         Returns:
-            Comma-separated table names, or an em dash if none are linked.
+            Comma-separated links to each table's admin change page, or an em
+            dash if none are linked.
         """
-        names = [str(table) for table in obj.tables.all()]
-        return ", ".join(names) if names else "—"
+        tables = list(obj.tables.all())
+        if not tables:
+            return "—"
+
+        def change_url(table):
+            return reverse(
+                f"admin:{table._meta.app_label}_{table._meta.model_name}_change",
+                args=[table.pk],
+            )
+
+        return format_html_join(
+            ", ", '<a href="{}">{}</a>', ((change_url(table), str(table)) for table in tables)
+        )
 
     tables_display.short_description = "Tables"
 
