@@ -13,6 +13,7 @@ from django.utils.functional import cached_property
 from ordered_model.models import OrderedModel
 
 from backend.apps.account.models import Account
+from backend.custom.graphql_jwt import require_scope
 from backend.custom.model import BaseModel
 from backend.custom.storage import OverwriteStorage, upload_to, validate_image
 from backend.custom.utils import check_kebab_case, check_snake_case
@@ -438,6 +439,8 @@ class Theme(BaseModel):
 class Organization(BaseModel):
     """Organization model"""
 
+    graphql_query_decorator = require_scope("organizations:read")
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=False, max_length=255)
     name = models.CharField(max_length=255)
@@ -799,6 +802,8 @@ class Status(BaseModel):
 
 class Dataset(BaseModel):
     """Dataset model"""
+
+    graphql_query_decorator = require_scope("datasets:read")
 
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=False, max_length=255)
@@ -1326,6 +1331,8 @@ class Poll(BaseModel):
 
 class Table(BaseModel, OrderedModel):
     """Table model"""
+
+    graphql_query_decorator = require_scope("tables:read")
 
     id = models.UUIDField(primary_key=True, default=uuid4)
     slug = models.SlugField(unique=False, max_length=255)
@@ -1870,6 +1877,8 @@ class MeasurementUnit(BaseModel):
 class Column(BaseModel, OrderedModel):
     """Model definition for Column."""
 
+    graphql_query_decorator = require_scope("tables:read")
+
     id = models.UUIDField(primary_key=True, default=uuid4)
     table = models.ForeignKey("Table", on_delete=models.CASCADE, related_name="columns")
     name = models.CharField(max_length=255)
@@ -2045,6 +2054,8 @@ class Dictionary(BaseModel):
 
 class CloudTable(BaseModel):
     """Model definition for CloudTable."""
+
+    graphql_query_decorator = require_scope("tables:read")
 
     id = models.UUIDField(primary_key=True, default=uuid4)
     table = models.ForeignKey("Table", on_delete=models.CASCADE, related_name="cloud_tables")

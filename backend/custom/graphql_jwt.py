@@ -154,6 +154,32 @@ def subscription_member(only_admin=False, exc=exceptions.PermissionDenied):
     return decorator
 
 
+def require_scope(scope: str):
+    """Decorator that enforces a BackendToken scope on a GraphQL resolver.
+
+    - JWT-authenticated requests (password / Google login) pass unconditionally.
+    - BackendToken-authenticated requests must have the requested scope, or "admin".
+    - Unauthenticated or insufficient-scope requests raise PermissionDenied.
+    """
+
+    def decorator(f):
+        @wraps(f)
+        @context(f)
+        def wrapper(ctx, *args, **kwargs):
+            # Only enforce scopes for BackendToken-authenticated requests.
+            # Anonymous and JWT-authenticated requests pass through unchanged.
+            if not hasattr(ctx, "_backend_token"):
+                return f(*args, **kwargs)
+            token_scopes = ctx._backend_token.scopes
+            if scope in token_scopes or "admin" in token_scopes:
+                return f(*args, **kwargs)
+            raise exceptions.PermissionDenied()
+
+        return wrapper
+
+    return decorator
+
+
 class CustomVerify(Verify):
     @classmethod
     def mutate(cls, *args, **kwargs):
