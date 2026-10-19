@@ -60,7 +60,9 @@ class Prefect3Client:
             if len(page) < page_size:
                 break
 
-    def get_recent_completed_runs(self, deployment_id: str, limit: int = 2) -> list[dict]:
+    def get_recent_completed_runs(
+        self, deployment_id: str, limit: int = 2, name: str | None = None
+    ) -> list[dict]:
         """Fetch the most recent completed runs for a deployment.
 
         Only terminal states are returned (Failed, Crashed, TimedOut, Completed,
@@ -70,27 +72,55 @@ class Prefect3Client:
         Args:
             deployment_id: Prefect 3 deployment UUID.
             limit: Maximum number of runs to return. Defaults to 2.
+            name: When given, also restricts to flow runs with this exact
+                name. Needed for a deployment shared by every dataset (e.g.
+                ``build_and_promote``), where ``deployment_id`` alone mixes
+                together runs from unrelated dataset/table pairs —
+                ``rename_flow_run_dataset_table`` (pipelines repo) renames
+                every run to the same deterministic
+                ``"<prefix><dataset_id>.<table_id>"`` string, so an exact
+                match scopes the history to one dataset/table. Left unset
+                for a deployment that already owns its `deployment_id`
+                exclusively (e.g. ``check_update``), where filtering by name
+                would wrongly exclude a run that crashed before the rename
+                task ran.
 
         Returns:
             List of flow run dicts ordered by start time descending, each
             containing at least ``state_name`` and ``start_time`` keys.
         """
+        flow_runs_filter = {
+            "deployment_id": {"any_": [deployment_id]},
+            "state": {
+                "name": {"any_": ["Failed", "Crashed", "TimedOut", "Completed", "Cancelled"]}
+            },
+        }
+        if name is not None:
+            flow_runs_filter["name"] = {"any_": [name]}
         return self._request(
             "POST",
             "/flow_runs/filter",
             {
-                "flow_runs": {
-                    "deployment_id": {"any_": [deployment_id]},
-                    "state": {
-                        "name": {
-                            "any_": ["Failed", "Crashed", "TimedOut", "Completed", "Cancelled"]
-                        }
-                    },
-                },
+                "flow_runs": flow_runs_filter,
                 "sort": "START_TIME_DESC",
                 "limit": limit,
             },
         )
+
+    def get_flow_run(self, flow_run_id: str) -> dict:
+        """Fetch a single flow run by id.
+
+        Used to recover ``flow_run_name`` when the caller didn't send one —
+        see ``FlowFailedWebhookView``.
+
+        Args:
+            flow_run_id: Prefect 3 flow run UUID.
+
+        Returns:
+            The flow run dict, including at least ``name`` and
+            ``deployment_id``.
+        """
+        return self._request("GET", f"/flow_runs/{flow_run_id}")
 
     def get_failed_task_runs(self, flow_run_id: str) -> list[dict]:
         """Fetch failed task runs for a specific flow run.

@@ -137,6 +137,67 @@ def _resolve_table_ids(
     return [tid for tid in by_dataset.get(dataset_id, ()) if tid not in dedicated_table_ids]
 
 
+def _parse_dataset_table_from_flow_run_name(name: str) -> tuple[str, str] | None:
+    """Extract ``(dataset_id, table_id)`` from a flow run name, if present.
+
+    ``rename_flow_run_dataset_table`` (pipelines repo) renames every flow
+    run — regardless of stage (``check_update``, ``extract_and_load``,
+    ``build_and_promote``) — to ``"<prefix><dataset_id>.<table_id>"`` right
+    at the start of its execution, e.g. ``"Build and Promote:
+    br_anatel_banda_larga_fixa.microdados"``. This is what lets a failure in
+    a stage with no ``DisabledFlowSchedule`` row of its own (see
+    ``FlowFailedWebhookView``) be traced back to the right dataset/table.
+
+    Args:
+        name: Flow run name as returned by the Prefect 3 API.
+
+    Returns:
+        ``(dataset_id, table_id)`` if ``name`` matches the pattern, ``None``
+        otherwise (e.g. a run that crashed before the rename task ran, still
+        carrying Prefect's own generated name).
+    """
+    _, sep, rest = name.partition(": ")
+    if not sep:
+        return None
+    dataset_id, sep, table_id = rest.partition(".")
+    if not sep or not dataset_id or not table_id:
+        return None
+    return dataset_id, table_id
+
+
+def _resolve_flow_schedule_by_dataset_table(
+    dataset_id: str, table_id: str
+) -> DisabledFlowSchedule | None:
+    """Find the ``check_update``'s ``DisabledFlowSchedule`` for a table.
+
+    Reuses the link ``SyncDeploymentsView`` already maintains
+    (``Table.flow_schedule``, populated from the deployment's
+    ``dataset_id__table_id`` tag) instead of resolving it again from
+    scratch — a table's ``check_update`` is the only stage in its pipeline
+    with a real schedule, so it's always the right thing to pause/notify
+    about regardless of which stage actually failed.
+
+    Args:
+        dataset_id: GCP dataset id, as resolved by
+            ``_parse_dataset_table_from_flow_run_name``.
+        table_id: GCP table id, as resolved by
+            ``_parse_dataset_table_from_flow_run_name``.
+
+    Returns:
+        The table's ``DisabledFlowSchedule``, or ``None`` if the
+        dataset/table is unknown or its ``check_update`` has no schedule
+        linked yet.
+    """
+    cloud_table = (
+        CloudTable.objects.filter(gcp_dataset_id=dataset_id, gcp_table_id=table_id)
+        .select_related("table__flow_schedule")
+        .first()
+    )
+    if cloud_table is None:
+        return None
+    return cloud_table.table.flow_schedule
+
+
 def _is_dbt_task(name: str) -> bool:
     # Prefect 3 appends a short hash suffix to task names (e.g. run_dbt-9da)
     return any(name == n or name.startswith(f"{n}-") for n in DBT_TASK_NAMES)
@@ -369,8 +430,14 @@ class FlowFailedWebhookView(View):
             "flow_run_name": "{{ flow_run.name }}"
         }
 
-    Validates consecutive failures / dbt task failures, pauses the deployment
-    in Prefect 3, and posts a message to Discord with the cause.
+    Validates consecutive failures / dbt task failures and pauses a
+    ``DisabledFlowSchedule`` in Prefect 3 — always the failing table's
+    ``check_update``, even when the failing deployment itself is
+    ``extract_and_load`` or ``build_and_promote`` (neither has a schedule of
+    its own to pause, see ``SyncDeploymentsView``; resolved from the failing
+    run's name via ``_parse_dataset_table_from_flow_run_name`` /
+    ``_resolve_flow_schedule_by_dataset_table``). Posts a message to
+    Discord with the cause either way.
     """
 
     def post(self, request):
@@ -400,22 +467,47 @@ class FlowFailedWebhookView(View):
         if not deployment_id or not flow_run_id:
             return JsonResponse({"error": "deployment_id and flow_run_id are required"}, status=400)
 
+        client = Prefect3Client()
+
         logger.info(
             f"Flow failed webhook received | deployment={deployment_id} "
             f"flow_run={flow_run_name} ({flow_run_id})"
         )
 
+        run_name_filter = None
         try:
             record = DisabledFlowSchedule.objects.get(deployment_id=deployment_id)
         except DisabledFlowSchedule.DoesNotExist:
-            logger.warning(f"Unknown deployment {deployment_id} — ignoring")
-            return JsonResponse({"status": "ok", "action": "ignored_unknown"})
+            record = None
+            if not flow_run_name:
+                # The Prefect 3 automation calling this webhook is a
+                # "Custom Webhook" notification block, which only ever
+                # exposes two template variables (`subject`/`body`) —
+                # already spent on `deployment_id`/`flow_run_id`, nothing
+                # left for `flow_run_name`. Fetched here instead, and only
+                # in this branch: `check_update` (the common case, resolved
+                # above) never needs it, so it never pays for this extra
+                # Prefect API call.
+                flow_run_name = client.get_flow_run(flow_run_id).get("name", "")
+            parsed = _parse_dataset_table_from_flow_run_name(flow_run_name)
+            if parsed:
+                record = _resolve_flow_schedule_by_dataset_table(*parsed)
+                # `build_and_promote` is one deployment shared by every
+                # dataset — without this, "the last 2 runs of this
+                # deployment_id" would mix in unrelated datasets' runs.
+                # `extract_and_load` already owns its `deployment_id`
+                # exclusively, so this is redundant but harmless there.
+                run_name_filter = flow_run_name
+            if record is None:
+                logger.warning(
+                    f"Unknown deployment {deployment_id} (flow_run={flow_run_name}) — ignoring"
+                )
+                return JsonResponse({"status": "ok", "action": "ignored_unknown"})
 
         if not record.is_schedule_active:
             return JsonResponse({"status": "ok", "action": "already_paused"})
 
-        client = Prefect3Client()
-        runs = client.get_recent_completed_runs(deployment_id, limit=2)
+        runs = client.get_recent_completed_runs(deployment_id, limit=2, name=run_name_filter)
         task_runs = client.get_failed_task_runs(flow_run_id)
 
         current_run_start = runs[0]["start_time"] if runs else None
@@ -426,27 +518,36 @@ class FlowFailedWebhookView(View):
         )
 
         if consecutive_failure or dbt_failure:
-            client.set_paused(deployment_id, paused=True)
+            client.set_paused(record.deployment_id, paused=True)
             record.is_schedule_active = False
             record.reactivated_at = None
             record.disabled_at = datetime.now(tz=timezone.utc)
             record.save(update_fields=["is_schedule_active", "reactivated_at", "disabled_at"])
-            logger.info(f"Disabled {record.flow_name} after failure")
-            self._notify_disabled(record, consecutive_failure, dbt_failure)
+            logger.info(f"Disabled {record.flow_name} after failure in {flow_run_name!r}")
+            self._notify_disabled(record, consecutive_failure, dbt_failure, flow_run_name)
             return JsonResponse({"status": "ok", "action": "disabled"})
 
         return JsonResponse({"status": "ok", "action": "no_action"})
 
     @staticmethod
     def _notify_disabled(
-        record: DisabledFlowSchedule, consecutive_failure: bool, dbt_failure: bool
+        record: DisabledFlowSchedule,
+        consecutive_failure: bool,
+        dbt_failure: bool,
+        flow_run_name: str,
     ) -> None:
         """Post a Discord message with the flow name and the cause of the disable.
 
         Args:
-            record: The ``DisabledFlowSchedule`` just paused.
+            record: The ``DisabledFlowSchedule`` just paused — always the
+                table's ``check_update``, even when the failure that
+                triggered this was in ``extract_and_load`` or
+                ``build_and_promote`` (see ``_resolve_flow_schedule_by_dataset_table``).
             consecutive_failure: Whether the last two completed runs both failed.
             dbt_failure: Whether a ``run_dbt`` task failed in the triggering run.
+            flow_run_name: Name of the run that triggered the disable —
+                surfaced so the message still points at the actual failing
+                stage when it isn't ``check_update`` itself.
         """
         if consecutive_failure and dbt_failure:
             cause = "2 execuções consecutivas falharam, incluindo uma falha de task dbt"
@@ -466,7 +567,7 @@ class FlowFailedWebhookView(View):
         send_discord_message(
             f"<@&{settings.DISCORD_DADOS_TEAM_ROLE_ID}>\n"
             f"🔴 Pipeline desativada automaticamente: **{record.flow_name}**\n"
-            f"Motivo: {cause}\n"
+            f"Motivo: {cause} (run: `{flow_run_name}`)\n"
             f"[Ver no admin]({change_url}) · [Ver no Prefect]({deployment_url})"
         )
 
