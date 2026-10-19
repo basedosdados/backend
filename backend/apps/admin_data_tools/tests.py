@@ -499,3 +499,167 @@ class DisabledFlowScheduleAdminActionsTests(TestCase):
         model_admin.save_model(self._request(), self.inactive, _Form(), change=True)
 
         mock_client.return_value.set_paused.assert_not_called()
+
+
+@override_settings(ALLOWED_HOSTS=["testserver"])
+class FlowFailedWebhookViewTests(TestCase):
+    """Cover routing a stage's failure back to its table's `check_update`.
+
+    `extract_and_load` and `build_and_promote` never get their own
+    `DisabledFlowSchedule` row (see `SyncDeploymentsViewTests` — a stage
+    only ever triggered via `run_deployment()` has no schedule to pause),
+    so a failure there has to be traced back to the table's `check_update`
+    via the flow run's own name (`rename_flow_run_dataset_table`, pipelines
+    repo) instead of `deployment_id`.
+    """
+
+    def setUp(self):
+        self.client = Client()
+        self.url = reverse("flow-failed")
+        self.dataset = Dataset.objects.create(slug="br_example", name="Example")
+        self.table = Table.objects.create(
+            dataset=self.dataset, slug="minha_tabela", name="Minha tabela"
+        )
+        CloudTable.objects.create(
+            table=self.table,
+            gcp_project_id="basedosdados",
+            gcp_dataset_id="br_example",
+            gcp_table_id="minha_tabela",
+        )
+        self.check_update = DisabledFlowSchedule.objects.create(
+            flow_name="check_update: br_example__minha_tabela",
+            deployment_id="check-update-id",
+            is_schedule_active=True,
+        )
+        self.table.flow_schedule = self.check_update
+        self.table.save(update_fields=["flow_schedule"])
+
+    def _post(self, deployment_id, flow_run_id="fr-1", flow_run_name=""):
+        body = {
+            "deployment_id": deployment_id,
+            "flow_run_id": flow_run_id,
+            "flow_run_name": flow_run_name,
+        }
+        return self.client.post(
+            self.url, data=json.dumps(body), content_type="application/json", **AUTH
+        )
+
+    def _mock(self, mock_client, runs, task_runs=None):
+        mock_client.return_value.get_recent_completed_runs.return_value = runs
+        mock_client.return_value.get_failed_task_runs.return_value = task_runs or []
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_check_update_failure_still_resolves_directly(self, mock_client):
+        self._mock(
+            mock_client,
+            [
+                {"state_name": "Failed", "start_time": "2026-10-18T10:00:00Z"},
+                {"state_name": "Failed", "start_time": "2026-10-17T10:00:00Z"},
+            ],
+        )
+
+        resp = self._post("check-update-id", flow_run_name="Check Update: br_example.minha_tabela")
+
+        self.assertEqual(resp.json()["action"], "disabled")
+        mock_client.return_value.set_paused.assert_called_once_with("check-update-id", paused=True)
+        self.check_update.refresh_from_db()
+        self.assertFalse(self.check_update.is_schedule_active)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_extract_and_load_consecutive_failure_disables_check_update(self, mock_client):
+        self._mock(
+            mock_client,
+            [
+                {"state_name": "Failed", "start_time": "2026-10-18T10:00:00Z"},
+                {"state_name": "Failed", "start_time": "2026-10-17T10:00:00Z"},
+            ],
+        )
+
+        resp = self._post(
+            "extract-and-load-id",
+            flow_run_name="Extract and Load: br_example.minha_tabela",
+        )
+
+        self.assertEqual(resp.json()["action"], "disabled")
+        # Pauses the check_update's deployment, never the failing
+        # extract_and_load's own — that one has no schedule to begin with.
+        mock_client.return_value.set_paused.assert_called_once_with("check-update-id", paused=True)
+        self.check_update.refresh_from_db()
+        self.assertFalse(self.check_update.is_schedule_active)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_build_and_promote_shared_deployment_scoped_by_name(self, mock_client):
+        """Every dataset's `build_and_promote` shares one `deployment_id` —
+        a failure in one must never see/count another dataset's runs."""
+        self._mock(
+            mock_client,
+            [
+                {"state_name": "Failed", "start_time": "2026-10-18T10:00:00Z"},
+                {"state_name": "Failed", "start_time": "2026-10-17T10:00:00Z"},
+            ],
+        )
+
+        resp = self._post(
+            "build-and-promote-shared-id",
+            flow_run_name="Build and Promote: br_example.minha_tabela",
+        )
+
+        self.assertEqual(resp.json()["action"], "disabled")
+        mock_client.return_value.get_recent_completed_runs.assert_called_once_with(
+            "build-and-promote-shared-id",
+            limit=2,
+            name="Build and Promote: br_example.minha_tabela",
+        )
+        mock_client.return_value.set_paused.assert_called_once_with("check-update-id", paused=True)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_dbt_failure_in_extract_and_load_disables_immediately(self, mock_client):
+        self._mock(
+            mock_client,
+            [{"state_name": "Failed", "start_time": "2026-10-18T10:00:00Z"}],
+            task_runs=[{"name": "run_dbt-9da", "state_message": "boom"}],
+        )
+
+        resp = self._post(
+            "extract-and-load-id",
+            flow_run_name="Extract and Load: br_example.minha_tabela",
+        )
+
+        self.assertEqual(resp.json()["action"], "disabled")
+        mock_client.return_value.set_paused.assert_called_once_with("check-update-id", paused=True)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_unrenamed_unscheduled_deployment_is_ignored(self, mock_client):
+        resp = self._post("some-other-id", flow_run_name="eager-moose")
+
+        self.assertEqual(resp.json()["action"], "ignored_unknown")
+        mock_client.return_value.set_paused.assert_not_called()
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_unknown_dataset_table_in_name_is_ignored(self, mock_client):
+        resp = self._post(
+            "extract-and-load-id", flow_run_name="Extract and Load: nao_existe.tabela"
+        )
+
+        self.assertEqual(resp.json()["action"], "ignored_unknown")
+        mock_client.return_value.set_paused.assert_not_called()
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_already_paused_check_update_is_a_noop(self, mock_client):
+        self.check_update.is_schedule_active = False
+        self.check_update.save(update_fields=["is_schedule_active"])
+
+        resp = self._post(
+            "extract-and-load-id",
+            flow_run_name="Extract and Load: br_example.minha_tabela",
+        )
+
+        self.assertEqual(resp.json()["action"], "already_paused")
+        mock_client.return_value.set_paused.assert_not_called()
