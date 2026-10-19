@@ -467,6 +467,8 @@ class FlowFailedWebhookView(View):
         if not deployment_id or not flow_run_id:
             return JsonResponse({"error": "deployment_id and flow_run_id are required"}, status=400)
 
+        client = Prefect3Client()
+
         logger.info(
             f"Flow failed webhook received | deployment={deployment_id} "
             f"flow_run={flow_run_name} ({flow_run_id})"
@@ -477,6 +479,16 @@ class FlowFailedWebhookView(View):
             record = DisabledFlowSchedule.objects.get(deployment_id=deployment_id)
         except DisabledFlowSchedule.DoesNotExist:
             record = None
+            if not flow_run_name:
+                # The Prefect 3 automation calling this webhook is a
+                # "Custom Webhook" notification block, which only ever
+                # exposes two template variables (`subject`/`body`) —
+                # already spent on `deployment_id`/`flow_run_id`, nothing
+                # left for `flow_run_name`. Fetched here instead, and only
+                # in this branch: `check_update` (the common case, resolved
+                # above) never needs it, so it never pays for this extra
+                # Prefect API call.
+                flow_run_name = client.get_flow_run(flow_run_id).get("name", "")
             parsed = _parse_dataset_table_from_flow_run_name(flow_run_name)
             if parsed:
                 record = _resolve_flow_schedule_by_dataset_table(*parsed)
@@ -495,7 +507,6 @@ class FlowFailedWebhookView(View):
         if not record.is_schedule_active:
             return JsonResponse({"status": "ok", "action": "already_paused"})
 
-        client = Prefect3Client()
         runs = client.get_recent_completed_runs(deployment_id, limit=2, name=run_name_filter)
         task_runs = client.get_failed_task_runs(flow_run_id)
 

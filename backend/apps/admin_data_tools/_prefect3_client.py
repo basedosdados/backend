@@ -107,6 +107,21 @@ class Prefect3Client:
             },
         )
 
+    def get_flow_run(self, flow_run_id: str) -> dict:
+        """Fetch a single flow run by id.
+
+        Used to recover ``flow_run_name`` when the caller didn't send one —
+        see ``FlowFailedWebhookView``.
+
+        Args:
+            flow_run_id: Prefect 3 flow run UUID.
+
+        Returns:
+            The flow run dict, including at least ``name`` and
+            ``deployment_id``.
+        """
+        return self._request("GET", f"/flow_runs/{flow_run_id}")
+
     def get_failed_task_runs(self, flow_run_id: str) -> list[dict]:
         """Fetch failed task runs for a specific flow run.
 

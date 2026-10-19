@@ -514,6 +514,16 @@ class FlowFailedWebhookViewTests(TestCase):
     """
 
     def setUp(self):
+        # `_notify_disabled` calls `send_discord_message`, which is NOT
+        # covered by Django's test-database isolation — a real
+        # `DISCORD_BACKEND_WEBHOOK_URL` in the environment (e.g. running
+        # these inside the `api` container with the project's real `.env`)
+        # would post a real message to the team's real channel. Patched for
+        # every test in this class, not just the ones expected to disable.
+        patcher = patch("backend.apps.admin_data_tools.flow_monitoring.send_discord_message")
+        self.mock_discord = patcher.start()
+        self.addCleanup(patcher.stop)
+
         self.client = Client()
         self.url = reverse("flow-failed")
         self.dataset = Dataset.objects.create(slug="br_example", name="Example")
@@ -544,9 +554,10 @@ class FlowFailedWebhookViewTests(TestCase):
             self.url, data=json.dumps(body), content_type="application/json", **AUTH
         )
 
-    def _mock(self, mock_client, runs, task_runs=None):
+    def _mock(self, mock_client, runs, task_runs=None, flow_run=None):
         mock_client.return_value.get_recent_completed_runs.return_value = runs
         mock_client.return_value.get_failed_task_runs.return_value = task_runs or []
+        mock_client.return_value.get_flow_run.return_value = flow_run or {}
 
     @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
     @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
@@ -563,8 +574,32 @@ class FlowFailedWebhookViewTests(TestCase):
 
         self.assertEqual(resp.json()["action"], "disabled")
         mock_client.return_value.set_paused.assert_called_once_with("check-update-id", paused=True)
+        # check_update resolves directly — never pays for the extra
+        # Prefect API call that only the fallback path needs.
+        mock_client.return_value.get_flow_run.assert_not_called()
         self.check_update.refresh_from_db()
         self.assertFalse(self.check_update.is_schedule_active)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_empty_flow_run_name_is_resolved_via_api(self, mock_client):
+        """The real automation's payload sends `flow_run_name: ""` today
+        (its "Custom Webhook" block has no template variable left for it) —
+        the backend must recover it itself via `get_flow_run`."""
+        self._mock(
+            mock_client,
+            [
+                {"state_name": "Failed", "start_time": "2026-10-18T10:00:00Z"},
+                {"state_name": "Failed", "start_time": "2026-10-17T10:00:00Z"},
+            ],
+            flow_run={"name": "Extract and Load: br_example.minha_tabela"},
+        )
+
+        resp = self._post("extract-and-load-id", flow_run_name="")
+
+        self.assertEqual(resp.json()["action"], "disabled")
+        mock_client.return_value.get_flow_run.assert_called_once_with("fr-1")
+        mock_client.return_value.set_paused.assert_called_once_with("check-update-id", paused=True)
 
     @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
     @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
@@ -588,6 +623,7 @@ class FlowFailedWebhookViewTests(TestCase):
         mock_client.return_value.set_paused.assert_called_once_with("check-update-id", paused=True)
         self.check_update.refresh_from_db()
         self.assertFalse(self.check_update.is_schedule_active)
+        self.mock_discord.assert_called_once()
 
     @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
     @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
