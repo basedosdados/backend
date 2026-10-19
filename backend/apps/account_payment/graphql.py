@@ -51,6 +51,7 @@ class StripePriceNode(DjangoObjectType):
     _id = ID(name="_id")
     amount = Float()
     interval = String()
+    region = String()
     trial_period_days = String()
     product_name = String()
     product_slug = String()
@@ -78,6 +79,12 @@ class StripePriceNode(DjangoObjectType):
     def resolve_interval(root, info):
         if recurring := root.recurring:
             return recurring.get("interval", "")
+
+    def resolve_region(root, info):
+        # The pricing region this price sells in ("br", "latam", "intl"), from the
+        # price's `region` metadata. Lets the storefront show the right currency by
+        # domain.
+        return (root.metadata or {}).get("region", "")
 
     def resolve_trial_period_days(root, info):
         if recurring := root.recurring:
