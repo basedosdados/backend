@@ -109,6 +109,40 @@ class SyncDeploymentsViewTests(TestCase):
         self.assertEqual(resp.json()["activated"], 1)
         mock_client.return_value.set_paused.assert_called_once_with("d4", paused=False)
 
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_row_for_deleted_deployment_is_removed(self, mock_client):
+        DisabledFlowSchedule.objects.create(
+            flow_name="check_update: gone", deployment_id="d5", is_schedule_active=True
+        )
+        self._mock_deployments(mock_client, [])
+        resp = self._post()
+        self.assertEqual(resp.json()["removed_dangling"], 1)
+        self.assertFalse(
+            DisabledFlowSchedule.objects.filter(flow_name="check_update: gone").exists()
+        )
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_row_for_deployment_still_present_is_kept(self, mock_client):
+        DisabledFlowSchedule.objects.create(
+            flow_name="check_update: bar", deployment_id="d4", is_schedule_active=True
+        )
+        self._mock_deployments(
+            mock_client,
+            [
+                {
+                    "id": "d4",
+                    "name": "check_update: bar",
+                    "paused": True,
+                    "schedules": [{"id": "s1"}],
+                }
+            ],
+        )
+        resp = self._post()
+        self.assertEqual(resp.json()["removed_dangling"], 0)
+        self.assertTrue(DisabledFlowSchedule.objects.filter(flow_name="check_update: bar").exists())
+
 
 @override_settings(ALLOWED_HOSTS=["testserver"])
 class SyncDeploymentsTableLinkTests(TestCase):

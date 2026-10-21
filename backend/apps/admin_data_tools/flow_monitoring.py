@@ -304,6 +304,17 @@ class SyncDeploymentsView(View):
     zero, one, or several, depending on what the deployment's tags/name
     resolve to. Zero is the normal case for a flow matching neither naming
     convention, not an error.
+
+    A deployment deleted from Prefect entirely (not just stripped of its
+    schedule) never shows up in ``iter_deployments()`` again, so the loop
+    below never revisits its row. Left alone, that row sits forever pointing
+    at a ``deployment_id`` nothing resolves to — found in production as 104
+    such rows after a single migration PR deleted its deployments outright
+    (basedosdados/pipelines#2155). After the loop, any ``DisabledFlowSchedule``
+    row whose ``flow_name`` wasn't seen in this sync is exactly that case, and
+    gets deleted. Safe unconditionally: ``Table.flow_schedule`` is
+    ``on_delete=SET_NULL``, so this only ever clears a stale link, never
+    cascades.
     """
 
     def post(self, request):
@@ -316,7 +327,8 @@ class SyncDeploymentsView(View):
         Returns:
             ``JsonResponse`` with a summary dict containing counts for
             ``created``, ``updated``, ``activated``, ``paused``,
-            ``removed_no_schedule``, ``tables_linked``, and ``errors``.
+            ``removed_no_schedule``, ``removed_dangling``, ``tables_linked``,
+            and ``errors``.
             Returns 401 if the bearer token is invalid.
         """
         if not _check_bearer_token(request):
@@ -339,6 +351,7 @@ class SyncDeploymentsView(View):
             "activated": 0,
             "paused": 0,
             "removed_no_schedule": 0,
+            "removed_dangling": 0,
             "tables_linked": 0,
             "errors": 0,
         }
@@ -358,6 +371,12 @@ class SyncDeploymentsView(View):
             except Exception as exc:
                 logger.error(f"Error syncing deployment {name}: {exc}")
                 results["errors"] += 1
+
+        seen_names = {dep["name"] for dep in deployments}
+        dangling_deleted, _ = DisabledFlowSchedule.objects.exclude(
+            flow_name__in=seen_names
+        ).delete()
+        results["removed_dangling"] = dangling_deleted
 
         logger.info(f"Sync complete: {results}")
         return JsonResponse(results)
