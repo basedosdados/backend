@@ -1418,6 +1418,45 @@ class Table(BaseModel, OrderedModel):
         help_text="Number of page views by Google Analytics",
     )
 
+    # Entity slug sets (from Column.coverage_entity) that make a coherent
+    # temporal coverage shape — a client (e.g. pipelines) derives its own
+    # "year"/"year_month"/etc. straight from which slugs are present; the
+    # backend only needs this set to validate, not to name the shape.
+    _VALID_COVERAGE_ENTITY_SETS = {
+        frozenset({"date"}),
+        frozenset({"year"}),
+        frozenset({"year", "month"}),
+        frozenset({"year", "quarter"}),
+        frozenset({"year", "bimester"}),
+    }
+
+    @staticmethod
+    def _coverage_entity_combination_error(coverage_entity_slugs: list) -> str | None:
+        """Validates a table's coverage_entity slugs as one coherent shape.
+
+        Args:
+            coverage_entity_slugs: coverage_entity slugs of one table's
+                columns.
+
+        Returns:
+            An error message describing the problem, or None if the
+            combination is valid.
+        """
+        slug_set = frozenset(coverage_entity_slugs)
+        if len(coverage_entity_slugs) != len(slug_set):
+            return (
+                f"Two or more coverage_columns share the same coverage_entity "
+                f"({coverage_entity_slugs}) — each temporal role (year, month, "
+                "quarter, bimester, date) can only be tagged on one column."
+            )
+        if slug_set and slug_set not in Table._VALID_COVERAGE_ENTITY_SETS:
+            valid = [sorted(s) for s in Table._VALID_COVERAGE_ENTITY_SETS]
+            return (
+                f"coverage_columns have coverage_entity {sorted(slug_set)}, which "
+                f"doesn't match any valid combination: {valid}."
+            )
+        return None
+
     order_with_respect_to = ("dataset",)
     graphql_nested_filter_fields_whitelist = ["id", "dataset"]
 
@@ -1486,6 +1525,23 @@ class Table(BaseModel, OrderedModel):
             p.get("name") for p in self.columns.all().filter(is_partition=True).values("name")
         ]
         return ", ".join(partitions_list)
+
+    def _coverage_columns_qs(self):
+        """Returns the table's columns tagged with a coverage_entity.
+
+        Returns:
+            A queryset of Column, ordered by column order.
+        """
+        return self.columns.filter(coverage_entity__isnull=False).order_by("order")
+
+    @property
+    def coverage_columns(self) -> list[str]:
+        """Names of the columns tagged with a coverage_entity.
+
+        Returns:
+            A list of column names, in column order.
+        """
+        return list(self._coverage_columns_qs().values_list("name", flat=True))
 
     @property
     def contains_open_data(self):
@@ -1742,6 +1798,13 @@ class Table(BaseModel, OrderedModel):
         except ValueError:
             pass
 
+        if self.pk:
+            coverage_entity_slugs = list(
+                self._coverage_columns_qs().values_list("coverage_entity__slug", flat=True)
+            )
+            if error := self._coverage_entity_combination_error(coverage_entity_slugs):
+                errors["coverage_columns"] = error
+
         if errors:
             raise ValidationError(errors)
         return super().clean()
@@ -1893,6 +1956,15 @@ class Column(BaseModel, OrderedModel):
     observations = models.TextField(blank=True, null=True)
     is_in_staging = models.BooleanField(default=True)
     is_partition = models.BooleanField(default=False)
+    coverage_entity = models.ForeignKey(
+        "Entity",
+        blank=True,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="coverage_columns",
+        limit_choices_to={"category__slug": "datetime"},
+        help_text="Column's role in the table's coverage (year, month...).",
+    )
     observation_level = models.ForeignKey(
         "ObservationLevel",
         on_delete=models.SET_NULL,
@@ -1994,6 +2066,20 @@ class Column(BaseModel, OrderedModel):
             errors["directory_primary_key"] = (
                 "Column indicated as a directory's primary key is not in a directory."
             )
+        if self.coverage_entity_id and self.table_id:
+            # Siblings' slugs from the DB (excluding this row, in case it's an
+            # update) plus this column's about-to-be-saved value — the same
+            # check Table.clean() does over all its columns, run here too so
+            # it fires on every CreateUpdateColumn mutation, not just when
+            # something saves the Table itself.
+            sibling_slugs = list(
+                self.table.columns.exclude(pk=self.pk)
+                .filter(coverage_entity__isnull=False)
+                .values_list("coverage_entity__slug", flat=True)
+            )
+            slugs = [*sibling_slugs, self.coverage_entity.slug]
+            if error := Table._coverage_entity_combination_error(slugs):
+                errors["coverage_entity"] = error
         if errors:
             raise ValidationError(errors)
         return super().clean()
