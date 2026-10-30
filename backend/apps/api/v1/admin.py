@@ -11,7 +11,7 @@ from django.db.models.query import QuerySet
 from django.http import HttpRequest
 from django.shortcuts import render
 from django.urls import reverse
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 from django.utils.safestring import mark_safe
 from django_admin_inline_paginator_plus.admin import StackedInlinePaginated
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
@@ -697,6 +697,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
                     "number_columns",
                     "number_rows",
                     "get_update_display",
+                    "get_coverage_columns_display",
                     "raw_data_source",
                     "published_by",
                     "data_cleaned_by",
@@ -727,6 +728,7 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         "get_table_url",
         "get_datetime_ranges_display",
         "partitions",
+        "get_coverage_columns_display",
         "flow_schedule",
         "created_at",
         "updated_at",
@@ -857,6 +859,40 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
                 )
 
         return format_html("<br>".join(links))
+
+    def get_coverage_columns_display(self, obj):
+        """Renders coverage_columns as links to each Column's admin page.
+
+        Args:
+            obj: the Table instance being displayed.
+
+        Returns:
+            Comma-separated HTML links, labeled with each column's
+            coverage_entity role (e.g. "ano (year)"), or "—" if none.
+        """
+        columns = list(
+            obj.columns.filter(coverage_entity__isnull=False)
+            .select_related("coverage_entity")
+            .order_by("order")
+        )
+
+        if len(columns) == 0:
+            return "—"
+
+        return format_html_join(
+            ", ",
+            '<a href="{}">{} ({})</a>',
+            (
+                (
+                    reverse("admin:v1_column_change", args=[col.id]),
+                    col.name,
+                    col.coverage_entity.slug,
+                )
+                for col in columns
+            ),
+        )
+
+    get_coverage_columns_display.short_description = "Coverage columns"
 
     get_datetime_ranges_display.short_description = "DateTime Ranges"
 
