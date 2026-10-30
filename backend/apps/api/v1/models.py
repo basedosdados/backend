@@ -1430,6 +1430,33 @@ class Table(BaseModel, OrderedModel):
         frozenset({"year", "bimester"}),
     }
 
+    @staticmethod
+    def _coverage_entity_combination_error(coverage_entity_slugs: list) -> str | None:
+        """Validates that a list of coverage_entity slugs (one table's worth)
+        forms a coherent temporal coverage shape. Returns an error message, or
+        None if valid.
+
+        Shared by Table.clean() (checks all of a table's columns — covers the
+        admin/explicit-call path) and Column.clean() (checks this column plus
+        its siblings, before it's even saved — covers the GraphQL mutation
+        path that pipelines/MCP use to tag coverage_entity, which never saves
+        the Table itself and so never runs Table.clean()).
+        """
+        slug_set = frozenset(coverage_entity_slugs)
+        if len(coverage_entity_slugs) != len(slug_set):
+            return (
+                f"Two or more coverage_columns share the same coverage_entity "
+                f"({coverage_entity_slugs}) — each temporal role (year, month, "
+                "quarter, bimester, date) can only be tagged on one column."
+            )
+        if slug_set and slug_set not in Table._VALID_COVERAGE_ENTITY_SETS:
+            valid = [sorted(s) for s in Table._VALID_COVERAGE_ENTITY_SETS]
+            return (
+                f"coverage_columns have coverage_entity {sorted(slug_set)}, which "
+                f"doesn't match any valid combination: {valid}."
+            )
+        return None
+
     order_with_respect_to = ("dataset",)
     graphql_nested_filter_fields_whitelist = ["id", "dataset"]
 
@@ -1779,19 +1806,8 @@ class Table(BaseModel, OrderedModel):
             coverage_entity_slugs = list(
                 self._coverage_columns_qs().values_list("coverage_entity__slug", flat=True)
             )
-            slug_set = frozenset(coverage_entity_slugs)
-            if len(coverage_entity_slugs) != len(slug_set):
-                errors["coverage_columns"] = (
-                    f"Two or more coverage_columns share the same coverage_entity "
-                    f"({coverage_entity_slugs}) — each temporal role (year, month, "
-                    "quarter, bimester, date) can only be tagged on one column."
-                )
-            elif slug_set and slug_set not in self._VALID_COVERAGE_ENTITY_SETS:
-                valid = [sorted(s) for s in self._VALID_COVERAGE_ENTITY_SETS]
-                errors["coverage_columns"] = (
-                    f"coverage_columns have coverage_entity {sorted(slug_set)}, which "
-                    f"doesn't match any valid combination: {valid}."
-                )
+            if error := self._coverage_entity_combination_error(coverage_entity_slugs):
+                errors["coverage_columns"] = error
 
         if errors:
             raise ValidationError(errors)
@@ -2054,6 +2070,20 @@ class Column(BaseModel, OrderedModel):
             errors["directory_primary_key"] = (
                 "Column indicated as a directory's primary key is not in a directory."
             )
+        if self.coverage_entity_id and self.table_id:
+            # Siblings' slugs from the DB (excluding this row, in case it's an
+            # update) plus this column's about-to-be-saved value — the same
+            # check Table.clean() does over all its columns, run here too so
+            # it fires on every CreateUpdateColumn mutation, not just when
+            # something saves the Table itself.
+            sibling_slugs = list(
+                self.table.columns.exclude(pk=self.pk)
+                .filter(coverage_entity__isnull=False)
+                .values_list("coverage_entity__slug", flat=True)
+            )
+            slugs = [*sibling_slugs, self.coverage_entity.slug]
+            if error := Table._coverage_entity_combination_error(slugs):
+                errors["coverage_entity"] = error
         if errors:
             raise ValidationError(errors)
         return super().clean()
