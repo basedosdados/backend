@@ -105,18 +105,15 @@ class CoverageSpecType(ObjectType):
     """Everything a pipeline needs to build its own CoverageSpec for a
     table, from just dataset_id/table_id — no Table UUID required.
 
-    tier is derived from Coverage.is_closed, not stored: "all_free" (only
-    open Coverage exists), "all_bdpro" (only closed), "part_bdpro" (both),
-    "non_historical" (coverage_columns is empty — no date column at all),
-    or "" if coverage_columns is non-empty but no Coverage exists yet — the
-    table was tagged with coverage_entity but never onboarded with an
-    initial Coverage record. That's a real gap to fix at the data level
-    (create the Coverage), not something this resolver papers over.
-
-    date_column_kind names the shape of coverage_columns ("year_month" etc.)
-    so the caller never has to re-derive it from entity slugs itself — "" if
-    coverage_columns is empty or (in a real data problem — see
-    Table.clean()) doesn't match any known shape.
+    Attributes:
+        tier: one of "all_free", "all_bdpro", "part_bdpro",
+            "non_historical", or "" (coverage_columns is non-empty but
+            no Coverage exists yet).
+        date_column_kind: the shape of coverage_columns, e.g.
+            "year_month", or "" if coverage_columns is empty or matches
+            no known shape.
+        coverage_columns: the table's columns tagged with a
+            coverage_entity, in column order.
     """
 
     tier = String()
@@ -149,6 +146,15 @@ class Query(ObjectType):
         return TableNeighbor.objects.filter(table_a__pk=table_id).all()
 
     def resolve_coverage_spec(root, info, dataset_id, table_id, **kwargs):
+        """Resolves coverageSpec for a table identified by its BigQuery ids.
+
+        Args:
+            dataset_id: BigQuery dataset id (CloudTable.gcp_dataset_id).
+            table_id: BigQuery table id (CloudTable.gcp_table_id).
+
+        Returns:
+            A CoverageSpecType, or None if no CloudTable matches those ids.
+        """
         cloud_table = CloudTable.objects.filter(
             gcp_dataset_id=dataset_id, gcp_table_id=table_id
         ).select_related("table")

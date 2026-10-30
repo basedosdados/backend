@@ -1432,15 +1432,15 @@ class Table(BaseModel, OrderedModel):
 
     @staticmethod
     def _coverage_entity_combination_error(coverage_entity_slugs: list) -> str | None:
-        """Validates that a list of coverage_entity slugs (one table's worth)
-        forms a coherent temporal coverage shape. Returns an error message, or
-        None if valid.
+        """Validates a table's coverage_entity slugs as one coherent shape.
 
-        Shared by Table.clean() (checks all of a table's columns — covers the
-        admin/explicit-call path) and Column.clean() (checks this column plus
-        its siblings, before it's even saved — covers the GraphQL mutation
-        path that pipelines/MCP use to tag coverage_entity, which never saves
-        the Table itself and so never runs Table.clean()).
+        Args:
+            coverage_entity_slugs: coverage_entity slugs of one table's
+                columns.
+
+        Returns:
+            An error message describing the problem, or None if the
+            combination is valid.
         """
         slug_set = frozenset(coverage_entity_slugs)
         if len(coverage_entity_slugs) != len(slug_set):
@@ -1527,23 +1527,19 @@ class Table(BaseModel, OrderedModel):
         return ", ".join(partitions_list)
 
     def _coverage_columns_qs(self):
-        """Columns tagged with a coverage_entity, in column order.
+        """Returns the table's columns tagged with a coverage_entity.
 
-        Internal helper shared by coverage_columns and clean() so the two
-        never compute the set differently.
+        Returns:
+            A queryset of Column, ordered by column order.
         """
         return self.columns.filter(coverage_entity__isnull=False).order_by("order")
 
     @property
     def coverage_columns(self) -> list[str]:
-        """Columns that define the table's temporal coverage, in column order.
+        """Names of the columns tagged with a coverage_entity.
 
-        Always resolved live from Column.name/Column.coverage_entity, never
-        duplicated as a separate string — a column rename or re-tagging never
-        leaves this stale. A client derives the coverage's shape
-        ("year"/"year_month"/etc.) itself from each column's
-        coverage_entity — the backend only validates the combination
-        (see clean()), it doesn't name it.
+        Returns:
+            A list of column names, in column order.
         """
         return list(self._coverage_columns_qs().values_list("name", flat=True))
 

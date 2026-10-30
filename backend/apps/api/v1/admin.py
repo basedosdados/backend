@@ -861,8 +861,15 @@ class TableAdmin(OrderedInlineModelAdminMixin, TabbedTranslationAdmin):
         return format_html("<br>".join(links))
 
     def get_coverage_columns_display(self, obj):
-        """Display coverage_columns as links to each Column's admin page,
-        labeled with its coverage_entity role (e.g. "ano (year)")"""
+        """Renders coverage_columns as links to each Column's admin page.
+
+        Args:
+            obj: the Table instance being displayed.
+
+        Returns:
+            Comma-separated HTML links, labeled with each column's
+            coverage_entity role (e.g. "ano (year)"), or "—" if none.
+        """
         columns = list(
             obj.columns.filter(coverage_entity__isnull=False)
             .select_related("coverage_entity")
