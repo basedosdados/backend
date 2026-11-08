@@ -8,6 +8,11 @@ from loguru import logger
 LOGGER_LEVEL = getenv("LOGGER_LEVEL", "DEBUG")
 LOGGER_IGNORE = getenv("LOGGER_IGNORE", "").split(",")
 LOGGER_SERIALIZE = bool(getenv("LOGGER_SERIALIZE", False))
+# diagnose=True (default do loguru) formata exceções com os valores de cada
+# variável local em cada frame — ~3.5x mais CPU por exceção logada (medido)
+# e risco de vazar dados sensíveis nos logs. Default False; ligar só para
+# depurar localmente.
+LOGGER_DIAGNOSE = bool(getenv("LOGGER_DIAGNOSE", False))
 LOGGER_FORMAT = "[{time:YYYY-MM-DD HH:mm:ss}] <lvl>{message}</>"
 
 
@@ -49,6 +54,7 @@ def setup_logger(logging_settings=None):
                 "level": LOGGER_LEVEL,
                 "format": LOGGER_FORMAT,
                 "serialize": LOGGER_SERIALIZE,
+                "diagnose": LOGGER_DIAGNOSE,
             },
         ],
     )

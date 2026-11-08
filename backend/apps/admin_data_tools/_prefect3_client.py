@@ -5,6 +5,12 @@ import urllib.error
 import urllib.request
 from typing import Iterator
 
+# Sem isso, uma chamada presa segura uma thread do Gunicorn indefinidamente
+# (visto em produção: ~60s, até o proxy_read_timeout padrão do nginx desistir
+# e fechar a conexão) — com poucas chamadas concorrentes já esgota o pool de
+# threads (3 workers x 4 threads) e trava o backend inteiro, healthcheck incluso.
+REQUEST_TIMEOUT_SECONDS = 10
+
 
 class Prefect3Client:
     """Thin HTTP client for the Prefect 3 REST API.
@@ -37,7 +43,7 @@ class Prefect3Client:
             headers=self._headers,
             method=method,
         )
-        with urllib.request.urlopen(req) as r:
+        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT_SECONDS) as r:
             raw = r.read()
             return json.loads(raw) if raw else None
 
@@ -123,7 +129,14 @@ class Prefect3Client:
         return self._request("GET", f"/flow_runs/{flow_run_id}")
 
     def get_failed_task_runs(self, flow_run_id: str) -> list[dict]:
-        """Fetch failed task runs for a specific flow run.
+        """Fetch failed dbt task runs for a specific flow run.
+
+        Filtered server-side to task names matching ``run_dbt`` (the only
+        name ``_is_dbt_task`` ever checks for) instead of fetching every
+        failed task run of the flow and filtering in Python — without this,
+        the request has no ``limit`` and falls back to the server's default
+        (200), pulling far more data than needed for flows with many mapped
+        tasks.
 
         Args:
             flow_run_id: Prefect 3 flow run UUID.
@@ -139,7 +152,9 @@ class Prefect3Client:
                 "task_runs": {
                     "flow_run_id": {"any_": [flow_run_id]},
                     "state": {"name": {"any_": ["Failed", "Crashed", "TimedOut"]}},
-                }
+                    "name": {"like_": "run_dbt"},
+                },
+                "limit": 10,
             },
         )
 
