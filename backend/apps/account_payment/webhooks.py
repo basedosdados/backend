@@ -17,11 +17,8 @@ from googleapiclient.errors import HttpError
 from loguru import logger
 from stripe import Customer as StripeCustomer
 
+import backend.apps.account_payment.reactivation as reactivation
 from backend.apps.account.models import Account, Subscription
-from backend.apps.account_payment.reactivation import (
-    REACTIVATE_ACTION,
-    reactivate_stripe_subscription,
-)
 from backend.apps.account_payment.trials import (
     account_eligible_for_bdpro_stripe_trial,
     account_eligible_for_chatbot_stripe_trial,
@@ -994,11 +991,13 @@ def setup_intent_succeeded(event: Event, **kwargs):
             invoice_settings={"default_payment_method": payment_method},
         )
 
-    if metadata.get("action") == REACTIVATE_ACTION:
+    if metadata.get("action") == reactivation.REACTIVATE_ACTION:
         subscription_id = metadata.get("subscription_id")
         logger.info(f"{ctx}Reativando assinatura {subscription_id} de {event.customer.email}")
         # Price and coupon were already applied by the mutation.
-        updated = reactivate_stripe_subscription(subscription_id, payment_method=payment_method)
+        updated = reactivation.reactivate_stripe_subscription(
+            subscription_id, payment_method=payment_method
+        )
         if updated is None:
             logger.warning(
                 f"{ctx}Assinatura {subscription_id} não estava mais reativável; "

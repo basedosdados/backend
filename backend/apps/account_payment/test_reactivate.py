@@ -396,7 +396,7 @@ def _setup_intent_event(metadata):
 
 @patch(f"{WH}.get_backend_url", return_value="http://backend")
 @patch(f"{WH}.StripeCustomer")
-@patch(f"{WH}.reactivate_stripe_subscription")
+@patch("backend.apps.account_payment.reactivation.reactivate_stripe_subscription")
 def test_webhook_reactivates_instead_of_creating_subscription(
     reactivate, stripe_customer, _backend_url
 ):
@@ -419,7 +419,7 @@ def test_webhook_reactivates_instead_of_creating_subscription(
 
 @patch(f"{WH}.get_backend_url", return_value="http://backend")
 @patch(f"{WH}.StripeCustomer")
-@patch(f"{WH}.reactivate_stripe_subscription")
+@patch("backend.apps.account_payment.reactivation.reactivate_stripe_subscription")
 def test_webhook_ignores_other_environments(reactivate, stripe_customer, _backend_url):
     event = _setup_intent_event(
         {
