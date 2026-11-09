@@ -25,6 +25,7 @@ django-storages = {extras = ["google"], version = "^1.13.2"}
 faker = "^19.6.1"
 google-api-python-client = "^2.83.0"
 google-cloud-bigquery = "^3.11.3"
+google-cloud-profiler = "^4.1.0"
 google-cloud-storage = "^2.11.0"
 graphene = "3.2.1"
 graphene-django = "3.0.0"
