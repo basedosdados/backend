@@ -618,8 +618,12 @@ class Subscription(BaseModel):
 
     @property
     def canceled_at(self):
-        if self.subscription:
+        if not self.subscription:
+            return None
+        if self.subscription.cancel_at:
             return self.subscription.cancel_at.isoformat()
+        if self.subscription.cancel_at_period_end and self.subscription.current_period_end:
+            return self.subscription.current_period_end.isoformat()
         return None
 
     @property
