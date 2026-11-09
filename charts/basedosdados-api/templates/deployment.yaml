@@ -54,6 +54,8 @@ spec:
                   key: password
             - name: DJANGO_SETTINGS_MODULE
               value: {{ .Values.api.settingsModule | quote }}
+            - name: API_NAME
+              value: {{ .Values.api.name | quote }}
             {{- with .Values.api.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
