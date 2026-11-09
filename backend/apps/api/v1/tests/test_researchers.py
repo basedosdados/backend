@@ -16,6 +16,7 @@ from backend.apps.api.v1.models import (
     Journal,
     Researcher,
     ResearchPaper,
+    Status,
     add_years,
 )
 
@@ -138,3 +139,22 @@ def test_researchers_are_public_in_graphql(client, researcher):
     assert node["themes"]["edges"][0]["node"]["slug"] == "educacao"
     assert node["invitedResearcherTerms"]["edges"][0]["node"]["cohort"] == "2027.1"
     assert node["affiliations"]["edges"][0]["node"]["slug"] == "basedosdados"
+
+
+@pytest.mark.django_db
+def test_researcher_status_is_exposed_in_graphql(client, researcher):
+    researcher.status = Status.objects.create(name="Under review", slug="under_review")
+    researcher.save()
+    query = """
+        query {
+          allResearcher {
+            edges { node { slug status { slug } } }
+          }
+        }
+    """
+    response = graphql_query(query=query, client=client, graphql_url=GRAPHQL_URL)
+    result = loads(response.content)
+
+    assert "errors" not in result
+    node = result["data"]["allResearcher"]["edges"][0]["node"]
+    assert node["status"]["slug"] == "under_review"

@@ -1560,9 +1560,9 @@ class ResearcherPaperInline(admin.TabularInline):
 
 class ResearcherAdmin(TabbedTranslationAdmin):
     readonly_fields = ["id", "created_at", "updated_at"]
-    list_display = ["name", "affiliation_names", "invited_researcher"]
+    list_display = ["name", "affiliation_names", "invited_researcher", "status"]
     search_fields = ["name", "slug", "affiliations__name", "email"]
-    list_filter = ["themes"]
+    list_filter = ["status", "themes"]
     autocomplete_fields = ["affiliations", "phd_institution", "account", "themes"]
     prepopulated_fields = {"slug": ("name",)}
     inlines = [InvitedResearcherTermInline, ResearcherPaperInline]
