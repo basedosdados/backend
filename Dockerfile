@@ -18,8 +18,10 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
 # Install make, nginx and copy configuration
+# g++ é necessário pra compilar google-cloud-profiler (extensão nativa,
+# sem wheel pré-compilado pra essa imagem/plataforma).
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl make nginx \
+    && apt-get install -y --no-install-recommends curl make nginx g++ \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && rm /etc/nginx/sites-enabled/default
