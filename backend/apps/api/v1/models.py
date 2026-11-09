@@ -572,6 +572,14 @@ class Researcher(BaseModel):
         related_name="researcher",
         help_text="Data Basis user account, if any",
     )
+    status = models.ForeignKey(
+        "Status",
+        on_delete=models.PROTECT,
+        related_name="researchers",
+        null=True,
+        blank=True,
+        help_text="Use under_review or excluded to hide the researcher from the website",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
