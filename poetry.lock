@@ -1109,6 +1109,24 @@ google-auth = ">=1.25.0,<3.0.dev0"
 grpc = ["grpcio (>=1.38.0,<2.0.dev0)", "grpcio-status (>=1.38.0,<2.0.dev0)"]
 
 [[package]]
+name = "google-cloud-profiler"
+version = "4.1.0"
+description = "Google Cloud Profiler Python Agent"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "google-cloud-profiler-4.1.0.tar.gz", hash = "sha256:2d90f9c6d4c075ad6d43752ae39424c3d0bad63e6549a2c761881f9a235067ae"},
+]
+
+[package.dependencies]
+google-api-python-client = "<1.12.0 || >1.12.0,<2.0.2 || >2.0.2"
+google-auth = ">=1.0.0"
+google-auth-httplib2 = "*"
+protobuf = ">=3.20"
+requests = "*"
+
+[[package]]
 name = "google-cloud-storage"
 version = "2.18.1"
 description = "Google Cloud Storage API client library"
@@ -4104,4 +4122,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.13"
-content-hash = "9abddb952805e6cdaf49456ef5c77b86443b2a111f45b4f03981539bb166deb2"
+content-hash = "b1b69c65f4de234158e6f2db56dd3c6900c51a9d832d1b15f8bc7f7eafbea188"
