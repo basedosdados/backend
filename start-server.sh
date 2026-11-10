@@ -18,7 +18,7 @@ echo "> Running Huey"
 echo "> Running Gunicorn"
 (
   cd /app
-  gunicorn backend.wsgi \
+  gunicorn -c gunicorn.conf.py backend.wsgi \
     --user www-data \
     --bind 0.0.0.0:8000 \
     --workers 3 \
