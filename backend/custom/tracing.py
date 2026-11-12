@@ -5,58 +5,27 @@ Mesma separação por processo do Cloud Profiler (ver `gunicorn.conf.py` e
 `run_huey.py`): cada processo (Gunicorn, Huey) chama `init_tracing()` com
 seu próprio nome de serviço, uma vez, depois do fork.
 
-Exporta via OTLP direto pro endpoint nativo do Cloud Trace
-(`telemetry.googleapis.com`), não pelo pacote `opentelemetry-exporter-gcp-trace`
-— esse está deprecated (ver
-https://github.com/GoogleCloudPlatform/opentelemetry-operations-python/blob/main/MIGRATION.md),
-e em staging, testado de verdade, não gerou nenhum trace visível mesmo sem
-erro nenhum no processo.
-
 Amostragem parcial por padrão (`SAMPLE_RATIO`) — o volume real de tráfego do
 `api-prod` excede a franquia gratuita de 2,5M spans/mês do Cloud Trace se
 toda requisição for amostrada.
 """
 
-import google.auth
-import google.auth.transport.grpc
-import google.auth.transport.requests
-import grpc
 from huey import Huey
 from huey.signals import SIGNAL_COMPLETE, SIGNAL_ERROR, SIGNAL_EXECUTING
 from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import (
-    OTLPSpanExporter,
-)
+from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter
 from opentelemetry.instrumentation.django import DjangoInstrumentor
 from opentelemetry.instrumentation.psycopg2 import Psycopg2Instrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
-from opentelemetry.resourcedetector.gcp_resource_detector import (
-    GoogleCloudResourceDetector,
-)
-from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
-
-OTLP_ENDPOINT = "telemetry.googleapis.com"
 
 # Fração das requisições/tasks amostradas. Ajustar depois de ver volume real
 # em staging — 1.0 (tudo) provavelmente estoura a franquia gratuita.
 SAMPLE_RATIO = 0.1
 
 _started = False
-
-
-def _otlp_channel_credentials() -> grpc.ChannelCredentials:
-    """Credenciais gRPC autenticadas com a mesma ADC do pod (Workload Identity)."""
-    credentials, _ = google.auth.default()
-    request = google.auth.transport.requests.Request()
-    return grpc.composite_channel_credentials(
-        grpc.ssl_channel_credentials(),
-        grpc.metadata_call_credentials(
-            google.auth.transport.grpc.AuthMetadataPlugin(credentials=credentials, request=request)
-        ),
-    )
 
 
 def init_tracing(service_name: str) -> None:
@@ -72,12 +41,8 @@ def init_tracing(service_name: str) -> None:
     if _started:
         return
 
-    resource = Resource.create({"service.name": service_name}).merge(
-        GoogleCloudResourceDetector().detect()
-    )
-    provider = TracerProvider(sampler=TraceIdRatioBased(SAMPLE_RATIO), resource=resource)
-    exporter = OTLPSpanExporter(endpoint=OTLP_ENDPOINT, credentials=_otlp_channel_credentials())
-    provider.add_span_processor(BatchSpanProcessor(exporter))
+    provider = TracerProvider(sampler=TraceIdRatioBased(SAMPLE_RATIO))
+    provider.add_span_processor(BatchSpanProcessor(CloudTraceSpanExporter()))
     trace.set_tracer_provider(provider)
 
     DjangoInstrumentor().instrument(is_sql_commentor_enabled=True)
