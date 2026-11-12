@@ -10,13 +10,12 @@ Amostragem parcial por padrão (`SAMPLE_RATIO`) — o volume real de tráfego do
 toda requisição for amostrada.
 """
 
-import psycopg2
 from huey import Huey
 from huey.signals import SIGNAL_COMPLETE, SIGNAL_ERROR, SIGNAL_EXECUTING
 from opentelemetry import trace
 from opentelemetry.exporter.cloud_trace import CloudTraceSpanExporter
-from opentelemetry.instrumentation.dbapi import wrap_connect
 from opentelemetry.instrumentation.django import DjangoInstrumentor
+from opentelemetry.instrumentation.psycopg2 import Psycopg2Instrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
@@ -48,12 +47,13 @@ def init_tracing(service_name: str) -> None:
 
     DjangoInstrumentor().instrument(is_sql_commentor_enabled=True)
     RequestsInstrumentor().instrument()
-    wrap_connect(
-        "psycopg2",
-        psycopg2,
-        connect_method_name="connect",
-        database_system="postgresql",
-    )
+    # Psycopg2Instrumentor, não dbapi.wrap_connect genérico: esse troca só a
+    # cursor_factory, mantendo a conexão como um objeto psycopg2 real. O
+    # wrap_connect genérico devolve um proxy Python, e o Django chama
+    # `psycopg2.extras.register_default_jsonb(connection)` logo depois de
+    # conectar — função de nível C que rejeita o proxy
+    # (TypeError: argument 2 must be a connection, cursor or None).
+    Psycopg2Instrumentor().instrument()
     _started = True
 
 

@@ -2355,6 +2355,26 @@ asgi = ["opentelemetry-instrumentation-asgi (==0.66b2)"]
 instruments = ["django (>=2.0)"]
 
 [[package]]
+name = "opentelemetry-instrumentation-psycopg2"
+version = "0.66b2"
+description = "OpenTelemetry psycopg2 instrumentation"
+optional = false
+python-versions = ">=3.10"
+groups = ["main"]
+files = [
+    {file = "opentelemetry_instrumentation_psycopg2-0.66b2-py3-none-any.whl", hash = "sha256:08db51d772d4653a1cf41ab7764b8760460763d776cd250c5e27d6094546bf4e"},
+    {file = "opentelemetry_instrumentation_psycopg2-0.66b2.tar.gz", hash = "sha256:3f27a6e7c5688a691d2c6d3be3f93c39c0877b9819d035403019cd61767a1bd1"},
+]
+
+[package.dependencies]
+opentelemetry-api = ">=1.12,<2.0"
+opentelemetry-instrumentation = "0.66b2"
+opentelemetry-instrumentation-dbapi = "0.66b2"
+
+[package.extras]
+instruments-any = ["psycopg2 (>=2.7.3.1)", "psycopg2-binary (>=2.7.3.1)"]
+
+[[package]]
 name = "opentelemetry-instrumentation-requests"
 version = "0.66b2"
 description = "OpenTelemetry requests instrumentation"
@@ -4452,4 +4472,4 @@ testing = ["coverage[toml]", "zope.event", "zope.testing"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.13"
-content-hash = "5141d5770a46d8eeab67e14b30863f00243220e5e389d3edf0165496c07be3ce"
+content-hash = "8d24ab546cd40841bb41c00ad20dc3b8defd2655a22ed25714dd89baee02bafd"
