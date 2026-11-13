@@ -65,6 +65,7 @@ jobs:
           tracing:
             enabled: true
             gcpProjectId: "${{ steps.import_secrets.outputs.GCP_PROJECT_ID }}"
+            sampleRatio: "1.0"
           database:
             host: "cloud-sql-proxy"
             port: 5432
