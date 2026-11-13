@@ -1426,6 +1426,9 @@ class Table(BaseModel, OrderedModel):
         help_text="Number of page views by Google Analytics",
     )
 
+    graphql_select_related = ["license"]
+    graphql_prefetch_related = ["cloud_tables"]
+
     # Entity slug sets (from Column.coverage_entity) that make a coherent
     # temporal coverage shape — a client (e.g. pipelines) derives its own
     # "year"/"year_month"/etc. straight from which slugs are present; the
