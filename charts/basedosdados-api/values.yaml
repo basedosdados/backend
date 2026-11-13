@@ -36,6 +36,32 @@ api:
 
   # Django settings module
   settingsModule: backend.settings.remote
+# Tracing (OpenTelemetry) configuration
+tracing:
+  # Enable the OpenTelemetry Collector sidecar. Disabled by default — the
+  # application falls back to no-op tracing when there's nothing listening
+  # on OTEL_EXPORTER_OTLP_ENDPOINT.
+  enabled: false
+
+  # GCP project to export traces to. Left empty, the googlecloud exporter
+  # tries to detect it from the mounted service account / GKE metadata.
+  gcpProjectId: ""
+
+  # Fraction of traces to sample (0.0 to 1.0).
+  sampleRatio: "0.1"
+
+  collectorImage:
+    name: otel/opentelemetry-collector-contrib
+    tag: "0.111.0"
+
+  # Resources for the otel-collector sidecar container.
+  collectorResources: {}
+  #   limits:
+  #     cpu: 200m
+  #     memory: 256Mi
+  #   requests:
+  #     cpu: 50m
+  #     memory: 128Mi
 # Database configuration
 database:
   # Hostname of the database

@@ -1,0 +1,31 @@
+{{- if .Values.tracing.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.api.name }}-otel-collector-config
+  labels:
+    app.kubernetes.io/component: basedosdados-api
+    app.kubernetes.io/name: {{ .Values.api.name }}
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+            endpoint: 0.0.0.0:4317
+    processors:
+      resourcedetection:
+        detectors: [gcp]
+        timeout: 5s
+        override: false
+      batch: {}
+    exporters:
+      googlecloud:
+        project: {{ .Values.tracing.gcpProjectId | quote }}
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [resourcedetection, batch]
+          exporters: [googlecloud]
+{{- end }}

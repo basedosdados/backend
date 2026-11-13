@@ -11,11 +11,7 @@ from backend.custom.tracing import init_tracing, instrument_huey
 
 
 class Command(HueyCommand):
-    """Inicia o Cloud Profiler e o tracing antes de rodar o consumer do Huey.
-
-    Sobrescreve o comando `run_huey` da própria lib (Django usa o último
-    app em INSTALLED_APPS que define o mesmo nome de comando).
-    """
+    """Inicia o Cloud Profiler e o tracing antes de rodar o consumer do Huey."""
 
     def handle(self, *args, **options):
         api_name = os.environ.get("API_NAME", "api-unknown")
