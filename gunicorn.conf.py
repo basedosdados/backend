@@ -1,11 +1,14 @@
 # -*- coding: utf-8 -*-
 import os
 
+import googlecloudprofiler
+
+from backend.custom.tracing import init_tracing
+
 
 def post_fork(server, worker):
-    import googlecloudprofiler
-
     api_name = os.environ.get("API_NAME", "api-unknown")
+    init_tracing(f"{api_name}-gunicorn")
     googlecloudprofiler.start(
         service=f"{api_name}-gunicorn",
         service_version="1.0.0",

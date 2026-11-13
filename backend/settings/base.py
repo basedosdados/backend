@@ -61,6 +61,14 @@ INSTALLED_APPS = [
     "haystack",
     "graphene_django",
     "django_extensions",
+    # `core` precisa vir ANTES de `huey.contrib.djhuey`: os dois definem
+    # um comando `run_huey` (o override mora em `core/management/commands/`,
+    # junto das outras tasks do Huey), e `get_commands()` do Django dá a
+    # vitória pro app que aparece primeiro em INSTALLED_APPS (itera em
+    # ordem reversa, e `dict.update` deixa a última chamada vencer — ver
+    # basedosdados/backend#1132). Sem isso aqui antes, nosso override
+    # (Cloud Profiler, tracing) nunca executa.
+    "backend.apps.core",
     "huey.contrib.djhuey",
     #
     "backend.apps.account",
@@ -68,7 +76,6 @@ INSTALLED_APPS = [
     "backend.apps.account_payment.apps.PaymentConfig",
     "backend.apps.api.v1",
     "backend.apps.user_notifications",
-    "backend.apps.core",
     "backend.apps.admin_data_tools",
 ]
 

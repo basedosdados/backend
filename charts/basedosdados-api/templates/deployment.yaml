@@ -56,6 +56,10 @@ spec:
               value: {{ .Values.api.settingsModule | quote }}
             - name: API_NAME
               value: {{ .Values.api.name | quote }}
+            {{- if .Values.tracing.enabled }}
+            - name: OTEL_TRACES_SAMPLE_RATIO
+              value: {{ .Values.tracing.sampleRatio | quote }}
+            {{- end }}
             {{- with .Values.api.env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
@@ -85,6 +89,25 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 5
             successThreshold: 1
+        {{- if .Values.tracing.enabled }}
+        - name: otel-collector
+          image: "{{ .Values.tracing.collectorImage.name }}:{{ .Values.tracing.collectorImage.tag }}"
+          args: ["--config=/etc/otel/config.yaml"]
+          env:
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: /var/secrets/gcp-sa.json
+          volumeMounts:
+            - mountPath: /etc/otel/
+              name: otel-collector-config
+              readOnly: true
+            - mountPath: /var/secrets/
+              name: gcp-sa
+              readOnly: true
+          {{- with .Values.tracing.collectorResources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+        {{- end }}
       volumes:
         - name: gcp-sa
           secret:
@@ -92,3 +115,8 @@ spec:
             items:
               - key: GCP_SA
                 path: gcp-sa.json
+        {{- if .Values.tracing.enabled }}
+        - name: otel-collector-config
+          configMap:
+            name: {{ .Values.api.name }}-otel-collector-config
+        {{- end }}
