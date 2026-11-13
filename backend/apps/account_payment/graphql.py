@@ -33,9 +33,16 @@ from stripe import Customer as StripeCustomer
 from stripe import SetupIntent
 
 from backend.apps.account.models import Account, Subscription
+from backend.apps.account_payment.reactivation import (
+    REACTIVATE_ACTION,
+    is_reactivatable,
+    reactivate_stripe_subscription,
+    retrieve_stripe_subscription,
+)
 from backend.apps.account_payment.trials import (
     account_eligible_for_bdpro_stripe_trial,
     account_eligible_for_chatbot_stripe_trial,
+    djstripe_subscription_is_chatbot,
 )
 from backend.apps.account_payment.webhooks import add_user, is_email_in_group, remove_user
 from backend.custom.environment import get_backend_url
@@ -49,6 +56,7 @@ else:
 
 class StripePriceNode(DjangoObjectType):
     _id = ID(name="_id")
+    stripe_price_id = String()
     amount = Float()
     interval = String()
     region = String()
@@ -71,6 +79,12 @@ class StripePriceNode(DjangoObjectType):
     def resolve__id(root, info):
         return root.djstripe_id
 
+    def resolve_stripe_price_id(root, info):
+        # The Stripe price id (e.g. "price_..."), stable and verifiable in the Stripe
+        # dashboard, unlike the environment-specific djstripe PK exposed as `_id`. Lets the
+        # website select exactly which prices to sell instead of guessing by amount.
+        return root.id
+
     def resolve_amount(root, info):
         if root.unit_amount:
             return root.unit_amount / 100
@@ -83,8 +97,8 @@ class StripePriceNode(DjangoObjectType):
     def resolve_region(root, info):
         # The pricing region this price sells in ("br", "latam", "intl"), from the
         # price's `region` metadata. Lets the storefront show the right currency by
-        # domain.
-        return (root.metadata or {}).get("region", "")
+        # domain, and mirrors the tag the checkout webhook enforces server-side.
+        return root.metadata.get("region", "")
 
     def resolve_trial_period_days(root, info):
         if recurring := root.recurring:
@@ -337,6 +351,113 @@ class StartChatbotTrialMutation(Mutation):
                 cancel_at=int(trial_end.timestamp()),
             )
             return cls(chatbot_trial_ends_at=trial_end)
+        except Exception as e:
+            logger.error(e)
+            return cls(errors=[str(e)])
+
+
+class StripeReactivateSubscriptionMutation(Mutation):
+    """Remove the scheduled cancellation of a subscription, keeping it.
+
+    - Trialing or without a card: applies price/coupon and returns a
+      SetupIntent `client_secret`; the cancellation is removed by the
+      `setup_intent.succeeded` webhook.
+    - Paid with a card: reactivates right away and returns `ok`.
+
+    Price switch only for a trialing chatbot subscription.
+    """
+
+    ok = Boolean()
+    client_secret = String()
+    errors = List(String)
+
+    class Arguments:
+        subscription_id = ID(required=True)
+        price_id = ID(required=False)
+        coupon = String(required=False)
+
+    @classmethod
+    @login_required
+    def mutate(cls, root, info, subscription_id, price_id=None, coupon=None):
+        try:
+            account = info.context.user
+            internal = (
+                Subscription.objects.filter(id=subscription_id, admin=account)
+                .select_related("subscription")
+                .first()
+            )
+            if not internal or not internal.subscription:
+                return cls(errors=["Assinatura não encontrada."])
+
+            dj_sub = internal.subscription
+            is_chatbot = djstripe_subscription_is_chatbot(dj_sub)
+            if not (is_chatbot or internal.is_pro):
+                return cls(errors=["Este plano não pode ser reativado."])
+
+            stripe_sub = retrieve_stripe_subscription(dj_sub.id)
+            if not is_reactivatable(stripe_sub):
+                return cls(errors=["Esta assinatura não possui cancelamento agendado."])
+
+            new_price_id = None
+            if price_id:
+                price = DJStripePrice.objects.get(djstripe_id=price_id)
+                if not price.active:
+                    return cls(errors=["Este preço não está mais disponível."])
+                current_price = stripe_sub["items"]["data"][0]["price"]
+                if price.id != current_price["id"]:
+                    if not (is_chatbot and stripe_sub["status"] == "trialing"):
+                        return cls(
+                            errors=["A troca de plano só é permitida durante o período de teste."]
+                        )
+                    if price.product.id != current_price["product"]:
+                        return cls(errors=["Este preço não pertence ao mesmo produto."])
+                    new_price_id = price.id
+
+            promotion_code = None
+            if coupon:
+                try:
+                    promotion = get_stripe_promo(coupon)
+                except Exception:
+                    promotion = None
+                if not promotion or not promotion.active:
+                    return cls(errors=["Cupom inválido."])
+                promotion_code = promotion.id
+
+            payment_method = None
+            if stripe_sub["status"] != "trialing":
+                customer = StripeCustomer.retrieve(stripe_sub["customer"])
+                payment_method = stripe_sub.get("default_payment_method") or (
+                    (customer.get("invoice_settings") or {}).get("default_payment_method")
+                )
+
+            if not payment_method:
+                reactivate_stripe_subscription(
+                    dj_sub.id,
+                    price_id=new_price_id,
+                    promotion_code=promotion_code,
+                    remove_cancellation=False,
+                )
+                setup_intent = SetupIntent.create(
+                    customer=stripe_sub["customer"],
+                    usage="off_session",
+                    metadata={
+                        "action": REACTIVATE_ACTION,
+                        "subscription_id": dj_sub.id,
+                        "backend_url": get_backend_url(),
+                    },
+                )
+                return cls(client_secret=setup_intent.client_secret)
+
+            reactivate_stripe_subscription(
+                dj_sub.id,
+                payment_method=payment_method,
+                price_id=new_price_id,
+                promotion_code=promotion_code,
+            )
+            return cls(ok=True)
+        except stripe.error.StripeError as e:
+            logger.error(e)
+            return cls(errors=[e.user_message or str(e)])
         except Exception as e:
             logger.error(e)
             return cls(errors=[str(e)])
@@ -765,6 +886,7 @@ class Mutation(ObjectType):
     update_stripe_customer = StripeCustomerUpdateMutation.Field()
     create_stripe_subscription = StripeSubscribeMutation.Field()
     start_chatbot_trial = StartChatbotTrialMutation.Field()
+    reactivate_stripe_subscription = StripeReactivateSubscriptionMutation.Field()
     delete_stripe_subscription = StripeSubscriptionDeleteMutation.Field()
     delete_stripe_subscription_immediately = StripeSubscriptionDeleteImmediatelyMutation.Field()
     add_stripe_subscription_member = StripeSubscriptionAddMemberMutation.Field()
