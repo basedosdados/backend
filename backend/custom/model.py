@@ -30,6 +30,8 @@ class BaseModel(models.Model):
     - graphql_fields_black_list: list of fields to hide in mutations
     - graphql_query_decorator: authentication decorator for queries
     - graphql_mutation_decorator: authentication decorator for mutations
+    - graphql_select_related: fields applied via select_related on the GraphQL queryset
+    - graphql_prefetch_related: fields applied via prefetch_related on the GraphQL queryset
     """
 
     class Meta:
@@ -43,6 +45,9 @@ class BaseModel(models.Model):
     graphql_filter_fields_blacklist: List[str] = []
     graphql_nested_filter_fields_whitelist: List[str] = []
     graphql_nested_filter_fields_blacklist: List[str] = []
+
+    graphql_select_related: List[str] = []
+    graphql_prefetch_related: List[str] = []
 
     graphql_query_decorator: Callable = default_query_decorator
     graphql_mutation_decorator: Callable = default_mutation_decorator
