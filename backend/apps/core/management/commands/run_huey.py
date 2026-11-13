@@ -1,22 +1,22 @@
 # -*- coding: utf-8 -*-
 import os
 
+import googlecloudprofiler
+from huey.contrib.djhuey import HUEY
 from huey.contrib.djhuey.management.commands.run_huey import (
     Command as HueyCommand,
 )
 
+from backend.custom.tracing import init_tracing, instrument_huey
+
 
 class Command(HueyCommand):
-    """Inicia o Cloud Profiler antes de rodar o consumer do Huey.
-
-    Sobrescreve o comando `run_huey` da própria lib (Django usa o último
-    app em INSTALLED_APPS que define o mesmo nome de comando).
-    """
+    """Inicia o Cloud Profiler e o tracing antes de rodar o consumer do Huey."""
 
     def handle(self, *args, **options):
-        import googlecloudprofiler
-
         api_name = os.environ.get("API_NAME", "api-unknown")
+        init_tracing(f"{api_name}-huey")
+        instrument_huey(HUEY)
         googlecloudprofiler.start(
             service=f"{api_name}-huey",
             service_version="1.0.0",
