@@ -30,6 +30,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+  jaeger:
+    image: jaegertracing/all-in-one:1.60
+    container_name: jaeger
+    environment: [COLLECTOR_OTLP_ENABLED=true]
+    ports:
+      - 16686:16686  # UI
+      - 4317:4317  # OTLP gRPC
+    networks: [default, api_network]
   database:
     image: postgres:14
     container_name: database
@@ -58,6 +66,9 @@ services:
           cpus: '1.0'
           memory: 4G
     env_file: [.env]
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=jaeger:4317
+      - OTEL_TRACES_SAMPLE_RATIO=1.0  # sem custo local, amostra tudo
     command: [poetry, run, /app/start-server-dev.sh]
     ports:
       - 8080:80  # API port
@@ -71,6 +82,8 @@ services:
         condition: service_healthy
       database:
         condition: service_healthy
+      jaeger:
+        condition: service_started
     healthcheck:
       test: [CMD, curl, -f, http://localhost:8000/healthcheck/]
       interval: 1m
