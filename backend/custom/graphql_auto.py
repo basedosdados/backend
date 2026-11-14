@@ -5,7 +5,6 @@ https://github.com/timothyjlaurent/auto-graphene-django
 """
 
 from collections import OrderedDict
-from copy import deepcopy
 from functools import partial
 from typing import Iterable, Optional, get_type_hints
 
@@ -29,9 +28,11 @@ from graphene import (
 )
 from graphene.types.generic import GenericScalar
 from graphene.types.utils import yank_fields_from_attrs
+from graphene.utils.str_converters import to_snake_case
 from graphene_django import DjangoObjectType
 from graphene_django.converter import convert_django_field
 from graphene_django.filter import DjangoFilterConnectionField
+from graphene_django.filter.fields import convert_enum
 from graphene_django.forms.mutation import (
     DjangoModelDjangoFormMutationOptions,
     DjangoModelFormMutation,
@@ -44,6 +45,36 @@ from graphql_jwt import ObtainJSONWebToken, Refresh
 from backend.custom.graphql_base import CountableConnection, FileFieldScalar, PlainTextNode
 from backend.custom.graphql_jwt import CustomVerify, ObtainJSONWebTokenWithUser
 from backend.custom.model import BaseModel
+
+
+class OptimizedDjangoFilterConnectionField(DjangoFilterConnectionField):
+    """Skips building the FilterSet/Form when no filter argument is given.
+
+    django_filters deep-copies the whole Form on every instantiation
+    (`Form.__init__` -> `copy.deepcopy(base_fields)`), even when there is
+    nothing to filter. With no filter args, that work is pure overhead.
+    """
+
+    @classmethod
+    def resolve_queryset(cls, connection, iterable, info, args, filtering_args, filterset_class):
+        qs = super(DjangoFilterConnectionField, cls).resolve_queryset(
+            connection, iterable, info, args
+        )
+
+        filter_kwargs = {}
+        for key, value in args.items():
+            if key in filtering_args:
+                if key == "order_by" and value is not None:
+                    value = to_snake_case(value)
+                filter_kwargs[key] = convert_enum(value)
+
+        if not filter_kwargs:
+            return qs
+
+        filterset = filterset_class(data=filter_kwargs, queryset=qs, request=info.context)
+        if filterset.is_valid():
+            return filterset.qs
+        raise ValidationError(filterset.form.errors.as_json())
 
 
 def build_schema(applications: list[str], extra_queries=[], extra_mutations=[]):
@@ -81,7 +112,7 @@ def build_query_objs(application_name: str):
         attr = build_custom_attrs(model, attr)
         node = create_node_factory(model, attr)
         queries.update({f"{model_name}Node": PlainTextNode.Field(node)})
-        queries.update({f"all_{model_name}": DjangoFilterConnectionField(node)})
+        queries.update({f"all_{model_name}": OptimizedDjangoFilterConnectionField(node)})
     return queries
 
 
@@ -225,15 +256,60 @@ def create_node_factory(model: BaseModel, attr: dict):
 
         @model.graphql_query_decorator
         def _get_queryset(cls, queryset, info):
-            return super(cls, cls).get_queryset(queryset, info)
+            queryset = super(cls, cls).get_queryset(queryset, info)
+            if model.graphql_select_related:
+                queryset = queryset.select_related(*model.graphql_select_related)
+            if model.graphql_prefetch_related:
+                queryset = queryset.prefetch_related(*model.graphql_prefetch_related)
+            return queryset
 
         return classmethod(_get_queryset)
+
+    def build_select_related_fields():
+        """Expose select_related fields as plain Fields, resolved from the row.
+
+        graphene_django's auto-converted ForeignKey field always re-fetches
+        the related object via `get_node(info, pk)` regardless of the
+        resolver that produced it, discarding whatever `select_related`
+        already loaded. Defining the field explicitly skips that conversion.
+        """
+        registry = get_global_registry()
+        fields = {}
+        for field_name in model.graphql_select_related:
+            if "__" in field_name:
+                continue
+            related_model = model._meta.get_field(field_name).related_model
+
+            def resolver(self, info, _field_name=field_name):
+                return getattr(self, _field_name)
+
+            fields[field_name] = Field(
+                lambda _related_model=related_model: registry.get_type_for_model(_related_model)
+            )
+            fields[f"resolve_{field_name}"] = resolver
+        return fields
+
+    def build_prefetch_related_fields():
+        """Expose prefetch_related reverse relations via OptimizedDjangoFilterConnectionField."""
+        registry = get_global_registry()
+        fields = {}
+        for field_name in model.graphql_prefetch_related:
+            if "__" in field_name:
+                continue
+            related_model = model._meta.get_field(field_name).related_model
+            fields[field_name] = OptimizedDjangoFilterConnectionField(
+                lambda _related_model=related_model: registry.get_type_for_model(_related_model),
+                required=True,
+            )
+        return fields
 
     return type(
         f"{model.__name__}Node",
         (DjangoObjectType,),
         {
             **attr,
+            **build_select_related_fields(),
+            **build_prefetch_related_fields(),
             "get_queryset": get_queryset(),
         },
     )
@@ -342,8 +418,8 @@ class CustomModelForm(ModelForm):
     def __init__(self, *args, **kwargs) -> None:
         data = args[0] if args else kwargs.get("data")
         # Store raw data, so we can verify whether the user has filled None or hasn't filled
-        # anything
-        self.__raw_data = deepcopy(data)
+        # anything. Only ever read below, never mutated, so a shallow copy is enough.
+        self.__raw_data = dict(data) if data is not None else data
         super().__init__(*args, **kwargs)
         # Store which fields are required, so we can validate them later
         self.__required_fields = set()
