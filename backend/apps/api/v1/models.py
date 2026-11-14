@@ -1997,6 +1997,7 @@ class Column(BaseModel, OrderedModel):
     order_with_respect_to = ("table",)
 
     graphql_nested_filter_fields_whitelist = ["id", "name"]
+    graphql_select_related = ["bigquery_type", "coverage_entity"]
 
     def __str__(self):
         return f"{str(self.table.dataset.slug)}.{self.table.slug}.{str(self.name)}"
