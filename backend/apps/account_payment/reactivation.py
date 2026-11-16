@@ -42,12 +42,10 @@ def reactivate_stripe_subscription(
     payment_method: str | None = None,
     price_id: str | None = None,
     promotion_code: str | None = None,
-    remove_cancellation: bool = True,
 ):
     """Remove the scheduled cancellation and apply card, price and coupon.
 
-    Keeps the remaining trial days and never prorates. With
-    `remove_cancellation=False`, only price and coupon are applied.
+    Keeps the remaining trial days and never prorates.
 
     Returns the updated subscription, or `None` if it is no longer reactivatable.
     """
@@ -61,12 +59,11 @@ def reactivate_stripe_subscription(
         return None
 
     params = {}
-    if remove_cancellation:
-        if current.get("cancel_at_period_end"):
-            params["cancel_at_period_end"] = False
-        else:
-            # An empty string unsets `cancel_at` on Stripe.
-            params["cancel_at"] = ""
+    if current.get("cancel_at_period_end"):
+        params["cancel_at_period_end"] = False
+    else:
+        # An empty string unsets `cancel_at` on Stripe.
+        params["cancel_at"] = ""
 
     if payment_method:
         params["default_payment_method"] = payment_method
@@ -81,9 +78,6 @@ def reactivate_stripe_subscription(
             if current.get("status") == "trialing" and current.get("trial_end"):
                 params["trial_end"] = current["trial_end"]
 
-    if not params:
-        return current
-
     updated = stripe.Subscription.modify(
         stripe_subscription_id,
         proration_behavior="none",
@@ -91,8 +85,50 @@ def reactivate_stripe_subscription(
         **params,
     )
     DJStripeSubscription.sync_from_stripe_data(updated)
-    logger.info(
-        f"Assinatura {stripe_subscription_id} "
-        f"{'reativada' if remove_cancellation else 'atualizada antes da reativação'}"
-    )
+    logger.info(f"Assinatura {stripe_subscription_id} reativada")
     return updated
+
+
+def promotion_code_rejection(promotion, customer_id: str) -> str | None:
+    """Check the promotion code restrictions Stripe would only enforce on `modify`.
+
+    Runs before the card is collected, so a coupon Stripe would refuse doesn't
+    fail later in the webhook. Returns the error message, or `None` if valid.
+    """
+    if not promotion or not promotion.get("active"):
+        return "Cupom inválido."
+
+    coupon = promotion.get("coupon") or {}
+    if not coupon.get("valid", True):
+        return "Este cupom não está mais ativo."
+
+    restrictions = promotion.get("restrictions") or {}
+    allowed_customer = promotion.get("customer")
+    if allowed_customer and allowed_customer != customer_id:
+        return "Este cupom não está disponível para a sua conta."
+
+    if restrictions.get("first_time_transaction") and customer_has_successful_payment(customer_id):
+        return "Este cupom vale apenas para a primeira compra."
+
+    return None
+
+
+def customer_has_successful_payment(customer_id: str) -> bool:
+    charges = stripe.Charge.list(customer=customer_id, limit=100)
+    return any(charge.get("status") == "succeeded" for charge in charges.get("data", []))
+
+
+GENERIC_ERROR = "Não foi possível continuar a assinatura. Tente novamente ou fale com o suporte."
+COUPON_ERROR = "Este cupom não pode ser usado nesta assinatura."
+
+
+def stripe_error_message(error: stripe.error.StripeError) -> str:
+    """Translate a Stripe error into a message that can be shown to the user.
+
+    Stripe messages are technical and in English, so they only go to the logs.
+    """
+    param = getattr(error, "param", None) or ""
+    code = getattr(error, "code", None) or ""
+    if param.startswith(("discounts", "promotion_code", "coupon")) or "coupon" in code:
+        return COUPON_ERROR
+    return GENERIC_ERROR
