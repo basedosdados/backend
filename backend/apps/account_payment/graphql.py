@@ -34,10 +34,13 @@ from stripe import SetupIntent
 
 from backend.apps.account.models import Account, Subscription
 from backend.apps.account_payment.reactivation import (
+    GENERIC_ERROR,
     REACTIVATE_ACTION,
     is_reactivatable,
+    promotion_code_rejection,
     reactivate_stripe_subscription,
     retrieve_stripe_subscription,
+    stripe_error_message,
 )
 from backend.apps.account_payment.trials import (
     account_eligible_for_bdpro_stripe_trial,
@@ -352,9 +355,10 @@ class StartChatbotTrialMutation(Mutation):
 class StripeReactivateSubscriptionMutation(Mutation):
     """Remove the scheduled cancellation of a subscription, keeping it.
 
-    - Trialing or without a card: applies price/coupon and returns a
-      SetupIntent `client_secret`; the cancellation is removed by the
-      `setup_intent.succeeded` webhook.
+    - Trialing or without a card: validates price/coupon and returns a
+      SetupIntent `client_secret`. Nothing changes on the subscription until
+      the card is confirmed: the `setup_intent.succeeded` webhook applies
+      price and coupon and removes the cancellation.
     - Paid with a card: reactivates right away and returns `ok`.
 
     Price switch only for a trialing chatbot subscription.
@@ -393,8 +397,8 @@ class StripeReactivateSubscriptionMutation(Mutation):
 
             new_price_id = None
             if price_id:
-                price = DJStripePrice.objects.get(djstripe_id=price_id)
-                if not price.active:
+                price = DJStripePrice.objects.filter(djstripe_id=price_id).first()
+                if not price or not price.active:
                     return cls(errors=["Este preço não está mais disponível."])
                 current_price = stripe_sub["items"]["data"][0]["price"]
                 if price.id != current_price["id"]:
@@ -412,8 +416,9 @@ class StripeReactivateSubscriptionMutation(Mutation):
                     promotion = get_stripe_promo(coupon)
                 except Exception:
                     promotion = None
-                if not promotion or not promotion.active:
-                    return cls(errors=["Cupom inválido."])
+                rejection = promotion_code_rejection(promotion, stripe_sub["customer"])
+                if rejection:
+                    return cls(errors=[rejection])
                 promotion_code = promotion.id
 
             payment_method = None
@@ -424,20 +429,19 @@ class StripeReactivateSubscriptionMutation(Mutation):
                 )
 
             if not payment_method:
-                reactivate_stripe_subscription(
-                    dj_sub.id,
-                    price_id=new_price_id,
-                    promotion_code=promotion_code,
-                    remove_cancellation=False,
-                )
+                metadata = {
+                    "action": REACTIVATE_ACTION,
+                    "subscription_id": dj_sub.id,
+                    "backend_url": get_backend_url(),
+                }
+                if new_price_id:
+                    metadata["price_id"] = new_price_id
+                if promotion_code:
+                    metadata["promotion_code"] = promotion_code
                 setup_intent = SetupIntent.create(
                     customer=stripe_sub["customer"],
                     usage="off_session",
-                    metadata={
-                        "action": REACTIVATE_ACTION,
-                        "subscription_id": dj_sub.id,
-                        "backend_url": get_backend_url(),
-                    },
+                    metadata=metadata,
                 )
                 return cls(client_secret=setup_intent.client_secret)
 
@@ -450,10 +454,10 @@ class StripeReactivateSubscriptionMutation(Mutation):
             return cls(ok=True)
         except stripe.error.StripeError as e:
             logger.error(e)
-            return cls(errors=[e.user_message or str(e)])
+            return cls(errors=[stripe_error_message(e)])
         except Exception as e:
             logger.error(e)
-            return cls(errors=[str(e)])
+            return cls(errors=[GENERIC_ERROR])
 
 
 class StripeCouponValidationMutation(Mutation):
