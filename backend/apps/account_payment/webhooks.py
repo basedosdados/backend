@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
+import stripe
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.db.models import Q
@@ -17,7 +18,6 @@ from googleapiclient.errors import HttpError
 from loguru import logger
 from stripe import Customer as StripeCustomer
 from stripe import PaymentMethod as StripePaymentMethod
-from stripe.error import StripeError
 
 import backend.apps.account_payment.reactivation as reactivation
 from backend.apps.account.models import Account, Subscription
@@ -1061,7 +1061,7 @@ def setup_intent_succeeded(event: Event, **kwargs):
                 price_id=price_id or None,
                 promotion_code=promotion_code or None,
             )
-        except StripeError as e:
+        except stripe.error.StripeError as e:
             return logger.error(
                 f"{ctx}Falha ao reativar a assinatura {subscription_id}: {e}. "
                 "Cartão salvo, assinatura não alterada."
