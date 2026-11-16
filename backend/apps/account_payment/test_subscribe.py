@@ -2,6 +2,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
+from graphql import GraphQLResolveInfo
 
 from backend.apps.account.models import Account
 from backend.apps.account_payment.graphql import StripeSubscribeMutation
@@ -11,7 +12,6 @@ from backend.apps.account_payment.graphql import StripeSubscribeMutation
 def account():
     return Account.objects.create(
         is_active=True,
-        username="coupon.campaign",
         password="12345678",
         email="coupon.campaign@email.com",
     )
@@ -25,9 +25,9 @@ def _mock_chatbot_price():
 
 
 def _mock_info(account):
-    info = MagicMock()
+    info = MagicMock(spec=GraphQLResolveInfo)
+    info.context = MagicMock()
     info.context.user = account
-    info.context.user.is_anonymous = False
     return info
 
 

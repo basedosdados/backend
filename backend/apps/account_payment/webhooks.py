@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from typing import NamedTuple
 
+import stripe
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
 from django.db.models import Q
@@ -1053,10 +1054,18 @@ def setup_intent_succeeded(event: Event, **kwargs):
     if metadata.get("action") == reactivation.REACTIVATE_ACTION:
         subscription_id = metadata.get("subscription_id")
         logger.info(f"{ctx}Reativando assinatura {subscription_id} de {event.customer.email}")
-        # Price and coupon were already applied by the mutation.
-        updated = reactivation.reactivate_stripe_subscription(
-            subscription_id, payment_method=payment_method
-        )
+        try:
+            updated = reactivation.reactivate_stripe_subscription(
+                subscription_id,
+                payment_method=payment_method,
+                price_id=price_id or None,
+                promotion_code=promotion_code or None,
+            )
+        except stripe.error.StripeError as e:
+            return logger.error(
+                f"{ctx}Falha ao reativar a assinatura {subscription_id}: {e}. "
+                "Cartão salvo, assinatura não alterada."
+            )
         if updated is None:
             logger.warning(
                 f"{ctx}Assinatura {subscription_id} não estava mais reativável; "
