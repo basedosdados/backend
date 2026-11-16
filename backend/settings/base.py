@@ -11,9 +11,24 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
+import warnings
 from datetime import timedelta
 from os import getenv, path
 from pathlib import Path
+
+from elasticsearch.exceptions import ElasticsearchWarning
+
+# O cluster Elasticsearch (interno, sem exposição externa) manda esse
+# aviso específico em toda resposta HTTP, não só uma vez — gera milhares
+# de linhas de log por dia sem agregar informação nova. Filtra só essa
+# mensagem exata (não a categoria inteira: ElasticsearchWarning também
+# cobre avisos de depreciação de API/query, que a gente quer continuar
+# vendo).
+warnings.filterwarnings(
+    "ignore",
+    message=r"^Elasticsearch built-in security features are not enabled",
+    category=ElasticsearchWarning,
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
