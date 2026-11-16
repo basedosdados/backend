@@ -157,6 +157,8 @@ class Coverage(BaseModel):
     is_closed = models.BooleanField("Is Closed", default=False)
 
     graphql_nested_filter_fields_whitelist = ["id"]
+    graphql_select_related = ["area"]
+    graphql_prefetch_related = ["datetime_ranges"]
 
     class Meta:
         """Meta definition for Coverage."""
@@ -1426,8 +1428,8 @@ class Table(BaseModel, OrderedModel):
         help_text="Number of page views by Google Analytics",
     )
 
-    graphql_select_related = ["license"]
-    graphql_prefetch_related = ["cloud_tables"]
+    graphql_select_related = ["license", "status"]
+    graphql_prefetch_related = ["cloud_tables", "coverages", "coverages__datetime_ranges"]
 
     # Entity slug sets (from Column.coverage_entity) that make a coherent
     # temporal coverage shape — a client (e.g. pipelines) derives its own
@@ -2281,6 +2283,8 @@ class RawDataSource(BaseModel, OrderedModel):
     order_with_respect_to = ("dataset",)
 
     graphql_nested_filter_fields_whitelist = ["id"]
+    graphql_select_related = ["dataset", "availability", "license", "status"]
+    graphql_prefetch_related = ["languages"]
 
     class Meta:
         """Meta definition for RawDataSource."""
@@ -2392,6 +2396,7 @@ class Entity(BaseModel):
     )
 
     graphql_nested_filter_fields_whitelist = ["id"]
+    graphql_select_related = ["category"]
 
     def __str__(self):
         return str(self.slug)
@@ -2444,6 +2449,7 @@ class ObservationLevel(BaseModel, OrderedModel):
     order_with_respect_to = ("table", "raw_data_source", "information_request", "analysis")
 
     graphql_nested_filter_fields_whitelist = ["id"]
+    graphql_select_related = ["entity", "table"]
 
     def __str__(self):
         return str(self.entity)
