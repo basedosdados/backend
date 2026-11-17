@@ -64,9 +64,6 @@ jobs:
             settingsModule: "backend.settings.remote"
           tracing:
             enabled: true
-            gcpProjectId: "${{ steps.import_secrets.outputs.GCP_PROJECT_ID }}"
-            # 100% por uma semana pra ver o volume real de spans/tráfego —
-            # ver pendência em basedosdados/backend#1136.
             sampleRatio: "1.0"
           database:
             host: "cloud-sql-proxy"

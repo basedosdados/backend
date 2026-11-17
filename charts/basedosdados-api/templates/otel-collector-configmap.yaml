@@ -20,12 +20,14 @@ data:
         override: false
       batch: {}
     exporters:
-      googlecloud:
-        project: {{ .Values.tracing.gcpProjectId | quote }}
+      otlp:
+        endpoint: {{ .Values.tracing.jaegerEndpoint | quote }}
+        tls:
+          insecure: true
     service:
       pipelines:
         traces:
           receivers: [otlp]
           processors: [resourcedetection, batch]
-          exporters: [googlecloud]
+          exporters: [otlp]
 {{- end }}
