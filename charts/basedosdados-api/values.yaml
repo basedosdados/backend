@@ -43,12 +43,14 @@ tracing:
   # on OTEL_EXPORTER_OTLP_ENDPOINT.
   enabled: false
 
-  # GCP project to export traces to. Left empty, the googlecloud exporter
-  # tries to detect it from the mounted service account / GKE metadata.
-  gcpProjectId: ""
+  # OTLP gRPC endpoint of the Jaeger all-in-one running in the cluster
+  # (basedosdados/iac, k8s/observability/jaeger/). Same endpoint for
+  # every environment, since it's the same cluster/namespace.
+  jaegerEndpoint: "jaeger.observability.svc.cluster.local:4317"
 
-  # Fraction of traces to sample (0.0 to 1.0).
-  sampleRatio: "0.1"
+  # Fraction of traces to sample (0.0 to 1.0). Defaults to 1.0 — the
+  # Jaeger backend doesn't charge per span, unlike Cloud Trace.
+  sampleRatio: "1.0"
 
   collectorImage:
     name: otel/opentelemetry-collector-contrib
