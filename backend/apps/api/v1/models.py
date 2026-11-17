@@ -1429,7 +1429,15 @@ class Table(BaseModel, OrderedModel):
     )
 
     graphql_select_related = ["license", "status"]
-    graphql_prefetch_related = ["cloud_tables", "coverages", "coverages__datetime_ranges"]
+    graphql_prefetch_related = [
+        "cloud_tables",
+        "coverages",
+        "coverages__datetime_ranges",
+        "coverages__area",
+        "observation_levels",
+        "observation_levels__entity",
+        "observation_levels__entity__category",
+    ]
 
     # Entity slug sets (from Column.coverage_entity) that make a coherent
     # temporal coverage shape — a client (e.g. pipelines) derives its own
@@ -2449,7 +2457,7 @@ class ObservationLevel(BaseModel, OrderedModel):
     order_with_respect_to = ("table", "raw_data_source", "information_request", "analysis")
 
     graphql_nested_filter_fields_whitelist = ["id"]
-    graphql_select_related = ["entity", "table"]
+    graphql_select_related = ["entity", "entity__category", "table"]
 
     def __str__(self):
         return str(self.entity)
