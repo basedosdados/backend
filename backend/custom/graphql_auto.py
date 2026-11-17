@@ -257,10 +257,21 @@ def create_node_factory(model: BaseModel, attr: dict):
         @model.graphql_query_decorator
         def _get_queryset(cls, queryset, info):
             queryset = super(cls, cls).get_queryset(queryset, info)
-            if model.graphql_select_related:
-                queryset = queryset.select_related(*model.graphql_select_related)
-            if model.graphql_prefetch_related:
-                queryset = queryset.prefetch_related(*model.graphql_prefetch_related)
+            # For a nested relation (e.g. Table.observation_levels), what
+            # reaches here is the related *manager*, not a queryset yet —
+            # `.all()` is what makes a prefetch-aware manager hand back the
+            # batched, cached result the parent's prefetch_related already
+            # paid for (`_result_cache` populated). Calling
+            # select_related/prefetch_related on that clones the queryset
+            # without the cache, forcing a brand new per-row query instead
+            # of reusing the batch.
+            if isinstance(queryset, models.Manager):
+                queryset = queryset.all()
+            if getattr(queryset, "_result_cache", None) is None:
+                if model.graphql_select_related:
+                    queryset = queryset.select_related(*model.graphql_select_related)
+                if model.graphql_prefetch_related:
+                    queryset = queryset.prefetch_related(*model.graphql_prefetch_related)
             return queryset
 
         return classmethod(_get_queryset)
