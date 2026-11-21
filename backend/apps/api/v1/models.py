@@ -864,20 +864,90 @@ class Dataset(BaseModel):
         verbose_name_plural = "Datasets"
         ordering = ["slug"]
 
+    # Prefetch shared by get_tables/active_tables: everything the
+    # contains_*/n_*/first_*_id properties below (and Table's own
+    # contains_open_data/contains_closed_data) read per table, so none of
+    # them have to hit the database again once this is loaded. Matches
+    # Table.graphql_prefetch_related (already validated via the GraphQL
+    # resolver) plus "columns__coverages", the one relation that resolver
+    # doesn't need but contains_open_data/contains_closed_data do.
+    TABLE_PREFETCH = (
+        "coverages",
+        "coverages__datetime_ranges",
+        "coverages__area",
+        "columns",
+        "columns__coverages",
+        "columns__bigquery_type",
+        "columns__coverage_entity",
+        "columns__coverage_entity__category",
+        "observation_levels",
+        "observation_levels__entity",
+        "observation_levels__entity__category",
+    )
+
+    # Prefetch shared by get_raw_data_sources/active_raw_data_sources: what
+    # get_temporal_coverage/get_full_temporal_coverage/get_spatial_coverage/
+    # get_spatial_coverage_name read per resource (each called multiple
+    # times — once for temporal, once for spatial, once per locale for
+    # spatial_coverage_name — so without this every raw data source re-runs
+    # a fresh, unprefetched `.coverages.all()` query on every single call).
+    RAW_DATA_SOURCE_PREFETCH = (
+        "coverages",
+        "coverages__datetime_ranges",
+        "coverages__area",
+    )
+
     @cached_property
     def get_tables(self):
-        return self.tables.all()
+        return self.tables.all().prefetch_related(*self.TABLE_PREFETCH)
 
     @cached_property
     def get_raw_data_sources(self):
-        return self.raw_data_sources.all()
+        return self.raw_data_sources.all().prefetch_related(*self.RAW_DATA_SOURCE_PREFETCH)
+
+    @cached_property
+    def active_tables(self) -> list:
+        """Tables not under review/excluded, ordered, prefetched, computed
+        once per Dataset instance.
+
+        The properties below used to each re-run this same filter from
+        scratch, and for every table in the result, call table properties
+        that query coverages/columns again with no prefetch — reindexing a
+        single dataset in Haystack could run thousands of queries from this.
+        """
+        return list(
+            self.tables.exclude(status__slug__in=["under_review", "excluded"])
+            .exclude(slug__in=["dicionario", "dictionary"])
+            .order_by("order")
+            .prefetch_related(*self.TABLE_PREFETCH)
+        )
+
+    @cached_property
+    def active_raw_data_sources(self) -> list:
+        """Raw data sources not under review/excluded, ordered, computed
+        once per Dataset instance — same reasoning as `active_tables`."""
+        return list(
+            self.raw_data_sources.exclude(status__slug__in=["under_review", "excluded"])
+            .order_by("order")
+            .prefetch_related(*self.RAW_DATA_SOURCE_PREFETCH)
+        )
+
+    @cached_property
+    def active_information_requests(self) -> list:
+        """Information requests not under review/excluded, ordered, computed
+        once per Dataset instance — same reasoning as `active_tables`."""
+        return list(
+            self.information_requests.exclude(status__slug__in=["under_review", "excluded"])
+            .order_by("order")
+            .prefetch_related(*self.RAW_DATA_SOURCE_PREFETCH)
+        )
 
     @cached_property
     def generate_resources(self):
         resources = [
             *self.get_tables,
             *self.get_raw_data_sources,
-            *self.information_requests.all(),
+            *self.information_requests.all().prefetch_related(*self.RAW_DATA_SOURCE_PREFETCH),
         ]
 
         return resources
@@ -947,255 +1017,114 @@ class Dataset(BaseModel):
     def contains_open_data(self):
         """Returns true if there are tables or columns with open coverages"""
 
-        cached_tables = self.get_tables
-
-        open_data = False
-
-        tables = (
-            cached_tables.exclude(status__slug__in=["under_review", "excluded"])
-            .exclude(slug__in=["dicionario", "dictionary"])
-            .all()
-        )
-        for table in tables:
-            table_coverages = table.coverages.filter(is_closed=False)
+        for table in self.active_tables:
+            table_coverages = [c for c in table.coverages.all() if not c.is_closed]
             if table_coverages:
-                open_data = True
-                break
-        return open_data
+                return True
+        return False
 
     @property
     def contains_closed_data(self):
         """Returns true if there are tables or columns with closed coverages,
         or if the uncompressed file size is above 1 GB"""
 
-        cached_tables = self.get_tables
-
-        for table in (
-            cached_tables.exclude(status__slug__in=["under_review", "excluded"])
-            .exclude(slug__in=["dicionario", "dictionary"])
-            .all()
-        ):
+        for table in self.active_tables:
             if table.contains_closed_data:
                 return True
         return False
 
     @property
     def contains_direct_download_free(self):
-        cached_tables = self.get_tables
-
-        return len(
-            [
-                table
-                for table in cached_tables.exclude(status__slug__in=["under_review", "excluded"])
-                .exclude(slug__in=["dicionario", "dictionary"])
-                .all()
-                if table.contains_direct_download_free
-            ]
-        )
+        return len([table for table in self.active_tables if table.contains_direct_download_free])
 
     @property
     def contains_direct_download_paid(self):
-        cached_tables = self.get_tables
-
-        return len(
-            [
-                table
-                for table in cached_tables.exclude(status__slug__in=["under_review", "excluded"])
-                .exclude(slug__in=["dicionario", "dictionary"])
-                .all()
-                if table.contains_direct_download_paid
-            ]
-        )
+        return len([table for table in self.active_tables if table.contains_direct_download_paid])
 
     @property
     def contains_temporalcoverage_free(self):
-        cached_tables = self.get_tables
-
-        return len(
-            [
-                table
-                for table in cached_tables.exclude(status__slug__in=["under_review", "excluded"])
-                .exclude(slug__in=["dicionario", "dictionary"])
-                .all()
-                if table.contains_temporalcoverage_free
-            ]
-        )
+        return len([table for table in self.active_tables if table.contains_temporalcoverage_free])
 
     @property
     def contains_temporalcoverage_paid(self):
-        cached_tables = self.get_tables
-
-        return len(
-            [
-                table
-                for table in cached_tables.exclude(status__slug__in=["under_review", "excluded"])
-                .exclude(slug__in=["dicionario", "dictionary"])
-                .all()
-                if table.contains_temporalcoverage_paid
-            ]
-        )
+        return len([table for table in self.active_tables if table.contains_temporalcoverage_paid])
 
     @property
     def contains_tables(self):
         """Returns true if there are tables in the dataset"""
-
-        cached_tables = self.get_tables
-
-        return (
-            len(
-                cached_tables.exclude(status__slug__in=["under_review", "excluded"])
-                .exclude(slug__in=["dicionario", "dictionary"])
-                .all()
-            )
-            > 0
-        )
+        return len(self.active_tables) > 0
 
     @property
     def contains_raw_data_sources(self):
         """Returns true if there are raw data sources in the dataset"""
-
-        cached_get_raw_data_sources = self.get_raw_data_sources
-
-        return (
-            len(
-                cached_get_raw_data_sources.exclude(
-                    status__slug__in=["under_review", "excluded"]
-                ).all()
-            )
-            > 0
-        )
+        return len(self.active_raw_data_sources) > 0
 
     @property
     def contains_information_requests(self):
         """Returns true if there are information requests in the dataset"""
-        return (
-            len(
-                self.information_requests.exclude(
-                    status__slug__in=["under_review", "excluded"]
-                ).all()
-            )
-            > 0
-        )
+        return len(self.active_information_requests) > 0
 
     @property
     def n_tables(self):
-        cached_tables = self.get_tables
-
-        return len(
-            cached_tables.exclude(status__slug__in=["under_review", "excluded"])
-            .exclude(slug__in=["dicionario", "dictionary"])
-            .all()
-        )
+        return len(self.active_tables)
 
     @property
     def n_raw_data_sources(self):
-        cached_get_raw_data_sources = self.get_raw_data_sources
-
-        return len(
-            cached_get_raw_data_sources.exclude(status__slug__in=["under_review", "excluded"]).all()
-        )
+        return len(self.active_raw_data_sources)
 
     @property
     def n_information_requests(self):
-        return len(
-            self.information_requests.exclude(status__slug__in=["under_review", "excluded"]).all()
-        )
+        return len(self.active_information_requests)
 
     @property
     def first_table_id(self):
-        cached_tables = self.get_tables
-
-        if (
-            resource := cached_tables.exclude(status__slug__in=["under_review", "excluded"])
-            .exclude(slug__in=["dicionario", "dictionary"])
-            .order_by("order")
-            .first()
-        ):
-            return resource.pk
+        # active_tables is already ordered by "order"
+        if self.active_tables:
+            return self.active_tables[0].pk
 
     @property
     def first_open_table_id(self):
-        cached_tables = self.get_tables
-
-        for resource in (
-            cached_tables.exclude(status__slug__in=["under_review", "excluded"])
-            .exclude(slug__in=["dicionario", "dictionary"])
-            .order_by("order")
-            .all()
-        ):
+        for resource in self.active_tables:
             if resource.contains_open_data:
                 return resource.pk
 
     @property
     def first_closed_table_id(self):
-        cached_tables = self.get_tables
-
-        for resource in (
-            cached_tables.exclude(status__slug__in=["under_review", "excluded"])
-            .exclude(slug__in=["dicionario", "dictionary"])
-            .order_by("order")
-            .all()
-        ):
+        for resource in self.active_tables:
             if resource.contains_closed_data:
                 return resource.pk
 
     @property
     def first_raw_data_source_id(self):
-        cached_get_raw_data_sources = self.get_raw_data_sources
-
-        resource = (
-            cached_get_raw_data_sources
-            .exclude(status__slug__in=["under_review", "excluded"])
-            .order_by("order")
-            .first()
-        )  # fmt: skip
-        return resource.pk if resource else None
+        # active_raw_data_sources is already ordered by "order"
+        if self.active_raw_data_sources:
+            return self.active_raw_data_sources[0].pk
 
     @property
     def first_information_request_id(self):
-        resource = (
-            self.information_requests
-            .exclude(status__slug__in=["under_review", "excluded"])
-            .order_by("order")
-            .first()
-        )  # fmt: skip
-        return resource.pk if resource else None
+        # active_information_requests is already ordered by "order"
+        if self.active_information_requests:
+            return self.active_information_requests[0].pk
 
     @property
     def table_last_updated_at(self):
-        cached_tables = self.get_tables
-
-        updates = [
-            u.last_updated_at
-            for u in cached_tables.exclude(
-                status__slug__in=["under_review", "excluded"]).exclude(
-                    slug__in=["dicionario", "dictionary"]).all()
-            if u.last_updated_at
-        ]  # fmt: skip
+        updates = [table.last_updated_at for table in self.active_tables if table.last_updated_at]
         return max(updates) if updates else None
 
     @property
     def raw_data_source_last_polled_at(self):
-        cached_get_raw_data_sources = self.get_raw_data_sources
-
-        polls = [
-            u.get("last_polled_at")
-            for u in cached_get_raw_data_sources.exclude(
-                status__slug__in=["under_review", "excluded"]).all().values("last_polled_at")
-            if u.get("last_polled_at")
-        ]  # fmt: skip
+        # `last_polled_at` is a Python property on RawDataSource (derived from
+        # `.polls.all()`), not a database column — `.values("last_polled_at")`
+        # here used to raise FieldError on every call (never caught, since
+        # this property is never actually invoked by any code path today).
+        polls = [rds.last_polled_at for rds in self.active_raw_data_sources if rds.last_polled_at]
         return max(polls) if polls else None
 
     @property
     def raw_data_source_last_updated_at(self):
-        cached_get_raw_data_sources = self.get_raw_data_sources
-
         updates = [
-            u.last_updated_at
-            for u in cached_get_raw_data_sources.exclude(
-                status__slug__in=["under_review", "excluded"]).all()
-            if u.last_updated_at
-        ]  # fmt: skip
+            rds.last_updated_at for rds in self.active_raw_data_sources if rds.last_updated_at
+        ]
         return max(updates) if updates else None
 
 
@@ -1570,19 +1499,24 @@ class Table(BaseModel, OrderedModel):
 
     @property
     def contains_open_data(self):
-        if self.coverages.filter(is_closed=False):
+        # `.all()` + Python-side filtering (not `.filter()`) so this reuses
+        # the prefetch cache from Dataset.active_tables (TABLE_PREFETCH)
+        # instead of re-querying — `.filter()` on an already-prefetched
+        # manager clones the queryset and drops the cache, forcing a new
+        # query per table/column either way.
+        if any(not c.is_closed for c in self.coverages.all()):
             return True
         for column in self.columns.all():
-            if column.coverages.filter(is_closed=False).first():
+            if any(not c.is_closed for c in column.coverages.all()):
                 return True
         return False
 
     @property
     def contains_closed_data(self):
-        if self.coverages.filter(is_closed=True).first():
+        if any(c.is_closed for c in self.coverages.all()):
             return True
         for column in self.columns.all():
-            if column.coverages.filter(is_closed=True).first():
+            if any(c.is_closed for c in column.coverages.all()):
                 return True
         if (
             self.uncompressed_file_size

@@ -66,6 +66,18 @@ class BDSignalProcessor(BaseSignalProcessor):
                     .get_unified_index()
                     .get_index(Dataset)
                 )  # fmt: skip
+                if datasets:
+                    # `update_object` reads model_attr fields straight off the
+                    # instance it's given, never through index_queryset's
+                    # prefetch_related — so re-fetch with the same prefetch
+                    # the index declares, or every table.save() re-triggers
+                    # the full tables__*/organizations__*/tags__*/themes__*
+                    # N+1 this prefetch exists to avoid.
+                    datasets = list(
+                        Dataset.objects.filter(pk__in=[d.pk for d in datasets]).prefetch_related(
+                            *index.PREFETCH
+                        )
+                    )
                 for ds in datasets or []:
                     if ds.status and ds.status.slug in ["under_review", "excluded"]:
                         index.remove_object(ds, using=using)
