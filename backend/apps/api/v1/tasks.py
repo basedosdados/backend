@@ -127,7 +127,12 @@ def update_table_metadata_task(table_pks: list[str] = None):
     messenger.send()
 
 
-@db_periodic_task(crontab(day_of_week="0", hour="6", minute="10"))
+# Desativada (issue #1155): a feature de "tabelas parecidas" que essa task
+# alimenta (TableNeighbor) não é mais usada. Função mantida (sem
+# @db_periodic_task) pra facilitar reativar se precisar — mesmo padrão já
+# usado em check_links_task. gen_neighbors() também tem um N+1 próprio
+# (11.867 spans pras 846 tabelas, sem prefetch_related nenhum), não corrigido
+# porque não vale o esforço numa feature descontinuada.
 def update_table_neighbors_task():
     for table in Table.objects.all():
         for neighbor in table.gen_neighbors():
