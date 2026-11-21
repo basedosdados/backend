@@ -314,17 +314,42 @@ class DatasetIndex(indexes.SearchIndex, indexes.Indexable):
         indexed=False,
     )
 
+    # Relations the model_attr fields above navigate with a plain `.all()`
+    # (tables__*, organizations__*, tags__*, themes__*,
+    # tables__observation_levels__entity__*) — prefetching them here lets
+    # Haystack reuse the cache instead of running one query per item per
+    # dataset.
+    PREFETCH = (
+        "tables",
+        "organizations",
+        "tags",
+        "themes",
+        "tables__observation_levels__entity",
+    )
+
     def get_model(self):
         return Dataset
 
     def read_queryset(self, using=None):
-        return self.get_model().objects.exclude(status__slug__in=["under_review", "excluded"])
+        return (
+            self.get_model()
+            .objects.exclude(status__slug__in=["under_review", "excluded"])
+            .prefetch_related(*self.PREFETCH)
+        )
 
     def index_queryset(self, using=None):
-        return self.get_model().objects.exclude(status__slug__in=["under_review", "excluded"])
+        return (
+            self.get_model()
+            .objects.exclude(status__slug__in=["under_review", "excluded"])
+            .prefetch_related(*self.PREFETCH)
+        )
 
     def load_all_queryset(self, using=None):
-        return self.get_model().objects.exclude(status__slug__in=["under_review", "excluded"])
+        return (
+            self.get_model()
+            .objects.exclude(status__slug__in=["under_review", "excluded"])
+            .prefetch_related(*self.PREFETCH)
+        )
 
     def prepare_organization_picture(self, obj):
         """
