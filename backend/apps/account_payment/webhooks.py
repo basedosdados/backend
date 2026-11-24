@@ -6,6 +6,7 @@ from typing import NamedTuple
 
 import stripe
 from django.conf import settings
+from django.core.cache import cache
 from django.core.mail import EmailMultiAlternatives
 from django.db.models import Q
 from django.template.loader import render_to_string
@@ -82,12 +83,22 @@ def log_google_group(action: str, result: str, email: str, message: str, level: 
     ).log(level, message)
 
 
+GOOGLE_CREDENTIALS_ALERT_KEY = "google_group:credentials_alert"
+GOOGLE_CREDENTIALS_ALERT_INTERVAL = 60 * 60
+
+
 def alert_google_credentials(error: Exception, ctx: str = "") -> None:
-    """Report an invalid service account key or domain-wide delegation."""
-    send(
-        "Credencial do Google Groups inválida (chave da service account ou delegação "
-        f"domain-wide). Ninguém está sendo adicionado ou removido do BD Pro. Erro: {error}"
-    )
+    """Report an invalid service account key or domain-wide delegation.
+
+    Stripe retries each failed webhook for days, so the Discord alert goes out
+    at most once per `GOOGLE_CREDENTIALS_ALERT_INTERVAL`. The error is always
+    logged.
+    """
+    if cache.add(GOOGLE_CREDENTIALS_ALERT_KEY, True, GOOGLE_CREDENTIALS_ALERT_INTERVAL):
+        send(
+            "Credencial do Google Groups inválida (chave da service account ou delegação "
+            f"domain-wide). Ninguém está sendo adicionado ou removido do BD Pro. Erro: {error}"
+        )
     logger.bind(google_group_result="credential_error").error(
         f"{ctx}Credencial do Google inválida: {error}"
     )
@@ -511,7 +522,9 @@ def add_user(
 def remove_user(email: str, group_key: str = None, event_context: str = None) -> None:
     """Remove a user from the Google Group used to gate BD Pro access.
 
-    Refuses to remove admin accounts, and refuses to remove any account that
+    Never removes anyone in dev/staging environments: they may point at the
+    real Google Group, and `add_user` only adds admins there anyway, who are
+    never removed. Refuses to remove admin accounts, and refuses to remove any account that
     still has an active subscriber flag or an active non-chatbot
     subscription (chatbot subscriptions don't grant Google Group access, so
     they don't block removal here).
@@ -532,6 +545,15 @@ def remove_user(email: str, group_key: str = None, event_context: str = None) ->
     if not email or "@" not in email:
         log_google_group(
             "remove", "invalid_email", str(email), f"{ctx}E-mail inválido: {email!r}", "ERROR"
+        )
+        return
+
+    if is_dev() or is_stg():
+        log_google_group(
+            "remove",
+            "skipped_env",
+            _normalize_plus(email),
+            f"{ctx}Ignorando remoção do usuário '{email}' em ambiente de dev/staging.",
         )
         return
 

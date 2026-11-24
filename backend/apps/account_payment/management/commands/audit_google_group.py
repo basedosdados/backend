@@ -7,7 +7,7 @@ from backend.apps.account_payment.google_group import add_missing_members, audit
 
 class Command(BaseCommand):
     help = (
-        "Compara o Google Group do BD Pro com as assinaturas ativas no banco. "
+        "Compara o Google Group do BD Pro com as assinaturas pagas no Stripe e com o banco. "
         "Também serve para testar a credencial do Google: se ela for inválida, o comando falha."
     )
 
@@ -15,12 +15,12 @@ class Command(BaseCommand):
         parser.add_argument(
             "--fix",
             action="store_true",
-            help="Adiciona ao grupo quem tem assinatura ativa e está faltando.",
+            help="Adiciona ao grupo quem tem assinatura paga no Stripe e está faltando.",
         )
         parser.add_argument(
             "--show-extra",
             action="store_true",
-            help="Lista quem está no grupo sem assinatura ativa no banco (sem remover).",
+            help="Lista quem está no grupo sem assinatura paga no Stripe (sem remover).",
         )
 
     def handle(self, *args, fix=False, show_extra=False, **options):
@@ -34,7 +34,7 @@ class Command(BaseCommand):
 
         self.stdout.write(
             f"Credencial do Google OK. Membros no grupo: {len(audit.members)}. "
-            f"Esperados pelo banco: {len(audit.expected)}."
+            f"Esperados pelo Stripe: {len(audit.expected)}."
         )
 
         self.stdout.write(f"\nFaltando no grupo: {len(audit.missing)}")
@@ -45,7 +45,15 @@ class Command(BaseCommand):
         for email, subscription_id, status in audit.stale:
             self.stdout.write(f"  {email} (subscription {subscription_id}, Stripe: {status})")
 
-        self.stdout.write(f"\nNo grupo sem assinatura ativa no banco: {len(audit.extra)}")
+        self.stdout.write(f"\nPagas no Stripe, mas inativas no banco: {len(audit.inactive)}")
+        for email, subscription_id, status in audit.inactive:
+            self.stdout.write(f"  {email} (subscription {subscription_id}, Stripe: {status})")
+
+        self.stdout.write(f"\nPagas no Stripe, sem assinatura no banco: {len(audit.unlinked)}")
+        for label, stripe_subscription_id in audit.unlinked:
+            self.stdout.write(f"  {label} ({stripe_subscription_id})")
+
+        self.stdout.write(f"\nNo grupo sem assinatura paga no Stripe: {len(audit.extra)}")
         if show_extra:
             for email in audit.extra:
                 self.stdout.write(f"  {email}")
