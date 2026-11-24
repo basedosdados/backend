@@ -31,8 +31,12 @@ class SyncDeploymentsViewTests(TestCase):
         self.client = Client()
         self.url = reverse("sync-deployments")
 
-    def _post(self):
-        return self.client.post(self.url, **AUTH)
+    def _post(self, body=None):
+        if body is None:
+            return self.client.post(self.url, **AUTH)
+        return self.client.post(
+            self.url, data=json.dumps(body), content_type="application/json", **AUTH
+        )
 
     def _mock_deployments(self, mock_client, deployments):
         mock_client.return_value.iter_deployments.return_value = iter(deployments)
@@ -142,6 +146,94 @@ class SyncDeploymentsViewTests(TestCase):
         resp = self._post()
         self.assertEqual(resp.json()["removed_dangling"], 0)
         self.assertTrue(DisabledFlowSchedule.objects.filter(flow_name="check_update: bar").exists())
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_activate_forces_active_on_previously_paused_deployment(self, mock_client):
+        DisabledFlowSchedule.objects.create(
+            flow_name="check_update: paused", deployment_id="d6", is_schedule_active=False
+        )
+        self._mock_deployments(
+            mock_client,
+            [
+                {
+                    "id": "d6",
+                    "name": "check_update: paused",
+                    "paused": True,
+                    "schedules": [{"id": "s1"}],
+                }
+            ],
+        )
+        resp = self._post({"activate": ["check_update: paused"]})
+        self.assertEqual(resp.json()["activated"], 1)
+        record = DisabledFlowSchedule.objects.get(flow_name="check_update: paused")
+        self.assertTrue(record.is_schedule_active)
+        mock_client.return_value.set_paused.assert_called_once_with("d6", paused=False)
+        mock_client.return_value.iter_deployments.assert_called_once_with(
+            names=["check_update: paused"]
+        )
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_activate_creates_new_deployment_already_active(self, mock_client):
+        self._mock_deployments(
+            mock_client,
+            [
+                {
+                    "id": "d7",
+                    "name": "check_update: new",
+                    "paused": True,
+                    "schedules": [{"id": "s1"}],
+                }
+            ],
+        )
+        resp = self._post({"activate": ["check_update: new"]})
+        self.assertEqual(resp.json()["created"], 1)
+        record = DisabledFlowSchedule.objects.get(flow_name="check_update: new")
+        self.assertTrue(record.is_schedule_active)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_activate_skips_dangling_cleanup(self, mock_client):
+        DisabledFlowSchedule.objects.create(
+            flow_name="check_update: untouched", deployment_id="d8", is_schedule_active=True
+        )
+        self._mock_deployments(
+            mock_client,
+            [
+                {
+                    "id": "d9",
+                    "name": "check_update: other",
+                    "paused": True,
+                    "schedules": [{"id": "s1"}],
+                }
+            ],
+        )
+        resp = self._post({"activate": ["check_update: other"]})
+        self.assertEqual(resp.json()["removed_dangling"], 0)
+        self.assertTrue(
+            DisabledFlowSchedule.objects.filter(flow_name="check_update: untouched").exists()
+        )
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_activate_empty_list_syncs_nothing(self, mock_client):
+        """An empty `activate` list must not be treated as "key absent".
+
+        A CI run that registered zero deployments still means "selective
+        sync of nothing" — never a silent fallback to a full sync that
+        would touch every deployment in the database.
+        """
+        DisabledFlowSchedule.objects.create(
+            flow_name="check_update: untouched", deployment_id="d10", is_schedule_active=True
+        )
+        self._mock_deployments(mock_client, [])
+        resp = self._post({"activate": []})
+        self.assertEqual(resp.json()["removed_dangling"], 0)
+        mock_client.return_value.iter_deployments.assert_called_once_with(names=[])
+        self.assertTrue(
+            DisabledFlowSchedule.objects.filter(flow_name="check_update: untouched").exists()
+        )
 
 
 @override_settings(ALLOWED_HOSTS=["testserver"])
