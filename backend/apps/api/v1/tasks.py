@@ -12,10 +12,17 @@ from pandas import read_gbq
 from requests import get
 
 from backend.apps.api.v1.models import Dataset, RawDataSource, Table, TableNeighbor
+from backend.apps.api.v1.views_export import LOCALES, generate_catalog_csv
 from backend.custom.client import Messenger, get_gbq_client, get_gcs_client, send_discord_message
 from backend.custom.environment import production_task
 
 logger = logger.bind(module="api.v1")
+
+# Mesmo bucket público que já serve o site (basedosdados-website), pasta própria
+# pro catálogo — ver backend/apps/api/v1/views_export.py pro endpoint que ainda
+# gera esse CSV on-demand (export/catalog/, mantido por enquanto).
+CATALOG_BUCKET = "basedosdados-website"
+CATALOG_PREFIX = "catalog"
 
 
 @db_periodic_task(crontab(day_of_week="1-6", hour="5", minute="0"), retries=3, retry_delay=60)
@@ -188,6 +195,33 @@ def update_page_views_task(backfill: bool = False):
         if dataset := Dataset.objects.filter(id=dataset_id).first():
             dataset.page_views += page_views
             dataset.save()
+
+
+@db_periodic_task(crontab(hour="1", minute="0"))
+@production_task
+def export_catalog_task():
+    """Gera o CSV do catálogo completo em pt/en/es e sobe os 3 arquivos pro
+    bucket público do site.
+    """
+    try:
+        cs_client = get_gcs_client()
+    except Exception as exc:
+        # Nada rodou ainda, então o messenger não teria nada a reportar — manda
+        # direto pro Discord antes de propagar (mesmo padrão de update_table_metadata_task).
+        send_discord_message(f"`export_catalog_task` falhou ao iniciar: `{exc}`")
+        raise
+
+    bucket = cs_client.bucket(CATALOG_BUCKET)
+
+    for locale in LOCALES:
+        try:
+            csv_bytes = generate_catalog_csv(locale)
+            blob = bucket.blob(f"{CATALOG_PREFIX}/catalog_bd_{locale}.csv")
+            blob.upload_from_string(csv_bytes, content_type="text/csv")
+            logger.info(f"catálogo ({locale}) atualizado em gs://{CATALOG_BUCKET}/{blob.name}")
+        except Exception as exc:
+            send_discord_message(f"`export_catalog_task` falhou pro locale `{locale}`: `{exc}`")
+            logger.warning(exc)
 
 
 # Desativada (issue #1088): os erros reportados (403/405/406, conexão resetada)
