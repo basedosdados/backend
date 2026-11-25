@@ -57,7 +57,12 @@ class Prefect3Client:
             names: When given, restricts the result to deployments with these
                 exact names instead of paginating through every deployment —
                 used by a selective sync that only needs to touch the few
-                deployments a CI run just registered.
+                deployments a CI run just registered. An empty list is not
+                mocked in the test suite (nothing here exercises the real
+                HTTP filter), but was confirmed by hand against a real local
+                Prefect 3 server: ``any_: []`` returns zero deployments, not
+                every deployment — a selective sync called with an empty
+                ``names`` list is a safe no-op, never an unconstrained fetch.
 
         Yields:
             Deployment dicts containing at least ``id`` and ``name`` keys.

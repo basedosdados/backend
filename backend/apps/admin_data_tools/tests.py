@@ -148,8 +148,11 @@ class SyncDeploymentsViewTests(TestCase):
         self.assertTrue(DisabledFlowSchedule.objects.filter(flow_name="check_update: bar").exists())
 
     @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.schedule_actions.Prefect3Client")
     @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
-    def test_activate_forces_active_on_previously_paused_deployment(self, mock_client):
+    def test_activate_forces_active_on_previously_paused_deployment(
+        self, mock_client, mock_schedule_client
+    ):
         DisabledFlowSchedule.objects.create(
             flow_name="check_update: paused", deployment_id="d6", is_schedule_active=False
         )
@@ -168,14 +171,21 @@ class SyncDeploymentsViewTests(TestCase):
         self.assertEqual(resp.json()["activated"], 1)
         record = DisabledFlowSchedule.objects.get(flow_name="check_update: paused")
         self.assertTrue(record.is_schedule_active)
-        mock_client.return_value.set_paused.assert_called_once_with("d6", paused=False)
+        # force_activate goes through apply_schedule_state() (schedule_actions.py)
+        # — same helper every other reactivation path uses — not through the
+        # Prefect3Client instantiated directly in flow_monitoring.py.
+        mock_schedule_client.return_value.set_paused.assert_called_once_with("d6", paused=False)
+        self.assertIsNotNone(record.reactivated_at)
         mock_client.return_value.iter_deployments.assert_called_once_with(
             names=["check_update: paused"]
         )
 
     @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.schedule_actions.Prefect3Client")
     @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
-    def test_activate_creates_new_deployment_already_active(self, mock_client):
+    def test_activate_creates_new_deployment_already_active(
+        self, mock_client, mock_schedule_client
+    ):
         self._mock_deployments(
             mock_client,
             [
@@ -192,10 +202,11 @@ class SyncDeploymentsViewTests(TestCase):
         self.assertEqual(resp.json()["activated"], 1)
         record = DisabledFlowSchedule.objects.get(flow_name="check_update: new")
         self.assertTrue(record.is_schedule_active)
+        self.assertIsNotNone(record.reactivated_at)
         # A freshly created record still needs Prefect itself unpaused —
         # deploy_flows.py always registers paused=True, so without this call
         # the deployment stays active in the database but paused for real.
-        mock_client.return_value.set_paused.assert_called_once_with("d7", paused=False)
+        mock_schedule_client.return_value.set_paused.assert_called_once_with("d7", paused=False)
 
     @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
     @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
@@ -264,6 +275,11 @@ class SyncDeploymentsViewTests(TestCase):
     @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
     def test_non_list_activate_returns_400(self):
         resp = self._post({"activate": "check_update: foo"})
+        self.assertEqual(resp.status_code, 400)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    def test_non_string_activate_element_returns_400(self):
+        resp = self._post({"activate": [123]})
         self.assertEqual(resp.status_code, 400)
 
 

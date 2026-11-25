@@ -370,8 +370,10 @@ class SyncDeploymentsView(View):
         # list given" and silently fall back to a full sync.
         is_selective_sync = "activate" in payload
         activate_names = payload.get("activate") or []
-        if not isinstance(activate_names, list):
-            return JsonResponse({"error": "'activate' must be a list"}, status=400)
+        if not isinstance(activate_names, list) or not all(
+            isinstance(n, str) for n in activate_names
+        ):
+            return JsonResponse({"error": "'activate' must be a list of strings"}, status=400)
 
         client = Prefect3Client()
         # Materialized once (not a generator pass-through): needed twice,
@@ -454,8 +456,13 @@ class SyncDeploymentsView(View):
     ):
         """Sync a single deployment against the database and Prefect 3.
 
-        Only calls ``set_paused`` when the current Prefect state differs from
-        the desired state, avoiding unnecessary API calls on every sync.
+        Outside of ``force_activate``, only calls ``set_paused`` when the
+        current Prefect state differs from the desired state, avoiding
+        unnecessary API calls on every sync. A ``force_activate`` reactivation
+        instead goes through ``apply_schedule_state`` (``schedule_actions.py``,
+        the same helper every other reactivation path in this app uses),
+        which always calls Prefect — it needs to run every time a flow is
+        deliberately reactivated, not just when the stored state changed.
 
         Args:
             client: Authenticated ``Prefect3Client`` instance.
@@ -478,45 +485,49 @@ class SyncDeploymentsView(View):
                 results["removed_no_schedule"] += 1
             return
 
+        was_force_activated = False
         try:
             record = DisabledFlowSchedule.objects.get(flow_name=name)
-            update_fields = []
             if record.deployment_id != dep_id:
                 record.deployment_id = dep_id
-                update_fields.append("deployment_id")
+                record.save(update_fields=["deployment_id"])
                 results["updated"] += 1
             if force_activate and not record.is_schedule_active:
-                record.is_schedule_active = True
-                update_fields.append("is_schedule_active")
-            if update_fields:
-                record.save(update_fields=update_fields)
+                # Same helper every other reactivation path in this app uses
+                # (admin edit, bulk action, SetScheduleActiveView): calls
+                # Prefect before touching the database, and stamps
+                # `reactivated_at` so FlowFailedWebhookView gives this flow
+                # its grace period before a stale or immediate failure can
+                # auto-disable it again right after this reactivation.
+                apply_schedule_state(record, True)
+                was_force_activated = True
         except DisabledFlowSchedule.DoesNotExist:
+            # Always created paused — `deploy_flows.py` always registers a
+            # deployment paused, so this starts out matching Prefect's real
+            # state. `apply_schedule_state` right below is what actually
+            # activates it, for both branches, when `force_activate` applies.
             record = DisabledFlowSchedule.objects.create(
                 flow_name=name,
                 deployment_id=dep_id,
-                is_schedule_active=force_activate,
+                is_schedule_active=False,
             )
             results["created"] += 1
+            if force_activate:
+                apply_schedule_state(record, True)
+                was_force_activated = True
 
-        # Applied once here, not inside each branch above: a freshly created
-        # record needs the same enforcement against Prefect as one that
-        # already existed — `deploy_flows.py` always registers a deployment
-        # paused, so a brand-new `force_activate` record would otherwise be
-        # marked active in the database while staying paused in Prefect.
-        #
-        # Side effect, accepted deliberately: a plain full sync (no
-        # `activate`) that discovers a brand-new deployment now also
-        # increments `results["paused"]`/`["activated"]` for it, which it
-        # never did when this block only ran for already-existing records.
-        # Correct — a newly created record is enforced against Prefect too —
-        # but it does change the response shape for that path.
-        should_be_paused = not record.is_schedule_active
-        if should_be_paused != currently_paused:
-            client.set_paused(dep_id, paused=should_be_paused)
-        if should_be_paused:
-            results["paused"] += 1
-        else:
+        # Skipped when `apply_schedule_state()` already handled Prefect (and
+        # `reactivated_at`) above — calling `set_paused` again here would be
+        # a redundant request enforcing the same state it just set.
+        if not was_force_activated:
+            should_be_paused = not record.is_schedule_active
+            if should_be_paused != currently_paused:
+                client.set_paused(dep_id, paused=should_be_paused)
+
+        if record.is_schedule_active:
             results["activated"] += 1
+        else:
+            results["paused"] += 1
 
         if table_ids:
             results["tables_linked"] += (
