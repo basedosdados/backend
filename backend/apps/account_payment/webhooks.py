@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
+from functools import wraps
 from typing import NamedTuple
 
 import stripe
 from django.conf import settings
+from django.core.cache import cache
 from django.core.mail import EmailMultiAlternatives
 from django.db.models import Q
 from django.template.loader import render_to_string
@@ -12,6 +14,7 @@ from djstripe import webhooks
 from djstripe.models import Event
 from djstripe.models import Price as DJStripePrice
 from djstripe.models import Subscription as DJStripeSubscription
+from google.auth.exceptions import RefreshError
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import Resource, build
 from googleapiclient.errors import HttpError
@@ -35,6 +38,75 @@ from backend.custom.client import send_discord_message as send
 from backend.custom.environment import get_backend_url, get_frontend_url, is_dev, is_stg
 
 logger = logger.bind(module="payment")
+
+# HTTP statuses from the Google API worth a Stripe retry: credentials/permission
+# problems that get fixed by a person, rate limits and server errors.
+RETRYABLE_GOOGLE_STATUSES = frozenset({401, 403, 429})
+
+
+def with_stripe_event_context(handler):
+    """Attach the Stripe event to every log line written while handling it.
+
+    The fields land under `record.extra` in the JSON logs, so in Grafana:
+    `{app="api-prod"} | json | record_extra_stripe_event_id="evt_..."`.
+    """
+
+    @wraps(handler)
+    def wrapper(event: Event, **kwargs):
+        obj = (event.data or {}).get("object") or {}
+        customer = getattr(event, "customer", None)
+        with logger.contextualize(
+            stripe_event_id=event.id,
+            stripe_event_type=event.type,
+            stripe_object_id=obj.get("id", ""),
+            stripe_status=obj.get("status", ""),
+            stripe_customer_id=getattr(customer, "id", "") or "",
+            customer_email=getattr(customer, "email", "") or "",
+        ):
+            return handler(event, **kwargs)
+
+    return wrapper
+
+
+def is_retryable_google_error(error: Exception) -> bool:
+    """Whether a Google Group failure should make Stripe resend the webhook."""
+    if isinstance(error, HttpError):
+        status = int(getattr(error.resp, "status", 0) or 0)
+        return status in RETRYABLE_GOOGLE_STATUSES or status >= 500
+    return True
+
+
+def log_google_group(action: str, result: str, email: str, message: str, level: str = "INFO"):
+    """Log a Google Group operation with filterable fields.
+
+    Grafana: `| json | record_extra_google_group_result="error"`.
+    """
+    logger.bind(
+        google_group_action=action,
+        google_group_result=result,
+        google_group_email=email,
+    ).log(level, message)
+
+
+GOOGLE_CREDENTIALS_ALERT_KEY = "google_group:credentials_alert"
+GOOGLE_CREDENTIALS_ALERT_INTERVAL = 60 * 60
+
+
+def alert_google_credentials(error: Exception, ctx: str = "") -> None:
+    """Report an invalid service account key or domain-wide delegation.
+
+    Stripe retries each failed webhook for days, so the Discord alert goes out
+    at most once per `GOOGLE_CREDENTIALS_ALERT_INTERVAL`. The error is always
+    logged.
+    """
+    if cache.add(GOOGLE_CREDENTIALS_ALERT_KEY, True, GOOGLE_CREDENTIALS_ALERT_INTERVAL):
+        send(
+            "Credencial do Google Groups inválida (chave da service account ou delegação "
+            f"domain-wide). Ninguém está sendo adicionado ou removido do BD Pro. Erro: {error}"
+        )
+    logger.bind(google_group_result="credential_error").error(
+        f"{ctx}Credencial do Google inválida: {error}"
+    )
 
 
 def _normalize_plus(email: str) -> str:
@@ -200,14 +272,20 @@ def require_webhook_customer_context(
 def get_account_for_stripe_customer(event: Event) -> Account | None:
     """Look up the internal Account matching an event's Stripe customer.
 
+    Prefers the dj-stripe link (`customer.subscriber`), which survives email
+    changes on either side. Falls back to a case-insensitive email match.
+
     Args:
-        event: Stripe webhook event whose `customer.email` identifies the
-            account.
+        event: Stripe webhook event whose customer identifies the account.
 
     Returns:
-        The matching `Account`, or `None` if no account has that email.
+        The matching `Account`, or `None` if none is found.
     """
-    return Account.objects.filter(email=event.customer.email).first()
+    customer = event.customer
+    account = getattr(customer, "subscriber", None)
+    if account:
+        return account
+    return Account.objects.filter(email__iexact=(customer.email or "").strip()).first()
 
 
 def subscription_product_is_chatbot(
@@ -411,9 +489,12 @@ def add_user(
             ).first()
 
         if not (account and account.is_admin):
-            logger.info(
+            log_google_group(
+                "add",
+                "skipped_env",
+                email,
                 f"{ctx}Ignorando adição do usuário '{email}' "
-                "em ambiente de dev/staging pois não é admin."
+                "em ambiente de dev/staging pois não é admin.",
             )
             return
 
@@ -426,19 +507,29 @@ def add_user(
             groupKey=group_key,
             body={"email": email, "role": role},
         ).execute()
+    except RefreshError as e:
+        alert_google_credentials(e, ctx)
+        raise
     except HttpError as e:
         if e.resp.status == 409:
-            logger.warning(f"{ctx}{email} já existe no google groups")
-        else:
-            send(f"Verifique o erro ao adicionar o usuário ao google groups: {e}")
-            logger.error(f"{ctx}{e}")
-            raise e
+            log_google_group(
+                "add", "already_member", email, f"{ctx}{email} já está no Google Group"
+            )
+            return
+        send(f"Verifique o erro ao adicionar '{email}' ao Google Groups: {e}")
+        log_google_group(
+            "add", "error", email, f"{ctx}Erro ao adicionar {email} ao Google Group: {e}", "ERROR"
+        )
+        raise
+    log_google_group("add", "added", email, f"{ctx}{email} adicionado ao Google Group")
 
 
 def remove_user(email: str, group_key: str = None, event_context: str = None) -> None:
     """Remove a user from the Google Group used to gate BD Pro access.
 
-    Refuses to remove admin accounts, and refuses to remove any account that
+    Never removes anyone in dev/staging environments: they may point at the
+    real Google Group, and `add_user` only adds admins there anyway, who are
+    never removed. Refuses to remove admin accounts, and refuses to remove any account that
     still has an active subscriber flag or an active non-chatbot
     subscription (chatbot subscriptions don't grant Google Group access, so
     they don't block removal here).
@@ -457,7 +548,18 @@ def remove_user(email: str, group_key: str = None, event_context: str = None) ->
     """
     ctx = f"[{event_context}] " if event_context else ""
     if not email or "@" not in email:
-        logger.error(f"{ctx}E-mail inválido fornecido: {email!r}")
+        log_google_group(
+            "remove", "invalid_email", str(email), f"{ctx}E-mail inválido: {email!r}", "ERROR"
+        )
+        return
+
+    if is_dev() or is_stg():
+        log_google_group(
+            "remove",
+            "skipped_env",
+            _normalize_plus(email),
+            f"{ctx}Ignorando remoção do usuário '{email}' em ambiente de dev/staging.",
+        )
         return
 
     raw_email = email.strip().lower()
@@ -478,7 +580,13 @@ def remove_user(email: str, group_key: str = None, event_context: str = None) ->
 
     if user:
         if user.is_admin:
-            logger.warning(f"{ctx}Bloqueado: {raw_email} é admin. Não removido do Google Groups.")
+            log_google_group(
+                "remove",
+                "blocked_admin",
+                base_email,
+                f"{ctx}Bloqueado: {raw_email} é admin. Não removido do Google Group.",
+                "WARNING",
+            )
             return
 
         has_active_sub = getattr(
@@ -486,9 +594,13 @@ def remove_user(email: str, group_key: str = None, event_context: str = None) ->
         ) or _account_has_active_non_chatbot_subscription(user)
 
         if has_active_sub:
-            logger.warning(
+            log_google_group(
+                "remove",
+                "blocked_active_subscription",
+                base_email,
                 f"{ctx}Bloqueado: {raw_email} possui uma assinatura ativa. "
-                "Não removido do Google Groups."
+                "Não removido do Google Group.",
+                "WARNING",
             )
             return
 
@@ -500,6 +612,9 @@ def remove_user(email: str, group_key: str = None, event_context: str = None) ->
             groupKey=group_key,
             memberKey=base_email,
         ).execute()
+    except RefreshError as e:
+        alert_google_credentials(e, ctx)
+        raise
     except HttpError as e:
         try:
             status_code = int(getattr(e.resp, "status", None) or 0)
@@ -507,17 +622,28 @@ def remove_user(email: str, group_key: str = None, event_context: str = None) ->
             status_code = 0
 
         if status_code == 404 or status_code == 400:
-            logger.warning(
-                f"{ctx}{base_email} não encontrado no Google Groups (já removido ou chave inválida)"
+            log_google_group(
+                "remove",
+                "not_member",
+                base_email,
+                f"{ctx}{base_email} não está no Google Group (já removido ou chave inválida)",
+                "WARNING",
             )
             return
 
         send(f"Verifique o erro ao remover '{base_email}' do Google Groups: {e}")
-        logger.error(f"{ctx}{e}")
+        log_google_group(
+            "remove",
+            "error",
+            base_email,
+            f"{ctx}Erro ao remover {base_email} do Google Group: {e}",
+            "ERROR",
+        )
         raise
     except Exception as e:
         logger.exception(f"{ctx}Erro inesperado ao remover {base_email} do Google Groups: {e}")
         raise
+    log_google_group("remove", "removed", base_email, f"{ctx}{base_email} removido do Google Group")
 
 
 def chatbot_trial_just_ended(event: Event) -> bool:
@@ -589,6 +715,19 @@ def send_chatbot_trial_ended_email(account: Account, event_context: str = None) 
         )
 
 
+def _handle_google_group_failure(wc: WebhookContext, error: Exception) -> None:
+    """Re-raise Google Group failures that a retry can fix.
+
+    dj-stripe answers 500 when a handler raises, and Stripe resends the event
+    for up to 3 days. Without this, a failed call left the internal
+    subscription active and the user out of the group for good. Permanent
+    errors (e.g. invalid email) are only logged; the audit catches them.
+    """
+    logger.error(f"{wc.ctx}Falha no Google Group: {error!r}")
+    if is_retryable_google_error(error):
+        raise error
+
+
 def apply_active_subscription_entitlements(
     wc: WebhookContext,
     subscription: Subscription | None,
@@ -628,8 +767,12 @@ def apply_active_subscription_entitlements(
                     event_context=wc.event_context,
                 )
             except Exception as e:
-                logger.error(f"{wc.ctx}{e}")
+                _handle_google_group_failure(wc, e)
     elif not is_chat:
+        logger.warning(
+            f"{wc.ctx}Nenhuma conta encontrada para o cliente {wc.customer_email}; "
+            "adicionando ao Google Group pelo e-mail do Stripe."
+        )
         try:
             add_user(
                 wc.customer_email,
@@ -637,7 +780,7 @@ def apply_active_subscription_entitlements(
                 event_context=wc.event_context,
             )
         except Exception as e:
-            logger.error(f"{wc.ctx}{e}")
+            _handle_google_group_failure(wc, e)
 
 
 def apply_inactive_subscription_entitlements(
@@ -687,7 +830,7 @@ def apply_inactive_subscription_entitlements(
             else:
                 remove_user(wc.customer_email, event_context=wc.event_context)
         except Exception as e:
-            logger.error(f"{wc.ctx}{e}")
+            _handle_google_group_failure(wc, e)
 
 
 def list_user(group_key: str = None):
@@ -758,6 +901,7 @@ def is_email_in_group(email: str, group_key: str = None) -> bool:
 
 
 @webhooks.handler("customer.updated")
+@with_stripe_event_context
 def update_customer(event: Event, **kwargs):
     """Propagate a Stripe customer's email change to the internal Account.
 
@@ -837,6 +981,7 @@ def handle_subscription(event: Event):
 
 
 @webhooks.handler("customer.subscription.updated")
+@with_stripe_event_context
 def subscription_updated(event: Event, **kwargs):
     """Handle a Stripe subscription status update.
 
@@ -849,6 +994,7 @@ def subscription_updated(event: Event, **kwargs):
 
 
 @webhooks.handler("customer.subscription.created")
+@with_stripe_event_context
 def subscribe(event: Event, **kwargs):
     """Grant entitlements for a newly created Stripe subscription.
 
@@ -861,6 +1007,7 @@ def subscribe(event: Event, **kwargs):
 
 
 @webhooks.handler("customer.subscription.deleted")
+@with_stripe_event_context
 def unsubscribe(event: Event, **kwargs):
     """Revoke entitlements for a deleted Stripe subscription.
 
@@ -890,6 +1037,7 @@ def unsubscribe(event: Event, **kwargs):
 
 
 @webhooks.handler("customer.subscription.paused")
+@with_stripe_event_context
 def pause_subscription(event: Event, **kwargs):
     """Revoke entitlements for a paused Stripe subscription.
 
@@ -921,6 +1069,7 @@ def pause_subscription(event: Event, **kwargs):
 
 
 @webhooks.handler("customer.subscription.resumed")
+@with_stripe_event_context
 def resume_subscription(event: Event, **kwargs):
     """Grant entitlements for a resumed Stripe subscription.
 
@@ -1006,6 +1155,7 @@ def _regional_price_id(original_price_id: str, payment_method, ctx: str) -> str:
 
 
 @webhooks.handler("setup_intent.succeeded")
+@with_stripe_event_context
 def setup_intent_succeeded(event: Event, **kwargs):
     """Finish checkout: save the payment method and start the subscription.
 
