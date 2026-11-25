@@ -47,20 +47,32 @@ class Prefect3Client:
             raw = r.read()
             return json.loads(raw) if raw else None
 
-    def iter_deployments(self, page_size: int = 200) -> Iterator[dict]:
-        """Yield every deployment registered in Prefect 3, paginated.
+    def iter_deployments(
+        self, page_size: int = 200, names: list[str] | None = None
+    ) -> Iterator[dict]:
+        """Yield deployments registered in Prefect 3, paginated.
 
         Args:
             page_size: Number of deployments to fetch per page. Defaults to 200.
+            names: When given, restricts the result to deployments with these
+                exact names instead of paginating through every deployment —
+                used by a selective sync that only needs to touch the few
+                deployments a CI run just registered. An empty list is not
+                mocked in the test suite (nothing here exercises the real
+                HTTP filter), but was confirmed by hand against a real local
+                Prefect 3 server: ``any_: []`` returns zero deployments, not
+                every deployment — a selective sync called with an empty
+                ``names`` list is a safe no-op, never an unconstrained fetch.
 
         Yields:
             Deployment dicts containing at least ``id`` and ``name`` keys.
         """
+        body_filter = {"deployments": {"name": {"any_": names}}} if names is not None else {}
         for offset in range(0, 10_000, page_size):
             page = self._request(
                 "POST",
                 "/deployments/filter",
-                {"limit": page_size, "offset": offset},
+                {**body_filter, "limit": page_size, "offset": offset},
             )
             yield from page
             if len(page) < page_size:

@@ -2,6 +2,7 @@
 """Tests for the admin_data_tools endpoints."""
 
 import json
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 from django.contrib.messages.storage.fallback import FallbackStorage
@@ -31,8 +32,17 @@ class SyncDeploymentsViewTests(TestCase):
         self.client = Client()
         self.url = reverse("sync-deployments")
 
-    def _post(self):
-        return self.client.post(self.url, **AUTH)
+    def _post(self, body=None):
+        if body is None:
+            # `Client.post()` always serializes *something* (multipart by
+            # default) even with no `data` — a non-empty, non-JSON body that
+            # the view would now try (and fail) to parse as JSON. `generic`
+            # sends a genuinely empty body, matching a real caller that
+            # posts with no payload at all (the manual full-sync case).
+            return self.client.generic("POST", self.url, **AUTH)
+        return self.client.post(
+            self.url, data=json.dumps(body), content_type="application/json", **AUTH
+        )
 
     def _mock_deployments(self, mock_client, deployments):
         mock_client.return_value.iter_deployments.return_value = iter(deployments)
@@ -143,6 +153,224 @@ class SyncDeploymentsViewTests(TestCase):
         self.assertEqual(resp.json()["removed_dangling"], 0)
         self.assertTrue(DisabledFlowSchedule.objects.filter(flow_name="check_update: bar").exists())
 
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.schedule_actions.Prefect3Client")
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_activate_forces_active_on_previously_paused_deployment(
+        self, mock_client, mock_schedule_client
+    ):
+        DisabledFlowSchedule.objects.create(
+            flow_name="check_update: paused", deployment_id="d6", is_schedule_active=False
+        )
+        self._mock_deployments(
+            mock_client,
+            [
+                {
+                    "id": "d6",
+                    "name": "check_update: paused",
+                    "paused": True,
+                    "schedules": [{"id": "s1"}],
+                }
+            ],
+        )
+        resp = self._post({"activate": ["check_update: paused"]})
+        self.assertEqual(resp.json()["activated"], 1)
+        record = DisabledFlowSchedule.objects.get(flow_name="check_update: paused")
+        self.assertTrue(record.is_schedule_active)
+        # force_activate goes through apply_schedule_state() (schedule_actions.py)
+        # — same helper every other reactivation path uses — not through the
+        # Prefect3Client instantiated directly in flow_monitoring.py.
+        mock_schedule_client.return_value.set_paused.assert_called_once_with("d6", paused=False)
+        self.assertIsNotNone(record.reactivated_at)
+        mock_client.return_value.iter_deployments.assert_called_once_with(
+            names=["check_update: paused"]
+        )
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.schedule_actions.Prefect3Client")
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_activate_refreshes_reactivated_at_even_when_already_active(
+        self, mock_client, mock_schedule_client
+    ):
+        """force_activate means "this redeploy is the deliberate signal to
+        run it now" — it must stamp a *fresh* reactivated_at even if the
+        flow was already active, or a failure logged before this redeploy
+        could be counted together with one right after it as consecutive
+        failures "after reactivation", auto-disabling the flow right after
+        the very redeploy meant to protect it.
+        """
+        stale = datetime.now(timezone.utc) - timedelta(days=7)
+        DisabledFlowSchedule.objects.create(
+            flow_name="check_update: already_active",
+            deployment_id="d8",
+            is_schedule_active=True,
+            reactivated_at=stale,
+        )
+        self._mock_deployments(
+            mock_client,
+            [
+                {
+                    "id": "d8",
+                    "name": "check_update: already_active",
+                    "paused": False,
+                    "schedules": [{"id": "s1"}],
+                }
+            ],
+        )
+        resp = self._post({"activate": ["check_update: already_active"]})
+        self.assertEqual(resp.json()["activated"], 1)
+        record = DisabledFlowSchedule.objects.get(flow_name="check_update: already_active")
+        self.assertGreater(record.reactivated_at, stale)
+        mock_schedule_client.return_value.set_paused.assert_called_once_with("d8", paused=False)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.schedule_actions.Prefect3Client")
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_activate_creates_new_deployment_already_active(
+        self, mock_client, mock_schedule_client
+    ):
+        self._mock_deployments(
+            mock_client,
+            [
+                {
+                    "id": "d7",
+                    "name": "check_update: new",
+                    "paused": True,
+                    "schedules": [{"id": "s1"}],
+                }
+            ],
+        )
+        resp = self._post({"activate": ["check_update: new"]})
+        self.assertEqual(resp.json()["created"], 1)
+        self.assertEqual(resp.json()["activated"], 1)
+        record = DisabledFlowSchedule.objects.get(flow_name="check_update: new")
+        self.assertTrue(record.is_schedule_active)
+        self.assertIsNotNone(record.reactivated_at)
+        # A freshly created record still needs Prefect itself unpaused —
+        # deploy_flows.py always registers paused=True, so without this call
+        # the deployment stays active in the database but paused for real.
+        mock_schedule_client.return_value.set_paused.assert_called_once_with("d7", paused=False)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.schedule_actions.Prefect3Client")
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_activate_skips_dangling_cleanup(self, mock_client, mock_schedule_client):
+        DisabledFlowSchedule.objects.create(
+            flow_name="check_update: untouched", deployment_id="d8", is_schedule_active=True
+        )
+        self._mock_deployments(
+            mock_client,
+            [
+                {
+                    "id": "d9",
+                    "name": "check_update: other",
+                    "paused": True,
+                    "schedules": [{"id": "s1"}],
+                }
+            ],
+        )
+        resp = self._post({"activate": ["check_update: other"]})
+        self.assertEqual(resp.json()["removed_dangling"], 0)
+        self.assertEqual(resp.json()["errors"], 0)
+        self.assertTrue(
+            DisabledFlowSchedule.objects.filter(flow_name="check_update: untouched").exists()
+        )
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_activate_empty_list_syncs_nothing(self, mock_client):
+        """An empty `activate` list must not be treated as "key absent".
+
+        A CI run that registered zero deployments still means "selective
+        sync of nothing" — never a silent fallback to a full sync that
+        would touch every deployment in the database.
+        """
+        DisabledFlowSchedule.objects.create(
+            flow_name="check_update: untouched", deployment_id="d10", is_schedule_active=True
+        )
+        self._mock_deployments(mock_client, [])
+        resp = self._post({"activate": []})
+        self.assertEqual(resp.json()["removed_dangling"], 0)
+        mock_client.return_value.iter_deployments.assert_called_once_with(names=[])
+        self.assertTrue(
+            DisabledFlowSchedule.objects.filter(flow_name="check_update: untouched").exists()
+        )
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    def test_malformed_json_body_returns_400(self):
+        resp = self.client.post(
+            self.url, data="{not valid json", content_type="application/json", **AUTH
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    def test_non_dict_json_body_returns_400(self):
+        resp = self.client.post(
+            self.url, data=json.dumps([1, 2, 3]), content_type="application/json", **AUTH
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    def test_null_json_body_returns_400(self):
+        resp = self.client.post(
+            self.url, data=json.dumps(None), content_type="application/json", **AUTH
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    def test_non_list_activate_returns_400(self):
+        resp = self._post({"activate": "check_update: foo"})
+        self.assertEqual(resp.status_code, 400)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    def test_falsy_non_list_activate_values_return_400(self):
+        """`.get("activate") or []` would coerce any of these to `[]` before
+        the type check runs, silently accepting a malformed body as
+        "selective sync of nothing" instead of rejecting it.
+        """
+        for bad_value in (None, False, 0, "", {}):
+            with self.subTest(bad_value=bad_value):
+                resp = self._post({"activate": bad_value})
+                self.assertEqual(resp.status_code, 400)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.schedule_actions.Prefect3Client")
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_activate_body_is_honored_regardless_of_content_type_header(
+        self, mock_client, mock_schedule_client
+    ):
+        """A valid `{"activate": [...]}` body must never be silently
+        discarded (falling back to an expensive, unintended full sync) just
+        because the caller's Content-Type header isn't the exact string
+        "application/json" — gating the parse on that header was the bug.
+        """
+        self._mock_deployments(
+            mock_client,
+            [
+                {
+                    "id": "d1",
+                    "name": "check_update: foo",
+                    "paused": True,
+                    "schedules": [{"id": "s1"}],
+                }
+            ],
+        )
+        resp = self.client.post(
+            self.url,
+            data=json.dumps({"activate": ["check_update: foo"]}),
+            content_type="text/plain",
+            **AUTH,
+        )
+        self.assertEqual(resp.json()["activated"], 1)
+        mock_client.return_value.iter_deployments.assert_called_once_with(
+            names=["check_update: foo"]
+        )
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    def test_non_string_activate_element_returns_400(self):
+        resp = self._post({"activate": [123]})
+        self.assertEqual(resp.status_code, 400)
+
 
 @override_settings(ALLOWED_HOSTS=["testserver"])
 class SyncDeploymentsTableLinkTests(TestCase):
@@ -172,8 +400,15 @@ class SyncDeploymentsTableLinkTests(TestCase):
             gcp_table_id="informacao_consolidada",
         )
 
-    def _post(self):
-        return self.client.post(self.url, **AUTH)
+    def _post(self, body=None):
+        if body is None:
+            # See the matching comment in SyncDeploymentsViewTests._post —
+            # `Client.post()` always sends a non-empty multipart body even
+            # with no `data`, which the view would now try to parse as JSON.
+            return self.client.generic("POST", self.url, **AUTH)
+        return self.client.post(
+            self.url, data=json.dumps(body), content_type="application/json", **AUTH
+        )
 
     def _mock_deployments(self, mock_client, deployments):
         mock_client.return_value.iter_deployments.return_value = iter(deployments)
@@ -330,6 +565,48 @@ class SyncDeploymentsTableLinkTests(TestCase):
         self.assertCountEqual(monolithic.tables.values_list("id", flat=True), [self.table.id])
         dedicated_table.refresh_from_db()
         self.assertEqual(dedicated_table.flow_schedule_id, dedicated.id)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.schedule_actions.Prefect3Client")
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_selective_sync_never_links_tables(self, mock_client, mock_schedule_client):
+        """A selective sync only ever sees the few deployments it was asked
+        to touch — resolving table_ids from that partial batch could steal
+        a table away from its real dedicated deployment that simply wasn't
+        included in this run (e.g. only the monolithic flow was redeployed).
+        Table linking is skipped entirely here; a full sync is what keeps
+        it correct.
+        """
+        dedicated_table = Table.objects.create(
+            dataset=self.dataset, slug="tabela_dedicada", name="Tabela Dedicada"
+        )
+        CloudTable.objects.create(
+            table=dedicated_table,
+            gcp_project_id="basedosdados",
+            gcp_dataset_id="br_ans_beneficiario",
+            gcp_table_id="tabela_dedicada",
+        )
+        # Only the monolithic flow comes back — as if the dedicated
+        # deployment simply wasn't touched by this deploy run.
+        self._mock_deployments(
+            mock_client,
+            [
+                {
+                    "id": "d5",
+                    "name": "br_ans_beneficiario_flow",
+                    "paused": True,
+                    "schedules": [{"id": "s1"}],
+                    "tags": ["automated-deploy", "env:prod"],
+                },
+            ],
+        )
+        resp = self._post({"activate": ["br_ans_beneficiario_flow"]})
+        self.assertEqual(resp.json()["errors"], 0)
+        self.assertEqual(resp.json()["tables_linked"], 0)
+        monolithic = DisabledFlowSchedule.objects.get(flow_name="br_ans_beneficiario_flow")
+        self.assertEqual(monolithic.tables.count(), 0)
+        dedicated_table.refresh_from_db()
+        self.assertIsNone(dedicated_table.flow_schedule_id)
 
 
 @override_settings(ALLOWED_HOSTS=["testserver"])

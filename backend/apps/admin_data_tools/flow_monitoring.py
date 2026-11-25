@@ -295,9 +295,19 @@ class SyncDeploymentsView(View):
     For each remaining (scheduled) deployment returned by the Prefect 3 API:
 
     - If the deployment is unknown: creates a ``DisabledFlowSchedule`` record
-      with ``is_schedule_active=False`` (stays paused).
+      with ``is_schedule_active=False`` (stays paused) — unless it was named
+      in the request's ``activate`` list, in which case it's created active.
     - If the deployment is known: updates ``deployment_id`` if it changed after
-      re-deploy, then enforces the stored ``is_schedule_active`` state in Prefect 3.
+      re-deploy, then enforces the stored ``is_schedule_active`` state in
+      Prefect 3 — unless named in ``activate``, which forces it active
+      regardless of what was stored.
+
+    When ``activate`` is given, only those deployments are fetched and synced
+    (a selective sync for the handful a CI run just registered, instead of
+    paginating through every deployment in Prefect) and the dangling-record
+    cleanup below is skipped (a partial sync can't tell a deployment is
+    actually gone from Prefect, only that it wasn't in the list it was asked
+    to check).
 
     Also resolves and keeps in sync which ``Table``(s) each deployment feeds
     (see ``_resolve_table_ids``), linking them via ``Table.flow_schedule`` —
@@ -322,7 +332,18 @@ class SyncDeploymentsView(View):
 
         Args:
             request: Incoming Django HTTP request. Must carry a valid bearer token
-                in the ``Authorization`` header.
+                in the ``Authorization`` header. Body is optional JSON with an
+                ``activate`` key: a list of deployment names a CI run just
+                registered (possibly empty — a run that registered nothing
+                still syncs nothing, rather than falling back to a full
+                sync). When the key is present, only those names are synced
+                (not every deployment in Prefect), and each one is forced
+                active (``is_schedule_active=True``) regardless of what was
+                stored before — the caller passing a name here is treated as
+                the explicit, deliberate signal that it should run. When the
+                key is absent entirely (not just empty), behaves like a full
+                sync: every deployment is synced and each one's stored
+                ``is_schedule_active`` is preserved as before.
 
         Returns:
             ``JsonResponse`` with a summary dict containing counts for
@@ -334,17 +355,59 @@ class SyncDeploymentsView(View):
         if not _check_bearer_token(request):
             return JsonResponse({"error": "Unauthorized"}, status=401)
 
+        # Parsed whenever there's a body at all, regardless of the
+        # Content-Type header: gating this on an exact "application/json"
+        # match let a correct `{"activate": [...]}` body silently fall back
+        # to a full sync — no error, no signal — just because a caller sent
+        # it with a different or missing Content-Type.
+        payload = {}
+        if request.body:
+            try:
+                payload = json.loads(request.body)
+            except (json.JSONDecodeError, ValueError):
+                return JsonResponse({"error": "Invalid JSON"}, status=400)
+            if not isinstance(payload, dict):
+                return JsonResponse({"error": "Invalid JSON"}, status=400)
+        # The KEY's presence picks the mode, not its content — an empty list
+        # still means "selective sync, nothing to activate this time", very
+        # different from no key at all ("full sync of everything"). Checking
+        # truthiness instead would treat `{"activate": []}` as "no activate
+        # list given" and silently fall back to a full sync.
+        is_selective_sync = "activate" in payload
+        # `.get(..., [])`, not `.get("activate") or []`: the latter would
+        # coerce any falsy-but-present value (`null`, `0`, `""`, `false`,
+        # `{}`) to `[]` *before* the type check below runs, silently
+        # accepting a malformed body as "selective sync of nothing" instead
+        # of rejecting it. The validation below only applies when the key
+        # was actually given — a missing key never reaches it, matching
+        # `is_selective_sync` above.
+        activate_names = payload.get("activate", [])
+        if is_selective_sync and (
+            not isinstance(activate_names, list)
+            or not all(isinstance(n, str) for n in activate_names)
+        ):
+            return JsonResponse({"error": "'activate' must be a list of strings"}, status=400)
+
         client = Prefect3Client()
         # Materialized once (not a generator pass-through): needed twice,
         # first to find every table with a dedicated flow across the whole
         # batch, then to actually sync — order Prefect returns deployments
         # in must never affect the outcome.
-        deployments = list(client.iter_deployments())
+        deployments = list(
+            client.iter_deployments(names=activate_names if is_selective_sync else None)
+        )
         # One query for every CloudTable up front, instead of one per
         # deployment — with hundreds of deployments the per-deployment
         # queries pushed the whole sync past the nginx gateway timeout.
-        by_dataset_table, by_dataset = _build_cloud_table_index()
-        dedicated_table_ids = _dedicated_table_ids(deployments, by_dataset_table)
+        # Skipped entirely for a selective sync: its result is never read
+        # below (table linking is skipped there too, see the loop), so
+        # computing it would just be an unconditional full CloudTable scan
+        # on every CI deploy call for no benefit.
+        if is_selective_sync:
+            by_dataset_table, by_dataset, dedicated_table_ids = {}, {}, set()
+        else:
+            by_dataset_table, by_dataset = _build_cloud_table_index()
+            dedicated_table_ids = _dedicated_table_ids(deployments, by_dataset_table)
         results = {
             "created": 0,
             "updated": 0,
@@ -361,33 +424,78 @@ class SyncDeploymentsView(View):
             dep_id = dep["id"]
             currently_paused = dep.get("paused", False)
             has_schedule = bool(dep.get("schedules"))
-            table_ids = _resolve_table_ids(
-                name, dep.get("tags") or [], by_dataset_table, by_dataset, dedicated_table_ids
+            # Table linking needs the full picture of every deployment to
+            # tell a dedicated match from the dataset-wide fallback
+            # correctly (see `_dedicated_table_ids`) — a selective sync only
+            # ever sees the few deployments it was asked to touch, so
+            # resolving table_ids from that partial batch could steal a
+            # table away from its real dedicated deployment that simply
+            # wasn't included in this run. Skipped here; a full sync (the
+            # periodic/manual kind) is what keeps `Table.flow_schedule`
+            # correct.
+            table_ids = (
+                []
+                if is_selective_sync
+                else _resolve_table_ids(
+                    name, dep.get("tags") or [], by_dataset_table, by_dataset, dedicated_table_ids
+                )
             )
             try:
                 self._sync_deployment(
-                    client, name, dep_id, currently_paused, has_schedule, table_ids, results
+                    client,
+                    name,
+                    dep_id,
+                    currently_paused,
+                    has_schedule,
+                    table_ids,
+                    results,
+                    force_activate=name in activate_names,
                 )
             except Exception as exc:
                 logger.error(f"Error syncing deployment {name}: {exc}")
                 results["errors"] += 1
 
-        seen_names = {dep["name"] for dep in deployments}
-        dangling_deleted, _ = DisabledFlowSchedule.objects.exclude(
-            flow_name__in=seen_names
-        ).delete()
-        results["removed_dangling"] = dangling_deleted
+        # A partial sync only ever saw the few deployments it was asked to
+        # activate — treating everything else as "gone from Prefect" would
+        # wipe out the rest of the table. Only a full sync (no `activate`)
+        # can tell a deployment is actually dangling.
+        #
+        # `is_selective_sync` is what actually gates this — it isn't derived
+        # from `deployments`/`client.iter_deployments(names=...)` itself. Any
+        # future call site that fetches a filtered subset of deployments
+        # another way must gate this same cleanup on an equivalent flag, or
+        # it will delete legitimate rows for deployments that were simply
+        # never fetched, not actually gone from Prefect.
+        if not is_selective_sync:
+            seen_names = {dep["name"] for dep in deployments}
+            dangling_deleted, _ = DisabledFlowSchedule.objects.exclude(
+                flow_name__in=seen_names
+            ).delete()
+            results["removed_dangling"] = dangling_deleted
 
         logger.info(f"Sync complete: {results}")
         return JsonResponse(results)
 
     def _sync_deployment(
-        self, client, name, dep_id, currently_paused, has_schedule, table_ids, results
+        self,
+        client,
+        name,
+        dep_id,
+        currently_paused,
+        has_schedule,
+        table_ids,
+        results,
+        force_activate=False,
     ):
         """Sync a single deployment against the database and Prefect 3.
 
-        Only calls ``set_paused`` when the current Prefect state differs from
-        the desired state, avoiding unnecessary API calls on every sync.
+        Outside of ``force_activate``, only calls ``set_paused`` when the
+        current Prefect state differs from the desired state, avoiding
+        unnecessary API calls on every sync. A ``force_activate`` reactivation
+        instead goes through ``apply_schedule_state`` (``schedule_actions.py``,
+        the same helper every other reactivation path in this app uses),
+        which always calls Prefect — it needs to run every time a flow is
+        deliberately reactivated, not just when the stored state changed.
 
         Args:
             client: Authenticated ``Prefect3Client`` instance.
@@ -398,6 +506,11 @@ class SyncDeploymentsView(View):
             table_ids: Ids of the ``Table``s this deployment feeds, from
                 ``_resolve_table_ids`` — zero, one, or several.
             results: Mutable summary dict updated in place.
+            force_activate: When ``True`` (this deployment came from the
+                caller's ``activate`` list), the deployment is marked active
+                regardless of what was stored before — the CI run that just
+                (re)registered it is the deliberate signal to run it,
+                overriding any earlier pause.
         """
         if not has_schedule:
             deleted, _ = DisabledFlowSchedule.objects.filter(flow_name=name).delete()
@@ -405,26 +518,55 @@ class SyncDeploymentsView(View):
                 results["removed_no_schedule"] += 1
             return
 
+        was_force_activated = False
         try:
             record = DisabledFlowSchedule.objects.get(flow_name=name)
             if record.deployment_id != dep_id:
                 record.deployment_id = dep_id
                 record.save(update_fields=["deployment_id"])
                 results["updated"] += 1
-            should_be_paused = not record.is_schedule_active
-            if should_be_paused != currently_paused:
-                client.set_paused(dep_id, paused=should_be_paused)
-            if should_be_paused:
-                results["paused"] += 1
-            else:
-                results["activated"] += 1
+            if force_activate:
+                # Always applied, even if already active: force_activate
+                # means "this deploy run is the deliberate signal to run it
+                # now", and the whole point of stamping `reactivated_at`
+                # (same helper every other reactivation path in this app
+                # uses — admin edit, bulk action, SetScheduleActiveView) is
+                # to give a *fresh* grace period on every such redeploy.
+                # Skipping this when already active would leave a stale
+                # `reactivated_at` from a previous activation in place, so
+                # an unrelated failure logged before this redeploy could be
+                # counted together with one right after it as "consecutive
+                # failures after reactivation" — auto-disabling the flow
+                # right after the very redeploy meant to protect it.
+                apply_schedule_state(record, True)
+                was_force_activated = True
         except DisabledFlowSchedule.DoesNotExist:
+            # Always created paused — `deploy_flows.py` always registers a
+            # deployment paused, so this starts out matching Prefect's real
+            # state. `apply_schedule_state` right below is what actually
+            # activates it, for both branches, when `force_activate` applies.
             record = DisabledFlowSchedule.objects.create(
                 flow_name=name,
                 deployment_id=dep_id,
                 is_schedule_active=False,
             )
             results["created"] += 1
+            if force_activate:
+                apply_schedule_state(record, True)
+                was_force_activated = True
+
+        # Skipped when `apply_schedule_state()` already handled Prefect (and
+        # `reactivated_at`) above — calling `set_paused` again here would be
+        # a redundant request enforcing the same state it just set.
+        if not was_force_activated:
+            should_be_paused = not record.is_schedule_active
+            if should_be_paused != currently_paused:
+                client.set_paused(dep_id, paused=should_be_paused)
+
+        if record.is_schedule_active:
+            results["activated"] += 1
+        else:
+            results["paused"] += 1
 
         if table_ids:
             results["tables_linked"] += (
