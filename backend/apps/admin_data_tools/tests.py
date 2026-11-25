@@ -189,8 +189,13 @@ class SyncDeploymentsViewTests(TestCase):
         )
         resp = self._post({"activate": ["check_update: new"]})
         self.assertEqual(resp.json()["created"], 1)
+        self.assertEqual(resp.json()["activated"], 1)
         record = DisabledFlowSchedule.objects.get(flow_name="check_update: new")
         self.assertTrue(record.is_schedule_active)
+        # A freshly created record still needs Prefect itself unpaused —
+        # deploy_flows.py always registers paused=True, so without this call
+        # the deployment stays active in the database but paused for real.
+        mock_client.return_value.set_paused.assert_called_once_with("d7", paused=False)
 
     @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
     @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")

@@ -474,13 +474,6 @@ class SyncDeploymentsView(View):
             if force_activate and not record.is_schedule_active:
                 record.is_schedule_active = True
                 record.save(update_fields=["is_schedule_active"])
-            should_be_paused = not record.is_schedule_active
-            if should_be_paused != currently_paused:
-                client.set_paused(dep_id, paused=should_be_paused)
-            if should_be_paused:
-                results["paused"] += 1
-            else:
-                results["activated"] += 1
         except DisabledFlowSchedule.DoesNotExist:
             record = DisabledFlowSchedule.objects.create(
                 flow_name=name,
@@ -488,6 +481,19 @@ class SyncDeploymentsView(View):
                 is_schedule_active=force_activate,
             )
             results["created"] += 1
+
+        # Applied once here, not inside each branch above: a freshly created
+        # record needs the same enforcement against Prefect as one that
+        # already existed — `deploy_flows.py` always registers a deployment
+        # paused, so a brand-new `force_activate` record would otherwise be
+        # marked active in the database while staying paused in Prefect.
+        should_be_paused = not record.is_schedule_active
+        if should_be_paused != currently_paused:
+            client.set_paused(dep_id, paused=should_be_paused)
+        if should_be_paused:
+            results["paused"] += 1
+        else:
+            results["activated"] += 1
 
         if table_ids:
             results["tables_linked"] += (
