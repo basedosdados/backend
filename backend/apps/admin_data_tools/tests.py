@@ -240,6 +240,32 @@ class SyncDeploymentsViewTests(TestCase):
             DisabledFlowSchedule.objects.filter(flow_name="check_update: untouched").exists()
         )
 
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    def test_malformed_json_body_returns_400(self):
+        resp = self.client.post(
+            self.url, data="{not valid json", content_type="application/json", **AUTH
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    def test_non_dict_json_body_returns_400(self):
+        resp = self.client.post(
+            self.url, data=json.dumps([1, 2, 3]), content_type="application/json", **AUTH
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    def test_null_json_body_returns_400(self):
+        resp = self.client.post(
+            self.url, data=json.dumps(None), content_type="application/json", **AUTH
+        )
+        self.assertEqual(resp.status_code, 400)
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    def test_non_list_activate_returns_400(self):
+        resp = self._post({"activate": "check_update: foo"})
+        self.assertEqual(resp.status_code, 400)
+
 
 @override_settings(ALLOWED_HOSTS=["testserver"])
 class SyncDeploymentsTableLinkTests(TestCase):

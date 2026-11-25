@@ -355,10 +355,14 @@ class SyncDeploymentsView(View):
         if not _check_bearer_token(request):
             return JsonResponse({"error": "Unauthorized"}, status=401)
 
-        try:
-            payload = json.loads(request.body) if request.body else {}
-        except json.JSONDecodeError:
-            payload = {}
+        payload = {}
+        if request.content_type == "application/json" and request.body:
+            try:
+                payload = json.loads(request.body)
+            except (json.JSONDecodeError, ValueError):
+                return JsonResponse({"error": "Invalid JSON"}, status=400)
+            if not isinstance(payload, dict):
+                return JsonResponse({"error": "Invalid JSON"}, status=400)
         # The KEY's presence picks the mode, not its content — an empty list
         # still means "selective sync, nothing to activate this time", very
         # different from no key at all ("full sync of everything"). Checking
@@ -366,6 +370,8 @@ class SyncDeploymentsView(View):
         # list given" and silently fall back to a full sync.
         is_selective_sync = "activate" in payload
         activate_names = payload.get("activate") or []
+        if not isinstance(activate_names, list):
+            return JsonResponse({"error": "'activate' must be a list"}, status=400)
 
         client = Prefect3Client()
         # Materialized once (not a generator pass-through): needed twice,
@@ -418,6 +424,13 @@ class SyncDeploymentsView(View):
         # activate — treating everything else as "gone from Prefect" would
         # wipe out the rest of the table. Only a full sync (no `activate`)
         # can tell a deployment is actually dangling.
+        #
+        # `is_selective_sync` is what actually gates this — it isn't derived
+        # from `deployments`/`client.iter_deployments(names=...)` itself. Any
+        # future call site that fetches a filtered subset of deployments
+        # another way must gate this same cleanup on an equivalent flag, or
+        # it will delete legitimate rows for deployments that were simply
+        # never fetched, not actually gone from Prefect.
         if not is_selective_sync:
             seen_names = {dep["name"] for dep in deployments}
             dangling_deleted, _ = DisabledFlowSchedule.objects.exclude(
@@ -467,13 +480,16 @@ class SyncDeploymentsView(View):
 
         try:
             record = DisabledFlowSchedule.objects.get(flow_name=name)
+            update_fields = []
             if record.deployment_id != dep_id:
                 record.deployment_id = dep_id
-                record.save(update_fields=["deployment_id"])
+                update_fields.append("deployment_id")
                 results["updated"] += 1
             if force_activate and not record.is_schedule_active:
                 record.is_schedule_active = True
-                record.save(update_fields=["is_schedule_active"])
+                update_fields.append("is_schedule_active")
+            if update_fields:
+                record.save(update_fields=update_fields)
         except DisabledFlowSchedule.DoesNotExist:
             record = DisabledFlowSchedule.objects.create(
                 flow_name=name,
@@ -487,6 +503,13 @@ class SyncDeploymentsView(View):
         # already existed — `deploy_flows.py` always registers a deployment
         # paused, so a brand-new `force_activate` record would otherwise be
         # marked active in the database while staying paused in Prefect.
+        #
+        # Side effect, accepted deliberately: a plain full sync (no
+        # `activate`) that discovers a brand-new deployment now also
+        # increments `results["paused"]`/`["activated"]` for it, which it
+        # never did when this block only ran for already-existing records.
+        # Correct — a newly created record is enforced against Prefect too —
+        # but it does change the response shape for that path.
         should_be_paused = not record.is_schedule_active
         if should_be_paused != currently_paused:
             client.set_paused(dep_id, paused=should_be_paused)
