@@ -369,9 +369,17 @@ class SyncDeploymentsView(View):
         # truthiness instead would treat `{"activate": []}` as "no activate
         # list given" and silently fall back to a full sync.
         is_selective_sync = "activate" in payload
-        activate_names = payload.get("activate") or []
-        if not isinstance(activate_names, list) or not all(
-            isinstance(n, str) for n in activate_names
+        # `.get(..., [])`, not `.get("activate") or []`: the latter would
+        # coerce any falsy-but-present value (`null`, `0`, `""`, `false`,
+        # `{}`) to `[]` *before* the type check below runs, silently
+        # accepting a malformed body as "selective sync of nothing" instead
+        # of rejecting it. The validation below only applies when the key
+        # was actually given — a missing key never reaches it, matching
+        # `is_selective_sync` above.
+        activate_names = payload.get("activate", [])
+        if is_selective_sync and (
+            not isinstance(activate_names, list)
+            or not all(isinstance(n, str) for n in activate_names)
         ):
             return JsonResponse({"error": "'activate' must be a list of strings"}, status=400)
 
@@ -404,8 +412,21 @@ class SyncDeploymentsView(View):
             dep_id = dep["id"]
             currently_paused = dep.get("paused", False)
             has_schedule = bool(dep.get("schedules"))
-            table_ids = _resolve_table_ids(
-                name, dep.get("tags") or [], by_dataset_table, by_dataset, dedicated_table_ids
+            # Table linking needs the full picture of every deployment to
+            # tell a dedicated match from the dataset-wide fallback
+            # correctly (see `_dedicated_table_ids`) — a selective sync only
+            # ever sees the few deployments it was asked to touch, so
+            # resolving table_ids from that partial batch could steal a
+            # table away from its real dedicated deployment that simply
+            # wasn't included in this run. Skipped here; a full sync (the
+            # periodic/manual kind) is what keeps `Table.flow_schedule`
+            # correct.
+            table_ids = (
+                []
+                if is_selective_sync
+                else _resolve_table_ids(
+                    name, dep.get("tags") or [], by_dataset_table, by_dataset, dedicated_table_ids
+                )
             )
             try:
                 self._sync_deployment(
@@ -492,13 +513,19 @@ class SyncDeploymentsView(View):
                 record.deployment_id = dep_id
                 record.save(update_fields=["deployment_id"])
                 results["updated"] += 1
-            if force_activate and not record.is_schedule_active:
-                # Same helper every other reactivation path in this app uses
-                # (admin edit, bulk action, SetScheduleActiveView): calls
-                # Prefect before touching the database, and stamps
-                # `reactivated_at` so FlowFailedWebhookView gives this flow
-                # its grace period before a stale or immediate failure can
-                # auto-disable it again right after this reactivation.
+            if force_activate:
+                # Always applied, even if already active: force_activate
+                # means "this deploy run is the deliberate signal to run it
+                # now", and the whole point of stamping `reactivated_at`
+                # (same helper every other reactivation path in this app
+                # uses — admin edit, bulk action, SetScheduleActiveView) is
+                # to give a *fresh* grace period on every such redeploy.
+                # Skipping this when already active would leave a stale
+                # `reactivated_at` from a previous activation in place, so
+                # an unrelated failure logged before this redeploy could be
+                # counted together with one right after it as "consecutive
+                # failures after reactivation" — auto-disabling the flow
+                # right after the very redeploy meant to protect it.
                 apply_schedule_state(record, True)
                 was_force_activated = True
         except DisabledFlowSchedule.DoesNotExist:
