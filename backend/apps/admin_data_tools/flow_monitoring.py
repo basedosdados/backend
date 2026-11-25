@@ -355,8 +355,13 @@ class SyncDeploymentsView(View):
         if not _check_bearer_token(request):
             return JsonResponse({"error": "Unauthorized"}, status=401)
 
+        # Parsed whenever there's a body at all, regardless of the
+        # Content-Type header: gating this on an exact "application/json"
+        # match let a correct `{"activate": [...]}` body silently fall back
+        # to a full sync — no error, no signal — just because a caller sent
+        # it with a different or missing Content-Type.
         payload = {}
-        if request.content_type == "application/json" and request.body:
+        if request.body:
             try:
                 payload = json.loads(request.body)
             except (json.JSONDecodeError, ValueError):
@@ -394,8 +399,15 @@ class SyncDeploymentsView(View):
         # One query for every CloudTable up front, instead of one per
         # deployment — with hundreds of deployments the per-deployment
         # queries pushed the whole sync past the nginx gateway timeout.
-        by_dataset_table, by_dataset = _build_cloud_table_index()
-        dedicated_table_ids = _dedicated_table_ids(deployments, by_dataset_table)
+        # Skipped entirely for a selective sync: its result is never read
+        # below (table linking is skipped there too, see the loop), so
+        # computing it would just be an unconditional full CloudTable scan
+        # on every CI deploy call for no benefit.
+        if is_selective_sync:
+            by_dataset_table, by_dataset, dedicated_table_ids = {}, {}, set()
+        else:
+            by_dataset_table, by_dataset = _build_cloud_table_index()
+            dedicated_table_ids = _dedicated_table_ids(deployments, by_dataset_table)
         results = {
             "created": 0,
             "updated": 0,

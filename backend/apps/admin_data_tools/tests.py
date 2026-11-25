@@ -34,7 +34,12 @@ class SyncDeploymentsViewTests(TestCase):
 
     def _post(self, body=None):
         if body is None:
-            return self.client.post(self.url, **AUTH)
+            # `Client.post()` always serializes *something* (multipart by
+            # default) even with no `data` — a non-empty, non-JSON body that
+            # the view would now try (and fail) to parse as JSON. `generic`
+            # sends a genuinely empty body, matching a real caller that
+            # posts with no payload at all (the manual full-sync case).
+            return self.client.generic("POST", self.url, **AUTH)
         return self.client.post(
             self.url, data=json.dumps(body), content_type="application/json", **AUTH
         )
@@ -329,6 +334,39 @@ class SyncDeploymentsViewTests(TestCase):
                 self.assertEqual(resp.status_code, 400)
 
     @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
+    @patch("backend.apps.admin_data_tools.schedule_actions.Prefect3Client")
+    @patch("backend.apps.admin_data_tools.flow_monitoring.Prefect3Client")
+    def test_activate_body_is_honored_regardless_of_content_type_header(
+        self, mock_client, mock_schedule_client
+    ):
+        """A valid `{"activate": [...]}` body must never be silently
+        discarded (falling back to an expensive, unintended full sync) just
+        because the caller's Content-Type header isn't the exact string
+        "application/json" — gating the parse on that header was the bug.
+        """
+        self._mock_deployments(
+            mock_client,
+            [
+                {
+                    "id": "d1",
+                    "name": "check_update: foo",
+                    "paused": True,
+                    "schedules": [{"id": "s1"}],
+                }
+            ],
+        )
+        resp = self.client.post(
+            self.url,
+            data=json.dumps({"activate": ["check_update: foo"]}),
+            content_type="text/plain",
+            **AUTH,
+        )
+        self.assertEqual(resp.json()["activated"], 1)
+        mock_client.return_value.iter_deployments.assert_called_once_with(
+            names=["check_update: foo"]
+        )
+
+    @patch.dict("os.environ", {"PREFECT3_API_KEY": TOKEN})
     def test_non_string_activate_element_returns_400(self):
         resp = self._post({"activate": [123]})
         self.assertEqual(resp.status_code, 400)
@@ -364,7 +402,10 @@ class SyncDeploymentsTableLinkTests(TestCase):
 
     def _post(self, body=None):
         if body is None:
-            return self.client.post(self.url, **AUTH)
+            # See the matching comment in SyncDeploymentsViewTests._post —
+            # `Client.post()` always sends a non-empty multipart body even
+            # with no `data`, which the view would now try to parse as JSON.
+            return self.client.generic("POST", self.url, **AUTH)
         return self.client.post(
             self.url, data=json.dumps(body), content_type="application/json", **AUTH
         )
